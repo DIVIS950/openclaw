@@ -1,0 +1,9 @@
+{
+  "id": "revision",
+  "kind": "tool",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

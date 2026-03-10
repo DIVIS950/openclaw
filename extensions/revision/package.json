@@ -1,0 +1,15 @@
+{
+  "name": "@openclaw/revision",
+  "version": "2026.3.10",
+  "private": true,
+  "description": "OpenClaw flashcard revision plugin with SM-2 spaced repetition",
+  "type": "module",
+  "peerDependencies": {
+    "openclaw": ">=2026.1.26"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
