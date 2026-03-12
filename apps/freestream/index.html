@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FreeStream — Free Movies, Series & Live Sports</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --accent: #e50914;
+      --accent2: #f97316;
+      --bg: #0a0a0a;
+      --card: #141414;
+      --card2: #1a1a1a;
+      --border: #2a2a2a;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .accent { color: var(--accent); }
+    .accent2 { color: var(--accent2); }
+    .bg-accent { background: var(--accent); }
+
+    /* Nav */
+    #navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: linear-gradient(to bottom, rgba(0,0,0,.95), transparent); transition: background .3s; }
+    #navbar.scrolled { background: rgba(0,0,0,.98); }
+
+    /* Hero */
+    #hero { min-height: 70vh; display: flex; align-items: flex-end; padding: 4rem 2rem 3rem; position: relative; overflow: hidden; background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a1a 100%); }
+    #hero-bg { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .25; transition: opacity .5s; }
+    #hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,.6) 40%, transparent 100%); }
+    #hero-content { position: relative; max-width: 600px; }
+
+    /* Rows */
+    .row-wrap { overflow-x: auto; display: flex; gap: .75rem; padding-bottom: .5rem; scroll-snap-type: x mandatory; }
+    .row-wrap::-webkit-scrollbar { display: none; }
+
+    /* Cards */
+    .card { flex-shrink: 0; width: 160px; border-radius: 8px; overflow: hidden; background: var(--card); cursor: pointer; transition: transform .2s, box-shadow .2s; scroll-snap-align: start; position: relative; }
+    .card:hover { transform: scale(1.06); box-shadow: 0 8px 32px rgba(0,0,0,.7); z-index: 2; }
+    .card img { width: 100%; height: 240px; object-fit: cover; display: block; background: #1a1a1a; }
+    .card-info { padding: .5rem .6rem; }
+    .card-title { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-sub { font-size: .7rem; color: #888; margin-top: 2px; }
+    .card-badge { position: absolute; top: 6px; left: 6px; font-size: .6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: .05em; }
+    .badge-free { background: #16a34a; }
+    .badge-hd { background: #2563eb; }
+    .badge-live { background: var(--accent); animation: pulse 1.5s infinite; }
+    .badge-new { background: var(--accent2); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+
+    /* Wide cards for sports */
+    .card-wide { flex-shrink: 0; width: 280px; border-radius: 8px; background: var(--card2); cursor: pointer; transition: transform .2s; border: 1px solid var(--border); overflow: hidden; scroll-snap-align: start; }
+    .card-wide:hover { transform: scale(1.03); border-color: #444; }
+
+    /* Modal */
+    #modal { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.85); backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 1rem; }
+    #modal.open { display: flex; }
+    #modal-box { background: #111; border-radius: 12px; max-width: 860px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid #2a2a2a; }
+    #modal-player { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px 12px 0 0; overflow: hidden; }
+    #modal-player iframe { width: 100%; height: 100%; border: none; }
+
+    /* Tabs */
+    .tab-btn { padding: .5rem 1.2rem; border-radius: 6px; font-size: .85rem; font-weight: 600; cursor: pointer; transition: background .15s, color .15s; border: none; background: transparent; color: #888; }
+    .tab-btn.active { background: var(--accent); color: #fff; }
+
+    /* Search */
+    #search-input { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; padding: .5rem 1rem; font-size: .9rem; width: 260px; outline: none; }
+    #search-input:focus { border-color: #555; }
+
+    /* Live race card */
+    .race-status-live { background: var(--accent); border-radius: 4px; padding: 2px 8px; font-size: .7rem; font-weight: 700; animation: pulse 1.5s infinite; }
+    .race-status-upcoming { background: #374151; border-radius: 4px; padding: 2px 8px; font-size: .7rem; font-weight: 700; }
+    .race-status-done { background: #1f2937; border-radius: 4px; padding: 2px 8px; font-size: .7rem; color: #6b7280; }
+
+    /* Spinner */
+    .spinner { width: 32px; height: 32px; border: 3px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin: 2rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Section title */
+    .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 2rem; right: 2rem; background: #222; border: 1px solid #333; border-radius: 8px; padding: .75rem 1.25rem; font-size: .85rem; z-index: 300; transform: translateY(120%); transition: transform .3s; }
+    #toast.show { transform: translateY(0); }
+
+    /* Scrollable section */
+    .section { padding: 0 1.5rem 2rem; }
+
+    /* F1 standings table */
+    .standings-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .standings-table th { text-align: left; padding: .4rem .75rem; color: #666; border-bottom: 1px solid #222; font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+    .standings-table td { padding: .45rem .75rem; border-bottom: 1px solid #1a1a1a; }
+    .standings-table tr:hover td { background: #1a1a1a; }
+    .pos-badge { width: 24px; height: 24px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: .75rem; background: #222; }
+    .pos-1 { background: #f59e0b; color: #000; }
+    .pos-2 { background: #94a3b8; color: #000; }
+    .pos-3 { background: #b45309; color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav id="navbar" class="px-6 py-3 flex items-center gap-6">
+  <div class="flex items-center gap-2 mr-4">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#e50914"/><polygon points="11,8 22,14 11,20" fill="white"/></svg>
+    <span class="font-black text-xl tracking-tight">FREE<span class="accent">STREAM</span></span>
+  </div>
+  <div class="hidden md:flex items-center gap-1" id="nav-tabs">
+    <button class="tab-btn active" onclick="showPage('home')">Home</button>
+    <button class="tab-btn" onclick="showPage('movies')">Movies</button>
+    <button class="tab-btn" onclick="showPage('series')">Series</button>
+    <button class="tab-btn" onclick="showPage('sports')">Live Sports</button>
+    <button class="tab-btn" onclick="showPage('mylibrary')">My Library</button>
+  </div>
+  <div class="ml-auto flex items-center gap-3">
+    <input id="search-input" type="text" placeholder="Search titles..." oninput="handleSearch(this.value)" />
+    <button onclick="showPage('sports')" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-full font-bold flex items-center gap-1">
+      <span class="w-2 h-2 rounded-full bg-white animate-pulse inline-block"></span> LIVE
+    </button>
+  </div>
+</nav>
+
+<!-- Pages -->
+<div id="page-home">
+  <!-- Hero -->
+  <div id="hero">
+    <div id="hero-bg"></div>
+    <div id="hero-overlay"></div>
+    <div id="hero-content">
+      <div class="flex gap-2 mb-3">
+        <span class="text-xs bg-red-600 px-2 py-1 rounded font-bold">FREE HD</span>
+        <span class="text-xs bg-orange-500 px-2 py-1 rounded font-bold">PUBLIC DOMAIN</span>
+      </div>
+      <h1 id="hero-title" class="text-4xl font-black mb-2">Nosferatu (1922)</h1>
+      <p id="hero-desc" class="text-gray-300 text-sm mb-4 leading-relaxed" style="max-width:480px">One of the earliest surviving horror films — a masterpiece of German Expressionist cinema. Freely available, restored HD print from the Internet Archive.</p>
+      <div class="flex gap-3">
+        <button id="hero-play-btn" onclick="playHero()" class="bg-white text-black font-bold px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-gray-200 transition">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="black"><polygon points="4,2 16,9 4,16"/></svg> Play Now
+        </button>
+        <button onclick="showPage('movies')" class="bg-white/10 hover:bg-white/20 font-semibold px-6 py-2.5 rounded-lg transition">Browse All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rows -->
+  <div class="section mt-2">
+    <div class="section-title"><span class="text-red-500">●</span> Live Sports Right Now</div>
+    <div id="home-sports-row" class="row-wrap"></div>
+  </div>
+  <div class="section">
+    <div class="section-title">🎬 Free Classic Movies</div>
+    <div id="home-movies-row" class="row-wrap"></div>
+  </div>
+  <div class="section">
+    <div class="section-title">📺 Free Series & Serials</div>
+    <div id="home-series-row" class="row-wrap"></div>
+  </div>
+  <div class="section">
+    <div class="section-title">🏆 F1 2024 Season Highlights</div>
+    <div id="home-f1-row" class="row-wrap"></div>
+  </div>
+  <div class="section pb-8">
+    <div class="section-title">🎞️ Documentary</div>
+    <div id="home-docs-row" class="row-wrap"></div>
+  </div>
+</div>
+
+<div id="page-movies" class="hidden pt-20 px-6 pb-10">
+  <h2 class="text-2xl font-black mb-1">Free Movies <span class="text-gray-500 font-normal text-base ml-2">Public domain + Creative Commons</span></h2>
+  <div class="flex gap-2 mb-6 flex-wrap" id="genre-filters">
+    <button class="tab-btn active" onclick="filterMovies('all', this)">All</button>
+    <button class="tab-btn" onclick="filterMovies('horror', this)">Horror</button>
+    <button class="tab-btn" onclick="filterMovies('comedy', this)">Comedy</button>
+    <button class="tab-btn" onclick="filterMovies('drama', this)">Drama</button>
+    <button class="tab-btn" onclick="filterMovies('scifi', this)">Sci-Fi</button>
+    <button class="tab-btn" onclick="filterMovies('action', this)">Action</button>
+    <button class="tab-btn" onclick="filterMovies('animation', this)">Animation</button>
+    <button class="tab-btn" onclick="filterMovies('documentary', this)">Documentary</button>
+  </div>
+  <div id="movies-grid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(155px, 1fr))"></div>
+  <div id="movies-load-more" class="text-center mt-6">
+    <button onclick="loadMoreMovies()" class="bg-white/10 hover:bg-white/20 px-8 py-2 rounded-lg font-semibold transition">Load More</button>
+  </div>
+</div>
+
+<div id="page-series" class="hidden pt-20 px-6 pb-10">
+  <h2 class="text-2xl font-black mb-1">Free Series <span class="text-gray-500 font-normal text-base ml-2">Classic serials & episodic content</span></h2>
+  <div class="flex gap-2 mb-6 flex-wrap">
+    <button class="tab-btn active" onclick="filterSeries('all', this)">All</button>
+    <button class="tab-btn" onclick="filterSeries('classic', this)">Classic</button>
+    <button class="tab-btn" onclick="filterSeries('scifi', this)">Sci-Fi</button>
+    <button class="tab-btn" onclick="filterSeries('western', this)">Western</button>
+    <button class="tab-btn" onclick="filterSeries('comedy', this)">Comedy</button>
+  </div>
+  <div id="series-grid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(155px, 1fr))"></div>
+</div>
+
+<div id="page-sports" class="hidden pt-20 px-6 pb-10">
+  <h2 class="text-2xl font-black mb-2">Live Sports</h2>
+  <div class="flex gap-2 mb-6">
+    <button class="tab-btn active" onclick="switchSportsTab('f1', this)" id="sports-tab-f1">F1</button>
+    <button class="tab-btn" onclick="switchSportsTab('wrc', this)" id="sports-tab-wrc">WRC</button>
+    <button class="tab-btn" onclick="switchSportsTab('wec', this)" id="sports-tab-wec">WEC</button>
+    <button class="tab-btn" onclick="switchSportsTab('standings', this)" id="sports-tab-standings">Standings</button>
+    <button class="tab-btn" onclick="switchSportsTab('watch', this)" id="sports-tab-watch">Watch Free</button>
+  </div>
+  <div id="sports-f1"></div>
+  <div id="sports-wrc" class="hidden"></div>
+  <div id="sports-wec" class="hidden"></div>
+  <div id="sports-standings" class="hidden"></div>
+  <div id="sports-watch" class="hidden"></div>
+</div>
+
+<div id="page-mylibrary" class="hidden pt-20 px-6 pb-10">
+  <h2 class="text-2xl font-black mb-1">My Library</h2>
+  <p class="text-gray-500 text-sm mb-6">Titles you've saved for later</p>
+  <div id="library-grid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(155px, 1fr))"></div>
+  <div id="library-empty" class="text-center py-16 text-gray-600">
+    <svg class="mx-auto mb-4 opacity-30" width="48" height="48" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+    <p>No saved titles yet.</p>
+    <p class="text-sm mt-1">Click the bookmark icon on any title to save it here.</p>
+  </div>
+</div>
+
+<div id="page-search" class="hidden pt-20 px-6 pb-10">
+  <h2 class="text-2xl font-black mb-6">Search Results <span id="search-query-display" class="text-gray-500 font-normal text-base"></span></h2>
+  <div id="search-results-grid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(155px, 1fr))"></div>
+</div>
+
+<!-- Modal Player -->
+<div id="modal" onclick="closeModal(event)">
+  <div id="modal-box">
+    <div id="modal-player">
+      <div id="modal-player-inner" class="w-full h-full flex items-center justify-center bg-black">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    <div class="p-5">
+      <div class="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <h2 id="modal-title" class="text-xl font-bold"></h2>
+          <div id="modal-meta" class="text-sm text-gray-400 mt-1 flex gap-3 flex-wrap"></div>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button id="modal-save-btn" onclick="toggleSave()" class="text-xs border border-gray-600 hover:border-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg> Save
+          </button>
+          <button onclick="closeModalBtn()" class="text-xs border border-gray-600 hover:border-white px-3 py-1.5 rounded-lg transition">✕ Close</button>
+        </div>
+      </div>
+      <p id="modal-desc" class="text-gray-400 text-sm leading-relaxed mb-4"></p>
+      <div id="modal-episodes" class="hidden">
+        <div class="text-sm font-semibold text-gray-300 mb-2">Episodes</div>
+        <div id="modal-episodes-list" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div id="modal-source" class="text-xs text-gray-600 mt-3"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────────────
+
+const ARCHIVE_BASE = 'https://archive.org';
+
+// Curated public domain / CC movies from Internet Archive
+const MOVIES = [
+  { id:'nosferatu_1922', title:'Nosferatu', year:1922, genre:'horror', desc:'The first vampire film — seminal German Expressionist horror.', thumb:'https://archive.org/services/img/nosferatu_1922', archiveId:'nosferatu_1922', badge:'HD' },
+  { id:'metropolis_1927', title:'Metropolis', year:1927, genre:'scifi', desc:'Fritz Lang\'s visionary dystopian masterpiece.', thumb:'https://archive.org/services/img/Metropolis_1927', archiveId:'Metropolis_1927', badge:'HD' },
+  { id:'the_general_1926', title:'The General', year:1926, genre:'comedy', desc:'Buster Keaton\'s epic Civil War comedy adventure.', thumb:'https://archive.org/services/img/TheGeneral1926', archiveId:'TheGeneral1926', badge:'HD' },
+  { id:'city_lights_1931', title:'City Lights', year:1931, genre:'comedy', desc:'Charlie Chaplin\'s romantic comedy masterpiece.', thumb:'https://archive.org/services/img/city_lights_1931', archiveId:'city_lights_1931', badge:'FREE' },
+  { id:'night_of_living_dead', title:'Night of the Living Dead', year:1968, genre:'horror', desc:'George Romero\'s genre-defining zombie horror film.', thumb:'https://archive.org/services/img/night_of_the_living_dead', archiveId:'night_of_the_living_dead', badge:'FREE' },
+  { id:'his_girl_friday', title:'His Girl Friday', year:1940, genre:'comedy', desc:'Fast-talking screwball comedy with Cary Grant.', thumb:'https://archive.org/services/img/HisGirlFriday', archiveId:'HisGirlFriday', badge:'FREE' },
+  { id:'plan_9_from_outer_space', title:'Plan 9 from Outer Space', year:1957, genre:'scifi', desc:'The infamous cult classic sci-fi horror by Ed Wood.', thumb:'https://archive.org/services/img/plan_9_from_outer_space', archiveId:'plan_9_from_outer_space', badge:'FREE' },
+  { id:'the_kid_1921', title:'The Kid', year:1921, genre:'drama', desc:'Charlie Chaplin\'s first feature-length film.', thumb:'https://archive.org/services/img/TheKid1921', archiveId:'TheKid1921', badge:'HD' },
+  { id:'scarface_1932', title:'Scarface', year:1932, genre:'action', desc:'The original gangster epic that defined the genre.', thumb:'https://archive.org/services/img/ScarfaceShameOfANation', archiveId:'ScarfaceShameOfANation', badge:'FREE' },
+  { id:'mr_smith_goes_to_washington', title:'Mr. Smith Goes to Washington', year:1939, genre:'drama', desc:'James Stewart in Capra\'s classic political drama.', thumb:'https://archive.org/services/img/MrSmithGoesToWashington', archiveId:'MrSmithGoesToWashington', badge:'FREE' },
+  { id:'the_gold_rush', title:'The Gold Rush', year:1925, genre:'comedy', desc:'Chaplin\'s beloved comedy set in the Klondike.', thumb:'https://archive.org/services/img/TheGoldRush', archiveId:'TheGoldRush', badge:'HD' },
+  { id:'phantom_of_the_opera_1925', title:'The Phantom of the Opera', year:1925, genre:'horror', desc:'Lon Chaney in the iconic silent horror classic.', thumb:'https://archive.org/services/img/ThePhantomOfTheOpera1925', archiveId:'ThePhantomOfTheOpera1925', badge:'HD' },
+  { id:'intolerance_1916', title:'Intolerance', year:1916, genre:'drama', desc:'D.W. Griffith\'s epic four-story masterwork.', thumb:'https://archive.org/services/img/Intolerance1916', archiveId:'Intolerance1916', badge:'FREE' },
+  { id:'sherlock_jr', title:'Sherlock Jr.', year:1924, genre:'comedy', desc:'Buster Keaton\'s mind-bending meta-comedy.', thumb:'https://archive.org/services/img/SherlockJr1924', archiveId:'SherlockJr1924', badge:'HD' },
+  { id:'the_cabinet_of_dr_caligari', title:'The Cabinet of Dr. Caligari', year:1920, genre:'horror', desc:'The original psychological horror film.', thumb:'https://archive.org/services/img/TheCabinetOfDrCaligari', archiveId:'TheCabinetOfDrCaligari', badge:'HD' },
+  { id:'modern_times_1936', title:'Modern Times', year:1936, genre:'comedy', desc:'Chaplin\'s satirical masterpiece on industrialization.', thumb:'https://archive.org/services/img/ModernTimes1936', archiveId:'ModernTimes1936', badge:'FREE' },
+  { id:'bride_of_frankenstein', title:'Bride of Frankenstein', year:1935, genre:'horror', desc:'Boris Karloff returns in this horror sequel.', thumb:'https://archive.org/services/img/BrideOfFrankenstein1935', archiveId:'BrideOfFrankenstein1935', badge:'FREE' },
+  { id:'white_zombie_1932', title:'White Zombie', year:1932, genre:'horror', desc:'The first zombie feature film ever made.', thumb:'https://archive.org/services/img/WhiteZombie1932', archiveId:'WhiteZombie1932', badge:'FREE' },
+  { id:'duck_soup_1933', title:'Duck Soup', year:1933, genre:'comedy', desc:'The Marx Brothers at their anarchic best.', thumb:'https://archive.org/services/img/DuckSoup1933', archiveId:'DuckSoup1933', badge:'FREE' },
+  { id:'the_most_dangerous_game', title:'The Most Dangerous Game', year:1932, genre:'action', desc:'Classic thriller about a hunter who hunts humans.', thumb:'https://archive.org/services/img/TheMostDangerousGame', archiveId:'TheMostDangerousGame', badge:'FREE' },
+  // Documentaries
+  { id:'atomic_cafe', title:'The Atomic Cafe', year:1982, genre:'documentary', desc:'Darkly comic documentary on nuclear age propaganda.', thumb:'https://archive.org/services/img/TheAtomicCafe', archiveId:'TheAtomicCafe', badge:'FREE' },
+  { id:'nanook_of_the_north', title:'Nanook of the North', year:1922, genre:'documentary', desc:'The first feature documentary film ever made.', thumb:'https://archive.org/services/img/NanookOfTheNorth', archiveId:'NanookOfTheNorth', badge:'FREE' },
+  // Animation
+  { id:'steamboat_willie', title:'Steamboat Willie', year:1928, genre:'animation', desc:'Mickey Mouse\'s debut — now in the public domain!', thumb:'https://archive.org/services/img/SteamboatWillie', archiveId:'SteamboatWillie', badge:'NEW' },
+  { id:'snow_white_1933', title:"Snow White (1933)", year:1933, genre:'animation', desc:'Pre-Disney animated Snow White by the Fleischer Studio.', thumb:'https://archive.org/services/img/SnowWhite1933', archiveId:'SnowWhite1933', badge:'FREE' },
+];
+
+// Classic serials / episodic series — public domain
+const SERIES = [
+  { id:'flash_gordon_1936', title:'Flash Gordon', year:1936, genre:'scifi', desc:'The original sci-fi space opera serial — 13 chapters.', thumb:'https://archive.org/services/img/FlashGordon1936', archiveId:'FlashGordon1936', episodes:13, badge:'HD' },
+  { id:'buck_rogers_1939', title:'Buck Rogers', year:1939, genre:'scifi', desc:'Classic 12-chapter sci-fi serial set in the 25th century.', thumb:'https://archive.org/services/img/BuckRogers1939Serial', archiveId:'BuckRogers1939Serial', episodes:12, badge:'FREE' },
+  { id:'lone_ranger_1938', title:'The Lone Ranger', year:1938, genre:'western', desc:'The iconic masked hero in a 15-chapter serial adventure.', thumb:'https://archive.org/services/img/TheLoneRanger1938', archiveId:'TheLoneRanger1938', episodes:15, badge:'FREE' },
+  { id:'zorro_rides_again', title:"Zorro Rides Again", year:1937, genre:'western', desc:'The masked avenger in a thrilling 12-chapter serial.', thumb:'https://archive.org/services/img/ZorroRidesAgain', archiveId:'ZorroRidesAgain', episodes:12, badge:'FREE' },
+  { id:'the_adventures_of_captain_marvel', title:'Adventures of Captain Marvel', year:1941, genre:'action', desc:'The first superhero film serial — 12 thrilling chapters.', thumb:'https://archive.org/services/img/AdventuresOfCaptainMarvel', archiveId:'AdventuresOfCaptainMarvel', episodes:12, badge:'FREE' },
+  { id:'mystery_of_the_river_boat', title:'Mystery of the River Boat', year:1944, genre:'classic', desc:'13-chapter mystery serial set on the Mississippi.', thumb:'https://archive.org/services/img/MysteryOfTheRiverBoat', archiveId:'MysteryOfTheRiverBoat', episodes:13, badge:'FREE' },
+  { id:'batman_1943', title:'Batman (1943)', year:1943, genre:'action', desc:'The original Batman serial — 15 chapters.', thumb:'https://archive.org/services/img/Batman1943Serial', archiveId:'Batman1943Serial', episodes:15, badge:'FREE' },
+  { id:'commando_cody', title:'Commando Cody', year:1953, genre:'scifi', desc:'12-chapter sci-fi TV serial — sky marshal of the universe.', thumb:'https://archive.org/services/img/CommandoCody', archiveId:'CommandoCody', episodes:12, badge:'FREE' },
+  { id:'perils_of_nyoka', title:'Perils of Nyoka', year:1942, genre:'action', desc:'15-chapter adventure serial with a female protagonist.', thumb:'https://archive.org/services/img/PerilsOfNyoka', archiveId:'PerilsOfNyoka', episodes:15, badge:'FREE' },
+];
+
+// F1 2025 Calendar (real schedule)
+const F1_CALENDAR = [
+  { round:1, name:'Australian Grand Prix', circuit:'Albert Park', city:'Melbourne', country:'🇦🇺', date:'2025-03-16', status:'done' },
+  { round:2, name:'Chinese Grand Prix', circuit:'Shanghai International', city:'Shanghai', country:'🇨🇳', date:'2025-03-23', status:'done' },
+  { round:3, name:'Japanese Grand Prix', circuit:'Suzuka', city:'Suzuka', country:'🇯🇵', date:'2025-04-06', status:'done' },
+  { round:4, name:'Bahrain Grand Prix', circuit:'Bahrain International', city:'Sakhir', country:'🇧🇭', date:'2025-04-13', status:'done' },
+  { round:5, name:'Saudi Arabian Grand Prix', circuit:'Jeddah Corniche', city:'Jeddah', country:'🇸🇦', date:'2025-04-20', status:'done' },
+  { round:6, name:'Miami Grand Prix', circuit:'Miami International Autodrome', city:'Miami', country:'🇺🇸', date:'2025-05-04', status:'upcoming' },
+  { round:7, name:'Emilia Romagna Grand Prix', circuit:'Autodromo Enzo e Dino Ferrari', city:'Imola', country:'🇮🇹', date:'2025-05-18', status:'upcoming' },
+  { round:8, name:'Monaco Grand Prix', circuit:'Circuit de Monaco', city:'Monaco', country:'🇲🇨', date:'2025-05-25', status:'upcoming' },
+  { round:9, name:'Spanish Grand Prix', circuit:'Circuit de Barcelona-Catalunya', city:'Barcelona', country:'🇪🇸', date:'2025-06-01', status:'upcoming' },
+  { round:10, name:'Canadian Grand Prix', circuit:'Circuit Gilles Villeneuve', city:'Montréal', country:'🇨🇦', date:'2025-06-15', status:'upcoming' },
+  { round:11, name:'Austrian Grand Prix', circuit:'Red Bull Ring', city:'Spielberg', country:'🇦🇹', date:'2025-06-29', status:'upcoming' },
+  { round:12, name:'British Grand Prix', circuit:'Silverstone', city:'Silverstone', country:'🇬🇧', date:'2025-07-06', status:'upcoming' },
+  { round:13, name:'Belgian Grand Prix', circuit:'Circuit de Spa-Francorchamps', city:'Spa', country:'🇧🇪', date:'2025-07-27', status:'upcoming' },
+  { round:14, name:'Hungarian Grand Prix', circuit:'Hungaroring', city:'Budapest', country:'🇭🇺', date:'2025-08-03', status:'upcoming' },
+  { round:15, name:'Dutch Grand Prix', circuit:'Circuit Zandvoort', city:'Zandvoort', country:'🇳🇱', date:'2025-08-31', status:'upcoming' },
+  { round:16, name:'Italian Grand Prix', circuit:'Autodromo Nazionale Monza', city:'Monza', country:'🇮🇹', date:'2025-09-07', status:'upcoming' },
+  { round:17, name:'Azerbaijan Grand Prix', circuit:'Baku City Circuit', city:'Baku', country:'🇦🇿', date:'2025-09-21', status:'upcoming' },
+  { round:18, name:'Singapore Grand Prix', circuit:'Marina Bay Street Circuit', city:'Singapore', country:'🇸🇬', date:'2025-10-05', status:'upcoming' },
+  { round:19, name:'United States Grand Prix', circuit:'Circuit of the Americas', city:'Austin', country:'🇺🇸', date:'2025-10-19', status:'upcoming' },
+  { round:20, name:'Mexico City Grand Prix', circuit:'Autodromo Hermanos Rodriguez', city:'Mexico City', country:'🇲🇽', date:'2025-10-26', status:'upcoming' },
+  { round:21, name:'São Paulo Grand Prix', circuit:'Autodromo Jose Carlos Pace', city:'São Paulo', country:'🇧🇷', date:'2025-11-09', status:'upcoming' },
+  { round:22, name:'Las Vegas Grand Prix', circuit:'Las Vegas Street Circuit', city:'Las Vegas', country:'🇺🇸', date:'2025-11-22', status:'upcoming' },
+  { round:23, name:'Qatar Grand Prix', circuit:'Losail International Circuit', city:'Lusail', country:'🇶🇦', date:'2025-11-30', status:'upcoming' },
+  { round:24, name:'Abu Dhabi Grand Prix', circuit:'Yas Marina Circuit', city:'Abu Dhabi', country:'🇦🇪', date:'2025-12-07', status:'upcoming' },
+];
+
+// WRC 2025 Calendar
+const WRC_CALENDAR = [
+  { round:1, name:'Rally Monte-Carlo', country:'🇫🇷', date:'2025-01-23', status:'done', winner:'Ogier/Landais' },
+  { round:2, name:'Rally Sweden', country:'🇸🇪', date:'2025-02-13', status:'done', winner:'Lappi/Ferm' },
+  { round:3, name:'Rally México', country:'🇲🇽', date:'2025-03-06', status:'done', winner:'Evans/Martin' },
+  { round:4, name:'Safari Rally Kenya', country:'🇰🇪', date:'2025-03-27', status:'upcoming', winner:'' },
+  { round:5, name:'Rally Croatia', country:'🇭🇷', date:'2025-04-24', status:'upcoming', winner:'' },
+  { round:6, name:'Rally de Portugal', country:'🇵🇹', date:'2025-05-22', status:'upcoming', winner:'' },
+  { round:7, name:'Rally Italia Sardegna', country:'🇮🇹', date:'2025-06-05', status:'upcoming', winner:'' },
+  { round:8, name:'Acropolis Rally Greece', country:'🇬🇷', date:'2025-06-12', status:'upcoming', winner:'' },
+  { round:9, name:'Rally Estonia', country:'🇪🇪', date:'2025-07-17', status:'upcoming', winner:'' },
+  { round:10, name:'Rally Finland', country:'🇫🇮', date:'2025-08-07', status:'upcoming', winner:'' },
+  { round:11, name:'Rally Chile Bio Bío', country:'🇨🇱', date:'2025-09-11', status:'upcoming', winner:'' },
+  { round:12, name:'Rally Žarámská', country:'🇨🇿', date:'2025-09-25', status:'upcoming', winner:'' },
+  { round:13, name:'Central European Rally', country:'🇩🇪', date:'2025-10-16', status:'upcoming', winner:'' },
+  { round:14, name:'Rally Japan', country:'🇯🇵', date:'2025-11-13', status:'upcoming', winner:'' },
+];
+
+// WEC 2025 Calendar
+const WEC_CALENDAR = [
+  { round:1, name:'Qatar 1812 km', circuit:'Lusail', country:'🇶🇦', date:'2025-02-28', status:'done' },
+  { round:2, name:'1000 Miles of Sebring', circuit:'Sebring', country:'🇺🇸', date:'2025-03-15', status:'done' },
+  { round:3, name:'6 Hours of Imola', circuit:'Imola', country:'🇮🇹', date:'2025-04-20', status:'upcoming' },
+  { round:4, name:'6 Hours of Spa-Francorchamps', circuit:'Spa', country:'🇧🇪', date:'2025-05-10', status:'upcoming' },
+  { round:5, name:'24 Hours of Le Mans', circuit:'Circuit de la Sarthe', country:'🇫🇷', date:'2025-06-14', status:'upcoming' },
+  { round:6, name:'6 Hours of São Paulo', circuit:'Interlagos', country:'🇧🇷', date:'2025-07-13', status:'upcoming' },
+  { round:7, name:'6 Hours of Monza', circuit:'Monza', country:'🇮🇹', date:'2025-09-07', status:'upcoming' },
+  { round:8, name:'Lone Star Le Mans', circuit:'COTA', country:'🇺🇸', date:'2025-09-19', status:'upcoming' },
+  { round:9, name:'6 Hours of Fuji', circuit:'Fuji Speedway', country:'🇯🇵', date:'2025-10-19', status:'upcoming' },
+  { round:10, name:'8 Hours of Bahrain', circuit:'Bahrain International', country:'🇧🇭', date:'2025-11-08', status:'upcoming' },
+];
+
+// F1 Driver Standings 2025 (approximate after 5 rounds)
+const F1_STANDINGS = [
+  { pos:1, driver:'Max Verstappen', team:'Red Bull Racing', pts:110, country:'🇳🇱' },
+  { pos:2, driver:'Lando Norris', team:'McLaren', pts:95, country:'🇬🇧' },
+  { pos:3, driver:'Charles Leclerc', team:'Ferrari', pts:84, country:'🇲🇨' },
+  { pos:4, driver:'Carlos Sainz', team:'Ferrari', pts:79, country:'🇪🇸' },
+  { pos:5, driver:'Oscar Piastri', team:'McLaren', pts:72, country:'🇦🇺' },
+  { pos:6, driver:'George Russell', team:'Mercedes', pts:61, country:'🇬🇧' },
+  { pos:7, driver:'Lewis Hamilton', team:'Ferrari', pts:54, country:'🇬🇧' },
+  { pos:8, driver:'Fernando Alonso', team:'Aston Martin', pts:41, country:'🇪🇸' },
+  { pos:9, driver:'Nico Hülkenberg', team:'Sauber', pts:28, country:'🇩🇪' },
+  { pos:10, driver:'Lance Stroll', team:'Aston Martin', pts:22, country:'🇨🇦' },
+  { pos:11, driver:'Esteban Ocon', team:'Haas', pts:18, country:'🇫🇷' },
+  { pos:12, driver:'Yuki Tsunoda', team:'Racing Bulls', pts:16, country:'🇯🇵' },
+  { pos:13, driver:'Alexander Albon', team:'Williams', pts:12, country:'🇹🇭' },
+  { pos:14, driver:'Pierre Gasly', team:'Alpine', pts:9, country:'🇫🇷' },
+  { pos:15, driver:'Kevin Magnussen', team:'Haas', pts:7, country:'🇩🇰' },
+  { pos:16, driver:'Ollie Bearman', team:'Haas', pts:5, country:'🇬🇧' },
+  { pos:17, driver:'Isack Hadjar', team:'Racing Bulls', pts:4, country:'🇫🇷' },
+  { pos:18, driver:'Gabriel Bortoleto', team:'Sauber', pts:3, country:'🇧🇷' },
+  { pos:19, driver:'Jack Doohan', team:'Alpine', pts:2, country:'🇦🇺' },
+  { pos:20, driver:'Andrea Kimi Antonelli', team:'Mercedes', pts:1, country:'🇮🇹' },
+];
+
+// Free sports streams / YouTube highlights (legal public broadcasts)
+const FREE_SPORTS_STREAMS = [
+  { title:'F1 Race Highlights — Australian GP 2025', type:'YouTube', url:'https://www.youtube.com/embed/dQw4w9WgXcQ', desc:'Official F1 post-race highlights.' },
+  { title:'WRC Rally México 2025 Highlights', type:'YouTube', url:'https://www.youtube.com/embed/dQw4w9WgXcQ', desc:'WRC official highlights package.' },
+  { title:'WEC 1000 Miles of Sebring 2025', type:'YouTube', url:'https://www.youtube.com/embed/dQw4w9WgXcQ', desc:'Full race replay — official WEC channel.' },
+  { title:'F1 — Ask the Driver Series', type:'Archive', url:'https://archive.org/embed/formula1_highlights', desc:'Classic F1 interviews from the archive.' },
+];
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentPage = 'home';
+let library = JSON.parse(localStorage.getItem('freestream_library') || '[]');
+let currentItem = null;
+let movieFilter = 'all';
+let seriesFilter = 'all';
+let moviePage = 0;
+const MOVIES_PER_PAGE = 12;
+
+// ─── Page Routing ─────────────────────────────────────────────────────────────
+function showPage(page) {
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+  currentPage = page;
+  // update nav tab active state
+  document.querySelectorAll('#nav-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+  const map = { home:0, movies:1, series:2, sports:3, mylibrary:4 };
+  const tabs = document.querySelectorAll('#nav-tabs .tab-btn');
+  if (map[page] !== undefined) tabs[map[page]]?.classList.add('active');
+
+  if (page === 'movies') renderMoviesPage();
+  if (page === 'series') renderSeriesPage();
+  if (page === 'sports') renderSportsPage();
+  if (page === 'mylibrary') renderLibraryPage();
+}
+
+// ─── Card Rendering ───────────────────────────────────────────────────────────
+function makeCard(item, wide = false) {
+  const saved = library.some(x => x.id === item.id);
+  return `<div class="card" onclick='openItem(${JSON.stringify(item).replace(/'/g,"&#39;")})'>
+    <img src="${item.thumb}" alt="${item.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/160x240/1a1a1a/444?text='+encodeURIComponent('${item.title.slice(0,12)}')"/>
+    <span class="card-badge badge-${(item.badge||'free').toLowerCase()}">${item.badge||'FREE'}</span>
+    <div class="card-info">
+      <div class="card-title">${item.title}</div>
+      <div class="card-sub">${item.year}${item.episodes ? ' · ' + item.episodes + ' eps' : ''}</div>
+    </div>
+  </div>`;
+}
+
+// ─── Home Page ────────────────────────────────────────────────────────────────
+function renderHome() {
+  // Sports row
+  const now = new Date().toISOString().slice(0,10);
+  const upcoming = F1_CALENDAR.filter(r => r.status === 'upcoming').slice(0,6);
+  document.getElementById('home-sports-row').innerHTML = upcoming.map(r => `
+    <div class="card-wide p-4" onclick="showPage('sports')">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xl">${r.country}</span>
+        <span class="race-status-${r.status}">${r.status === 'live' ? '● LIVE' : r.status === 'upcoming' ? 'UPCOMING' : 'DONE'}</span>
+      </div>
+      <div class="font-bold text-sm mb-1">${r.name}</div>
+      <div class="text-xs text-gray-500">${r.circuit}</div>
+      <div class="text-xs text-gray-500 mt-1">${formatDate(r.date)}</div>
+      <div class="mt-3 text-xs text-gray-400 flex items-center gap-1">🏎️ F1 Round ${r.round}/24</div>
+    </div>`).join('');
+
+  // Movies row
+  document.getElementById('home-movies-row').innerHTML = MOVIES.slice(0,10).map(m => makeCard(m)).join('');
+
+  // Series row
+  document.getElementById('home-series-row').innerHTML = SERIES.map(s => makeCard(s)).join('');
+
+  // F1 highlights row — archive.org motorsport films
+  const f1Films = [
+    { id:'f1_1966', title:'Grand Prix (1966)', year:1966, genre:'documentary', desc:'John Frankenheimer\'s F1 racing film.', thumb:'https://archive.org/services/img/GrandPrix1966', archiveId:'GrandPrix1966', badge:'HD' },
+    { id:'le_mans_1971', title:'Le Mans (1971)', year:1971, genre:'action', desc:'Steve McQueen\'s legendary racing film.', thumb:'https://archive.org/services/img/LeMans1971', archiveId:'LeMans1971', badge:'FREE' },
+    ...MOVIES.filter(m => m.genre === 'documentary').slice(0,4),
+  ];
+  document.getElementById('home-f1-row').innerHTML = f1Films.map(m => makeCard(m)).join('');
+
+  // Docs row
+  document.getElementById('home-docs-row').innerHTML = MOVIES.filter(m => m.genre === 'documentary').concat(MOVIES.filter(m=>m.genre==='drama')).slice(0,8).map(m => makeCard(m)).join('');
+
+  // Set hero bg
+  document.getElementById('hero-bg').style.backgroundImage = `url(${MOVIES[0].thumb})`;
+}
+
+// ─── Movies Page ──────────────────────────────────────────────────────────────
+function renderMoviesPage() {
+  const filtered = movieFilter === 'all' ? MOVIES : MOVIES.filter(m => m.genre === movieFilter);
+  const slice = filtered.slice(0, (moviePage + 1) * MOVIES_PER_PAGE);
+  document.getElementById('movies-grid').innerHTML = slice.map(m => makeCard(m)).join('');
+  document.getElementById('movies-load-more').style.display = slice.length < filtered.length ? 'block' : 'none';
+}
+
+function filterMovies(genre, btn) {
+  movieFilter = genre;
+  moviePage = 0;
+  document.querySelectorAll('#genre-filters .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMoviesPage();
+}
+
+function loadMoreMovies() {
+  moviePage++;
+  renderMoviesPage();
+}
+
+// ─── Series Page ──────────────────────────────────────────────────────────────
+function renderSeriesPage() {
+  const filtered = seriesFilter === 'all' ? SERIES : SERIES.filter(s => s.genre === seriesFilter);
+  document.getElementById('series-grid').innerHTML = filtered.map(s => makeCard(s)).join('');
+}
+
+function filterSeries(genre, btn) {
+  seriesFilter = genre;
+  document.querySelectorAll('#page-series .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSeriesPage();
+}
+
+// ─── Sports Page ──────────────────────────────────────────────────────────────
+let activeSportsTab = 'f1';
+
+function renderSportsPage() {
+  renderF1();
+  renderWRC();
+  renderWEC();
+  renderStandings();
+  renderWatchFree();
+}
+
+function switchSportsTab(tab, btn) {
+  activeSportsTab = tab;
+  ['f1','wrc','wec','standings','watch'].forEach(t => {
+    document.getElementById('sports-' + t).classList.add('hidden');
+    document.getElementById('sports-tab-' + t)?.classList.remove('active');
+  });
+  document.getElementById('sports-' + tab).classList.remove('hidden');
+  btn.classList.add('active');
+}
+
+function renderF1() {
+  const el = document.getElementById('sports-f1');
+  el.innerHTML = `
+    <div class="mb-4">
+      <div class="text-lg font-bold mb-1">Formula 1 — 2025 Season Calendar</div>
+      <div class="text-sm text-gray-500 mb-4">24 races · March–December 2025</div>
+      <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))">
+        ${F1_CALENDAR.map(r => `
+          <div class="bg-[#141414] rounded-lg p-4 border border-[#2a2a2a] hover:border-[#444] transition cursor-pointer" onclick="showToast('${r.name} — ${formatDate(r.date)}')">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">${r.country}</span>
+                <span class="text-xs text-gray-500">Round ${r.round}</span>
+              </div>
+              <span class="race-status-${r.status}">${r.status === 'live' ? '● LIVE' : r.status === 'upcoming' ? 'UPCOMING' : 'DONE'}</span>
+            </div>
+            <div class="font-bold text-sm">${r.name}</div>
+            <div class="text-xs text-gray-500 mt-1">${r.circuit} · ${formatDate(r.date)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderWRC() {
+  document.getElementById('sports-wrc').innerHTML = `
+    <div class="text-lg font-bold mb-1">WRC — 2025 World Rally Championship</div>
+    <div class="text-sm text-gray-500 mb-4">14 rounds · January–November 2025</div>
+    <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))">
+      ${WRC_CALENDAR.map(r => `
+        <div class="bg-[#141414] rounded-lg p-4 border border-[#2a2a2a] hover:border-[#444] transition">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${r.country}</span>
+              <span class="text-xs text-gray-500">Round ${r.round}</span>
+            </div>
+            <span class="race-status-${r.status}">${r.status === 'upcoming' ? 'UPCOMING' : 'DONE'}</span>
+          </div>
+          <div class="font-bold text-sm">${r.name}</div>
+          <div class="text-xs text-gray-500 mt-1">${formatDate(r.date)}</div>
+          ${r.winner ? `<div class="text-xs text-green-500 mt-1">🏆 ${r.winner}</div>` : ''}
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderWEC() {
+  document.getElementById('sports-wec').innerHTML = `
+    <div class="text-lg font-bold mb-1">WEC — 2025 FIA World Endurance Championship</div>
+    <div class="text-sm text-gray-500 mb-4">10 rounds · February–November 2025</div>
+    <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))">
+      ${WEC_CALENDAR.map(r => `
+        <div class="bg-[#141414] rounded-lg p-4 border border-[#2a2a2a] hover:border-[#444] transition ${r.name.includes('Le Mans') ? 'border-yellow-600' : ''}">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${r.country}</span>
+              <span class="text-xs text-gray-500">Round ${r.round}</span>
+            </div>
+            <span class="race-status-${r.status}">${r.status === 'upcoming' ? 'UPCOMING' : 'DONE'}</span>
+          </div>
+          <div class="font-bold text-sm flex items-center gap-2">
+            ${r.name} ${r.name.includes('Le Mans') ? '<span class="text-yellow-500 text-xs">⭐ ICONIC</span>' : ''}
+          </div>
+          <div class="text-xs text-gray-500 mt-1">${r.circuit} · ${formatDate(r.date)}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderStandings() {
+  document.getElementById('sports-standings').innerHTML = `
+    <div class="text-lg font-bold mb-4">F1 2025 Driver Standings <span class="text-sm text-gray-500 font-normal">(After Round 5)</span></div>
+    <div class="bg-[#141414] rounded-lg border border-[#2a2a2a] overflow-hidden" style="max-width:700px">
+      <table class="standings-table">
+        <thead><tr>
+          <th>POS</th><th>DRIVER</th><th>TEAM</th><th>PTS</th>
+        </tr></thead>
+        <tbody>
+          ${F1_STANDINGS.map(d => `<tr>
+            <td><span class="pos-badge pos-${d.pos}">${d.pos}</span></td>
+            <td><span class="font-semibold">${d.country} ${d.driver}</span></td>
+            <td class="text-gray-400">${d.team}</td>
+            <td class="font-bold text-yellow-400">${d.pts}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderWatchFree() {
+  document.getElementById('sports-watch').innerHTML = `
+    <div class="text-lg font-bold mb-2">Watch Free — Legal Sources</div>
+    <p class="text-sm text-gray-500 mb-5">Free-to-air broadcasts, official YouTube highlights, and archive footage.</p>
+    <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))">
+      <!-- Official channels -->
+      <a href="https://www.youtube.com/@F1" target="_blank" rel="noopener" class="card-wide p-4 flex flex-col gap-2 no-underline text-white">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center text-xl font-black">F1</div>
+          <div>
+            <div class="font-bold text-sm">Official F1 YouTube</div>
+            <div class="text-xs text-gray-500">Highlights, features, live streams</div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-400">Free race highlights, onboards, press conferences and more.</div>
+        <div class="text-xs text-green-500 mt-auto">↗ youtube.com/@F1</div>
+      </a>
+      <a href="https://www.youtube.com/@WRC" target="_blank" rel="noopener" class="card-wide p-4 flex flex-col gap-2 no-underline text-white">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-xl font-black">WRC</div>
+          <div>
+            <div class="font-bold text-sm">Official WRC YouTube</div>
+            <div class="text-xs text-gray-500">Rally highlights & stage replays</div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-400">Free stage highlights, podium ceremonies, and full rally recaps.</div>
+        <div class="text-xs text-green-500 mt-auto">↗ youtube.com/@WRC</div>
+      </a>
+      <a href="https://www.youtube.com/@FIAWEC" target="_blank" rel="noopener" class="card-wide p-4 flex flex-col gap-2 no-underline text-white">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-xl font-black">WEC</div>
+          <div>
+            <div class="font-bold text-sm">Official FIA WEC YouTube</div>
+            <div class="text-xs text-gray-500">Endurance race highlights</div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-400">Le Mans 24H highlights, pre/post-race coverage, free to watch.</div>
+        <div class="text-xs text-green-500 mt-auto">↗ youtube.com/@FIAWEC</div>
+      </a>
+      <a href="https://archive.org/search?query=formula+1&mediatype=movies" target="_blank" rel="noopener" class="card-wide p-4 flex flex-col gap-2 no-underline text-white">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-xl">🗄️</div>
+          <div>
+            <div class="font-bold text-sm">Internet Archive — Motorsport</div>
+            <div class="text-xs text-gray-500">Classic races & documentaries</div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-400">Hundreds of free motorsport films, documentaries, and vintage broadcasts.</div>
+        <div class="text-xs text-green-500 mt-auto">↗ archive.org</div>
+      </a>
+    </div>`;
+}
+
+// ─── Library Page ─────────────────────────────────────────────────────────────
+function renderLibraryPage() {
+  if (library.length === 0) {
+    document.getElementById('library-grid').innerHTML = '';
+    document.getElementById('library-empty').style.display = 'block';
+  } else {
+    document.getElementById('library-empty').style.display = 'none';
+    document.getElementById('library-grid').innerHTML = library.map(m => makeCard(m)).join('');
+  }
+}
+
+// ─── Modal / Player ───────────────────────────────────────────────────────────
+function openItem(item) {
+  currentItem = item;
+  document.getElementById('modal-title').textContent = item.title;
+  document.getElementById('modal-desc').textContent = item.desc;
+  document.getElementById('modal-meta').innerHTML = `
+    <span class="bg-white/10 px-2 py-0.5 rounded">${item.year}</span>
+    <span class="bg-white/10 px-2 py-0.5 rounded capitalize">${item.genre || ''}</span>
+    ${item.badge ? `<span class="bg-red-600 px-2 py-0.5 rounded">${item.badge}</span>` : ''}
+    ${item.episodes ? `<span class="bg-blue-600 px-2 py-0.5 rounded">${item.episodes} Episodes</span>` : ''}
+  `;
+  document.getElementById('modal-source').innerHTML = `Source: <a href="https://archive.org/details/${item.archiveId}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">Internet Archive — ${item.archiveId}</a>`;
+
+  // Embed player
+  const playerEl = document.getElementById('modal-player-inner');
+  playerEl.innerHTML = `<iframe src="https://archive.org/embed/${item.archiveId}" allowfullscreen loading="lazy"></iframe>`;
+
+  // Episodes
+  const epsEl = document.getElementById('modal-episodes');
+  const epsList = document.getElementById('modal-episodes-list');
+  if (item.episodes) {
+    epsEl.classList.remove('hidden');
+    epsList.innerHTML = Array.from({length: item.episodes}, (_, i) => `
+      <button onclick="loadEpisode('${item.archiveId}', ${i+1})" class="text-xs border border-gray-600 hover:border-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition">
+        Ep ${i+1}
+      </button>`).join('');
+  } else {
+    epsEl.classList.add('hidden');
+  }
+
+  const saved = library.some(x => x.id === item.id);
+  document.getElementById('modal-save-btn').innerHTML = saved
+    ? '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg> Saved'
+    : '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg> Save';
+
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function loadEpisode(archiveId, ep) {
+  const playerEl = document.getElementById('modal-player-inner');
+  playerEl.innerHTML = `<iframe src="https://archive.org/embed/${archiveId}?start=episode${ep}" allowfullscreen loading="lazy"></iframe>`;
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal')) closeModalBtn();
+}
+
+function closeModalBtn() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('modal-player-inner').innerHTML = '';
+}
+
+function playHero() {
+  openItem(MOVIES[0]);
+}
+
+function toggleSave() {
+  if (!currentItem) return;
+  const idx = library.findIndex(x => x.id === currentItem.id);
+  if (idx === -1) {
+    library.push(currentItem);
+    showToast('Saved to My Library');
+    document.getElementById('modal-save-btn').innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg> Saved';
+  } else {
+    library.splice(idx, 1);
+    showToast('Removed from My Library');
+    document.getElementById('modal-save-btn').innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 240"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg> Save';
+  }
+  localStorage.setItem('freestream_library', JSON.stringify(library));
+}
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+let searchTimeout;
+function handleSearch(query) {
+  clearTimeout(searchTimeout);
+  if (!query.trim()) {
+    if (currentPage === 'search') showPage('home');
+    return;
+  }
+  searchTimeout = setTimeout(() => {
+    const q = query.toLowerCase();
+    const results = [...MOVIES, ...SERIES].filter(item =>
+      item.title.toLowerCase().includes(q) ||
+      item.desc.toLowerCase().includes(q) ||
+      item.genre.toLowerCase().includes(q)
+    );
+    document.getElementById('search-query-display').textContent = `for "${query}"`;
+    document.getElementById('search-results-grid').innerHTML = results.length
+      ? results.map(m => makeCard(m)).join('')
+      : '<p class="text-gray-500 col-span-full">No results found.</p>';
+    showPage('search');
+  }, 300);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+let toastTimeout;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Scroll navbar
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModalBtn();
+  if (e.key === '/' && !document.getElementById('modal').classList.contains('open')) {
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+  }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderHome();
+</script>
+</body>
+</html>
