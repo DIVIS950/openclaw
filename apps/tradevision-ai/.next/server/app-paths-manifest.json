@@ -1,0 +1,16 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/market-data/route": "app/api/market-data/route.js",
+  "/api/news/route": "app/api/news/route.js",
+  "/api/ai-signal/route": "app/api/ai-signal/route.js",
+  "/api/search/route": "app/api/search/route.js",
+  "/api/stock/[ticker]/route": "app/api/stock/[ticker]/route.js",
+  "/api/stock/[ticker]/candles/route": "app/api/stock/[ticker]/candles/route.js",
+  "/news/page": "app/news/page.js",
+  "/portfolio/page": "app/portfolio/page.js",
+  "/stocks/[ticker]/page": "app/stocks/[ticker]/page.js",
+  "/stocks/page": "app/stocks/page.js",
+  "/watchlist/page": "app/watchlist/page.js",
+  "/api/chat/route": "app/api/chat/route.js",
+  "/page": "app/page.js"
+}
