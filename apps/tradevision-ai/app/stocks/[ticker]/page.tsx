@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { StockChart } from "@/components/stocks/StockChart";
 import { AISignalCard } from "@/components/stocks/AISignalCard";

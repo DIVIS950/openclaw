@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { MOCK_SEARCH_RESULTS, TRENDING_TICKERS, MOCK_QUOTES } from "@/lib/mock-data";
 import { formatPrice, formatPercent, changeTextClass } from "@/lib/utils";
