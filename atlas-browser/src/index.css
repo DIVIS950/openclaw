@@ -1,0 +1,397 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Atlas Browser Design System - Global Styles & Custom Properties
+   ============================================================ */
+
+:root {
+  /* ── Core Dark Palette ── */
+  --atlas-void: #050510;
+  --atlas-midnight: #0A0A1F;
+  --atlas-navy: #0D1B2A;
+  --atlas-deep-blue: #1B1464;
+  --atlas-slate: #1B2838;
+  --atlas-steel: #2A3A4A;
+
+  /* ── Accent: Red / Warm ── */
+  --atlas-red: #E4002B;
+  --atlas-crimson: #FF0000;
+  --atlas-gold: #FFD700;
+  --atlas-amber: #FFAB00;
+
+  /* ── Accent: Green ── */
+  --atlas-racing-green: #006F62;
+  --atlas-emerald: #00594C;
+  --atlas-forest: #2D6A4F;
+  --atlas-british-green: #005C3B;
+
+  /* ── Accent: Neon / Electric ── */
+  --atlas-lime: #A6FF00;
+  --atlas-neon-green: #CCFF00;
+  --atlas-electric: #B8FF00;
+
+  /* ── Text ── */
+  --atlas-text-primary: #F0F0F5;
+  --atlas-text-secondary: #8A8FA8;
+  --atlas-text-tertiary: #5A5F78;
+  --atlas-text-ghost: #3A3F58;
+
+  /* ── Gradients ── */
+  --atlas-gradient-surface: linear-gradient(
+    135deg,
+    var(--atlas-midnight) 0%,
+    var(--atlas-navy) 50%,
+    var(--atlas-slate) 100%
+  );
+  --atlas-gradient-accent: linear-gradient(
+    135deg,
+    var(--atlas-racing-green) 0%,
+    var(--atlas-emerald) 50%,
+    var(--atlas-lime) 100%
+  );
+  --atlas-gradient-warm: linear-gradient(
+    135deg,
+    var(--atlas-red) 0%,
+    var(--atlas-crimson) 50%,
+    var(--atlas-gold) 100%
+  );
+  --atlas-gradient-neon: linear-gradient(
+    135deg,
+    var(--atlas-neon-green) 0%,
+    var(--atlas-electric) 50%,
+    var(--atlas-lime) 100%
+  );
+  --atlas-gradient-depth: linear-gradient(
+    180deg,
+    var(--atlas-void) 0%,
+    var(--atlas-midnight) 40%,
+    var(--atlas-navy) 100%
+  );
+
+  /* ── Glow Effects ── */
+  --atlas-glow-green: 0 0 12px rgba(166, 255, 0, 0.35),
+    0 0 24px rgba(166, 255, 0, 0.15);
+  --atlas-glow-red: 0 0 12px rgba(228, 0, 43, 0.35),
+    0 0 24px rgba(228, 0, 43, 0.15);
+  --atlas-glow-gold: 0 0 12px rgba(255, 215, 0, 0.35),
+    0 0 24px rgba(255, 215, 0, 0.15);
+  --atlas-glow-neon: 0 0 12px rgba(204, 255, 0, 0.4),
+    0 0 24px rgba(184, 255, 0, 0.2);
+  --atlas-glow-ambient: 0 0 40px rgba(27, 20, 100, 0.3),
+    0 0 80px rgba(13, 27, 42, 0.2);
+
+  /* ── Shadows ── */
+  --atlas-shadow-sm: 0 1px 2px rgba(5, 5, 16, 0.4);
+  --atlas-shadow-md: 0 4px 12px rgba(5, 5, 16, 0.5),
+    0 1px 3px rgba(5, 5, 16, 0.3);
+  --atlas-shadow-lg: 0 8px 24px rgba(5, 5, 16, 0.6),
+    0 2px 8px rgba(5, 5, 16, 0.4);
+  --atlas-shadow-xl: 0 16px 48px rgba(5, 5, 16, 0.7),
+    0 4px 16px rgba(5, 5, 16, 0.5);
+  --atlas-shadow-inset: inset 0 1px 4px rgba(5, 5, 16, 0.5);
+
+  /* ── Glass Effects ── */
+  --atlas-glass-bg: rgba(10, 10, 31, 0.6);
+  --atlas-glass-border: rgba(138, 143, 168, 0.12);
+  --atlas-glass-blur: 16px;
+  --atlas-glass-bg-heavy: rgba(10, 10, 31, 0.8);
+  --atlas-glass-bg-light: rgba(10, 10, 31, 0.35);
+
+  /* ── Spacing ── */
+  --atlas-space-xs: 4px;
+  --atlas-space-sm: 8px;
+  --atlas-space-md: 16px;
+  --atlas-space-lg: 24px;
+  --atlas-space-xl: 32px;
+  --atlas-space-2xl: 48px;
+  --atlas-space-3xl: 64px;
+
+  /* ── Radii ── */
+  --atlas-radius-sm: 4px;
+  --atlas-radius-md: 8px;
+  --atlas-radius-lg: 12px;
+  --atlas-radius-xl: 16px;
+  --atlas-radius-2xl: 24px;
+  --atlas-radius-full: 9999px;
+
+  /* ── Typography ── */
+  --atlas-font-sans: "Inter", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --atlas-font-mono: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code",
+    monospace;
+
+  --atlas-text-xs: 0.75rem;
+  --atlas-text-sm: 0.875rem;
+  --atlas-text-base: 1rem;
+  --atlas-text-lg: 1.125rem;
+  --atlas-text-xl: 1.25rem;
+  --atlas-text-2xl: 1.5rem;
+  --atlas-text-3xl: 1.875rem;
+
+  --atlas-leading-tight: 1.25;
+  --atlas-leading-normal: 1.5;
+  --atlas-leading-relaxed: 1.75;
+
+  --atlas-weight-normal: 400;
+  --atlas-weight-medium: 500;
+  --atlas-weight-semibold: 600;
+  --atlas-weight-bold: 700;
+
+  /* ── Transitions ── */
+  --atlas-transition-fast: 120ms ease-out;
+  --atlas-transition-normal: 200ms ease-out;
+  --atlas-transition-slow: 350ms ease-out;
+}
+
+/* ============================================================
+   Global Styles
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--atlas-void);
+  color: var(--atlas-text-primary);
+  font-family: var(--atlas-font-sans);
+  font-size: var(--atlas-text-base);
+  line-height: var(--atlas-leading-normal);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--atlas-void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--atlas-steel);
+  border-radius: var(--atlas-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--atlas-text-tertiary);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--atlas-steel) var(--atlas-void);
+}
+
+/* ── Selection ── */
+
+::selection {
+  background: rgba(166, 255, 0, 0.25);
+  color: var(--atlas-text-primary);
+}
+
+/* ============================================================
+   Glass Morphism Utilities
+   ============================================================ */
+
+.atlas-glass {
+  background: var(--atlas-glass-bg);
+  backdrop-filter: blur(var(--atlas-glass-blur));
+  -webkit-backdrop-filter: blur(var(--atlas-glass-blur));
+  border: 1px solid var(--atlas-glass-border);
+}
+
+.atlas-glass-heavy {
+  background: var(--atlas-glass-bg-heavy);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--atlas-glass-border);
+}
+
+.atlas-glass-light {
+  background: var(--atlas-glass-bg-light);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--atlas-glass-border);
+}
+
+/* ============================================================
+   Glow Utilities
+   ============================================================ */
+
+.atlas-glow-green {
+  box-shadow: var(--atlas-glow-green);
+}
+
+.atlas-glow-red {
+  box-shadow: var(--atlas-glow-red);
+}
+
+.atlas-glow-gold {
+  box-shadow: var(--atlas-glow-gold);
+}
+
+.atlas-glow-neon {
+  box-shadow: var(--atlas-glow-neon);
+}
+
+.atlas-glow-ambient {
+  box-shadow: var(--atlas-glow-ambient);
+}
+
+/* Glow on hover variants */
+.atlas-glow-green-hover:hover {
+  box-shadow: var(--atlas-glow-green);
+}
+
+.atlas-glow-red-hover:hover {
+  box-shadow: var(--atlas-glow-red);
+}
+
+.atlas-glow-gold-hover:hover {
+  box-shadow: var(--atlas-glow-gold);
+}
+
+/* ============================================================
+   Gradient Utilities
+   ============================================================ */
+
+.atlas-gradient-surface {
+  background: var(--atlas-gradient-surface);
+}
+
+.atlas-gradient-accent {
+  background: var(--atlas-gradient-accent);
+}
+
+.atlas-gradient-warm {
+  background: var(--atlas-gradient-warm);
+}
+
+.atlas-gradient-neon {
+  background: var(--atlas-gradient-neon);
+}
+
+.atlas-gradient-depth {
+  background: var(--atlas-gradient-depth);
+}
+
+.atlas-gradient-text {
+  background: var(--atlas-gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ============================================================
+   Animation Keyframes
+   ============================================================ */
+
+@keyframes atlas-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes atlas-pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes atlas-spin-loader {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes atlas-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes atlas-slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes atlas-slide-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Animation Utilities ── */
+
+.atlas-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(138, 143, 168, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: atlas-shimmer 2s ease-in-out infinite;
+}
+
+.atlas-pulse-glow {
+  animation: atlas-pulse-glow 2s ease-in-out infinite;
+}
+
+.atlas-spin-loader {
+  animation: atlas-spin-loader 0.8s linear infinite;
+}
+
+.atlas-fade-in {
+  animation: atlas-fade-in 0.3s ease-out forwards;
+}
+
+.atlas-slide-in-right {
+  animation: atlas-slide-in-right 0.3s ease-out forwards;
+}
+
+.atlas-slide-in-up {
+  animation: atlas-slide-in-up 0.25s ease-out forwards;
+}
