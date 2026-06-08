@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Steak App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --rare:       #c0392b;
+      --med-rare:   #e74c3c;
+      --medium:     #e67e22;
+      --med-well:   #d35400;
+      --well:       #7f4b28;
+      --bg:         #1a1008;
+      --surface:    #2a1c0e;
+      --surface2:   #3a2512;
+      --text:       #f5e6d3;
+      --muted:      #a08060;
+      --accent:     #e8a050;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: 1.25rem;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 480px;
+      margin-bottom: 1.25rem;
+      border: 1px solid #3a2c1a;
+    }
+
+    .card h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* --- Doneness selector --- */
+    .doneness-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.5rem;
+    }
+
+    .doneness-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 0.25rem;
+      border-radius: 0.75rem;
+      border: 2px solid transparent;
+      background: var(--surface2);
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .doneness-btn .swatch {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.08);
+      transition: transform 0.15s;
+    }
+
+    .doneness-btn:hover { transform: translateY(-2px); }
+    .doneness-btn:hover .swatch { transform: scale(1.1); }
+
+    .doneness-btn.active {
+      border-color: var(--accent);
+      background: #3e2a10;
+    }
+
+    .doneness-btn[data-id="rare"]     .swatch { background: var(--rare); }
+    .doneness-btn[data-id="med-rare"] .swatch { background: var(--med-rare); }
+    .doneness-btn[data-id="medium"]   .swatch { background: var(--medium); }
+    .doneness-btn[data-id="med-well"] .swatch { background: var(--med-well); }
+    .doneness-btn[data-id="well"]     .swatch { background: var(--well); }
+
+    .temp-display {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      background: var(--surface2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .temp-display .temp-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .temp-display .temp-unit { color: var(--muted); font-size: 0.75rem; }
+
+    /* --- Thickness --- */
+    .thickness-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .thickness-btn {
+      flex: 1;
+      padding: 0.6rem;
+      border-radius: 0.75rem;
+      border: 2px solid transparent;
+      background: var(--surface2);
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .thickness-btn:hover { background: #3e2a10; }
+    .thickness-btn.active { border-color: var(--accent); background: #3e2a10; }
+
+    /* --- Timer --- */
+    .timer-display {
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .timer-digits {
+      font-size: 4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .timer-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+
+    .progress-bar-wrap {
+      background: var(--surface2);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--rare), var(--accent));
+      width: 0%;
+      transition: width 1s linear, background 1s;
+    }
+
+    .timer-controls {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.85rem;
+      border-radius: 0.9rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #1a0e00;
+    }
+
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:active { filter: brightness(0.95); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover { background: #4a3018; }
+
+    .flip-notice {
+      display: none;
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      background: #3e1a00;
+      border: 1px solid var(--accent);
+      font-size: 0.88rem;
+      text-align: center;
+      color: var(--accent);
+      font-weight: 600;
+      animation: pulse 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { opacity: 0.8; }
+      to   { opacity: 1; }
+    }
+
+    /* --- Reference card --- */
+    .ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .ref-table th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid #3a2c1a;
+    }
+
+    .ref-table td {
+      padding: 0.55rem 0;
+      border-bottom: 1px solid #2a1c0e;
+      vertical-align: middle;
+    }
+
+    .ref-table tr:last-child td { border-bottom: none; }
+
+    .dot {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: 1rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🥩 Steak App</h1>
+<p class="tagline">Nail doneness every time.</p>
+
+<!-- Doneness -->
+<div class="card">
+  <h2>Doneness</h2>
+  <div class="doneness-grid">
+    <button class="doneness-btn" data-id="rare"     data-temp-f="125" data-temp-c="52"  data-label="Rare">
+      <span class="swatch"></span>Rare
+    </button>
+    <button class="doneness-btn active" data-id="med-rare" data-temp-f="135" data-temp-c="57"  data-label="Medium-Rare">
+      <span class="swatch"></span>Med‑Rare
+    </button>
+    <button class="doneness-btn" data-id="medium"   data-temp-f="145" data-temp-c="63"  data-label="Medium">
+      <span class="swatch"></span>Medium
+    </button>
+    <button class="doneness-btn" data-id="med-well" data-temp-f="150" data-temp-c="66"  data-label="Med‑Well">
+      <span class="swatch"></span>Med‑Well
+    </button>
+    <button class="doneness-btn" data-id="well"     data-temp-f="160" data-temp-c="71"  data-label="Well Done">
+      <span class="swatch"></span>Well Done
+    </button>
+  </div>
+
+  <div class="temp-display">
+    <span>Pull temp <span class="temp-unit">(remove from heat)</span></span>
+    <span>
+      <span class="temp-val" id="tempF">135</span>
+      <span class="temp-unit">°F</span>
+      &nbsp;/&nbsp;
+      <span class="temp-val" id="tempC">57</span>
+      <span class="temp-unit">°C</span>
+    </span>
+  </div>
+</div>
+
+<!-- Thickness / cut -->
+<div class="card">
+  <h2>Thickness</h2>
+  <div class="thickness-row">
+    <button class="thickness-btn" data-inch="0.75" data-mins="8">
+      ¾ in<br><span style="color:var(--muted);font-weight:400">~8 min</span>
+    </button>
+    <button class="thickness-btn active" data-inch="1" data-mins="10">
+      1 in<br><span style="color:var(--muted);font-weight:400">~10 min</span>
+    </button>
+    <button class="thickness-btn" data-inch="1.25" data-mins="13">
+      1¼ in<br><span style="color:var(--muted);font-weight:400">~13 min</span>
+    </button>
+    <button class="thickness-btn" data-inch="1.5" data-mins="16">
+      1½ in<br><span style="color:var(--muted);font-weight:400">~16 min</span>
+    </button>
+  </div>
+</div>
+
+<!-- Timer -->
+<div class="card">
+  <h2>Cook Timer</h2>
+  <div class="timer-display">
+    <div class="timer-digits" id="timerDisplay">10:00</div>
+    <div class="timer-label" id="timerLabel">medium-rare · 1 inch · flip at 5:00</div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div class="timer-controls">
+    <button class="btn btn-primary" id="startBtn" onclick="toggleTimer()">Start</button>
+    <button class="btn btn-secondary" onclick="resetTimer()">Reset</button>
+  </div>
+  <div class="flip-notice" id="flipNotice">🔄 Flip your steak now!</div>
+</div>
+
+<!-- Reference -->
+<div class="card">
+  <h2>Quick Reference</h2>
+  <table class="ref-table">
+    <thead>
+      <tr>
+        <th>Doneness</th>
+        <th>Pull Temp</th>
+        <th>Rest Temp</th>
+        <th>Feel</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="dot" style="background:var(--rare)"></span>Rare</td>
+        <td>125°F / 52°C</td>
+        <td>130°F</td>
+        <td>Very soft</td>
+      </tr>
+      <tr>
+        <td><span class="dot" style="background:var(--med-rare)"></span>Med‑Rare</td>
+        <td>135°F / 57°C</td>
+        <td>140°F</td>
+        <td>Soft, springy</td>
+      </tr>
+      <tr>
+        <td><span class="dot" style="background:var(--medium)"></span>Medium</td>
+        <td>145°F / 63°C</td>
+        <td>150°F</td>
+        <td>Firm center</td>
+      </tr>
+      <tr>
+        <td><span class="dot" style="background:var(--med-well)"></span>Med‑Well</td>
+        <td>150°F / 66°C</td>
+        <td>155°F</td>
+        <td>Mostly firm</td>
+      </tr>
+      <tr>
+        <td><span class="dot" style="background:var(--well)"></span>Well Done</td>
+        <td>160°F / 71°C</td>
+        <td>165°F</td>
+        <td>Firm throughout</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="footer">Times for cast iron / grill over medium-high heat. Always verify with a meat thermometer.<br>Rest your steak 5 min after pulling.</p>
+
+<script>
+  const DONENESS = {
+    'rare':     { tempF: 125, tempC: 52 },
+    'med-rare': { tempF: 135, tempC: 57 },
+    'medium':   { tempF: 145, tempC: 63 },
+    'med-well': { tempF: 150, tempC: 66 },
+    'well':     { tempF: 160, tempC: 71 },
+  };
+
+  let totalSeconds = 10 * 60;
+  let remaining = totalSeconds;
+  let running = false;
+  let interval = null;
+  let flipped = false;
+
+  function selectedDoneness() {
+    return document.querySelector('.doneness-btn.active');
+  }
+
+  function selectedThickness() {
+    return document.querySelector('.thickness-btn.active');
+  }
+
+  function updateTempDisplay() {
+    const btn = selectedDoneness();
+    document.getElementById('tempF').textContent = btn.dataset.tempF;
+    document.getElementById('tempC').textContent = btn.dataset.tempC;
+  }
+
+  function updateTimerLabel() {
+    const d = selectedDoneness();
+    const t = selectedThickness();
+    const mins = parseInt(t.dataset.mins);
+    const halfMins = Math.floor(mins / 2);
+    const halfSec = halfMins * 60;
+    const flipMin = Math.floor(halfSec / 60);
+    const flipSec = halfSec % 60;
+    document.getElementById('timerLabel').textContent =
+      `${d.dataset.label.toLowerCase()} · ${t.dataset.inch} inch · flip at ${flipMin}:${String(flipSec).padStart(2,'0')}`;
+  }
+
+  function applySettings() {
+    const t = selectedThickness();
+    totalSeconds = parseInt(t.dataset.mins) * 60;
+    remaining = totalSeconds;
+    flipped = false;
+    renderTimer();
+    document.getElementById('flipNotice').style.display = 'none';
+    updateTempDisplay();
+    updateTimerLabel();
+  }
+
+  function renderTimer() {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    document.getElementById('timerDisplay').textContent =
+      `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+    const pct = ((totalSeconds - remaining) / totalSeconds) * 100;
+    document.getElementById('progressBar').style.width = pct + '%';
+  }
+
+  function toggleTimer() {
+    if (running) {
+      clearInterval(interval);
+      running = false;
+      document.getElementById('startBtn').textContent = 'Resume';
+    } else {
+      running = true;
+      document.getElementById('startBtn').textContent = 'Pause';
+      interval = setInterval(tick, 1000);
+    }
+  }
+
+  function tick() {
+    if (remaining <= 0) {
+      clearInterval(interval);
+      running = false;
+      document.getElementById('startBtn').textContent = 'Done!';
+      document.getElementById('flipNotice').style.display = 'none';
+      document.getElementById('timerDisplay').textContent = '00:00';
+      return;
+    }
+
+    remaining--;
+    renderTimer();
+
+    const half = Math.floor(totalSeconds / 2);
+    if (!flipped && remaining === half) {
+      flipped = true;
+      document.getElementById('flipNotice').style.display = 'block';
+      setTimeout(() => {
+        document.getElementById('flipNotice').style.display = 'none';
+      }, 8000);
+    }
+  }
+
+  function resetTimer() {
+    clearInterval(interval);
+    running = false;
+    flipped = false;
+    remaining = totalSeconds;
+    renderTimer();
+    document.getElementById('startBtn').textContent = 'Start';
+    document.getElementById('flipNotice').style.display = 'none';
+  }
+
+  document.querySelectorAll('.doneness-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.doneness-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateTempDisplay();
+      updateTimerLabel();
+    });
+  });
+
+  document.querySelectorAll('.thickness-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.thickness-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      resetTimer();
+      applySettings();
+    });
+  });
+
+  applySettings();
+</script>
+</body>
+</html>
