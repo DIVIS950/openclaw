@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Burger Timer</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #1b1410;
+    --card: #2a1e17;
+    --accent: #ffb02e;
+    --accent-dim: #8a5a1e;
+    --text: #f5e9da;
+    --muted: #b8a794;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at top, #3a2a1d, var(--bg) 70%);
+    color: var(--text);
+  }
+
+  .card {
+    width: min(420px, 92vw);
+    background: var(--card);
+    border-radius: 24px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .stage {
+    position: relative;
+    height: 140px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  .ground {
+    position: absolute;
+    bottom: 8px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: var(--accent-dim);
+    border-radius: 2px;
+    opacity: 0.6;
+  }
+
+  .burger {
+    font-size: 72px;
+    line-height: 1;
+    transform-origin: 50% 90%;
+    filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.4));
+  }
+
+  .burger.dancing {
+    animation: dance 0.6s ease-in-out infinite;
+  }
+
+  .burger.done {
+    animation: celebrate 0.5s ease-in-out infinite;
+  }
+
+  @keyframes dance {
+    0%   { transform: translateY(0) rotate(-8deg); }
+    25%  { transform: translateY(-18px) rotate(6deg); }
+    50%  { transform: translateY(0) rotate(-8deg); }
+    75%  { transform: translateY(-10px) rotate(8deg); }
+    100% { transform: translateY(0) rotate(-8deg); }
+  }
+
+  @keyframes celebrate {
+    0%   { transform: translateY(0) rotate(0deg) scale(1); }
+    50%  { transform: translateY(-28px) rotate(180deg) scale(1.15); }
+    100% { transform: translateY(0) rotate(360deg) scale(1); }
+  }
+
+  .time {
+    font-variant-numeric: tabular-nums;
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin: 8px 0 20px;
+  }
+
+  .time.warning {
+    color: var(--accent);
+  }
+
+  .presets {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .presets button {
+    background: none;
+    border: 1px solid var(--accent-dim);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .presets button:hover { background: rgba(255, 176, 46, 0.1); color: var(--text); }
+  .presets button.active { background: var(--accent); color: #201509; border-color: var(--accent); }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .controls button {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.15s;
+  }
+
+  .controls button:active { transform: scale(0.96); }
+
+  #startPause { background: var(--accent); color: #201509; }
+  #startPause:hover { filter: brightness(1.08); }
+
+  #reset { background: transparent; color: var(--muted); border: 1px solid var(--accent-dim); }
+  #reset:hover { color: var(--text); }
+
+  .status {
+    margin-top: 14px;
+    min-height: 18px;
+    font-size: 0.85rem;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Burger Timer</h1>
+    <p class="subtitle">He dances while you wait. He parties when you're done.</p>
+
+    <div class="stage">
+      <div class="ground"></div>
+      <div class="burger" id="burger">🍔</div>
+    </div>
+
+    <div class="time" id="time">05:00</div>
+
+    <div class="presets" id="presets">
+      <button data-seconds="60">1m</button>
+      <button data-seconds="300" class="active">5m</button>
+      <button data-seconds="600">10m</button>
+      <button data-seconds="1500">25m</button>
+    </div>
+
+    <div class="controls">
+      <button id="startPause">Start</button>
+      <button id="reset">Reset</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    const timeEl = document.getElementById("time");
+    const burgerEl = document.getElementById("burger");
+    const startPauseBtn = document.getElementById("startPause");
+    const resetBtn = document.getElementById("reset");
+    const statusEl = document.getElementById("status");
+    const presetsEl = document.getElementById("presets");
+
+    let totalSeconds = 300;
+    let remaining = totalSeconds;
+    let running = false;
+    let intervalId = null;
+
+    function format(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+      const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function render() {
+      timeEl.textContent = format(remaining);
+      timeEl.classList.toggle("warning", remaining <= 10 && remaining > 0);
+    }
+
+    function tick() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        remaining = 0;
+        render();
+        finish();
+        return;
+      }
+      render();
+    }
+
+    function setDancing(on) {
+      burgerEl.classList.toggle("dancing", on);
+    }
+
+    function start() {
+      if (remaining <= 0) return;
+      running = true;
+      startPauseBtn.textContent = "Pause";
+      statusEl.textContent = "";
+      burgerEl.classList.remove("done");
+      setDancing(true);
+      intervalId = setInterval(tick, 1000);
+    }
+
+    function pause() {
+      running = false;
+      startPauseBtn.textContent = "Start";
+      setDancing(false);
+      clearInterval(intervalId);
+    }
+
+    function finish() {
+      pause();
+      burgerEl.classList.add("done");
+      statusEl.textContent = "Time's up! Go get that burger.";
+      startPauseBtn.textContent = "Start";
+    }
+
+    function reset() {
+      pause();
+      remaining = totalSeconds;
+      burgerEl.classList.remove("done");
+      statusEl.textContent = "";
+      render();
+    }
+
+    startPauseBtn.addEventListener("click", () => {
+      if (running) {
+        pause();
+      } else {
+        start();
+      }
+    });
+
+    resetBtn.addEventListener("click", reset);
+
+    presetsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-seconds]");
+      if (!btn) return;
+      [...presetsEl.children].forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      totalSeconds = Number(btn.dataset.seconds);
+      reset();
+    });
+
+    render();
+  </script>
+</body>
+</html>
