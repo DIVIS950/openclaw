@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CheckCircle2, Clock, Eye, Loader2 } from "lucide-react";
+import { AlertCircle, Bot, Check, CheckCircle2, Clock, Eye, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   PLATFORMS,
@@ -11,6 +11,7 @@ import {
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { api, copyText, formatPrice } from "../lib/api.ts";
+import { AGENT_BETA, AgentSheet, BetaPill } from "./AgentSheet.tsx";
 import { Button, PlatformLogo, Sheet, Toggle, cx } from "./ui.tsx";
 
 export function sellUrl(p: Platform, vintedDomain: string) {
@@ -24,6 +25,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
   const [selected, setSelected] = useState<Set<Platform>>(new Set());
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState<Platform | null>(null);
+  const [agentFor, setAgentFor] = useState<Platform | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -80,6 +82,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
   };
 
   return (
+    <>
     <Sheet
       open={open}
       onClose={onClose}
@@ -134,6 +137,17 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
                   {copied === p ? "Copied. Paste it into the form" : `Or copy the text and open ${p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}`}
                 </a>
               )}
+
+              {AGENT_BETA && state?.status !== "live" && (
+                <button
+                  onClick={() => setAgentFor(p)}
+                  className="mt-1 flex h-10 w-full items-center gap-2 rounded-xl bg-soft px-3 text-[13px] font-bold"
+                >
+                  <Bot className="size-4" />
+                  <span className="flex-1 text-left">Post with Claude in Chrome</span>
+                  <BetaPill />
+                </button>
+              )}
             </div>
           );
         })}
@@ -168,6 +182,8 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
       </Button>
       )}
     </Sheet>
+    {AGENT_BETA && <AgentSheet platform={agentFor} listing={listing} onClose={() => setAgentFor(null)} />}
+    </>
   );
 }
 

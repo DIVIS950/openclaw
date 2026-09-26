@@ -11,6 +11,7 @@
     "online": "node scripts/zip-extension.mjs && vite build && tsx --env-file-if-exists=.env server/index.ts --prod",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:preview": "vite build --mode preview",
+    "build:hosted:beta": "VITE_AGENT_BETA=1 vite build --mode hosted",
     "build:standalone": "node scripts/zip-extension.mjs && vite build --mode standalone"
   },
   "dependencies": {
