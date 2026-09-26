@@ -13,6 +13,7 @@ import {
   type Platform,
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
+import { GeminiApp } from "../components/GeminiApp.tsx";
 import { PublishSheet } from "../components/PublishSheet.tsx";
 import { Button, Card, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
 import { api, copyText, formatPrice, photoResolver, photoUrl } from "../lib/api.ts";
@@ -395,6 +396,7 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
       <Button size="lg" className="mt-4 w-full" onClick={apply} loading={busy === "apply"} disabled={!!busy}>
         Apply to {n} photo{n > 1 ? "s" : ""}
       </Button>
+      <GeminiApp listing={listing} onChange={onChange} disabled={!!busy} />
     </Sheet>
   );
 }
