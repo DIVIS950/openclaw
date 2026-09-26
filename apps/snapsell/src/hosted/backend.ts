@@ -17,6 +17,7 @@ import {
   type Settings,
 } from "../../shared/types.ts";
 import { photoResolver } from "../lib/api.ts";
+import { REGIONS } from "../lib/regions.ts";
 
 type Sample = ((input: string, opts?: Record<string, unknown>) => Promise<{ text: string }>) & {
   json: <T>(input: string, opts?: Record<string, unknown>) => Promise<T>;
@@ -26,12 +27,13 @@ type DocRef = { get(): Promise<{ exists: boolean; data(): Record<string, unknown
 type Db = { doc(path: string): DocRef; collection(path: string): { get(): Promise<{ docs: { id: string; data(): Record<string, unknown> | undefined }[] }> } };
 type Assets = { upload(blob: Blob, opts?: Record<string, unknown>): Promise<{ id: string; url: string }>; delete(id: string): Promise<unknown> };
 type ClaudeRuntime = { use(name: string): Promise<unknown> };
+type Mcp = { callTool(server: string, tool: string, input: Record<string, unknown>): Promise<{ payload?: unknown }> };
 
 const ME = { email: "you@claude", name: "You", authEnabled: false };
 const w = window as unknown as { claude?: ClaudeRuntime };
-const [sample, db, assets] = (await Promise.all(
-  ["sample", "db", "assets"].map((n) => w.claude?.use(n).catch(() => null) ?? Promise.resolve(null)),
-)) as [Sample | null, Db | null, Assets | null];
+const [sample, db, assets, mcp] = (await Promise.all(
+  ["sample", "db", "assets", "mcp"].map((n) => w.claude?.use(n).catch(() => null) ?? Promise.resolve(null)),
+)) as [Sample | null, Db | null, Assets | null, Mcp | null];
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 const listings = new Map<string, Listing>();
@@ -102,7 +104,7 @@ const SHAPE = `{
   "shipping": {"weightKg": number, "packageSize": "small"|"medium"|"large"}
 }`;
 
-function prompt(n: number, s: Settings, note?: string, textOnly = false) {
+function prompt(n: number, s: Settings, note?: string, textOnly = false, evidence = "") {
   const what = textOnly
     ? `Someone wants to sell ONE item second-hand on eBay, Facebook Marketplace and Vinted. You can't see their photos; work from the seller's description below and assume normal used condition unless it says otherwise.`
     : `The ${n} attached photo(s) show ONE item someone wants to sell second-hand on eBay, Facebook Marketplace and Vinted.`;
@@ -110,7 +112,15 @@ function prompt(n: number, s: Settings, note?: string, textOnly = false) {
 Seller location: ${s.country}. Currency: ${s.currency}. Write all buyer-facing text in ${s.language}.${note ? `\nSeller's note: """${note}"""` : ""}
 
 1. Identify the exact item (brand, model, variant, size, generation). Judge condition honestly from what is visible.
-2. Estimate today's typical SECOND-HAND prices in ${s.country} from your knowledge of the market (you cannot browse, so say in price.reasoning that it's an estimate). "comparables": 2-4 typical listing examples with realistic prices, source = the marketplace name, url null.
+${
+    evidence
+      ? `2. Price it from these LIVE SEARCH RESULTS (raw JSON from Google Shopping and a web search, run just now; may be noisy or partly off-topic):
+<<<
+${evidence}
+>>>
+Google Shopping prices are mostly NEW retail prices: a used item usually sells for 40-70% of new (less for worn, more for collectible or sealed-new). Web results may show used listings (bazaars, Vinted, eBay, Aukro): prefer those for the second-hand price. Convert other currencies to ${s.currency}. "comparables": 2-5 REAL items from the results with their real url, price and source; sold=false unless clearly sold. In price.reasoning say briefly what the price is based on (e.g. "new in shops ~X, used listings ~Y").`
+      : `2. Estimate today's typical SECOND-HAND prices in ${s.country} from your knowledge of the market (you cannot browse, so say in price.reasoning that it's an estimate). "comparables": 2-4 typical listing examples with realistic prices, source = the marketplace name, url null.`
+  }
 3. Write the listings. eBay: title max 80 chars, keyword-dense, description with short sections and bullets. Facebook: short friendly title, 3-6 conversational lines, mention pickup or shipping. Vinted: title max 60 chars, casual text ending with 3-6 hashtags. Never invent accessories or flaws you can't see.
 4. crops: for every photo (0-based) a tight bounding box around the item, normalized 0-1.
 Prices are plain numbers in ${s.currency}, rounded like real prices.
@@ -143,7 +153,9 @@ function normalize(raw: Record<string, unknown>, photoCount: number, s: Settings
       demand: ["low", "medium", "high"].includes(price.demand) ? price.demand : "medium",
       reasoning: String(price.reasoning ?? "Estimated from typical second-hand prices."),
     },
-    comparables: Array.isArray(r.comparables) ? r.comparables.slice(0, 6).map((c) => ({ ...c, currency: c.currency || s.currency, url: null })) : [],
+    comparables: Array.isArray(r.comparables)
+      ? r.comparables.slice(0, 6).map((c) => ({ ...c, currency: c.currency || s.currency, url: typeof c.url === "string" && /^https:\/\//.test(c.url) ? c.url : null }))
+      : [],
     title,
     description,
     platforms: { ebay: copy("ebay"), facebook: copy("facebook"), vinted: copy("vinted") },
@@ -156,6 +168,38 @@ function normalize(raw: Record<string, unknown>, photoCount: number, s: Settings
   const checked = AnalysisSchema.safeParse(a);
   if (!checked.success) throw new Error("Claude's answer was incomplete. Please try again.");
   return checked.data;
+}
+
+const LANG: Record<string, string> = { English: "en", Czech: "cs", Slovak: "sk", German: "de", French: "fr", Spanish: "es", Italian: "it", Dutch: "nl", Polish: "pl" };
+const USED: Record<string, string> = { cs: "bazar cena", sk: "bazár cena", de: "gebraucht Preis", fr: "occasion prix", es: "segunda mano precio", it: "usato prezzo", nl: "tweedehands prijs", pl: "używany cena", en: "used price" };
+
+/**
+ * Live prices through the viewer's Composio connector (Google Shopping + web search, no account
+ * needed). Returns "" when it isn't connected, isn't allowed, or fails: pricing then falls back
+ * to Claude's own estimate.
+ */
+async function liveSearch(query: string, s: Settings, emit: (e: AnalyzeEvent) => void): Promise<string> {
+  if (!mcp || !query) return "";
+  const gl = (REGIONS.find((r) => r.country === s.country)?.code ?? "us").toLowerCase();
+  const hl = LANG[s.language] ?? "en";
+  const webQuery = `${query} ${USED[hl] ?? USED.en}`;
+  emit({ type: "search", query });
+  emit({ type: "search", query: webQuery });
+  try {
+    const res = await mcp.callTool("composio", "COMPOSIO_MULTI_EXECUTE_TOOL", {
+      tools: [
+        { tool_slug: "COMPOSIO_SEARCH_SHOPPING", arguments: { query, gl, hl } },
+        { tool_slug: "COMPOSIO_SEARCH_WEB", arguments: { query: webQuery } },
+      ],
+      sync_response_to_workbench: false,
+      thought: "Look up current new and second-hand prices for an item the user is selling.",
+    });
+    const text = JSON.stringify(res.payload ?? res);
+    // Drop base64 thumbnails and keep the evidence small enough for the prompt.
+    return text.replace(/"(thumbnail|serpapi_thumbnail|image)"\s*:\s*"[^"]*"/g, "").slice(0, 24000);
+  } catch {
+    return "";
+  }
 }
 
 /** Thrown when this view can't send photos to Claude: the app then asks what the item is. */
@@ -177,9 +221,25 @@ async function analyzeWithClaude(files: File[], s: Settings, note: string | unde
   const images = textOnly ? [] : files.slice(0, limits.images?.maxCount ?? 4);
   emit({ type: "stage", stage: "looking" });
   let wrote = false;
-  const timer = setTimeout(() => !wrote && emit({ type: "stage", stage: "pricing" }), 6000);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const raw = await sample!.json<Record<string, unknown>>(prompt(images.length, s, note, textOnly), {
+    // 1. Quick identification, only to know what to search for.
+    let evidence = "";
+    if (mcp) {
+      const id = await sample!.json<{ query?: string; name?: string }>(
+        `${textOnly ? `A seller describes an item as: """${note ?? ""}"""` : `The attached photo(s) show one item for sale.${note ? ` Seller's note: """${note}"""` : ""}`}
+Identify the exact product. Reply with only JSON: {"name": "full product name", "query": "short web-shop search query for this exact product (brand + model + key spec)"}`,
+        { ...(images.length ? { images } : {}), modelTier: "quick", cache: false },
+      );
+      if (id?.name) emit({ type: "lens", matches: 0, bestGuess: String(id.name) });
+      // 2. Live prices from Google Shopping and the web.
+      emit({ type: "stage", stage: "searching" });
+      evidence = await liveSearch(String(id?.query ?? id?.name ?? "").slice(0, 120), s, emit);
+    }
+    // 3. The full listing, priced from the live results when there are any.
+    emit({ type: "stage", stage: "pricing" });
+    timer = setTimeout(() => !wrote && emit({ type: "stage", stage: "pricing" }), 6000);
+    const raw = await sample!.json<Record<string, unknown>>(prompt(images.length, s, note, textOnly, evidence), {
       ...(images.length ? { images } : {}),
       cache: false,
       onText: () => {
@@ -193,7 +253,7 @@ async function analyzeWithClaude(files: File[], s: Settings, note: string | unde
     if (!textOnly && (code === "images_unavailable" || code === "image_rejected" || code === "capability_disabled")) throw new NeedsDescription();
     throw new Error(SAMPLE_ERRORS[code ?? ""] ?? (e instanceof Error ? e.message : "Claude couldn't finish. Please try again."));
   } finally {
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
   }
 }
 

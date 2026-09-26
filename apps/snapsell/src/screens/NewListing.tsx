@@ -296,7 +296,7 @@ function Analyzing({
     })();
   }, [shots, note, textOnly, onDone]);
 
-  const lensOn = Boolean(health?.lens.vision || health?.lens.serpapi) || lens !== null;
+  const lensOn = Boolean(health?.lens.vision || health?.lens.serpapi) || (lens?.matches ?? 0) > 0;
   const steps = [
     { id: "looking" as const, label: "Identifying the item", done: lens?.bestGuess ? `Looks like ${lens.bestGuess}` : undefined },
     ...(lensOn ? [{ id: "lens" as const, label: "Google Lens visual search", done: lens ? `Google Lens: ${lens.matches} visual matches` : undefined }] : []),
