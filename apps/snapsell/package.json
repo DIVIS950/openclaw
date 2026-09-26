@@ -1,0 +1,38 @@
+{
+  "name": "snapsell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Snap a photo, let AI identify, price and write the listing, then post it to eBay, Facebook Marketplace and Vinted.",
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"tsx watch --env-file-if-exists=.env server/index.ts\" \"vite\"",
+    "build": "vite build",
+    "start": "NODE_ENV=production tsx --env-file-if-exists=.env server/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.9",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@imgly/background-removal": "^1.7.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "lucide-react": "^1.48.0",
+    "motion": "^13.4.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1"
+  }
+}

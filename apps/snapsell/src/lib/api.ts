@@ -1,0 +1,73 @@
+import type { AnalyzeEvent, Listing, Platform, PlatformStatus, Settings } from "../../shared/types.ts";
+
+async function json<T>(res: Response): Promise<T> {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`);
+  return body as T;
+}
+
+const put = (url: string, body: unknown, method = "PUT") =>
+  fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+export const api = {
+  health: () => fetch("/api/health").then((r) => json<{ ai: boolean; demo: boolean; model: string }>(r)),
+  settings: () => fetch("/api/settings").then((r) => json<Settings>(r)),
+  saveSettings: (s: Partial<Settings>) => put("/api/settings", s).then((r) => json<Settings>(r)),
+  platforms: () => fetch("/api/platforms").then((r) => json<PlatformStatus[]>(r)),
+  connect: (p: Platform) => fetch(`/api/platforms/${p}/connect`, { method: "POST" }).then((r) => json(r)),
+  disconnect: (p: Platform) => fetch(`/api/platforms/${p}/disconnect`, { method: "POST" }).then((r) => json(r)),
+  listings: () => fetch("/api/listings").then((r) => json<Listing[]>(r)),
+  listing: (id: string) => fetch(`/api/listings/${id}`).then((r) => json<Listing>(r)),
+  update: (id: string, patch: Partial<Pick<Listing, "edits" | "status">>) =>
+    put(`/api/listings/${id}`, patch, "PATCH").then((r) => json<Listing>(r)),
+  remove: (id: string) => fetch(`/api/listings/${id}`, { method: "DELETE" }).then((r) => json(r)),
+  publish: (id: string, platforms: Platform[]) =>
+    put(`/api/listings/${id}/publish`, { platforms }, "POST").then((r) => json<Listing>(r)),
+  uploadEnhanced: (id: string, blobs: Blob[]) => {
+    const form = new FormData();
+    blobs.forEach((b, i) => form.append("photos", b, `enhanced-${i}.jpeg`));
+    return fetch(`/api/listings/${id}/enhanced`, { method: "PUT", body: form }).then((r) => json<Listing>(r));
+  },
+
+  /** Uploads photos and yields analysis progress events from the server-sent event stream. */
+  async *analyze(photos: Blob[], note: string): AsyncGenerator<AnalyzeEvent> {
+    const form = new FormData();
+    photos.forEach((p, i) => form.append("photos", p, `photo-${i}.jpeg`));
+    if (note.trim()) form.append("note", note.trim());
+    const res = await fetch("/api/analyze", { method: "POST", body: form });
+    if (!res.ok || !res.body) throw new Error((await json<{ error: string }>(res).catch((e) => e)).message);
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value;
+      let idx: number;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const data = chunk
+          .split("\n")
+          .filter((l) => l.startsWith("data:"))
+          .map((l) => l.slice(5).trimStart())
+          .join("\n");
+        if (data) yield JSON.parse(data) as AnalyzeEvent;
+      }
+    }
+  },
+};
+
+export const photoUrl = (l: Listing, i: number, enhanced = true) =>
+  `/photos/${l.id}/${(enhanced && l.enhanced[i]) || l.photos[i]}`;
+
+export function formatPrice(value: number, currency: string) {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+    }).format(value);
+  } catch {
+    return `${value} ${currency}`;
+  }
+}

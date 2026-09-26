@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-ink-950: #09090b;
+  --color-ink-900: #111114;
+  --color-ink-850: #16161b;
+  --color-ink-800: #1c1c22;
+  --color-ink-700: #2a2a33;
+  --color-ink-500: #6b6b7b;
+  --color-ink-400: #9a9aab;
+  --color-ink-200: #d9d9e3;
+  --color-ai-1: #8b5cf6;
+  --color-ai-2: #ec4899;
+  --color-ai-3: #f59e0b;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-ink-950);
+  color: #f4f4f7;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  /* Decorative glows bleed past the edge; never let them widen the mobile layout viewport. */
+  overflow-x: clip;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+.ai-gradient {
+  background-image: linear-gradient(120deg, var(--color-ai-1), var(--color-ai-2) 55%, var(--color-ai-3));
+}
+
+.ai-text {
+  background-image: linear-gradient(120deg, #a78bfa, #f472b6 55%, #fbbf24);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ai-border {
+  position: relative;
+}
+.ai-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(120deg, #8b5cf6aa, #ec4899aa 55%, #f59e0baa);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.card {
+  background: linear-gradient(180deg, #17171d, #131318);
+  border: 1px solid #ffffff0d;
+  border-radius: 24px;
+}
+
+.glow {
+  box-shadow:
+    0 10px 40px -10px #ec489966,
+    0 4px 20px -6px #8b5cf666;
+}
+
+.scan-line {
+  background: linear-gradient(180deg, transparent, #ec4899cc 45%, #fff 50%, #8b5cf6cc 55%, transparent);
+  filter: blur(1px);
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, #ffffff14, transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.safe-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@layer base {
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+}
