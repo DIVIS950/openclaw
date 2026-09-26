@@ -6,6 +6,7 @@
  * - Facebook/Vinted posts go to the SnapSell Chrome extension when it's on this computer.
  * eBay has no browser-friendly API, so it's copy & open here (automatic in the server version).
  */
+import { extractGeminiKey } from "../lib/geminiKey.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import { geminiAnalyze } from "../../shared/gemini.ts";
 import {
@@ -278,6 +279,14 @@ try {
       photos.set(key, blob);
       urls.set(key, URL.createObjectURL(blob));
     }
+  }
+  // Personal setup link (…/#gemini=KEY): saves the Gemini key on this phone so nobody has to type
+  // it. The key lives only in the link the owner sends, never in the published site.
+  const key = extractGeminiKey(location.hash);
+  if (key) {
+    settings = { ...settings, geminiApiKey: key, aiProvider: "gemini" };
+    await saveSettings();
+    history.replaceState(null, "", `${location.pathname}${location.search}#/`);
   }
   // Ask the browser not to clear SnapSell's data when space runs low.
   void navigator.storage?.persist?.();

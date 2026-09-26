@@ -1,3 +1,4 @@
+import { extractGeminiKey } from "../lib/geminiKey.ts";
 import { Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "../App.tsx";
@@ -36,7 +37,8 @@ export function KeyInput({ value, onChange, onSave, saved }: { value: string; on
         <input
           id="gemini-key"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          // A whole setup link pasted in works too: keep just the key.
+          onChange={(e) => onChange(extractGeminiKey(e.target.value) ?? e.target.value)}
           placeholder="Paste your Gemini key"
           autoComplete="off"
           spellCheck={false}
