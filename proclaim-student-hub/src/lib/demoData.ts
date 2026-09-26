@@ -24,6 +24,18 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class DemoData implements DataSource {
   readonly demo = true;
+  readonly hasClassroom = true;
+  readonly labels = {
+    saved: "Saved (demo)",
+    workNote: "Demo: not saved to Google",
+    workStep: "Work saved (demo only)",
+    tickedStep: "Ticked off (demo only)",
+    added: "Added (demo).",
+    ticked: "Ticked off (demo).",
+    homeworkSub: "Everything in one list (sample data).",
+    addNote: "For apps like Dr Frost that can't share homework automatically.",
+    sent: "Sent (demo).",
+  };
 
   private work: Homework[] = [
     {

@@ -105,6 +105,19 @@ function doneKey(id: string) {
 
 export class GoogleData implements DataSource {
   readonly demo = false;
+  readonly hasClassroom = true;
+  readonly labels = {
+    saved: "Saved to Google Docs",
+    workNote: "Saved as a Google Doc in your Drive",
+    workStep: "Work saved in your Google Doc",
+    tickedStep: "Ticked off in your Google Tasks",
+    added: "Added to your Google Tasks.",
+    ticked: "Ticked off in Google Tasks.",
+    homeworkSub: "Everything in one list, saved with Google.",
+    addNote:
+      "For apps like Dr Frost that can't share homework automatically. It goes into your Google Tasks.",
+    sent: "Sent. It's in your Gmail Sent folder too.",
+  };
   private coursesCache: Promise<Course[]> | null = null;
   private folderId: Promise<string> | null = null;
 

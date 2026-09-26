@@ -60,9 +60,34 @@ export interface Draft {
 
 export type HandInResult = "turnedIn" | "openClassroom";
 
-/** Everything the screens need. Implemented by Google (real) and Demo (sample data). */
+/** Where a data source keeps things, in the words the screens show. */
+export interface StorageLabels {
+  /** Short status once work is saved, e.g. "Saved to Google Docs". */
+  saved: string;
+  /** Under "Your work": where it's kept. */
+  workNote: string;
+  /** Hand-in step for the saved work. */
+  workStep: string;
+  /** Hand-in step for ticking it off. */
+  tickedStep: string;
+  /** Toast after adding homework. */
+  added: string;
+  /** Toast after ticking homework off. */
+  ticked: string;
+  /** Subtitle of the Homework screen. */
+  homeworkSub: string;
+  /** Explains where added homework goes. */
+  addNote: string;
+  /** After sending an email reply. */
+  sent: string;
+}
+
+/** Everything the screens need: Google (hosted), Claude page (web link) or Demo. */
 export interface DataSource {
   readonly demo: boolean;
+  readonly labels: StorageLabels;
+  /** Whether the Classroom "Do it here" flow and calendar are available. */
+  readonly hasClassroom: boolean;
   profile(): Promise<Profile>;
   homework(): Promise<Homework[]>;
   inbox(): Promise<Email[]>;

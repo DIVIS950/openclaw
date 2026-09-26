@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, TutorMode } from "../shared/api.ts";
 import { Icon } from "./components/Icon.tsx";
 import { Ctx, SCREENS, type AppContext, type Screen, type TutorSeed } from "./context.ts";
+import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
+import { ClaudeData } from "./lib/claudeData.ts";
+import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
@@ -16,27 +19,55 @@ import { SignIn } from "./screens/SignIn.tsx";
 import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
 
-type Mode = "loading" | "signin" | "google" | "demo";
+type Mode = "loading" | "signin" | "google" | "demo" | "web";
 
-// The web-demo build (npm run build:demo) is a single page with no server,
-// so it skips Google sign-in and opens straight into sample data.
-const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === "1";
+// The web-link build (npm run build:web) is one page published on claude.ai
+// with no server of its own: it reaches Gmail and Claude through the page's
+// runtime, and falls back to sample data where those aren't available.
+const WEB_PAGE = import.meta.env.VITE_WEB_PAGE === "1";
+
+interface WebSession {
+  data: DataSource;
+  ai: AiProvider | null;
+}
+
+async function connectWebPage(): Promise<WebSession> {
+  const [db, user, mcp, sample] = await Promise.all([
+    useCapability("db"),
+    useCapability("user"),
+    useCapability("mcp"),
+    useCapability("sample"),
+  ]);
+  const userId = user ? await user.id().catch(() => null) : null;
+  const ai = sample ? sampleAi(sample) : null;
+  if (mcp || (db && userId)) {
+    return { data: new ClaudeData(mcp, db, userId, user), ai };
+  }
+  return { data: new DemoData(), ai };
+}
 
 export function App() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
   const [auth, setAuth] = useState<GoogleAuth | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
   const [mode, setMode] = useState<Mode>("loading");
+  const [web, setWeb] = useState<WebSession | null>(null);
   // One data source per sign-in mode; recreating it would reload every screen.
-  const data = useMemo<DataSource | null>(
-    () =>
-      mode === "google" && auth ? new GoogleData(auth) : mode === "demo" ? new DemoData() : null,
-    [mode, auth],
-  );
+  const session = useMemo<WebSession | null>(() => {
+    if (mode === "web") {
+      return web;
+    }
+    if (mode === "google" && auth) {
+      return { data: new GoogleData(auth), ai: aiEnabled ? serverAi(() => auth.getToken()) : null };
+    }
+    return mode === "demo" ? { data: new DemoData(), ai: null } : null;
+  }, [mode, auth, aiEnabled, web]);
 
   useEffect(() => {
-    if (STATIC_DEMO) {
-      setConfig({ googleClientId: "", aiEnabled: false });
-      setMode("demo");
+    if (WEB_PAGE) {
+      void connectWebPage().then((s) => {
+        setWeb(s);
+        setMode("web");
+      });
       return;
     }
     fetch("/api/config")
@@ -46,15 +77,12 @@ export function App() {
       .catch((): AppConfig => ({ googleClientId: "", aiEnabled: false }))
       .then((cfg) => {
         const googleAuth = cfg.googleClientId ? new GoogleAuth(cfg.googleClientId) : null;
-        setConfig(cfg);
         setAuth(googleAuth);
+        setAiEnabled(cfg.aiEnabled);
         setMode(googleAuth?.isSignedIn ? "google" : "signin");
       });
   }, []);
 
-  if (mode === "loading" || !config) {
-    return <div className="app" aria-busy="true" />;
-  }
   if (mode === "signin") {
     return (
       <SignIn
@@ -67,19 +95,23 @@ export function App() {
       />
     );
   }
-  if (!data) {
+  if (!session) {
     return <div className="app" aria-busy="true" />;
   }
   return (
     <Shell
       key={mode}
-      data={data}
+      data={session.data}
+      ai={session.ai}
       auth={mode === "google" ? auth : null}
-      aiEnabled={config.aiEnabled}
-      onSignOut={() => {
-        auth?.signOut();
-        setMode("signin");
-      }}
+      onSignOut={
+        WEB_PAGE
+          ? null
+          : () => {
+              auth?.signOut();
+              setMode("signin");
+            }
+      }
     />
   );
 }
@@ -91,14 +123,14 @@ function screenFromHash(): Screen {
 
 function Shell({
   data,
+  ai,
   auth,
-  aiEnabled,
   onSignOut,
 }: {
   data: DataSource;
+  ai: AiProvider | null;
   auth: GoogleAuth | null;
-  aiEnabled: boolean;
-  onSignOut: () => void;
+  onSignOut: (() => void) | null;
 }) {
   const [screen, setScreen] = useState<Screen>(() => {
     const s = screenFromHash();
@@ -164,13 +196,7 @@ function Shell({
   const ctx = useMemo<AppContext>(
     () => ({
       data,
-      aiToken: () => {
-        if (!auth || !aiEnabled) {
-          throw new Error("Sign in with Google to use the AI.");
-        }
-        return auth.getToken();
-      },
-      canUseAi: Boolean(auth && aiEnabled),
+      ai,
       profile,
       homework,
       reloadHomework,
@@ -195,8 +221,7 @@ function Shell({
     }),
     [
       data,
-      auth,
-      aiEnabled,
+      ai,
       profile,
       homework,
       reloadHomework,
@@ -234,11 +259,11 @@ function Shell({
         {data.demo && current === "today" && (
           <div className="banner between" style={{ margin: "12px 16px 0" }}>
             <span>
-              {STATIC_DEMO
-                ? "Web demo with sample data. Google sign-in and AI come with the full app."
+              {WEB_PAGE
+                ? "Sample data: open this page signed in to Claude to use your own."
                 : "Demo mode: sample data only."}
             </span>
-            {!STATIC_DEMO && (
+            {onSignOut && (
               <button className="btn small dark" onClick={onSignOut}>
                 Sign in
               </button>

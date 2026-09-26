@@ -169,3 +169,49 @@ export const SAMPLE_PACK: RevisionPack = {
     },
   ],
 };
+
+// ---------- Reading an unchecked AI reply ----------
+
+type Obj = Record<string, unknown>;
+
+const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
+const str = (v: unknown): string =>
+  typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
+const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+const objs = (v: unknown): Obj[] => list(v).filter(isObj);
+
+/**
+ * Builds a pack from JSON whose shape was only requested, not enforced
+ * (the web version asks Claude for JSON in plain text). Missing or
+ * wrong-typed fields become empty, then normalizePack drops bad items.
+ */
+export function coercePack(value: unknown): RevisionPack {
+  if (!isObj(value)) {
+    throw new Error("The AI reply wasn't a revision pack. Please try again.");
+  }
+  return normalizePack({
+    topic: str(value.topic),
+    subject: str(value.subject),
+    summary: list(value.summary).map(str),
+    keyFact: str(value.keyFact),
+    flashcards: objs(value.flashcards).map((c) => ({ q: str(c.q), a: str(c.a) })),
+    quiz: objs(value.quiz).map((q) => ({
+      question: str(q.question),
+      options: list(q.options).map(str),
+      answer: typeof q.answer === "number" ? q.answer : Number(str(q.answer)),
+      explanation: str(q.explanation),
+    })),
+    match: objs(value.match).map((m) => ({ term: str(m.term), meaning: str(m.meaning) })),
+    trueFalse: objs(value.trueFalse).map((t) => ({
+      statement: str(t.statement),
+      answer: t.answer === true || t.answer === "true",
+      why: str(t.why),
+    })),
+    gaps: objs(value.gaps).map((g) => ({
+      before: str(g.before),
+      answer: str(g.answer),
+      after: str(g.after),
+      options: list(g.options).map(str),
+    })),
+  });
+}

@@ -3,7 +3,6 @@ import type { ImageInput } from "../../shared/api.ts";
 import { SAMPLE_PACK, type RevisionPack } from "../../shared/pack.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
-import { ai } from "../lib/ai.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
 import { packs, progress } from "../lib/store.ts";
 
@@ -87,7 +86,10 @@ function NewNotes({
     setBusy(true);
     setError(null);
     try {
-      await onPack(await ai.revise(app.aiToken(), { images, text }));
+      if (!app.ai) {
+        return;
+      }
+      await onPack(await app.ai.revise({ images, text }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't make your revision pack.");
     } finally {
@@ -187,7 +189,7 @@ function NewNotes({
         </div>
       )}
 
-      {app.canUseAi ? (
+      {app.ai ? (
         <button
           className="btn big primary block"
           disabled={busy || (images.length === 0 && !text.trim())}
@@ -206,7 +208,10 @@ function NewNotes({
           )}
         </button>
       ) : (
-        <div className="banner">Sign in with Google to make packs from your own notes.</div>
+        <div className="banner">
+          The AI needs you signed in: on the web link, open it signed in to Claude; on the full app,
+          sign in with Google.
+        </div>
       )}
 
       <button className="btn ghost" onClick={() => void onPack(SAMPLE_PACK)}>

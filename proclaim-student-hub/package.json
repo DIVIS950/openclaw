@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "build:demo": "node scripts/build-demo.mjs",
+    "build:web": "node scripts/build-web.mjs",
     "dev": "node --env-file-if-exists=.env --import tsx --watch server/index.ts & vite",
     "start": "NODE_ENV=production node --env-file-if-exists=.env --import tsx server/index.ts",
     "test": "vitest run",

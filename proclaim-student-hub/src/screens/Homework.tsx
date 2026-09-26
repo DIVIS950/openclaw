@@ -7,7 +7,7 @@ import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 type Filter = "All" | Source;
 
 export function HomeworkScreen() {
-  const { homework, reloadHomework } = useApp();
+  const { data, homework, reloadHomework } = useApp();
   const [filter, setFilter] = useState<Filter>("All");
   const [adding, setAdding] = useState(false);
 
@@ -20,7 +20,7 @@ export function HomeworkScreen() {
       <header className="between rise">
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="h1">Homework</h1>
-          <p className="sub">Everything in one list, saved with Google.</p>
+          <p className="sub">{data.labels.homeworkSub}</p>
         </div>
         <button className="round dark" aria-label="Add homework" onClick={() => setAdding(true)}>
           <Icon name="plus" size={20} />
@@ -100,7 +100,7 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
                 replaceHomework({ ...hw, done: true });
                 try {
                   await data.setDone(hw, true);
-                  toast("Ticked off in Google Tasks.");
+                  toast(data.labels.ticked);
                 } catch (err) {
                   replaceHomework(hw);
                   handleError(err);
@@ -120,7 +120,9 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
 function AddHomework({ onClose }: { onClose: () => void }) {
   const { data, addHomeworkItem, handleError, toast } = useApp();
   const [title, setTitle] = useState("");
-  const [source, setSource] = useState<Source>("Dr Frost");
+  // When Classroom doesn't sync by itself, Classroom work is added here too.
+  const choices: Source[] = data.hasClassroom ? OTHER_SOURCES : ["Classroom", ...OTHER_SOURCES];
+  const [source, setSource] = useState<Source>(choices[0]);
   const [due, setDue] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -141,7 +143,7 @@ function AddHomework({ onClose }: { onClose: () => void }) {
             addHomeworkItem(
               await data.addHomework({ title: title.trim(), source, due: due || undefined }),
             );
-            toast(data.demo ? "Added (demo)." : "Added to your Google Tasks.");
+            toast(data.labels.added);
             onClose();
           } catch (err) {
             handleError(err);
@@ -153,10 +155,7 @@ function AddHomework({ onClose }: { onClose: () => void }) {
         <h2 className="h1" style={{ fontSize: 24 }}>
           Add homework
         </h2>
-        <p className="sub">
-          For apps like Dr Frost that can't share homework automatically. It goes into your Google
-          Tasks.
-        </p>
+        <p className="sub">{data.labels.addNote}</p>
         <label className="stack" style={{ gap: 6 }}>
           <span className="h2">What is it?</span>
           <input
@@ -174,7 +173,7 @@ function AddHomework({ onClose }: { onClose: () => void }) {
             value={source}
             onChange={(e) => setSource(e.target.value as Source)}
           >
-            {OTHER_SOURCES.map((s) => (
+            {choices.map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>

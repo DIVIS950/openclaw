@@ -71,12 +71,12 @@ export function Assignment({ hw }: { hw: Homework }) {
         <button className="link-btn" onClick={() => go("homework")}>
           ‹ Homework
         </button>
-        <SaveChip state={state} demo={data.demo} />
+        <SaveChip state={state} savedLabel={data.labels.saved} />
       </div>
 
       <header className="stack rise" style={{ gap: 6, animationDelay: "0.05s" }}>
         <div className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-          {hw.course} · Google Classroom
+          {hw.course} · {hw.source === "Classroom" ? "Google Classroom" : hw.source}
         </div>
         <h1 className="h1" style={{ fontSize: 26 }}>
           {hw.title}
@@ -122,7 +122,7 @@ export function Assignment({ hw }: { hw: Homework }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Your work</div>
             <div className="muted" style={{ fontSize: 12 }}>
-              {data.demo ? "Demo: not saved to Google" : "Saved as a Google Doc in your Drive"}
+              {data.labels.workNote}
             </div>
           </div>
           {link && (
@@ -141,9 +141,7 @@ export function Assignment({ hw }: { hw: Homework }) {
           value={text}
           disabled={state === "loading"}
           placeholder={
-            state === "loading"
-              ? "Loading your work…"
-              : "Start typing. It saves to Google Docs as you go."
+            state === "loading" ? "Loading your work…" : "Start typing. It saves as you go."
           }
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => {
@@ -201,7 +199,7 @@ export function Assignment({ hw }: { hw: Homework }) {
   );
 }
 
-function SaveChip({ state, demo }: { state: SaveState; demo: boolean }) {
+function SaveChip({ state, savedLabel }: { state: SaveState; savedLabel: string }) {
   if (state === "saving" || state === "loading") {
     return (
       <span className="chip saving">
@@ -216,7 +214,7 @@ function SaveChip({ state, demo }: { state: SaveState; demo: boolean }) {
   return (
     <span className="chip good pop">
       <Icon name="check" size={14} />
-      {demo ? "Saved (demo)" : "Saved to Google Docs"}
+      {savedLabel}
     </span>
   );
 }
@@ -271,7 +269,7 @@ function HandInSheet({
         {result === "working" && (
           <div className="step">
             <Icon name="loader" size={22} className="spin" />
-            Saving your work to Google…
+            Saving your work…
           </div>
         )}
         {result === "error" && (
@@ -282,10 +280,10 @@ function HandInSheet({
         {(result === "turnedIn" || result === "openClassroom") && (
           <>
             <Step n="✓" ok delay={0.1}>
-              {data.demo ? "Work saved (demo only)" : "Work saved in your Google Doc"}
+              {data.labels.workStep}
             </Step>
             <Step n="✓" ok delay={0.3}>
-              {data.demo ? "Ticked off (demo only)" : "Ticked off in your Google Tasks"}
+              {data.labels.tickedStep}
             </Step>
             {result === "turnedIn" ? (
               <Step n="✓" ok delay={0.5}>

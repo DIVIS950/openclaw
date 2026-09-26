@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
-import { ai } from "../lib/ai.ts";
 import { shortDate } from "../lib/format.ts";
 import type { Email } from "../lib/types.ts";
 
@@ -26,11 +25,11 @@ export function Inbox() {
         }
         setEmails(list);
         const missing = list.filter((e) => !summaryCache.has(e.id)).slice(0, 15);
-        if (!app.canUseAi || missing.length === 0) {
+        if (!app.ai || missing.length === 0) {
           return;
         }
         try {
-          const res = await ai.inbox(app.aiToken(), {
+          const res = await app.ai.inbox({
             emails: missing.map((e) => ({
               id: e.id,
               from: e.from,
@@ -201,7 +200,7 @@ function Message({
                 style={{ alignSelf: "flex-start", whiteSpace: "normal" }}
               >
                 <Icon name="check" size={16} />
-                {data.demo ? "Sent (demo)." : "Sent. It's in your Gmail Sent folder too."}
+                {data.labels.sent}
               </div>
             ) : (
               <form

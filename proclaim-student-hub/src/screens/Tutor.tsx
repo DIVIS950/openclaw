@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatTurn, ImageInput, TutorMode } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
-import { ai } from "../lib/ai.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
 
 const MODES: { id: TutorMode; label: string }[] = [
@@ -46,12 +45,13 @@ export function Tutor() {
     setInput("");
     setImages([]);
 
-    if (!app.canUseAi) {
+    const ai = app.ai;
+    if (!ai) {
       setTurns([
         ...history,
         {
           role: "assistant",
-          text: "Sign in with Google to chat with Study Buddy. (The demo can't use the AI.)",
+          text: "The AI needs you signed in: on the web link, open it signed in to Claude; on the full app, sign in with Google.",
         },
       ]);
       return;
@@ -65,10 +65,9 @@ export function Tutor() {
         i < history.length - 1 ? { ...t, images: undefined } : t,
       );
       await ai.tutor(
-        app.aiToken(),
         sendMode,
         trimmed,
-        (soFar) => setTurns([...history, { role: "assistant", text: soFar }]),
+        (soFar: string) => setTurns([...history, { role: "assistant", text: soFar }]),
         abort.current.signal,
       );
     } catch (err) {

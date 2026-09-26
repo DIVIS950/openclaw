@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
-import { ai } from "../lib/ai.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import type { CalEvent } from "../lib/types.ts";
 
@@ -10,7 +9,7 @@ const BRIEF_KEY = "psh.brief";
 
 export function Today() {
   const app = useApp();
-  const { data, homework, profile, canUseAi, go } = app;
+  const { data, homework, profile, ai, go } = app;
   const [events, setEvents] = useState<CalEvent[] | null>(null);
   const [brief, setBrief] = useState<string | null>(null);
   const [briefFailed, setBriefFailed] = useState(false);
@@ -31,7 +30,7 @@ export function Today() {
     if (!homework || !events) {
       return;
     }
-    if (!canUseAi) {
+    if (!ai) {
       const next = open[0];
       setBrief(
         open.length === 0
@@ -57,7 +56,7 @@ export function Today() {
     (async () => {
       try {
         const emails = await data.inbox().catch(() => []);
-        const text = await ai.brief(app.aiToken(), {
+        const text = await ai.brief({
           name: profile?.name ?? "",
           homework: open
             .slice(0, 12)
@@ -81,7 +80,7 @@ export function Today() {
     return () => {
       cancelled = true;
     };
-  }, [homework, events, canUseAi]);
+  }, [homework, events, ai]);
 
   return (
     <main className="screen">

@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { TutorMode } from "../shared/api.ts";
+import type { AiProvider } from "./lib/ai.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 
 export type Screen =
@@ -32,9 +33,8 @@ export interface TutorSeed {
 
 export interface AppContext {
   data: DataSource;
-  /** Google token for the AI server; throws when the AI can't be used. */
-  aiToken: () => string;
-  canUseAi: boolean;
+  /** The AI features, or null where Claude can't be reached. */
+  ai: AiProvider | null;
   profile: Profile | null;
   homework: Homework[] | null;
   reloadHomework: () => void;
@@ -48,7 +48,8 @@ export interface AppContext {
   askTutor: (text: string, mode?: TutorMode) => void;
   handleError: (err: unknown) => void;
   toast: (message: string) => void;
-  signOut: () => void;
+  /** Null on the web link, which has no separate sign-in. */
+  signOut: (() => void) | null;
 }
 
 export const Ctx = createContext<AppContext | null>(null);
