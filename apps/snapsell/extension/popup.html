@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SnapSell for Chrome</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <div class="mark" aria-hidden="true">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FF5B24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+  </div>
+  <div class="grow">
+    <div class="title">SnapSell for Chrome</div>
+    <div class="sub" id="who">Not connected</div>
+  </div>
+  <span class="badge" id="badge" hidden><span class="dot"></span><span id="badgeText">Online</span></span>
+</header>
+
+<section id="pair" hidden>
+  <p class="lead">Connect this Chrome to your SnapSell. In the app open <b>Connections → Chrome extension</b> and copy the pairing code.</p>
+  <label for="server">SnapSell address</label>
+  <input id="server" type="url" placeholder="https://your-computer.ts.net" autocomplete="off">
+  <label for="token">Pairing code</label>
+  <input id="token" type="text" placeholder="ss_…" autocomplete="off">
+  <button id="connect" class="primary">Connect</button>
+  <p class="error" id="pairError" hidden></p>
+</section>
+
+<section id="main" hidden>
+  <div class="label">Posting now</div>
+  <div class="card" id="current">
+    <div class="empty" id="idle">Nothing to post. Snap something on your phone and choose Facebook or Vinted.</div>
+    <div id="job" hidden>
+      <div class="row">
+        <div class="grow"><div class="strong" id="jobTitle"></div><div class="sub" id="jobWhere"></div></div>
+      </div>
+      <div class="bar"><div class="fill"></div></div>
+      <div class="sub" id="jobMsg"></div>
+    </div>
+  </div>
+
+  <div class="label">Logged in here</div>
+  <div class="chips">
+    <button class="chip" id="fb"><span class="dot"></span>Facebook</button>
+    <button class="chip" id="vi"><span class="dot"></span>Vinted</button>
+  </div>
+  <p class="hint" id="loginHint" hidden>Tap a site to log in. SnapSell posts with your own account.</p>
+  <p class="error" id="error" hidden></p>
+
+  <div class="grow"></div>
+  <p class="foot">Leave Chrome open and SnapSell can post the items you snap on your phone. It types like you and stops if a site asks for a check.</p>
+  <button class="link" id="unpair">Disconnect this Chrome</button>
+</section>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,23 +1,8 @@
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  Flame,
-  Info,
-  Lightbulb,
-  Loader2,
-  MoreHorizontal,
-  Send,
-  Sparkles,
-  Tag,
-  Trash2,
-  Wand2,
-} from "lucide-react";
+import { Check, ChevronsLeftRight, Copy, ExternalLink, Lightbulb, Loader2, MoreHorizontal, Trash2, Wand2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import {
   CONDITIONS,
-  CONDITION_LABEL,
   CONDITION_SHORT,
   PLATFORMS,
   PLATFORM_META,
@@ -29,7 +14,7 @@ import {
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { PublishSheet } from "../components/PublishSheet.tsx";
-import { Button, Label, PlatformLogo, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
+import { Button, Card, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
 import { api, formatPrice, photoUrl } from "../lib/api.ts";
 import { PRESETS, enhancePhoto, type Preset } from "../lib/image.ts";
 
@@ -41,7 +26,6 @@ export function ListingScreen({ id }: { id: string }) {
   const [menu, setMenu] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
   const current = useRef<Listing | null>(null);
   current.current = listing;
 
@@ -52,9 +36,10 @@ export function ListingScreen({ id }: { id: string }) {
     // Keep polling while analysis runs or a marketplace is being posted to.
     const t = setInterval(() => {
       const cur = current.current;
-      const busy = cur?.status === "analyzing" || Object.values(cur?.publish ?? {}).some((p) => p?.status === "working");
+      const busy =
+        cur?.status === "analyzing" || Object.values(cur?.publish ?? {}).some((p) => p?.status === "working" || p?.status === "queued");
       if (busy) void load();
-    }, 1500);
+    }, 2000);
     return () => {
       alive = false;
       clearInterval(t);
@@ -76,7 +61,7 @@ export function ListingScreen({ id }: { id: string }) {
     return (
       <div>
         <TopBar onBack={back} />
-        <div className="mx-5 aspect-square rounded-[32px] shimmer bg-white/5" />
+        <div className="shimmer mx-4 h-[300px] rounded-[28px]" />
       </div>
     );
   }
@@ -85,12 +70,12 @@ export function ListingScreen({ id }: { id: string }) {
   if (!a) {
     return (
       <div>
-        <TopBar onBack={back} title="Listing" />
+        <TopBar onBack={back} />
         <div className="px-5 pt-10 text-center">
           {listing.status === "failed" ? (
             <>
-              <div className="text-xl font-bold">Analysis failed</div>
-              <p className="mt-2 text-ink-400">{listing.error}</p>
+              <h1 className="font-display text-2xl font-extrabold">Analysis failed</h1>
+              <p className="mt-2 text-muted">{listing.error}</p>
               <div className="mt-6 flex justify-center gap-2">
                 <Button onClick={() => go("/new", true)}>Try again</Button>
                 <Button variant="danger" onClick={() => api.remove(listing.id).then(() => go("/", true))}>
@@ -99,7 +84,7 @@ export function ListingScreen({ id }: { id: string }) {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center gap-2 text-ink-400">
+            <div className="flex items-center justify-center gap-2 text-muted">
               <Loader2 className="size-5 animate-spin" /> Still analyzing…
             </div>
           )}
@@ -108,100 +93,94 @@ export function ListingScreen({ id }: { id: string }) {
     );
   }
 
-  const currency = a.price.currency;
   const price = effectivePrice(listing);
   const liveCount = PLATFORMS.filter((p) => listing.publish[p]?.status === "live").length;
+  const statusText = { live: "Live", sold: "Sold", draft: "Draft · saved", analyzing: "Analyzing", failed: "Failed" }[listing.status];
 
   return (
-    <div className="pb-36">
+    <div className="pb-36 lg:pb-12">
       <TopBar
         onBack={back}
-        title={<span className="text-ink-400 text-sm font-medium">{listing.status === "live" ? "Live listing" : "Draft"}</span>}
+        title={<span className="block text-center text-sm font-semibold text-muted lg:text-left">{statusText}</span>}
         right={
-          <button onClick={() => setMenu(true)} className="grid size-10 place-items-center rounded-full hover:bg-white/5" aria-label="More">
+          <button onClick={() => setMenu(true)} className="grid size-11 place-items-center rounded-full hover:bg-soft" aria-label="More options">
             <MoreHorizontal className="size-5" />
           </button>
         }
       />
 
-      <PhotoStudio listing={listing} onChange={setListing} />
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6 lg:px-8">
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <Photos listing={listing} onChange={setListing} />
+        </div>
 
-      <div className="space-y-4 px-5">
-        {/* Identity */}
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="pt-2">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-pink-300">
-            <Sparkles className="size-3.5" /> {a.item.category}
-          </div>
-          <h1 className="mt-1.5 text-[26px] font-extrabold leading-tight tracking-tight">{a.item.name}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-400">
-            {[a.item.brand, a.item.model, a.item.color, a.item.size, a.item.era].filter(Boolean).map((x) => (
-              <span key={x} className="rounded-full bg-white/5 px-2.5 py-1">
-                {x}
-              </span>
-            ))}
-            <Confidence value={a.confidence} />
-          </div>
-          {a.identificationNotes && <p className="mt-2 text-sm text-ink-500">{a.identificationNotes}</p>}
-        </motion.section>
-
-        <PriceCard listing={listing} price={price} onPrice={(v) => edit((e) => ({ ...e, price: v }))} />
-
-        {/* Condition */}
-        <section className="card p-4">
-          <Label>Condition</Label>
-          <Segmented
-            value={effectiveCondition(listing)}
-            onChange={(v) => edit((e) => ({ ...e, condition: v }))}
-            options={CONDITIONS.map((c) => ({ id: c, label: CONDITION_SHORT[c] }))}
-          />
-          <p className="mt-3 px-1 text-sm text-ink-400">
-            <span className="font-semibold text-white">{CONDITION_LABEL[effectiveCondition(listing)]}.</span> {a.conditionNotes}
-          </p>
-        </section>
-
-        <CopyEditor listing={listing} onEdit={edit} />
-
-        {/* Specifics */}
-        <section className="card p-4">
-          <Label>Item specifics</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {a.attributes.map((at) => (
-              <div key={at.name} className="rounded-2xl bg-white/[0.04] px-3 py-2.5">
-                <div className="text-[11px] uppercase tracking-wider text-ink-500">{at.name}</div>
-                <div className="truncate text-sm font-medium">{at.value}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {a.tags.map((t) => (
-              <span key={t} className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-xs text-ink-200">
-                <Tag className="size-3" /> {t}
-              </span>
-            ))}
-          </div>
-          <div className="mt-3 px-1 text-xs text-ink-500">
-            Est. shipping: ~{a.shipping.weightKg} kg, {a.shipping.packageSize} package
-          </div>
-        </section>
-
-        {a.photoTips.length > 0 && (
-          <section className="rounded-3xl border border-amber-300/10 bg-amber-300/[0.04] p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-amber-200">
-              <Lightbulb className="size-4" /> Photo tips to sell faster
-            </div>
-            <ul className="mt-2 space-y-1 text-sm text-ink-400">
-              {a.photoTips.map((t) => (
-                <li key={t}>• {t}</li>
+        <div className="space-y-3 px-4 lg:px-0">
+          {/* Identity */}
+          <div className="px-1 pt-4 lg:pt-0">
+            <div className="text-xs font-bold uppercase tracking-[0.08em] text-accent-ink">{a.item.category}</div>
+            <h1 className="mt-1 font-display text-[26px] font-extrabold leading-[1.08]">{a.item.name}</h1>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {[a.item.brand, a.item.color, a.item.size, a.item.era].filter(Boolean).map((x) => (
+                <Pill key={x}>{x}</Pill>
               ))}
-            </ul>
-          </section>
-        )}
+              <Pill tone={a.confidence >= 0.75 ? "ok" : "soft"}>{Math.round(Math.min(1, Math.max(0, a.confidence)) * 100)}% match</Pill>
+            </div>
+          </div>
+
+          <PriceCard listing={listing} price={price} onPrice={(v) => edit((e) => ({ ...e, price: v }))} />
+
+          <Card>
+            <Label>Condition</Label>
+            <Segmented
+              label="Condition"
+              value={effectiveCondition(listing)}
+              onChange={(v) => edit((e) => ({ ...e, condition: v }))}
+              options={CONDITIONS.filter((c) => c !== "poor").map((c) => ({ id: c, label: CONDITION_SHORT[c] }))}
+            />
+            <p className="mt-2.5 text-sm leading-relaxed text-muted">AI noticed: {a.conditionNotes}</p>
+          </Card>
+
+          <CopyEditor listing={listing} onEdit={edit} />
+
+          <Card>
+            <Label>Item specifics</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {a.attributes.map((at) => (
+                <div key={at.name} className="min-w-0 rounded-xl bg-[#faf8f3] px-2.5 py-2">
+                  <div className="text-[11px] text-muted">{at.name}</div>
+                  <div className="truncate text-sm font-semibold">{at.value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2.5 text-xs text-muted">
+              Shipping estimate: about {a.shipping.weightKg} kg, {a.shipping.packageSize} parcel
+            </div>
+          </Card>
+
+          {a.photoTips.length > 0 && (
+            <Card className="bg-[#fdf6e7]">
+              <div className="flex items-center gap-2 text-sm font-bold">
+                <Lightbulb className="size-4 text-accent-ink" /> Photo tips to sell faster
+              </div>
+              <ul className="mt-2 space-y-1 text-sm text-muted">
+                {a.photoTips.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          <div className="hidden lg:block">
+            <Button size="lg" className="w-full" onClick={() => setPublishing(true)}>
+              {liveCount ? `Live on ${liveCount} · Manage` : "Sell on 3 marketplaces"}
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg bg-gradient-to-t from-ink-950 via-ink-950/95 to-transparent px-5 pt-10 safe-bottom">
-        <Button variant="ai" size="lg" className="w-full" onClick={() => setPublishing(true)}>
-          <Send className="size-5" />
-          {liveCount ? `Live on ${liveCount} · Manage` : `Sell for ${formatPrice(price, currency)}`}
+      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg bg-gradient-to-b from-paper/0 via-paper/90 to-paper px-4 pt-8 safe-bottom lg:hidden">
+        <Button size="lg" className="w-full" onClick={() => setPublishing(true)}>
+          {liveCount ? `Live on ${liveCount} · Manage` : "Sell on 3 marketplaces"}
         </Button>
       </div>
 
@@ -210,7 +189,7 @@ export function ListingScreen({ id }: { id: string }) {
       <Sheet open={menu} onClose={() => setMenu(false)}>
         <div className="space-y-2">
           <Button
-            variant="ghost"
+            variant="soft"
             className="w-full justify-start"
             onClick={async () => {
               setListing(await api.update(listing.id, { status: listing.status === "sold" ? "draft" : "sold" }));
@@ -236,39 +215,79 @@ export function ListingScreen({ id }: { id: string }) {
   );
 }
 
-function Confidence({ value }: { value: number }) {
-  const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
-  const color = pct >= 80 ? "text-emerald-400" : pct >= 55 ? "text-amber-300" : "text-red-400";
+// ---------------------------------------------------------------- photos + studio (artboards 5 & 7)
+
+function Photos({ listing, onChange }: { listing: Listing; onChange: (l: Listing) => void }) {
+  const [original, setOriginal] = useState(false);
+  const [studio, setStudio] = useState(false);
+  const [index, setIndex] = useState(0);
+  const hasEnhanced = listing.enhanced.length > 0;
+
   return (
-    <span className={cx("inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1", color)}>
-      <svg viewBox="0 0 20 20" className="size-4 -rotate-90">
-        <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeOpacity=".2" strokeWidth="3" />
-        <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${(pct / 100) * 50.3} 50.3`} strokeLinecap="round" />
-      </svg>
-      {pct}% match
-    </span>
+    <div className="relative px-4 lg:px-0">
+      <div
+        onScroll={(e) => setIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-[28px] border border-line bg-card no-scrollbar"
+      >
+        {listing.photos.map((_, i) => (
+          <div key={i} className="relative aspect-square w-full shrink-0 snap-center">
+            <img src={photoUrl(listing, i, !original)} alt={`Photo ${i + 1}`} className="absolute inset-0 size-full object-cover" />
+          </div>
+        ))}
+      </div>
+      <div className="pointer-events-none absolute inset-x-7 top-3 flex items-start justify-between lg:inset-x-3">
+        {hasEnhanced ? (
+          <div className="pointer-events-auto flex rounded-full bg-soft/95 p-[3px] backdrop-blur" role="radiogroup" aria-label="Photo version">
+            {[
+              [false, "Enhanced"],
+              [true, "Original"],
+            ].map(([val, label]) => (
+              <button
+                key={String(label)}
+                role="radio"
+                aria-checked={original === val}
+                onClick={() => setOriginal(val as boolean)}
+                className={cx("h-[30px] rounded-full px-3 text-[13px] font-semibold", original === val && "bg-ink text-white")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span />
+        )}
+        <button onClick={() => setStudio(true)} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-bold text-ink">
+          <Wand2 className="size-3.5" /> Studio
+        </button>
+      </div>
+      {listing.photos.length > 1 && (
+        <div className="mt-3 flex justify-center gap-[5px]" aria-hidden="true">
+          {listing.photos.map((_, i) => (
+            <div key={i} className={cx("h-1.5 rounded-full transition-all", i === index ? "w-[18px] bg-ink" : "w-1.5 bg-line-strong")} />
+          ))}
+        </div>
+      )}
+      <Studio open={studio} onClose={() => setStudio(false)} listing={listing} onChange={onChange} />
+    </div>
   );
 }
 
-function PhotoStudio({ listing, onChange }: { listing: Listing; onChange: (l: Listing) => void }) {
-  const [showOriginal, setShowOriginal] = useState(false);
-  const [studio, setStudio] = useState(false);
-  const [busy, setBusy] = useState<Preset | null>(null);
-  const [index, setIndex] = useState(0);
+function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: () => void; listing: Listing; onChange: (l: Listing) => void }) {
+  const [preset, setPreset] = useState<Preset>("auto");
+  const [preview, setPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"preview" | "apply" | null>(null);
+  const [split, setSplit] = useState(50);
   const [error, setError] = useState<string | null>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const hasEnhanced = listing.enhanced.length > 0;
+  const crop = (i: number) => listing.analysis?.crops.find((c) => c.photo === i);
+  const original = `/photos/${listing.id}/${listing.photos[0]}`;
 
-  const apply = async (preset: Preset) => {
-    setBusy(preset);
+  const choose = async (p: Preset) => {
+    setPreset(p);
+    setBusy("preview");
     setError(null);
     try {
-      const blobs = await Promise.all(
-        listing.photos.map((p, i) => enhancePhoto(`/photos/${listing.id}/${p}`, preset, listing.analysis?.crops.find((c) => c.photo === i))),
-      );
-      onChange(await api.uploadEnhanced(listing.id, blobs));
-      setShowOriginal(false);
-      setStudio(false);
+      const blob = await enhancePhoto(original, p, crop(0));
+      setPreview(URL.createObjectURL(blob));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -276,151 +295,151 @@ function PhotoStudio({ listing, onChange }: { listing: Listing; onChange: (l: Li
     }
   };
 
+  useEffect(() => {
+    if (open && !preview) void choose("auto");
+    // Only generate the first preview when the sheet opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const apply = async () => {
+    setBusy("apply");
+    setError(null);
+    try {
+      const blobs = await Promise.all(listing.photos.map((p, i) => enhancePhoto(`/photos/${listing.id}/${p}`, preset, crop(i))));
+      onChange(await api.uploadEnhanced(listing.id, blobs));
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const n = listing.photos.length;
   return (
-    <div className="relative">
-      <div
-        ref={scroller}
-        onScroll={(e) => setIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
-        className="flex snap-x snap-mandatory overflow-x-auto no-scrollbar"
-      >
-        {listing.photos.map((_, i) => (
-          <div key={i} className="w-full shrink-0 snap-center px-5">
-            <div className="relative aspect-square overflow-hidden rounded-[32px] bg-ink-800">
-              <AnimatePresence mode="popLayout" initial={false}>
-                <motion.img
-                  key={`${showOriginal}-${listing.enhanced[i] ?? ""}`}
-                  src={photoUrl(listing, i, !showOriginal)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 size-full object-cover"
-                  alt=""
-                />
-              </AnimatePresence>
-            </div>
+    <Sheet open={open} onClose={() => !busy && onClose()} title="Photo studio" subtitle={`Drag to compare. Changes apply to all ${n} photo${n > 1 ? "s" : ""}.`}>
+      <div className="relative aspect-square overflow-hidden rounded-3xl bg-soft">
+        <img src={original} alt="Before" className="absolute inset-0 size-full object-cover" />
+        {preview && (
+          <img src={preview} alt="After" className="absolute inset-0 size-full object-cover" style={{ clipPath: `inset(0 0 0 ${split}%)` }} />
+        )}
+        {busy === "preview" && (
+          <div className="absolute inset-0 grid place-items-center bg-paper/50">
+            <Loader2 className="size-8 animate-spin" />
           </div>
+        )}
+        <div className="pointer-events-none absolute inset-y-0 w-[3px] -translate-x-1/2 bg-accent" style={{ left: `${split}%` }}>
+          <div className="absolute left-1/2 top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-accent text-ink">
+            <ChevronsLeftRight className="size-5" />
+          </div>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={split}
+          onChange={(e) => setSplit(Number(e.target.value))}
+          aria-label="Compare before and after"
+          className="absolute inset-0 size-full cursor-ew-resize opacity-0"
+        />
+        <span className="absolute left-3 top-3 rounded-full bg-[#0e0d0a]/70 px-2.5 py-1 text-xs font-bold text-white">Before</span>
+        <span className="absolute right-3 top-3 rounded-full bg-ink px-2.5 py-1 text-xs font-bold text-white">After</span>
+      </div>
+
+      <div className="mt-3.5 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Style">
+        {PRESETS.map((p) => (
+          <button
+            key={p.id}
+            role="radio"
+            aria-checked={preset === p.id}
+            disabled={!!busy}
+            onClick={() => choose(p.id)}
+            className={cx("rounded-2xl bg-card p-2 text-left", preset === p.id ? "border-2 border-ink" : "border-[1.5px] border-line")}
+          >
+            <span
+              className={cx(
+                "block h-[58px] rounded-[10px]",
+                p.id === "auto" && "bg-[#b9a68e]",
+                p.id === "vivid" && "bg-[#d98a4b]",
+                p.id === "studio" && "border border-line bg-white",
+              )}
+            />
+            <span className="mt-1.5 block text-sm font-bold">{p.label}</span>
+            <span className="block text-xs text-muted">{p.hint}</span>
+          </button>
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-x-5 top-3 flex justify-between px-3">
-        {hasEnhanced ? (
-          <button
-            className="pointer-events-auto rounded-full bg-black/55 px-3 py-1.5 text-xs font-semibold backdrop-blur-md"
-            onPointerDown={() => setShowOriginal(true)}
-            onPointerUp={() => setShowOriginal(false)}
-            onPointerLeave={() => setShowOriginal(false)}
-          >
-            {showOriginal ? "Original" : "✨ Enhanced · hold to compare"}
-          </button>
-        ) : (
-          <span />
-        )}
-        <button
-          onClick={() => setStudio(true)}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-ink-950"
-        >
-          <Wand2 className="size-3.5" /> Studio
-        </button>
-      </div>
-      {listing.photos.length > 1 && (
-        <div className="mt-3 flex justify-center gap-1.5">
-          {listing.photos.map((_, i) => (
-            <div key={i} className={cx("h-1.5 rounded-full transition-all", i === index ? "w-5 bg-white" : "w-1.5 bg-white/25")} />
-          ))}
-        </div>
-      )}
-
-      <Sheet open={studio} onClose={() => !busy && setStudio(false)} title="Photo studio">
-        <p className="-mt-2 mb-4 text-sm text-ink-400">AI crops to your item, fixes light and color and makes every photo marketplace-ready.</p>
-        <div className="grid grid-cols-3 gap-2">
-          {PRESETS.map((p) => (
-            <button
-              key={p.id}
-              disabled={!!busy}
-              onClick={() => apply(p.id)}
-              className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left disabled:opacity-60"
-            >
-              <div
-                className={cx(
-                  "mb-3 aspect-square rounded-xl",
-                  p.id === "auto" && "bg-gradient-to-br from-stone-500 to-stone-800",
-                  p.id === "vivid" && "bg-gradient-to-br from-orange-400 via-pink-500 to-violet-600",
-                  p.id === "studio" && "bg-gradient-to-b from-white to-zinc-200",
-                )}
-              />
-              <div className="text-sm font-semibold">{p.label}</div>
-              <div className="text-[11px] leading-tight text-ink-400">{p.hint}</div>
-              {busy === p.id && (
-                <div className="absolute inset-0 grid place-items-center bg-black/60">
-                  <Loader2 className="size-6 animate-spin" />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-        {busy === "studio" && (
-          <p className="mt-3 text-xs text-ink-400">First run downloads the cut-out AI model to your phone (~40 MB). After that it's fast and private.</p>
-        )}
-        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-      </Sheet>
-    </div>
+      {preset === "studio" && busy && <p className="mt-3 text-xs text-muted">The first cut-out downloads a small AI model to this device. After that it's quick and private.</p>}
+      {error && <p className="mt-3 text-sm text-bad">{error}</p>}
+      <Button size="lg" className="mt-4 w-full" onClick={apply} loading={busy === "apply"} disabled={!!busy}>
+        Apply to {n} photo{n > 1 ? "s" : ""}
+      </Button>
+    </Sheet>
   );
 }
+
+// ---------------------------------------------------------------- price (artboard 5)
 
 function PriceCard({ listing, price, onPrice }: { listing: Listing; price: number; onPrice: (v: number) => void }) {
   const p = listing.analysis!.price;
   const comps = listing.analysis!.comparables;
   const [showComps, setShowComps] = useState(false);
-  const min = Math.min(p.low, p.quickSale, price) * 0.9;
-  const max = Math.max(p.high, price) * 1.1;
+  const [editing, setEditing] = useState(false);
+  const min = Math.min(p.low, p.quickSale, price) * 0.92;
+  const max = Math.max(p.high, price) * 1.08;
   const pos = (v: number) => `${((v - min) / (max - min)) * 100}%`;
+  const demand = { high: "High demand", medium: "Steady demand", low: "Low demand" }[p.demand];
 
   return (
-    <section className="card relative overflow-hidden p-4">
-      <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full ai-gradient opacity-15 blur-3xl" />
-      <div className="relative flex items-start justify-between">
-        <Label>Your price</Label>
-        <span
-          className={cx(
-            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
-            p.demand === "high" ? "bg-emerald-500/15 text-emerald-400" : p.demand === "medium" ? "bg-amber-400/15 text-amber-300" : "bg-white/10 text-ink-400",
-          )}
-        >
-          <Flame className="size-3.5" /> {p.demand} demand
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Your price</span>
+        <Pill tone={p.demand === "high" ? "ok" : "soft"} className="h-[26px] text-xs">
+          {demand}
+        </Pill>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        {editing ? (
+          <input
+            autoFocus
+            inputMode="decimal"
+            defaultValue={price}
+            aria-label="Price"
+            onBlur={(e) => {
+              const v = Number(e.target.value.replace(",", ".").replace(/\s/g, ""));
+              if (v > 0) onPrice(v);
+              setEditing(false);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            className="h-[54px] w-40 rounded-[14px] border-2 border-ink bg-card px-3 font-display text-[28px] font-extrabold focus:outline-none"
+          />
+        ) : (
+          <button onClick={() => setEditing(true)} aria-label={`Price ${formatPrice(price, p.currency)}, tap to edit`}>
+            <PriceTag size="lg">{formatPrice(price, p.currency)}</PriceTag>
+          </button>
+        )}
+        <span className="text-[13px] leading-snug text-muted">
+          Tap the tag
+          <br />
+          to change it
         </span>
       </div>
-      <div className="relative flex items-baseline gap-2 px-1">
-        <input
-          inputMode="decimal"
-          value={price}
-          onChange={(e) => {
-            const v = Number(e.target.value.replace(",", "."));
-            if (!Number.isNaN(v)) onPrice(v);
-          }}
-          style={{ width: `${Math.max(2, String(price).length) + 0.5}ch` }}
-          className="bg-transparent text-[44px] font-extrabold tracking-tight focus:outline-none"
-          aria-label="Price"
+
+      <div className="relative mt-4 h-2 rounded bg-soft" aria-hidden="true">
+        <div className="absolute inset-y-0 rounded bg-accent-soft" style={{ left: pos(p.low), right: `calc(100% - ${pos(p.high)})` }} />
+        <motion.div
+          className="absolute -top-1.5 size-5 -translate-x-1/2 rounded-full border-[3px] border-white bg-ink"
+          animate={{ left: pos(price) }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
         />
-        <span className="text-xl font-bold text-ink-400">{p.currency}</span>
+      </div>
+      <div className="mt-2 flex justify-between text-xs text-muted">
+        <span>{formatPrice(p.low, p.currency)}</span>
+        <span>market range</span>
+        <span>{formatPrice(p.high, p.currency)}</span>
       </div>
 
-      {/* Market range */}
-      <div className="relative mt-4 px-1">
-        <div className="relative h-2 rounded-full bg-white/10">
-          <div className="absolute inset-y-0 rounded-full ai-gradient opacity-70" style={{ left: pos(p.low), right: `calc(100% - ${pos(p.high)})` }} />
-          <motion.div
-            className="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-ink-900 bg-white shadow-lg"
-            animate={{ left: pos(price) }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-ink-400">
-          <span>{formatPrice(p.low, p.currency)}</span>
-          <span>market range</span>
-          <span>{formatPrice(p.high, p.currency)}</span>
-        </div>
-      </div>
-
-      <div className="relative mt-4 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {[
           { label: "Quick sale", value: p.quickSale },
           { label: "Suggested", value: p.suggested },
@@ -429,57 +448,48 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
           <button
             key={o.label}
             onClick={() => onPrice(o.value)}
-            className={cx(
-              "rounded-2xl border px-2 py-2.5 text-center transition-colors",
-              price === o.value ? "border-pink-400/60 bg-pink-400/10" : "border-white/5 bg-white/[0.03]",
-            )}
+            aria-pressed={price === o.value}
+            className={cx("h-[54px] rounded-[14px] bg-card text-[15px] font-bold leading-tight", price === o.value ? "border-2 border-ink" : "border-[1.5px] border-line")}
           >
-            <div className="font-bold">{formatPrice(o.value, p.currency)}</div>
-            <div className="text-[11px] text-ink-400">{o.label}</div>
+            {formatPrice(o.value, p.currency)}
+            <span className="block text-[11px] font-medium text-muted">{o.label}</span>
           </button>
         ))}
       </div>
-
-      <p className="relative mt-4 flex gap-2 px-1 text-sm text-ink-400">
-        <Info className="mt-0.5 size-4 shrink-0" /> {p.reasoning}
-      </p>
+      <p className="mt-3 text-sm leading-relaxed text-muted">{p.reasoning}</p>
 
       {comps.length > 0 && (
-        <div className="relative mt-3">
-          <button onClick={() => setShowComps((s) => !s)} className="px-1 text-sm font-semibold text-pink-300">
-            {showComps ? "Hide" : "See"} {comps.length} comparable listings
+        <>
+          <button onClick={() => setShowComps((s) => !s)} aria-expanded={showComps} className="mt-2 text-sm font-bold underline decoration-line-strong underline-offset-4">
+            {showComps ? "Hide" : "See"} the {comps.length} listings behind this price
           </button>
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {showComps && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="mt-2 divide-y divide-white/5">
-                  {comps.map((c, i) => (
-                    <a
-                      key={i}
-                      href={c.url ?? undefined}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-3 px-1 py-2.5"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm">{c.title}</div>
-                        <div className="text-xs text-ink-500">
-                          {c.source} · {c.sold ? <span className="text-emerald-400">sold</span> : "asking"}
-                        </div>
-                      </div>
-                      <div className="font-semibold">{formatPrice(c.price, c.currency)}</div>
-                      {c.url && <ExternalLink className="size-3.5 text-ink-500" />}
+              <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                {comps.map((c, i) => (
+                  <li key={i} className="border-b border-soft last:border-0">
+                    <a href={c.url ?? undefined} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">{c.title}</span>
+                        <span className="block text-xs text-muted">
+                          {c.source} · {c.sold ? <span className="font-semibold text-ok">sold</span> : "asking"}
+                        </span>
+                      </span>
+                      <span className="font-bold">{formatPrice(c.price, c.currency)}</span>
+                      {c.url && <ExternalLink className="size-3.5 text-muted" />}
                     </a>
-                  ))}
-                </div>
-              </motion.div>
+                  </li>
+                ))}
+              </motion.ul>
             )}
           </AnimatePresence>
-        </div>
+        </>
       )}
-    </section>
+    </Card>
   );
 }
+
+// ---------------------------------------------------------------- copy (artboard 6)
 
 function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Listing["edits"]) => Listing["edits"]) => void }) {
   const [tab, setTab] = useState<Platform>("ebay");
@@ -491,7 +501,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
     onEdit((e) => ({ ...e, platforms: { ...e.platforms, [tab]: { ...e.platforms?.[tab], [field]: value } } }));
 
   return (
-    <section className="card p-4">
+    <Card>
       <Label
         right={
           <button
@@ -500,47 +510,47 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}
-            className="inline-flex items-center gap-1 normal-case tracking-normal text-pink-300"
+            className="flex h-8 items-center gap-1.5 rounded-full bg-soft px-3 text-[13px] font-semibold"
           >
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? "Copied" : "Copy"}
           </button>
         }
       >
-        AI-written listing
+        Written for each site
       </Label>
-      <div className="mb-3 flex gap-2">
+      <div className="grid grid-cols-3 gap-1.5" role="tablist" aria-label="Marketplace">
         {PLATFORMS.map((p) => (
           <button
             key={p}
+            role="tab"
+            aria-selected={tab === p}
             onClick={() => setTab(p)}
-            className={cx(
-              "flex flex-1 items-center justify-center gap-2 rounded-2xl border py-2 text-sm font-semibold transition-colors",
-              tab === p ? "border-white/20 bg-white/10" : "border-transparent bg-white/[0.03] text-ink-400",
-            )}
+            className={cx("flex h-11 items-center justify-center gap-2 rounded-xl bg-card text-sm font-semibold", tab === p ? "border-2 border-ink" : "border-[1.5px] border-line")}
           >
             <PlatformLogo platform={p} size={20} />
-            <span className="hidden min-[400px]:inline">{PLATFORM_META[p].name.split(" ")[0]}</span>
+            {p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}
           </button>
         ))}
       </div>
-      <div className="relative">
-        <input
-          value={copy.title}
-          onChange={(e) => set("title", e.target.value)}
-          className="w-full rounded-2xl border border-white/5 bg-white/[0.04] px-4 py-3 pr-14 font-semibold focus:border-pink-400/50 focus:outline-none"
-          aria-label="Title"
-        />
-        <span className={cx("absolute right-3 top-1/2 -translate-y-1/2 text-xs", copy.title.length > limit ? "text-red-400" : "text-ink-500")}>
-          {copy.title.length}/{limit}
-        </span>
-      </div>
+      <label className="mt-3.5 flex justify-between text-[13px] font-semibold text-muted" htmlFor="copy-title">
+        Title <span className={cx("font-medium", copy.title.length > limit && "text-bad")}>{copy.title.length} / {limit}</span>
+      </label>
+      <input
+        id="copy-title"
+        value={copy.title}
+        onChange={(e) => set("title", e.target.value)}
+        className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3 text-[15px] font-semibold focus:border-ink focus:outline-none"
+      />
+      <label className="mt-3 block text-[13px] font-semibold text-muted" htmlFor="copy-desc">
+        Description
+      </label>
       <textarea
+        id="copy-desc"
         value={copy.description}
         onChange={(e) => set("description", e.target.value)}
         rows={9}
-        className="mt-2 w-full resize-y rounded-2xl border border-white/5 bg-white/[0.04] p-4 text-[15px] leading-relaxed focus:border-pink-400/50 focus:outline-none"
-        aria-label="Description"
+        className="mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-line bg-[#faf8f3] p-3 text-sm leading-relaxed focus:border-ink focus:outline-none"
       />
-    </section>
+    </Card>
   );
 }

@@ -3,9 +3,9 @@ import type { Analysis } from "../../shared/types.ts";
 export type Preset = "auto" | "vivid" | "studio";
 
 export const PRESETS: { id: Preset; label: string; hint: string }[] = [
-  { id: "auto", label: "Auto", hint: "Balanced light & color" },
-  { id: "vivid", label: "Vivid", hint: "Punchy, eye-catching" },
-  { id: "studio", label: "Studio", hint: "AI cut-out on white" },
+  { id: "auto", label: "Auto", hint: "Fix light" },
+  { id: "vivid", label: "Vivid", hint: "Rich color" },
+  { id: "studio", label: "White", hint: "AI cut-out" },
 ];
 
 const OUT = 1600;

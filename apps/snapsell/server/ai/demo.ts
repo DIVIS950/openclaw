@@ -13,7 +13,14 @@ export async function demoAnalysis(
 ): Promise<Analysis> {
   const c = settings.currency;
   emit({ type: "stage", stage: "looking" });
-  await sleep(1200);
+  await sleep(1000);
+  emit({ type: "stage", stage: "lens" });
+  await sleep(700);
+  emit({ type: "lens", matches: 14, bestGuess: "sony wh-1000xm4" });
+  for (const [value, source] of [[142, "eBay"], [165, "eBay"], [150, "Vinted"], [185, "Facebook"], [158, "eBay"], [131, "Vinted"]] as const) {
+    emit({ type: "price", value, currency: c, source });
+    await sleep(180);
+  }
   emit({ type: "stage", stage: "searching" });
   for (const q of [
     "Sony WH-1000XM4 used price",

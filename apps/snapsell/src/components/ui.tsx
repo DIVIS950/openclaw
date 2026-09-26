@@ -8,23 +8,26 @@ export function cx(...c: (string | false | null | undefined)[]) {
 }
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "ai" | "primary" | "ghost" | "danger";
+  variant?: "ink" | "accent" | "outline" | "soft" | "danger";
   loading?: boolean;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
 };
 
-export function Button({ variant = "primary", loading, size = "md", className, children, disabled, ...rest }: BtnProps) {
+export function Button({ variant = "ink", loading, size = "md", className, children, disabled, ...rest }: BtnProps) {
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
       disabled={disabled || loading}
       className={cx(
-        "relative inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-colors disabled:opacity-50",
-        size === "lg" ? "h-14 px-6 text-[17px]" : "h-11 px-4 text-[15px]",
-        variant === "ai" && "ai-gradient glow text-white",
-        variant === "primary" && "bg-white text-ink-950 hover:bg-ink-200",
-        variant === "ghost" && "bg-white/5 text-white hover:bg-white/10",
-        variant === "danger" && "bg-red-500/10 text-red-400 hover:bg-red-500/20",
+        "inline-flex items-center justify-center gap-2 font-semibold transition-colors disabled:opacity-45",
+        size === "lg" && "h-[60px] rounded-[18px] px-6 text-[17px]",
+        size === "md" && "h-12 rounded-2xl px-5 text-[15px]",
+        size === "sm" && "h-9 rounded-full px-3.5 text-[13px]",
+        variant === "ink" && "bg-ink text-white hover:bg-ink-2",
+        variant === "accent" && "bg-accent text-ink shadow-[0_14px_30px_-12px_rgba(194,65,12,0.65)] hover:brightness-105",
+        variant === "outline" && "border-[1.5px] border-line-strong bg-transparent text-ink hover:bg-soft",
+        variant === "soft" && "bg-soft text-ink hover:bg-line",
+        variant === "danger" && "bg-bad-soft text-bad hover:brightness-95",
         className,
       )}
       {...(rest as object)}
@@ -35,48 +38,64 @@ export function Button({ variant = "primary", loading, size = "md", className, c
   );
 }
 
+export function Logo({ size = 36, withName = true }: { size?: number; withName?: boolean }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="grid place-items-center bg-ink" style={{ width: size, height: size, borderRadius: size * 0.3 }}>
+        <svg width={size * 0.53} height={size * 0.53} viewBox="0 0 24 24" fill="none" stroke="#FF5B24" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" />
+          <circle cx="7.5" cy="7.5" r="1.5" />
+        </svg>
+      </div>
+      {withName && <span className="font-display text-[21px] font-extrabold">SnapSell</span>}
+    </div>
+  );
+}
+
 export function TopBar({ title, onBack, right }: { title?: ReactNode; onBack?: () => void; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-ink-950/80 px-3 backdrop-blur-xl pt-[env(safe-area-inset-top)] box-content">
+    <header className="sticky top-0 z-30 box-content flex h-14 items-center gap-1 bg-paper/85 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
       {onBack ? (
-        <button onClick={onBack} className="grid size-10 place-items-center rounded-full hover:bg-white/5" aria-label="Back">
+        <button onClick={onBack} className="grid size-11 place-items-center rounded-full hover:bg-soft" aria-label="Back">
           <ChevronLeft className="size-6" />
         </button>
       ) : (
-        <div className="w-1" />
+        <div className="w-2" />
       )}
-      <div className="flex-1 truncate text-[17px] font-semibold">{title}</div>
+      <div className="min-w-0 flex-1 truncate">{title}</div>
       {right}
     </header>
   );
 }
 
-export function Sheet({ open, onClose, children, title }: { open: boolean; onClose: () => void; children: ReactNode; title?: string }) {
+export function Sheet({ open, onClose, children, title, subtitle }: { open: boolean; onClose: () => void; children: ReactNode; title?: string; subtitle?: ReactNode }) {
   return (
     <AnimatePresence>
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-[#17150f]/55"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92dvh] max-w-lg overflow-y-auto rounded-t-[28px] border-t border-white/10 bg-ink-900 safe-bottom"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92dvh] max-w-lg overflow-y-auto rounded-t-[28px] bg-paper safe-bottom lg:bottom-auto lg:top-1/2 lg:max-h-[86dvh] lg:-translate-y-1/2 lg:rounded-[28px]"
+            initial={{ y: "100%", opacity: 0.6 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0.6 }}
             transition={{ type: "spring", damping: 32, stiffness: 320 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
-            onDragEnd={(_, info) => info.offset.y > 120 && onClose()}
           >
-            <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-white/20" />
-            {title && <div className="px-5 pt-4 text-xl font-bold">{title}</div>}
-            <div className="p-5">{children}</div>
+            <div className="mx-auto mt-3 h-[5px] w-10 rounded-full bg-line-strong lg:hidden" />
+            <div className="px-5 pt-4">
+              {title && <h2 className="font-display text-[26px] font-extrabold">{title}</h2>}
+              {subtitle && <div className="mt-0.5 text-sm text-muted">{subtitle}</div>}
+            </div>
+            <div className="p-5 pt-4">{children}</div>
           </motion.div>
         </>
       )}
@@ -88,25 +107,27 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  label,
 }: {
   value: T;
   options: { id: T; label: string }[];
   onChange: (v: T) => void;
+  label?: string;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto rounded-2xl bg-white/5 p-1 no-scrollbar">
+    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-[14px] bg-soft p-1">
       {options.map((o) => (
         <button
           key={o.id}
+          role="radio"
+          aria-checked={value === o.id}
           onClick={() => onChange(o.id)}
           className={cx(
-            "relative shrink-0 flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-            value === o.id ? "text-ink-950" : "text-ink-400 hover:text-white",
+            "relative h-[38px] flex-1 whitespace-nowrap rounded-[11px] px-2 text-sm font-semibold transition-colors",
+            value === o.id ? "text-white" : "text-muted hover:text-ink",
           )}
         >
-          {value === o.id && (
-            <motion.div layoutId={`seg-${options.map((x) => x.id).join()}`} className="absolute inset-0 rounded-xl bg-white" />
-          )}
+          {value === o.id && <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-[11px] bg-ink" />}
           <span className="relative">{o.label}</span>
         </button>
       ))}
@@ -114,56 +135,102 @@ export function Segmented<T extends string>({
   );
 }
 
-export function PlatformLogo({ platform, size = 36 }: { platform: Platform; size?: number }) {
-  const s = { width: size, height: size, borderRadius: size * 0.3 };
-  if (platform === "ebay")
-    return (
-      <div style={s} className="grid shrink-0 place-items-center bg-white font-extrabold tracking-tighter" aria-label="eBay">
-        <span style={{ fontSize: size * 0.36 }}>
-          <span className="text-[#e53238]">e</span>
-          <span className="text-[#0064d2]">b</span>
-          <span className="text-[#f5af02]">a</span>
-          <span className="text-[#86b817]">y</span>
-        </span>
-      </div>
-    );
-  if (platform === "facebook")
-    return (
-      <div style={s} className="grid shrink-0 place-items-center bg-[#0866ff]" aria-label="Facebook Marketplace">
-        <svg viewBox="0 0 24 24" style={{ width: size * 0.55 }} fill="white">
-          <path d="M14 8h3V4h-3c-2.8 0-4.5 1.8-4.5 4.6V11H7v4h2.5v9h4v-9H16l.6-4h-3.1V8.9c0-.6.3-.9.5-.9Z" />
-        </svg>
-      </div>
-    );
+export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <div style={s} className="grid shrink-0 place-items-center bg-[#09b1ba] font-extrabold text-white" aria-label="Vinted">
-      <span style={{ fontSize: size * 0.5 }}>V</span>
-    </div>
+    <button
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+      className={cx("relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors", on ? "bg-ink" : "bg-line-strong")}
+    >
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+        className={cx("absolute top-[3px] size-6 rounded-full bg-white shadow", on ? "right-[3px]" : "left-[3px]")}
+      />
+    </button>
   );
 }
 
 export function Label({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-2 flex items-center justify-between px-1 text-[13px] font-semibold uppercase tracking-wider text-ink-400">
-      <span>{children}</span>
+    <div className="mb-2.5 flex items-center justify-between">
+      <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted">{children}</span>
       {right}
     </div>
   );
 }
 
-export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+export function Card({ children, className }: { children: ReactNode; className?: string }) {
+  return <section className={cx("rounded-3xl border border-line bg-card p-4", className)}>{children}</section>;
+}
+
+export function Pill({ children, tone = "soft", className }: { children: ReactNode; tone?: "soft" | "ok" | "ink" | "paper" | "accent"; className?: string }) {
   return (
-    <button
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-      className={cx("relative h-7 w-12 shrink-0 rounded-full transition-colors", on ? "ai-gradient" : "bg-white/15")}
+    <span
+      className={cx(
+        "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold",
+        tone === "soft" && "bg-soft",
+        tone === "ok" && "bg-ok-soft font-bold text-ok",
+        tone === "ink" && "bg-ink text-white",
+        tone === "paper" && "bg-paper",
+        tone === "accent" && "bg-accent text-ink",
+        className,
+      )}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={cx("absolute top-1 size-5 rounded-full bg-white shadow", on ? "right-1" : "left-1")}
-      />
-    </button>
+      {children}
+    </span>
+  );
+}
+
+/** Price shown as an orange price tag, the SnapSell signature element. */
+export function PriceTag({ children, size = "md" }: { children: ReactNode; size?: "md" | "lg" }) {
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center rounded-[14px] bg-accent font-display font-extrabold text-ink",
+        size === "lg" ? "h-[54px] gap-2.5 pl-3 pr-4 text-[32px]" : "h-11 gap-2 pl-3 pr-4 text-xl",
+      )}
+    >
+      <span className="size-2.5 rounded-full bg-white" aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
+export function PlatformLogo({ platform, size = 40 }: { platform: Platform; size?: number }) {
+  const s = { width: size, height: size, borderRadius: size * 0.3 };
+  if (platform === "ebay")
+    return (
+      <div style={s} className="grid shrink-0 place-items-center border border-line bg-white font-extrabold tracking-tighter" aria-label="eBay">
+        <span style={{ fontSize: size * 0.34 }}>
+          <span className="text-[#e53238]">e</span>
+          <span className="text-[#0064d2]">b</span>
+          <span className="text-[#c98d00]">a</span>
+          <span className="text-[#5e8e0f]">y</span>
+        </span>
+      </div>
+    );
+  if (platform === "facebook")
+    return (
+      <div style={{ ...s, fontSize: size * 0.5 }} className="grid shrink-0 place-items-center bg-[#0866ff] font-extrabold text-white" aria-label="Facebook Marketplace">
+        f
+      </div>
+    );
+  return (
+    <div style={{ ...s, fontSize: size * 0.45 }} className="grid shrink-0 place-items-center bg-[#007f86] font-extrabold text-white" aria-label="Vinted">
+      V
+    </div>
+  );
+}
+
+export function Avatar({ name, picture, size = 44 }: { name: string; picture?: string; size?: number }) {
+  return picture ? (
+    <img src={picture} alt="" referrerPolicy="no-referrer" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+  ) : (
+    <span className="grid shrink-0 place-items-center rounded-full bg-[#e4c9a8] font-bold" style={{ width: size, height: size, fontSize: size * 0.38 }}>
+      {name.slice(0, 1).toUpperCase()}
+    </span>
   );
 }

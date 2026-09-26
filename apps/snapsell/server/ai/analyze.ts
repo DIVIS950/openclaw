@@ -30,11 +30,12 @@ function imageBlocks(photos: Photo[]): BetaContentBlockParam[] {
   ]);
 }
 
-function context(settings: Settings, note?: string) {
+function context(settings: Settings, note?: string, visual?: string) {
   return [
     `Seller location: ${settings.country}. Currency: ${settings.currency}.`,
     `Write all buyer-facing text in ${settings.language}.`,
     note ? `Seller's note about the item: """${note}"""` : "",
+    visual ?? "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -60,6 +61,8 @@ export async function analyzeItem(
   settings: Settings,
   note: string | undefined,
   emit: Emit,
+  /** Google Lens / Cloud Vision findings, already formatted as text */
+  visual?: string,
 ): Promise<Analysis> {
   if (!aiConfigured()) return demoAnalysis(photos.length, settings, emit);
 
@@ -72,7 +75,7 @@ export async function analyzeItem(
       role: "user",
       content: [
         ...imageBlocks(photos),
-        { type: "text", text: `${context(settings, note)}\n\nIdentify this item and research what it sells for.` },
+        { type: "text", text: `${context(settings, note, visual)}\n\nIdentify this item and research what it sells for.` },
       ],
     },
   ];
@@ -125,7 +128,7 @@ export async function analyzeItem(
           ...imageBlocks(photos),
           {
             type: "text",
-            text: `${context(settings, note)}\n\nResearch report:\n${research.join("\n").trim() || "(no research available, estimate from your knowledge)"}\n\nThere are ${photos.length} photos. Produce the listing.`,
+            text: `${context(settings, note, visual)}\n\nResearch report:\n${research.join("\n").trim() || "(no research available, estimate from your knowledge)"}\n\nThere are ${photos.length} photos. Produce the listing.`,
           },
         ],
       },

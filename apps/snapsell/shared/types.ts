@@ -10,7 +10,7 @@ export const PLATFORM_META: Record<Platform, { name: string; color: string; sell
     color: "#0866ff",
     sellUrl: "https://www.facebook.com/marketplace/create/item",
   },
-  vinted: { name: "Vinted", color: "#09b1ba", sellUrl: "https://www.vinted.com/items/new" },
+  vinted: { name: "Vinted", color: "#007f86", sellUrl: "https://www.vinted.com/items/new" },
 };
 
 export const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
@@ -94,7 +94,8 @@ export const AnalysisSchema = z.object({
 export type Analysis = z.infer<typeof AnalysisSchema>;
 
 export type PublishState = {
-  status: "idle" | "working" | "needs_review" | "live" | "error";
+  /** queued = waiting for the Chrome extension to pick it up */
+  status: "idle" | "queued" | "working" | "needs_review" | "live" | "error";
   message?: string;
   url?: string;
   updatedAt?: string;
@@ -102,7 +103,10 @@ export type PublishState = {
 
 export type Listing = {
   id: string;
+  /** Email of the account that owns it */
+  owner: string;
   createdAt: string;
+  soldAt?: string;
   updatedAt: string;
   status: "analyzing" | "draft" | "live" | "sold" | "failed";
   note?: string;
@@ -144,14 +148,52 @@ export const DEFAULT_SETTINGS: Settings = {
 export type PlatformStatus = {
   platform: Platform;
   connected: boolean;
-  mode: "api" | "browser";
+  /** api = official API (eBay), extension = posted by the SnapSell Chrome extension */
+  mode: "api" | "extension";
   detail: string;
+  /** What the user can do next: log in with eBay, finish eBay setup, or log in to the site in Chrome */
+  action?: "ebay_login" | "ebay_setup" | "chrome_login" | "install_extension";
+  /** Only when the server has no eBay developer keys at all */
+  unavailable?: boolean;
+};
+
+export type Me = {
+  email: string;
+  name: string;
+  picture?: string;
+  /** false when Google login isn't configured (local-only mode) */
+  authEnabled: boolean;
+};
+
+export type ExtensionStatus = {
+  online: boolean;
+  lastSeen?: string;
+  sites: Partial<Record<"facebook" | "vinted", boolean>>;
+};
+
+/** A posting job handed to the Chrome extension. */
+export type ExtJob = {
+  listingId: string;
+  platform: "facebook" | "vinted";
+  title: string;
+  description: string;
+  price: number;
+  currency: string;
+  condition: Condition;
+  category: string;
+  brand: string | null;
+  size: string | null;
+  photos: string[];
+  autoPublish: boolean;
+  vintedDomain: string;
 };
 
 /** Events streamed to the client while a listing is being analyzed. */
 export type AnalyzeEvent =
-  | { type: "stage"; stage: "looking" | "searching" | "pricing" | "writing" | "done" }
+  | { type: "stage"; stage: "looking" | "lens" | "searching" | "pricing" | "writing" | "done" }
   | { type: "search"; query: string }
+  | { type: "lens"; matches: number; bestGuess?: string }
+  | { type: "price"; value: number; currency: string; source: string }
   | { type: "source"; title: string; url: string }
   | { type: "listing"; listing: Listing }
   | { type: "error"; message: string };

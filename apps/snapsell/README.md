@@ -1,118 +1,155 @@
 # SnapSell
 
-Snap a photo of anything you want to sell. AI identifies it, researches real market prices, polishes your photos, writes
-the listing, and posts it to **eBay**, **Facebook Marketplace** and **Vinted**.
+Snap a photo of anything you want to sell. AI identifies it, checks Google Lens and real sold prices, polishes your
+photos, writes the listing, and posts it to **eBay**, **Facebook Marketplace** and **Vinted**.
 
-It's a phone-first web app (installable to your home screen) backed by a small Node server that runs on your computer.
+- **Web app for your phone.** Install it to your home screen. There's a desktop layout too.
+- **Runs on your own computer.** It's free, and your data stays with you. Tailscale Funnel gives it a secure `https://`
+  address that works from anywhere.
+- **Private.** Sign in with Google, and only your account gets in.
+
+The UI follows the "SnapSell App Design" canvas.
 
 ## What it does
 
-1. **Capture**: take photos with your phone camera (up to 12) and add an optional note ("battery 89%, box included").
-2. **Identify**: Claude vision works out the exact item: brand, model, variant, size, and its honest condition.
-3. **Price**: Claude searches the web live for sold and active listings in your country, then suggests a
-   price range, a quick-sale price and a top price, with the comparable listings it found.
-4. **Photo studio**: auto-crops to the item, fixes light, color and sharpness, and outputs square, marketplace-ready
-   photos. Presets: *Auto*, *Vivid*, and *Studio* (an AI background cut-out on a clean white backdrop, run
-   in the browser).
-5. **Write**: a separate title and description for each marketplace, in your language: eBay (keyword-dense, 80
-   characters), Facebook (short and friendly), Vinted (casual, with hashtags). Everything stays editable.
-6. **Post**: one tap sends the listing to every marketplace you select. You can also use *copy & open* for
-   any site.
+1. **Camera.** A live viewfinder takes up to 12 photos, with tips for each shot. You can add a note for the AI
+   ("battery 89%, box included").
+2. **Identify.** Claude vision works out the exact item and its honest condition. **Google Lens** runs on the cover
+   photo: Google Cloud Vision web detection, plus SerpApi Google Lens with shop prices.
+3. **Price.** Claude searches live for sold and active listings in your country. You get a market range, a quick-sale
+   price, a suggested price and a top price, with the listings behind them. A live chart fills in while prices are
+   found.
+4. **Photo studio.** Auto-crops to the item and fixes light, color and sharpness. There's a before/after slider and
+   three presets: *Auto*, *Vivid*, and *White*, an AI background cut-out that runs on your device.
+5. **Write.** A separate title and description for eBay, Facebook and Vinted, in your language. Everything stays
+   editable.
+6. **Sell everywhere.**
+   - **eBay** uses the official API with **Log in with eBay**.
+   - **Facebook Marketplace** and **Vinted** are filled in by the **SnapSell Chrome extension**, in your own
+     logged-in Chrome.
+   - *Copy & open* works for any site as a fallback.
 
-## Quick start
+## 1. Quick start (on your computer)
+
+You need [Node.js 22+](https://nodejs.org).
 
 ```bash
 cd apps/snapsell
 npm install
-npx playwright install chromium   # only needed if Google Chrome isn't installed
-cp .env.example .env              # then put your ANTHROPIC_API_KEY in .env
+cp .env.example .env      # put your ANTHROPIC_API_KEY in .env
 npm run dev
 ```
 
-Open http://localhost:5173. Without an API key the app runs in **demo mode** with sample data, so you can try the
-whole flow for free.
+Open http://localhost:5173. Without an API key SnapSell runs in **demo mode** with sample data. Until Google login
+is set up it runs in **local mode** with no sign-in, so keep it off the internet until step 3 is done.
 
-### Use it on your phone
+## 2. Put it online for free (Tailscale Funnel)
 
-Your phone and computer must be on the same Wi-Fi. Run `npm run dev` and open `http://<your-computer-ip>:5173` on the
-phone. In Safari use *Share → Add to Home Screen*; in Chrome use *Install app*.
+Your computer hosts SnapSell. Tailscale gives it a permanent `https://…ts.net` address, so your phone can use it
+anywhere, not just on home Wi-Fi.
 
-For an always-on setup, build once and run the production server (one port, serves the app and the API):
+1. Install [Tailscale](https://tailscale.com/download) on the computer and sign in. It's free for personal use.
+2. In a terminal, run `tailscale funnel --bg 8787`. The first time, it shows a link to turn Funnel on; open it and
+   approve. Then it prints your address, for example `https://my-pc.tail1234.ts.net`.
+3. Put that address in `.env` as `PUBLIC_URL=https://my-pc.tail1234.ts.net`.
+4. **Set up Google login (step 3) before you share the address.**
+5. Start SnapSell with `npm run online`. This builds the app and serves everything on port 8787.
+6. On your phone, open the address. In Safari choose *Share → Add to Home Screen*; in Chrome choose *Install app*.
 
-```bash
-npm run build
-npm start          # http://<your-computer-ip>:8787
-```
+Keep the computer on and awake. Chrome must be open on it for Facebook and Vinted posting anyway.
 
-## Connecting marketplaces
+## 3. Sign in with Google
 
-### Facebook Marketplace and Vinted (browser automation)
+1. Go to https://console.cloud.google.com and create a project (for example "SnapSell").
+2. Open *APIs & Services → OAuth consent screen*. Choose **External**, fill in the app name and your email, and add
+   yourself under *Test users*.
+3. Open *Credentials → Create credentials → OAuth client ID → Web application*. Under **Authorized redirect URIs** add:
+   - `https://my-pc.tail1234.ts.net/auth/google/callback` (your `PUBLIC_URL` + `/auth/google/callback`)
+   - `http://localhost:5173/auth/google/callback` (for `npm run dev`)
+4. Put the client ID and secret in `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then restart SnapSell.
 
-These sites have no public listing API, so SnapSell drives a real Chrome window on your computer, logged in as you.
+The first Google account that signs in becomes the owner. Anything you created in local mode moves to that account.
+To allow more people, list their emails in `ALLOWED_EMAILS=you@gmail.com,partner@gmail.com`.
 
-1. Go to **Settings → Marketplaces → Connect**. A browser window opens on the computer running SnapSell.
-2. Log in normally (including 2FA). SnapSell detects the login, remembers the session in `data/browser/<site>`, and
-   closes the window.
-3. When you post, SnapSell opens the create-listing page, uploads the enhanced photos, and fills in title, price,
-   category, condition and description.
+## 4. Google Lens price search (optional, both work together)
 
-By default **Auto-publish is off**: the form is filled in and left open so you can check it and press the final
-Publish button yourself. Turn Auto-publish on in Settings to have SnapSell click it too.
+- **Google Cloud Vision** (1,000 free photos a month): in the same Google Cloud project, enable **Cloud Vision
+  API**. Then use *Credentials → Create credentials → API key* (restrict it to Cloud Vision API) and put it in `.env`
+  as `GOOGLE_VISION_API_KEY`. Google asks for a billing account to be linked, but the free quota covers personal use.
+- **SerpApi Google Lens** (100 free searches a month): sign up at https://serpapi.com and put the key in `.env` as
+  `SERPAPI_KEY`. SerpApi downloads your photo from SnapSell through a private link that expires after 10 minutes, so
+  it only works once `PUBLIC_URL` is set (step 2).
 
-> ⚠️ Automated posting is against these sites' terms and can trigger checks or restrictions on your account. SnapSell
-> types at human speed and only acts when you ask it to, but the risk is yours. Keeping Auto-publish off is the safer
-> choice. Site layouts change; if a field can't be found, SnapSell tells you what to finish by hand.
+## 5. Connect eBay ("Log in with eBay")
 
-For Vinted, pick the right country in Settings (vinted.cz, vinted.de, vinted.co.uk …). Size and package size
-depend on the category and may need a tap.
+1. Create a developer account at https://developer.ebay.com and create a **Production** keyset. The App ID is your
+   client ID and the Cert ID is your client secret.
+2. Open *User Tokens → Get a Token from eBay via Your Application → Add eBay Redirect URL*. Set **Your auth accepted
+   URL** to `https://my-pc.tail1234.ts.net/auth/ebay/callback`, turn on OAuth, and save. Copy the **RuName** it
+   shows.
+3. Put `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` and `EBAY_RUNAME` in `.env`. If you don't sell on eBay US, also set
+   `EBAY_MARKETPLACE_ID` (for example `EBAY_DE`) and `EBAY_CONTENT_LANGUAGE` (for example `de-DE`). Restart
+   SnapSell.
+4. In SnapSell, go to **Connections → eBay → Log in with eBay** and approve.
+5. SnapSell picks up your shipping, payment and return policies automatically. If you don't have them yet, create
+   them once in eBay Seller Hub and tap *Check again*. It also asks once for the postal code you ship from.
 
-### eBay (official API)
+## 6. Facebook Marketplace and Vinted (SnapSell for Chrome)
 
-eBay posting goes through eBay's official Sell APIs, so no browser is needed. One-time setup:
+These sites have no public API, so the **SnapSell Chrome extension** posts for you. It fills in the site's own form
+in your normal Chrome, with your own login.
 
-1. Create a developer account at https://developer.ebay.com and create a **Production** keyset (App ID = client id,
-   Cert ID = client secret).
-2. Under *User Tokens → Get a Token from eBay via Your Application*, sign in with your seller account and grant the
-   `sell.inventory` scope. Copy the **refresh token** (it's valid for about 18 months).
-3. In eBay Seller Hub, opt in to **Business Policies** and create a shipping, payment and return policy. Their IDs are in
-   the policy URLs (or use the Account API `GET /sell/account/v1/fulfillment_policy`).
-4. Create an inventory location once (`POST /sell/inventory/v1/location/{key}`) with your address; the `{key}` you
-   choose is `EBAY_LOCATION_KEY`.
-5. Fill the `EBAY_*` values in `.env` and restart. Settings then shows eBay as connected.
+1. In Chrome on your computer, open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and choose the `apps/snapsell/extension` folder.
+3. In SnapSell, open **Connections → SnapSell for Chrome → Create pairing code**. Paste the address and the code into
+   the extension's popup.
+4. Log in to Facebook and Vinted in that Chrome, the normal way.
 
-For a different eBay site, set `EBAY_MARKETPLACE_ID` (for example `EBAY_DE`) and `EBAY_CONTENT_LANGUAGE` (for example
-`de-DE`). Use `EBAY_ENV=sandbox` with sandbox keys to test without real listings.
+From then on, choosing Facebook or Vinted on your phone queues the post. Chrome picks it up within about 30 seconds,
+opens the site in a new tab, uploads the photos, and fills in title, price, category, condition and description.
+
+By default SnapSell stops before the final click: it brings the tab to the front and you press **Publish**.
+Turning off *Let me check before it goes live* makes it press Publish too. If a field can't be found, SnapSell tells
+you what to finish yourself.
+
+> ⚠️ Automated posting is against Facebook's and Vinted's terms and can trigger checks or restrictions on your
+> account. The extension only acts when you ask, types at human speed and uses your real browser, but the risk is
+> yours. Keeping the final check on is the safer choice. Site layouts change, so selectors may need updating over
+> time.
 
 ## How the AI works
 
-`server/ai/analyze.ts` makes two Claude API calls:
+`server/ai/analyze.ts` (with `server/ai/lens.ts`) works in three steps:
 
-1. **Research**: the photos, plus the `web_search` tool. Claude identifies the item and looks up sold and asking
-   prices. The search queries it runs appear live on the "Analyzing" screen.
-2. **Compose**: the photos plus the research report, returned as structured JSON (`shared/types.ts → AnalysisSchema`).
-   This gives the price range, comparables, per-platform copy, item specifics, and a bounding box per photo for
-   auto-crop.
+1. **Google Lens.** Cloud Vision and SerpApi run on the cover photo if they're configured. Their matches and prices
+   are given to the AI as evidence.
+2. **Research.** Claude gets the photos plus the `web_search` tool, identifies the item and looks up sold and asking
+   prices. The analyzing screen shows this live.
+3. **Compose.** Claude returns structured JSON (`shared/types.ts → AnalysisSchema`): price range, comparables, text
+   for each marketplace, item specifics, and a bounding box per photo for the auto-crop.
 
-The default model is `claude-opus-5`; override it with `SNAPSELL_MODEL`. Refusal fallbacks are enabled
-(`fallbacks: "default"`). A listing typically costs roughly $0.10 to $0.40 in API usage (images, web searches and output), depending on how much research is needed.
+The model is `claude-opus-5` (set `SNAPSELL_MODEL` to change it), with refusal fallbacks on. A listing typically
+costs roughly $0.10–0.40 in API usage.
 
 ## Project layout
 
 ```
-server/            Hono API server (tsx)
-  ai/              Claude analysis + demo data
-  publish/         eBay (API), Facebook + Vinted (Playwright)
+server/            Hono API server
+  auth.ts          Sign in with Google, sessions, extension tokens
+  ai/              Claude analysis, Google Lens, demo data
+  publish/         eBay (official API + OAuth), extension job queue for Facebook/Vinted
   store.ts         JSON + file storage under data/
-shared/types.ts    Schema and types shared by server and app
+shared/types.ts    Types shared by server, app and extension jobs
 src/               React app (Vite + Tailwind + Motion)
   lib/image.ts     Photo studio: crop, tone, sharpen, background removal
+extension/         SnapSell for Chrome (Manifest V3, no build step)
 ```
 
-All data (listings, photos, browser sessions, settings) stays on your computer in `data/`.
+All data (listings, photos, accounts, tokens) stays on your computer in `data/`. Back up that folder.
 
 ## Notes
 
-- The *Studio* preset uses `@imgly/background-removal`, which downloads a ~40 MB model the first time and runs on
-  the device. That library is AGPL-licensed, which is fine for personal use; replace it before distributing SnapSell
+- The *White* preset uses `@imgly/background-removal`, which downloads a small model the first time and runs on the
+  device. That library is AGPL-licensed, which is fine for personal use; replace it before distributing SnapSell
   commercially.
 - `npm run typecheck` type-checks the server and the app.

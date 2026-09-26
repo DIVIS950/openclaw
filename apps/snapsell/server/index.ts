@@ -2,87 +2,162 @@ import fs from "node:fs/promises";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { PLATFORMS, type Listing, type Platform, type Settings } from "../shared/types.ts";
 import { aiConfigured, analyzeItem, MODEL, type Photo } from "./ai/analyze.ts";
-import { ebayPublisher } from "./publish/ebay.ts";
-import { facebook } from "./publish/facebook.ts";
-import type { Publisher } from "./publish/types.ts";
-import { vinted } from "./publish/vinted.ts";
+import { lensSearch, publicPhoto, serpEnabled, visionEnabled } from "./ai/lens.ts";
+import { googleCallback, googleEnabled, googleStart, logout, me, publicUrl, requireUser, type Env } from "./auth.ts";
 import {
-  bestPhotoPaths,
+  ebayAppConfigured,
+  ebayCreateLocation,
+  ebayDisconnect,
+  ebayLoginCallback,
+  ebayLoginStart,
+  ebayPublisher,
+  ebaySetup,
+} from "./publish/ebay.ts";
+import { extensionPing, extensionReport, extensionStatus, facebookPublisher, vintedPublisher } from "./publish/extension.ts";
+import type { Publisher } from "./publish/types.ts";
+import {
+  bestPhotoNames,
   createListing,
   deleteListing,
   getListing,
-  getSettings,
+  getUser,
   listListings,
+  newExtensionToken,
   photoPath,
-  saveSettings,
   savePhoto,
   updateListing,
+  updateUser,
 } from "./store.ts";
 
-const publishers: Record<Platform, Publisher> = { ebay: ebayPublisher, facebook, vinted };
+const publishers: Record<Platform, Publisher> = { ebay: ebayPublisher, facebook: facebookPublisher, vinted: vintedPublisher };
 const isPlatform = (p: string): p is Platform => (PLATFORMS as readonly string[]).includes(p);
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err)).split("\n")[0];
 
-/** First line of an error, without Playwright's call log or ANSI colors. */
-function friendlyError(err: unknown) {
-  const raw = err instanceof Error ? err.message : String(err);
-  // eslint-disable-next-line no-control-regex
-  const line = raw.replace(/\u001b\[\d+m/g, "").split("\n")[0].replace(/^[\w.]+: /, "");
-  return /ERR_(NAME|TUNNEL|INTERNET|CONNECTION)/.test(line) ? `Couldn't reach the site (${line.match(/ERR_\w+/)?.[0]})` : line;
-}
-
-const app = new Hono();
+const app = new Hono<Env>();
 
 app.onError((err, c) => {
   console.error(err);
-  return c.json({ error: err.message }, 500);
+  return c.json({ error: errorText(err) }, 500);
 });
 
-app.get("/api/health", (c) => c.json({ ai: aiConfigured(), demo: !aiConfigured(), model: MODEL }));
+// The Chrome extension calls the API with a bearer token from its own origin.
+app.use(
+  "/api/ext/*",
+  cors({ origin: (o) => (o?.startsWith("chrome-extension://") ? o : null), allowHeaders: ["Authorization", "Content-Type"] }),
+);
+app.use(
+  "/photos/*",
+  cors({ origin: (o) => (o?.startsWith("chrome-extension://") ? o : null), allowHeaders: ["Authorization"] }),
+);
 
-app.get("/api/settings", async (c) => c.json(await getSettings()));
-app.put("/api/settings", async (c) => c.json(await saveSettings((await c.req.json()) as Partial<Settings>)));
+// ---------- public ----------
 
-app.get("/api/platforms", async (c) => {
-  const settings = await getSettings();
-  return c.json(await Promise.all(PLATFORMS.map((p) => publishers[p].status(settings))));
+app.get("/api/health", (c) =>
+  c.json({
+    ai: aiConfigured(),
+    demo: !aiConfigured(),
+    model: MODEL,
+    googleLogin: googleEnabled(),
+    lens: { vision: visionEnabled(), serpapi: serpEnabled() },
+    ebayApp: ebayAppConfigured(),
+  }),
+);
+app.get("/auth/google", googleStart);
+app.get("/auth/google/callback", googleCallback);
+app.post("/auth/logout", logout);
+
+/** Short-lived public link to one photo, used only by the Google Lens (SerpApi) lookup. */
+app.get("/p/:token", async (c) => {
+  const p = publicPhoto(c.req.param("token"));
+  if (!p) return c.notFound();
+  return c.body(await fs.readFile(photoPath(p.id, p.name)), 200, { "Content-Type": "image/jpeg" });
 });
 
-app.post("/api/platforms/:p/connect", async (c) => {
-  const p = c.req.param("p");
-  if (!isPlatform(p) || !publishers[p].connect) return c.json({ error: "Not supported" }, 400);
-  // Login happens in a visible browser window; the client polls /api/platforms for the result.
-  void publishers[p].connect(await getSettings()).catch((e) => console.error(`connect ${p}`, e));
-  return c.json({ started: true });
+// ---------- signed in ----------
+
+const api = app;
+// Everything below needs a signed-in user (or the paired Chrome extension's token).
+app.use("/api/*", (c, next) => (c.req.path === "/api/health" ? next() : requireUser(c, next)));
+app.use("/auth/ebay", requireUser);
+app.use("/auth/ebay/*", requireUser);
+app.use("/photos/*", requireUser);
+
+api.get("/api/me", (c) => c.json(me(c.var.user)));
+
+api.get("/api/settings", (c) => c.json(c.var.user.settings));
+api.put("/api/settings", async (c) => {
+  const patch = (await c.req.json()) as Partial<Settings>;
+  const u = await updateUser(c.var.user.email, (u) => void (u.settings = { ...u.settings, ...patch }));
+  return c.json(u.settings);
 });
 
-app.post("/api/platforms/:p/disconnect", async (c) => {
-  const p = c.req.param("p");
-  if (!isPlatform(p)) return c.json({ error: "Unknown platform" }, 400);
-  await publishers[p].disconnect?.();
+api.get("/api/platforms", async (c) => c.json(await Promise.all(PLATFORMS.map((p) => publishers[p].status(c.var.user)))));
+
+// eBay: "Log in with eBay"
+api.get("/auth/ebay", (c) => ebayLoginStart(c));
+api.get("/auth/ebay/callback", (c) => ebayLoginCallback(c, c.var.user));
+api.post("/api/ebay/refresh", async (c) => {
+  await ebaySetup(c.var.user.email);
+  return c.json(await ebayPublisher.status((await getUser(c.var.user.email))!));
+});
+api.post("/api/ebay/location", async (c) => {
+  const { postalCode, country } = (await c.req.json()) as { postalCode: string; country: string };
+  if (!/^[\w -]{2,12}$/.test(postalCode ?? "") || !/^[A-Za-z]{2}$/.test(country ?? "")) {
+    return c.json({ error: "Enter a postal code and a 2-letter country code" }, 400);
+  }
+  const u = await ebayCreateLocation(c.var.user, postalCode, country);
+  return c.json(await ebayPublisher.status(u));
+});
+api.post("/api/ebay/disconnect", async (c) => {
+  await ebayDisconnect(c.var.user);
   return c.json({ ok: true });
 });
 
-app.get("/api/listings", async (c) => c.json(await listListings()));
+// Chrome extension
+api.get("/api/extension", (c) => c.json({ ...extensionStatus(c.var.user), paired: Boolean(c.var.user.extTokenHash) }));
+api.post("/api/extension/pair", async (c) => c.json({ token: await newExtensionToken(c.var.user.email), server: publicUrl(c) }));
+api.post("/api/ext/ping", async (c) => {
+  const { sites } = (await c.req.json()) as { sites?: { facebook?: boolean; vinted?: boolean } };
+  const job = await extensionPing(c.var.user, { facebook: !!sites?.facebook, vinted: !!sites?.vinted }, publicUrl(c));
+  const u = c.var.user;
+  return c.json({ job, user: { email: u.email, name: u.name, vintedDomain: u.settings.vintedDomain } });
+});
+api.post("/api/ext/jobs/:id/:platform", async (c) => {
+  const platform = c.req.param("platform");
+  if (platform !== "facebook" && platform !== "vinted") return c.json({ error: "Unknown platform" }, 400);
+  const report = (await c.req.json()) as Parameters<typeof extensionReport>[3];
+  if (!["working", "needs_review", "live", "error"].includes(report.status)) return c.json({ error: "Bad status" }, 400);
+  await extensionReport(c.var.user, c.req.param("id"), platform, report);
+  return c.json({ ok: true });
+});
 
-app.get("/api/listings/:id", async (c) => {
-  const l = await getListing(c.req.param("id"));
+// Listings
+api.get("/api/listings", async (c) => c.json(await listListings(c.var.user.email)));
+
+api.get("/api/listings/:id", async (c) => {
+  const l = await getListing(c.req.param("id"), c.var.user.email);
   return l ? c.json(l) : c.json({ error: "Not found" }, 404);
 });
 
-app.patch("/api/listings/:id", async (c) => {
+api.patch("/api/listings/:id", async (c) => {
   const body = (await c.req.json()) as Partial<Pick<Listing, "edits" | "status">>;
-  const l = await updateListing(c.req.param("id"), (l) => {
+  const l = await updateListing(c.req.param("id"), c.var.user.email, (l) => {
     if (body.edits) l.edits = { ...l.edits, ...body.edits };
-    if (body.status) l.status = body.status;
+    if (body.status) {
+      if (body.status === "sold" && l.status !== "sold") l.soldAt = new Date().toISOString();
+      if (body.status !== "sold") delete l.soldAt;
+      l.status = body.status;
+    }
   });
   return c.json(l);
 });
 
-app.delete("/api/listings/:id", async (c) => {
-  await deleteListing(c.req.param("id"));
+api.delete("/api/listings/:id", async (c) => {
+  await deleteListing(c.req.param("id"), c.var.user.email);
   return c.json({ ok: true });
 });
 
@@ -91,39 +166,50 @@ function mediaType(file: File): Photo["mediaType"] {
 }
 
 /** Upload photos + optional note, stream analysis progress back as server-sent events. */
-app.post("/api/analyze", async (c) => {
+api.post("/api/analyze", async (c) => {
+  const user = c.var.user;
   const form = await c.req.formData();
   const files = form.getAll("photos").filter((f): f is File => f instanceof File);
   const note = (form.get("note") as string | null)?.trim() || undefined;
   if (!files.length) return c.json({ error: "Add at least one photo" }, 400);
 
-  const listing = await createListing(note);
+  const listing = await createListing(user.email, note);
   const photos: Photo[] = [];
+  const names: string[] = [];
   for (const [i, f] of files.slice(0, 12).entries()) {
     const data = Buffer.from(await f.arrayBuffer());
     const name = `photo-${i}.${mediaType(f).split("/")[1]}`;
     await savePhoto(listing.id, name, data);
     photos.push({ data, mediaType: mediaType(f) });
+    names.push(name);
   }
-  const withPhotos = await updateListing(listing.id, (l) => {
-    l.photos = photos.map((p, i) => `photo-${i}.${p.mediaType.split("/")[1]}`);
-  });
+  const withPhotos = await updateListing(listing.id, user.email, (l) => void (l.photos = names));
+  const origin = publicUrl(c);
 
   return streamSSE(c, async (stream) => {
     const send = (e: unknown) => stream.writeSSE({ data: JSON.stringify(e) });
     await send({ type: "listing", listing: withPhotos });
     try {
-      const analysis = await analyzeItem(photos, await getSettings(), note, (e) => void send(e));
-      const done = await updateListing(listing.id, (l) => {
+      const emit = (e: Parameters<typeof send>[0]) => void send(e);
+      const visual = await lensSearch({
+        photo: photos[0],
+        listingId: listing.id,
+        photoName: names[0],
+        origin,
+        settings: user.settings,
+        emit,
+      });
+      const analysis = await analyzeItem(photos, user.settings, note, emit, visual || undefined);
+      const done = await updateListing(listing.id, user.email, (l) => {
         l.analysis = analysis;
         l.status = "draft";
       });
       await send({ type: "stage", stage: "done" });
       await send({ type: "listing", listing: done });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorText(err);
       console.error("analyze failed", err);
-      await updateListing(listing.id, (l) => {
+      await updateListing(listing.id, user.email, (l) => {
         l.status = "failed";
         l.error = message;
       });
@@ -133,8 +219,9 @@ app.post("/api/analyze", async (c) => {
 });
 
 /** Replace enhanced photos produced by the in-browser photo studio. */
-app.put("/api/listings/:id/enhanced", async (c) => {
+api.put("/api/listings/:id/enhanced", async (c) => {
   const id = c.req.param("id");
+  if (!(await getListing(id, c.var.user.email))) return c.json({ error: "Not found" }, 404);
   const form = await c.req.formData();
   const names: string[] = [];
   const stamp = Date.now().toString(36);
@@ -144,21 +231,21 @@ app.put("/api/listings/:id/enhanced", async (c) => {
     await savePhoto(id, name, Buffer.from(await f.arrayBuffer()));
     names.push(name);
   }
-  return c.json(await updateListing(id, (l) => void (l.enhanced = names)));
+  return c.json(await updateListing(id, c.var.user.email, (l) => void (l.enhanced = names)));
 });
 
-app.post("/api/listings/:id/publish", async (c) => {
+api.post("/api/listings/:id/publish", async (c) => {
+  const user = c.var.user;
   const id = c.req.param("id");
   const { platforms } = (await c.req.json()) as { platforms: string[] };
-  const listing = await getListing(id);
+  const listing = await getListing(id, user.email);
   if (!listing?.analysis) return c.json({ error: "Listing isn't ready" }, 400);
-  const settings = await getSettings();
   const targets = platforms.filter(isPlatform);
 
-  const setState = (p: Platform, state: Listing["publish"][Platform]) =>
-    updateListing(id, (l) => {
-      l.publish[p] = { ...state!, updatedAt: new Date().toISOString() };
-      if (state?.status === "live") l.status = "live";
+  const setState = (p: Platform, state: NonNullable<Listing["publish"][Platform]>) =>
+    updateListing(id, user.email, (l) => {
+      l.publish[p] = { ...state, updatedAt: new Date().toISOString() };
+      if (state.status === "live") l.status = "live";
     });
 
   await Promise.all(targets.map((p) => setState(p, { status: "working", message: "Starting" })));
@@ -166,43 +253,50 @@ app.post("/api/listings/:id/publish", async (c) => {
   for (const p of targets) {
     void (async () => {
       try {
-        if (!(await publishers[p].status(settings)).connected) {
-          await setState(p, { status: "error", message: "Not connected yet. Set it up in Settings." });
+        if (!(await publishers[p].status(user)).connected) {
+          await setState(p, { status: "error", message: "Not connected yet. Set it up in Connections." });
           return;
         }
-        const current = (await getListing(id))!;
+        const current = (await getListing(id, user.email))!;
         const state = await publishers[p].publish({
+          user,
           listing: current,
-          settings,
-          photoPaths: bestPhotoPaths(current),
+          settings: user.settings,
+          photoNames: bestPhotoNames(current),
           progress: (message) => void setState(p, { status: "working", message }),
         });
         await setState(p, state);
       } catch (err) {
-        await setState(p, { status: "error", message: friendlyError(err) });
+        await setState(p, { status: "error", message: errorText(err) });
       }
     })();
   }
-  return c.json(await getListing(id));
+  return c.json(await getListing(id, user.email));
 });
 
-app.get("/photos/:id/:name", async (c) => {
+api.get("/photos/:id/:name", async (c) => {
+  if (!(await getListing(c.req.param("id"), c.var.user.email))) return c.notFound();
   try {
-    const file = await fs.readFile(photoPath(c.req.param("id"), c.req.param("name")));
     const name = c.req.param("name");
+    const file = await fs.readFile(photoPath(c.req.param("id"), name));
     const type = name.endsWith(".png") ? "image/png" : name.endsWith(".webp") ? "image/webp" : "image/jpeg";
-    return c.body(file, 200, { "Content-Type": type, "Cache-Control": "public, max-age=31536000, immutable" });
+    return c.body(file, 200, { "Content-Type": type, "Cache-Control": "private, max-age=31536000, immutable" });
   } catch {
     return c.notFound();
   }
 });
 
-if (process.env.NODE_ENV === "production") {
+// `npm start` serves the built app from dist/ on the same port as the API.
+if (process.env.NODE_ENV === "production" || process.argv.includes("--prod")) {
   app.use("/*", serveStatic({ root: "./dist" }));
   app.get("*", serveStatic({ path: "./dist/index.html" }));
 }
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port, hostname: process.env.HOST ?? "0.0.0.0" }, () => {
-  console.log(`SnapSell server on http://localhost:${port}${aiConfigured() ? "" : "  (demo mode: no ANTHROPIC_API_KEY)"}`);
+  const notes = [
+    aiConfigured() ? "" : "demo mode: no ANTHROPIC_API_KEY",
+    googleEnabled() ? "" : "no Google login: local mode, anyone who can reach this address can use it",
+  ].filter(Boolean);
+  console.log(`SnapSell server on http://localhost:${port}${notes.length ? `\n  ${notes.join("\n  ")}` : ""}`);
 });

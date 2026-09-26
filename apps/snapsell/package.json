@@ -7,15 +7,14 @@
   "scripts": {
     "dev": "concurrently -k -n server,web -c blue,magenta \"tsx watch --env-file-if-exists=.env server/index.ts\" \"vite\"",
     "build": "vite build",
-    "start": "NODE_ENV=production tsx --env-file-if-exists=.env server/index.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "browsers": "playwright install chromium"
+    "start": "tsx --env-file-if-exists=.env server/index.ts --prod",
+    "online": "vite build && tsx --env-file-if-exists=.env server/index.ts --prod",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "@hono/node-server": "^2.1.1",
     "hono": "^4.13.9",
-    "playwright": "^1.63.0",
     "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },
@@ -29,6 +28,7 @@
     "concurrently": "^10.0.5",
     "lucide-react": "^1.48.0",
     "motion": "^13.4.4",
+    "playwright": "^1.63.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",

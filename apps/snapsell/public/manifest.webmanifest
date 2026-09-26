@@ -4,7 +4,7 @@
   "description": "Snap it. Price it. Sell it everywhere.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
+  "background_color": "#f3efe6",
+  "theme_color": "#f3efe6",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }

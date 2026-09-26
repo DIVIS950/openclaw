@@ -1,5 +1,4 @@
-import { AlertCircle, Check, CheckCircle2, Copy, ExternalLink, Eye, Loader2, Plug } from "lucide-react";
-import { motion } from "motion/react";
+import { AlertCircle, Check, CheckCircle2, Clock, Eye, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   PLATFORMS,
@@ -18,18 +17,9 @@ export function sellUrl(p: Platform, vintedDomain: string) {
   return p === "vinted" ? `https://${vintedDomain}/items/new` : PLATFORM_META[p].sellUrl;
 }
 
-export function PublishSheet({
-  open,
-  onClose,
-  listing,
-  onChange,
-}: {
-  open: boolean;
-  onClose: () => void;
-  listing: Listing;
-  onChange: (l: Listing) => void;
-}) {
-  const { settings, go } = useApp();
+/** "Sell everywhere" sheet (design artboard 8). */
+export function PublishSheet({ open, onClose, listing, onChange }: { open: boolean; onClose: () => void; listing: Listing; onChange: (l: Listing) => void }) {
+  const { settings, setSettings, go } = useApp();
   const [statuses, setStatuses] = useState<PlatformStatus[]>([]);
   const [selected, setSelected] = useState<Set<Platform>>(new Set());
   const [sending, setSending] = useState(false);
@@ -39,14 +29,15 @@ export function PublishSheet({
     if (!open) return;
     api.platforms().then((s) => {
       setStatuses(s);
-      setSelected(new Set(s.filter((x) => x.connected && listing.publish[x.platform]?.status !== "live").map((x) => x.platform)));
+      setSelected(new Set(s.filter((x) => x.connected && !["live", "working", "queued"].includes(listing.publish[x.platform]?.status ?? "")).map((x) => x.platform)));
     });
     // Only reset the selection when the sheet opens, not on every progress poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const status = (p: Platform) => statuses.find((s) => s.platform === p);
   const currency = listing.analysis!.price.currency;
+  const price = formatPrice(effectivePrice(listing), currency);
+  const liveCount = PLATFORMS.filter((p) => listing.publish[p]?.status === "live").length;
 
   const publish = async () => {
     setSending(true);
@@ -60,35 +51,61 @@ export function PublishSheet({
 
   const copyAndOpen = async (p: Platform) => {
     const c = effectiveCopy(listing, p);
-    await navigator.clipboard.writeText(`${c.title}\n\n${formatPrice(effectivePrice(listing), currency)}\n\n${c.description}`);
+    await navigator.clipboard.writeText(`${c.title}\n\n${price}\n\n${c.description}`);
     setCopied(p);
-    setTimeout(() => setCopied(null), 2000);
-    window.open(sellUrl(p, settings!.vintedDomain), "_blank");
+    setTimeout(() => setCopied(null), 2500);
+    window.open(sellUrl(p, settings.vintedDomain), "_blank");
+  };
+
+  const action = (st?: PlatformStatus) => {
+    if (!st || st.connected || st.unavailable) return null;
+    if (st.action === "ebay_login")
+      return (
+        <a href="/auth/ebay" className="flex h-[38px] items-center rounded-full bg-ink px-3.5 text-[13px] font-bold text-white">
+          Log in
+        </a>
+      );
+    const label = st.action === "chrome_login" ? "How?" : "Set up";
+    return (
+      <button
+        onClick={() => {
+          onClose();
+          go("/connections");
+        }}
+        className="h-[38px] rounded-full bg-ink px-3.5 text-[13px] font-bold text-white"
+      >
+        {label}
+      </button>
+    );
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Sell everywhere">
-      <p className="-mt-2 mb-4 text-sm text-ink-400">
-        {formatPrice(effectivePrice(listing), currency)} · {listing.photos.length} photos
-        {settings!.autoPublish ? " · auto-publish on" : " · you confirm the final click"}
-      </p>
-      <div className="space-y-2">
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Sell everywhere"
+      subtitle={`${price} · ${listing.photos.length} photo${listing.photos.length > 1 ? "s" : ""} · ${listing.analysis!.item.name}`}
+    >
+      <div className="space-y-2.5">
         {PLATFORMS.map((p) => {
-          const st = status(p);
+          const st = statuses.find((s) => s.platform === p);
           const state = listing.publish[p];
-          const connected = !!st?.connected;
+          const busy = state?.status === "working" || state?.status === "queued";
           return (
-            <motion.div key={p} layout className="rounded-3xl border border-white/5 bg-white/[0.03] p-3">
+            <div key={p} className="rounded-[20px] border border-line bg-card p-3.5">
               <div className="flex items-center gap-3">
-                <PlatformLogo platform={p} size={42} />
+                <PlatformLogo platform={p} size={44} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold">{PLATFORM_META[p].name}</div>
-                  <div className="truncate text-xs text-ink-400">{st?.detail ?? "…"}</div>
+                  <div className="font-bold">{PLATFORM_META[p].name}</div>
+                  <div className="truncate text-[13px] text-muted">{st?.detail ?? " "}</div>
                 </div>
                 {state?.status === "live" ? (
-                  <CheckCircle2 className="size-6 text-emerald-400" />
-                ) : connected ? (
+                  <CheckCircle2 className="size-[26px] fill-ok text-white" aria-label="Live" />
+                ) : busy ? (
+                  <Loader2 className="size-6 animate-spin" aria-label="Posting" />
+                ) : st?.connected ? (
                   <Toggle
+                    label={`Post to ${PLATFORM_META[p].name}`}
                     on={selected.has(p)}
                     onChange={(on) =>
                       setSelected((s) => {
@@ -100,61 +117,71 @@ export function PublishSheet({
                     }
                   />
                 ) : (
-                  <button
-                    onClick={() => {
-                      onClose();
-                      go("/settings");
-                    }}
-                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold"
-                  >
-                    <Plug className="size-3.5" /> Connect
-                  </button>
+                  action(st)
                 )}
               </div>
 
-              {state && state.status !== "idle" && (
-                <div
-                  className={cx(
-                    "mt-3 flex items-start gap-2 rounded-2xl px-3 py-2.5 text-sm",
-                    state.status === "working" && "bg-white/5 text-ink-200",
-                    state.status === "live" && "bg-emerald-500/10 text-emerald-300",
-                    state.status === "needs_review" && "bg-amber-400/10 text-amber-200",
-                    state.status === "error" && "bg-red-500/10 text-red-300",
-                  )}
-                >
-                  {state.status === "working" && <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" />}
-                  {state.status === "live" && <Check className="mt-0.5 size-4 shrink-0" />}
-                  {state.status === "needs_review" && <Eye className="mt-0.5 size-4 shrink-0" />}
-                  {state.status === "error" && <AlertCircle className="mt-0.5 size-4 shrink-0" />}
-                  <span className="flex-1">{state.message}</span>
-                  {state.url && (
-                    <a href={state.url} target="_blank" rel="noreferrer" className="shrink-0 font-semibold underline">
-                      View
-                    </a>
-                  )}
-                </div>
-              )}
+              {state && state.status !== "idle" && <StateRow state={state} />}
 
-              <button
-                onClick={() => copyAndOpen(p)}
-                className="mt-2 inline-flex items-center gap-1.5 px-1 text-xs font-medium text-ink-400 hover:text-white"
-              >
-                {copied === p ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                {copied === p ? "Copied, paste it in the form" : "Or copy text & open the site"}
-                <ExternalLink className="size-3" />
-              </button>
-            </motion.div>
+              {state?.status !== "live" && (
+                <button onClick={() => copyAndOpen(p)} className="mt-2 h-8 text-[13px] font-semibold text-muted underline underline-offset-4">
+                  {copied === p ? "Copied. Paste it into the form" : `Or copy the text and open ${p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}`}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
 
-      <Button variant="ai" size="lg" className="mt-5 w-full" disabled={!selected.size} loading={sending} onClick={publish}>
-        {selected.size ? `Post to ${selected.size} marketplace${selected.size > 1 ? "s" : ""}` : "Select a marketplace"}
+      <label className="mt-2.5 flex items-center gap-3 rounded-2xl bg-soft px-3.5 py-3">
+        <span className="flex-1">
+          <span className="block text-[15px] font-bold">Let me check before it goes live</span>
+          <span className="block text-[13px] text-muted">You press the final Publish on Facebook and Vinted</span>
+        </span>
+        <Toggle
+          label="Let me check before it goes live"
+          on={!settings.autoPublish}
+          onChange={async (on) => setSettings(await api.saveSettings({ autoPublish: !on }))}
+        />
+      </label>
+
+      <Button variant="accent" size="lg" className="mt-4 w-full" disabled={!selected.size} loading={sending} onClick={publish}>
+        {selected.size
+          ? `Post to ${selected.size}${liveCount ? " more" : ""} marketplace${selected.size > 1 ? "s" : ""}`
+          : liveCount
+            ? `Live on ${liveCount}`
+            : "Choose where to sell"}
       </Button>
-      <p className="mt-3 text-center text-[11px] leading-snug text-ink-500">
-        Facebook and Vinted are filled in by a browser on your computer, using your own account. These sites don't offer a
-        public API, so they may limit automated posting.
-      </p>
     </Sheet>
+  );
+}
+
+function StateRow({ state }: { state: NonNullable<Listing["publish"][Platform]> }) {
+  const tone = {
+    idle: "",
+    queued: "bg-soft",
+    working: "bg-soft",
+    needs_review: "bg-[#fdf0d5] text-[#7a4b00]",
+    live: "bg-ok-soft text-[#174f34]",
+    error: "bg-bad-soft text-bad",
+  }[state.status];
+  const Icon = { idle: Check, queued: Clock, working: Loader2, needs_review: Eye, live: Check, error: AlertCircle }[state.status];
+  return (
+    <div className={cx("mt-3 rounded-xl px-3 py-2.5 text-sm font-semibold", tone)}>
+      <div className="flex items-start gap-2">
+        <Icon className={cx("mt-0.5 size-4 shrink-0", state.status === "working" && "animate-spin")} />
+        <span className="flex-1">{state.message}</span>
+        {state.url && (
+          <a href={state.url} target="_blank" rel="noreferrer" className="shrink-0 font-bold underline">
+            View listing
+          </a>
+        )}
+      </div>
+      {state.status === "working" && (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
+          <div className="h-full w-1/3 indeterminate rounded-full bg-ink" />
+        </div>
+      )}
+    </div>
   );
 }

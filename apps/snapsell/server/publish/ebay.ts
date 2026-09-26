@@ -1,33 +1,31 @@
+import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
-import path from "node:path";
+import type { Context } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { effectiveCondition, effectiveCopy, effectivePrice, type Condition } from "../../shared/types.ts";
+import { publicUrl } from "../auth.ts";
+import { getUser, photoPath, updateUser, type EbayAccount, type User } from "../store.ts";
 import type { Publisher } from "./types.ts";
 
 /**
- * eBay is posted through the official Sell APIs (no browser needed).
- * Needs an eBay developer app + a user refresh token and business policies, see README.
+ * eBay goes through the official Sell APIs with "Log in with eBay" (OAuth).
+ * The server needs one eBay developer app (EBAY_CLIENT_ID / EBAY_CLIENT_SECRET / EBAY_RUNAME);
+ * each user then connects their own seller account with one click.
  */
-const env = () => ({
-  clientId: process.env.EBAY_CLIENT_ID,
-  clientSecret: process.env.EBAY_CLIENT_SECRET,
-  refreshToken: process.env.EBAY_REFRESH_TOKEN,
+const cfg = () => ({
+  clientId: process.env.EBAY_CLIENT_ID ?? "",
+  clientSecret: process.env.EBAY_CLIENT_SECRET ?? "",
+  ruName: process.env.EBAY_RUNAME ?? "",
   sandbox: process.env.EBAY_ENV === "sandbox",
   marketplace: process.env.EBAY_MARKETPLACE_ID ?? "EBAY_US",
   language: process.env.EBAY_CONTENT_LANGUAGE ?? "en-US",
-  fulfillmentPolicyId: process.env.EBAY_FULFILLMENT_POLICY_ID,
-  paymentPolicyId: process.env.EBAY_PAYMENT_POLICY_ID,
-  returnPolicyId: process.env.EBAY_RETURN_POLICY_ID,
-  locationKey: process.env.EBAY_LOCATION_KEY,
 });
 
-const REQUIRED = [
-  "EBAY_CLIENT_ID",
-  "EBAY_CLIENT_SECRET",
-  "EBAY_REFRESH_TOKEN",
-  "EBAY_FULFILLMENT_POLICY_ID",
-  "EBAY_PAYMENT_POLICY_ID",
-  "EBAY_RETURN_POLICY_ID",
-  "EBAY_LOCATION_KEY",
+const SCOPES = [
+  "https://api.ebay.com/oauth/api_scope",
+  "https://api.ebay.com/oauth/api_scope/sell.inventory",
+  "https://api.ebay.com/oauth/api_scope/sell.account",
+  "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
 ];
 
 const CONDITION: Record<Condition, string> = {
@@ -50,38 +48,89 @@ const MARKETPLACE_HOST: Record<string, string> = {
   EBAY_PL: "www.ebay.pl",
 };
 
-let cachedToken: { value: string; expires: number } | null = null;
+export const ebayAppConfigured = () => Boolean(cfg().clientId && cfg().clientSecret && cfg().ruName);
+const host = (prefix: string) => `https://${prefix}${cfg().sandbox ? ".sandbox" : ""}.ebay.com`;
+const basicAuth = () => `Basic ${Buffer.from(`${cfg().clientId}:${cfg().clientSecret}`).toString("base64")}`;
 
-async function accessToken() {
-  const e = env();
-  if (cachedToken && cachedToken.expires > Date.now() + 60_000) return cachedToken.value;
-  const res = await fetch(`https://api${e.sandbox ? ".sandbox" : ""}.ebay.com/identity/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${Buffer.from(`${e.clientId}:${e.clientSecret}`).toString("base64")}`,
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: e.refreshToken ?? "",
-      scope: "https://api.ebay.com/oauth/api_scope/sell.inventory",
-    }),
+// ---------- OAuth ----------
+
+export function ebayLoginStart(c: Context) {
+  if (!ebayAppConfigured()) return c.redirect("/#/connections?ebay=not_configured");
+  const state = randomBytes(16).toString("hex");
+  setCookie(c, "ss_ebay_state", state, {
+    httpOnly: true,
+    secure: publicUrl(c).startsWith("https://"),
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 600,
   });
-  const json = (await res.json().catch(() => ({}))) as { access_token?: string; expires_in?: number; error_description?: string };
-  if (!res.ok || !json.access_token) throw new Error(`eBay login failed: ${json.error_description ?? res.status}`);
-  cachedToken = { value: json.access_token, expires: Date.now() + (json.expires_in ?? 7200) * 1000 };
-  return cachedToken.value;
+  const params = new URLSearchParams({
+    client_id: cfg().clientId,
+    redirect_uri: cfg().ruName,
+    response_type: "code",
+    scope: SCOPES.join(" "),
+    state,
+  });
+  return c.redirect(`https://auth${cfg().sandbox ? ".sandbox" : ""}.ebay.com/oauth2/authorize?${params}`);
 }
 
-async function ebay<T>(method: string, url: string, body?: unknown, host = "api"): Promise<{ data: T; res: Response }> {
-  const e = env();
-  const res = await fetch(`https://${host}${e.sandbox ? ".sandbox" : ""}.ebay.com${url}`, {
+async function tokenRequest(body: Record<string, string>) {
+  const res = await fetch(`${host("api")}/identity/v1/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: basicAuth() },
+    body: new URLSearchParams(body),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    access_token?: string;
+    expires_in?: number;
+    refresh_token?: string;
+    refresh_token_expires_in?: number;
+    error_description?: string;
+  };
+  if (!res.ok || !json.access_token) throw new Error(`eBay login failed: ${json.error_description ?? res.status}`);
+  return json;
+}
+
+/** eBay redirects here (the RuName's "accept URL") after the seller approves access. */
+export async function ebayLoginCallback(c: Context, user: User) {
+  const { code, state } = c.req.query();
+  const expected = getCookie(c, "ss_ebay_state");
+  deleteCookie(c, "ss_ebay_state", { path: "/" });
+  if (!code || !state || state !== expected) return c.redirect("/#/connections?ebay=failed");
+  const t = await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: cfg().ruName });
+  tokens.set(user.email, { value: t.access_token!, expires: Date.now() + (t.expires_in ?? 7200) * 1000 });
+  const account: EbayAccount = {
+    refreshToken: t.refresh_token!,
+    refreshExpires: new Date(Date.now() + (t.refresh_token_expires_in ?? 0) * 1000).toISOString(),
+  };
+  await updateUser(user.email, (u) => void (u.ebay = account));
+  await ebaySetup(user.email).catch((e) => console.warn("eBay setup", e));
+  return c.redirect("/#/connections?ebay=connected");
+}
+
+const tokens = new Map<string, { value: string; expires: number }>();
+
+async function accessToken(user: User) {
+  const cached = tokens.get(user.email);
+  if (cached && cached.expires > Date.now() + 60_000) return cached.value;
+  if (!user.ebay?.refreshToken) throw new Error("eBay isn't connected. Log in with eBay in Connections.");
+  const t = await tokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: user.ebay.refreshToken,
+    scope: SCOPES.join(" "),
+  });
+  tokens.set(user.email, { value: t.access_token!, expires: Date.now() + (t.expires_in ?? 7200) * 1000 });
+  return t.access_token!;
+}
+
+async function ebay<T>(user: User, method: string, url: string, body?: unknown, prefix = "api"): Promise<T> {
+  const res = await fetch(`${host(prefix)}${url}`, {
     method,
     headers: {
-      Authorization: `Bearer ${await accessToken()}`,
+      Authorization: `Bearer ${await accessToken(user)}`,
       "Content-Type": "application/json",
-      "Content-Language": e.language,
-      "X-EBAY-C-MARKETPLACE-ID": e.marketplace,
+      "Content-Language": cfg().language,
+      "X-EBAY-C-MARKETPLACE-ID": cfg().marketplace,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -96,73 +145,127 @@ async function ebay<T>(method: string, url: string, body?: unknown, host = "api"
     const err = data.errors?.[0];
     throw new Error(`eBay: ${err?.longMessage ?? err?.message ?? `HTTP ${res.status}`}`);
   }
-  return { data, res };
+  return data;
 }
 
-/** eBay needs publicly hosted images, so upload each photo to eBay Picture Services first. */
-async function uploadImage(file: string) {
-  const e = env();
+/**
+ * Reads the seller's username and business policies (shipping, payment, returns) so posting
+ * needs no manual IDs. Policies must exist in Seller Hub; we pick the first of each.
+ */
+export async function ebaySetup(email: string) {
+  const user = await getUser(email);
+  if (!user?.ebay) throw new Error("eBay isn't connected");
+  const m = cfg().marketplace;
+  await ebay(user, "POST", "/sell/account/v1/program/opt_in", { programType: "SELLING_POLICY_MANAGEMENT" }).catch(() => {});
+  const [id, ful, pay, ret, loc] = await Promise.all([
+    ebay<{ username?: string }>(user, "GET", "/commerce/identity/v1/user/", undefined, "apiz").catch(() => ({ username: undefined })),
+    ebay<{ fulfillmentPolicies?: { fulfillmentPolicyId: string }[] }>(user, "GET", `/sell/account/v1/fulfillment_policy?marketplace_id=${m}`).catch(() => ({ fulfillmentPolicies: [] })),
+    ebay<{ paymentPolicies?: { paymentPolicyId: string }[] }>(user, "GET", `/sell/account/v1/payment_policy?marketplace_id=${m}`).catch(() => ({ paymentPolicies: [] })),
+    ebay<{ returnPolicies?: { returnPolicyId: string }[] }>(user, "GET", `/sell/account/v1/return_policy?marketplace_id=${m}`).catch(() => ({ returnPolicies: [] })),
+    ebay<{ locations?: { merchantLocationKey: string }[] }>(user, "GET", "/sell/inventory/v1/location").catch(() => ({ locations: [] })),
+  ]);
+  return updateUser(email, (u) => {
+    if (!u.ebay) return;
+    u.ebay.username = id.username ?? u.ebay.username;
+    u.ebay.fulfillmentPolicyId = ful.fulfillmentPolicies?.[0]?.fulfillmentPolicyId ?? u.ebay.fulfillmentPolicyId;
+    u.ebay.paymentPolicyId = pay.paymentPolicies?.[0]?.paymentPolicyId ?? u.ebay.paymentPolicyId;
+    u.ebay.returnPolicyId = ret.returnPolicies?.[0]?.returnPolicyId ?? u.ebay.returnPolicyId;
+    u.ebay.locationKey = loc.locations?.[0]?.merchantLocationKey ?? u.ebay.locationKey;
+  });
+}
+
+/** Creates the "ships from" location eBay requires, from a postal code + country. */
+export async function ebayCreateLocation(user: User, postalCode: string, country: string) {
+  const key = "snapsell-home";
+  await ebay(user, "POST", `/sell/inventory/v1/location/${key}`, {
+    location: { address: { postalCode, country: country.toUpperCase() } },
+    locationTypes: ["WAREHOUSE"],
+    name: "SnapSell",
+    merchantLocationStatus: "ENABLED",
+  });
+  return updateUser(user.email, (u) => void (u.ebay && (u.ebay.locationKey = key)));
+}
+
+export async function ebayDisconnect(user: User) {
+  tokens.delete(user.email);
+  await updateUser(user.email, (u) => void delete u.ebay);
+}
+
+function missingSetup(a: EbayAccount) {
+  const missing: string[] = [];
+  if (!a.fulfillmentPolicyId || !a.paymentPolicyId || !a.returnPolicyId) missing.push("policies");
+  if (!a.locationKey) missing.push("location");
+  return missing;
+}
+
+/** Upload each photo to eBay Picture Services: eBay needs publicly hosted image URLs. */
+async function uploadImage(user: User, file: string) {
   const form = new FormData();
-  form.append("image", new Blob([await fs.readFile(file)], { type: "image/jpeg" }), path.basename(file));
-  const res = await fetch(
-    `https://apim${e.sandbox ? ".sandbox" : ""}.ebay.com/commerce/media/v1_beta/image/create_image_from_file`,
-    { method: "POST", headers: { Authorization: `Bearer ${await accessToken()}` }, body: form },
-  );
+  form.append("image", new Blob([await fs.readFile(file)], { type: "image/jpeg" }), "photo.jpg");
+  const res = await fetch(`${host("apim")}/commerce/media/v1_beta/image/create_image_from_file`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await accessToken(user)}` },
+    body: form,
+  });
   if (!res.ok) throw new Error(`eBay image upload failed (HTTP ${res.status})`);
   const json = (await res.json().catch(() => ({}))) as { imageUrl?: string };
   if (json.imageUrl) return json.imageUrl;
   const location = res.headers.get("location");
   if (!location) throw new Error("eBay image upload returned no location");
-  const img = await fetch(location, { headers: { Authorization: `Bearer ${await accessToken()}` } });
-  const meta = (await img.json()) as { imageUrl: string };
-  return meta.imageUrl;
-}
-
-async function suggestCategory(query: string) {
-  const { data: tree } = await ebay<{ categoryTreeId: string }>(
-    "GET",
-    `/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${env().marketplace}`,
-  );
-  const { data } = await ebay<{ categorySuggestions?: { category: { categoryId: string } }[] }>(
-    "GET",
-    `/commerce/taxonomy/v1/category_tree/${tree.categoryTreeId}/get_category_suggestions?q=${encodeURIComponent(query)}`,
-  );
-  const id = data.categorySuggestions?.[0]?.category.categoryId;
-  if (!id) throw new Error(`eBay found no category for "${query}"`);
-  return id;
+  const img = await fetch(location, { headers: { Authorization: `Bearer ${await accessToken(user)}` } });
+  return ((await img.json()) as { imageUrl: string }).imageUrl;
 }
 
 export const ebayPublisher: Publisher = {
   platform: "ebay",
 
-  async status() {
-    const missing = REQUIRED.filter((k) => !process.env[k]);
-    return {
-      platform: "ebay",
-      connected: missing.length === 0,
-      mode: "api",
-      detail: missing.length ? `Add ${missing.length} eBay keys to .env (see README)` : `Official API · ${env().marketplace}`,
-    };
+  async status(user) {
+    const base = { platform: "ebay" as const, mode: "api" as const };
+    if (!ebayAppConfigured()) {
+      return { ...base, connected: false, unavailable: true, detail: "Add eBay app keys on the server (see README)" };
+    }
+    if (!user.ebay) return { ...base, connected: false, action: "ebay_login" as const, detail: "Not connected" };
+    const missing = missingSetup(user.ebay);
+    if (missing.length) {
+      return {
+        ...base,
+        connected: false,
+        action: "ebay_setup" as const,
+        detail: missing.includes("policies") ? "Create shipping, payment and return policies in Seller Hub" : "Add where you ship from",
+      };
+    }
+    return { ...base, connected: true, detail: `Connected${user.ebay.username ? ` as ${user.ebay.username}` : ""} · official eBay API` };
   },
 
-  async publish({ listing, settings, photoPaths, progress }) {
-    const e = env();
+  async publish({ user, listing, settings, photoNames, progress }) {
     const a = listing.analysis;
-    if (!a) throw new Error("Listing has no analysis yet");
+    const acct = user.ebay;
+    if (!a || !acct) throw new Error("eBay isn't connected");
     const copy = effectiveCopy(listing, "ebay");
     const sku = `snapsell-${listing.id}`;
 
     progress("Uploading photos to eBay");
     const imageUrls: string[] = [];
-    for (const p of photoPaths.slice(0, 12)) imageUrls.push(await uploadImage(p));
+    for (const n of photoNames.slice(0, 12)) imageUrls.push(await uploadImage(user, photoPath(listing.id, n)));
 
     progress("Finding the right category");
-    const categoryId = await suggestCategory(`${a.item.name} ${a.item.category}`);
+    const tree = await ebay<{ categoryTreeId: string }>(
+      user,
+      "GET",
+      `/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${cfg().marketplace}`,
+    );
+    const sugg = await ebay<{ categorySuggestions?: { category: { categoryId: string } }[] }>(
+      user,
+      "GET",
+      `/commerce/taxonomy/v1/category_tree/${tree.categoryTreeId}/get_category_suggestions?q=${encodeURIComponent(`${a.item.name} ${a.item.category}`)}`,
+    );
+    const categoryId = sugg.categorySuggestions?.[0]?.category.categoryId;
+    if (!categoryId) throw new Error("eBay found no category for this item");
 
     progress("Creating the listing");
     const aspects: Record<string, string[]> = {};
     for (const at of a.attributes) aspects[at.name] = [at.value];
-    await ebay("PUT", `/sell/inventory/v1/inventory_item/${sku}`, {
+    await ebay(user, "PUT", `/sell/inventory/v1/inventory_item/${sku}`, {
       availability: { shipToLocationAvailability: { quantity: 1 } },
       condition: CONDITION[effectiveCondition(listing)],
       conditionDescription: a.conditionNotes.slice(0, 1000),
@@ -175,33 +278,32 @@ export const ebayPublisher: Publisher = {
       },
     });
 
-    // Re-use an existing offer for this SKU if we've tried before.
-    const { data: existing } = await ebay<{ offers?: { offerId: string }[] }>(
-      "GET",
-      `/sell/inventory/v1/offer?sku=${sku}`,
-    ).catch(() => ({ data: { offers: [] as { offerId: string }[] } }));
     const offer = {
       sku,
-      marketplaceId: e.marketplace,
+      marketplaceId: cfg().marketplace,
       format: "FIXED_PRICE",
       availableQuantity: 1,
       categoryId,
       listingDescription: copy.description.replace(/\n/g, "<br>"),
       listingPolicies: {
-        fulfillmentPolicyId: e.fulfillmentPolicyId,
-        paymentPolicyId: e.paymentPolicyId,
-        returnPolicyId: e.returnPolicyId,
+        fulfillmentPolicyId: acct.fulfillmentPolicyId,
+        paymentPolicyId: acct.paymentPolicyId,
+        returnPolicyId: acct.returnPolicyId,
       },
       pricingSummary: { price: { value: effectivePrice(listing).toFixed(2), currency: settings.currency } },
-      merchantLocationKey: e.locationKey,
+      merchantLocationKey: acct.locationKey,
     };
+    // Re-use an existing offer for this SKU if a previous attempt created one.
+    const existing = await ebay<{ offers?: { offerId: string }[] }>(user, "GET", `/sell/inventory/v1/offer?sku=${sku}`).catch(
+      () => ({ offers: [] as { offerId: string }[] }),
+    );
     let offerId = existing.offers?.[0]?.offerId;
-    if (offerId) await ebay("PUT", `/sell/inventory/v1/offer/${offerId}`, offer);
-    else offerId = (await ebay<{ offerId: string }>("POST", "/sell/inventory/v1/offer", offer)).data.offerId;
+    if (offerId) await ebay(user, "PUT", `/sell/inventory/v1/offer/${offerId}`, offer);
+    else offerId = (await ebay<{ offerId: string }>(user, "POST", "/sell/inventory/v1/offer", offer)).offerId;
 
     progress("Publishing");
-    const { data } = await ebay<{ listingId: string }>("POST", `/sell/inventory/v1/offer/${offerId}/publish`, {});
-    const host = e.sandbox ? "sandbox.ebay.com" : (MARKETPLACE_HOST[e.marketplace] ?? "www.ebay.com");
-    return { status: "live", message: "Live on eBay", url: `https://${host}/itm/${data.listingId}` };
+    const { listingId } = await ebay<{ listingId: string }>(user, "POST", `/sell/inventory/v1/offer/${offerId}/publish`, {});
+    const site = cfg().sandbox ? "sandbox.ebay.com" : (MARKETPLACE_HOST[cfg().marketplace] ?? "www.ebay.com");
+    return { status: "live", message: "Live on eBay", url: `https://${site}/itm/${listingId}` };
   },
 };

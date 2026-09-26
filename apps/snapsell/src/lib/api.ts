@@ -1,28 +1,53 @@
-import type { AnalyzeEvent, Listing, Platform, PlatformStatus, Settings } from "../../shared/types.ts";
+import type {
+  AnalyzeEvent,
+  ExtensionStatus,
+  Listing,
+  Me,
+  Platform,
+  PlatformStatus,
+  Settings,
+} from "../../shared/types.ts";
+
+export class AuthError extends Error {}
+
+export type Health = {
+  ai: boolean;
+  demo: boolean;
+  model: string;
+  googleLogin: boolean;
+  lens: { vision: boolean; serpapi: boolean };
+  ebayApp: boolean;
+};
 
 async function json<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new AuthError((body as { error?: string }).error ?? "Please sign in");
   if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`);
   return body as T;
 }
 
-const put = (url: string, body: unknown, method = "PUT") =>
+const send = (url: string, body: unknown, method = "POST") =>
   fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 export const api = {
-  health: () => fetch("/api/health").then((r) => json<{ ai: boolean; demo: boolean; model: string }>(r)),
+  health: () => fetch("/api/health").then((r) => json<Health>(r)),
+  me: () => fetch("/api/me").then((r) => json<Me>(r)),
+  logout: () => fetch("/auth/logout", { method: "POST" }).then((r) => json(r)),
   settings: () => fetch("/api/settings").then((r) => json<Settings>(r)),
-  saveSettings: (s: Partial<Settings>) => put("/api/settings", s).then((r) => json<Settings>(r)),
+  saveSettings: (s: Partial<Settings>) => send("/api/settings", s, "PUT").then((r) => json<Settings>(r)),
   platforms: () => fetch("/api/platforms").then((r) => json<PlatformStatus[]>(r)),
-  connect: (p: Platform) => fetch(`/api/platforms/${p}/connect`, { method: "POST" }).then((r) => json(r)),
-  disconnect: (p: Platform) => fetch(`/api/platforms/${p}/disconnect`, { method: "POST" }).then((r) => json(r)),
+  extension: () => fetch("/api/extension").then((r) => json<ExtensionStatus & { paired: boolean }>(r)),
+  pairExtension: () => send("/api/extension/pair", {}).then((r) => json<{ token: string; server: string }>(r)),
+  ebayRefresh: () => send("/api/ebay/refresh", {}).then((r) => json<PlatformStatus>(r)),
+  ebayLocation: (postalCode: string, country: string) =>
+    send("/api/ebay/location", { postalCode, country }).then((r) => json<PlatformStatus>(r)),
+  ebayDisconnect: () => send("/api/ebay/disconnect", {}).then((r) => json(r)),
   listings: () => fetch("/api/listings").then((r) => json<Listing[]>(r)),
   listing: (id: string) => fetch(`/api/listings/${id}`).then((r) => json<Listing>(r)),
   update: (id: string, patch: Partial<Pick<Listing, "edits" | "status">>) =>
-    put(`/api/listings/${id}`, patch, "PATCH").then((r) => json<Listing>(r)),
+    send(`/api/listings/${id}`, patch, "PATCH").then((r) => json<Listing>(r)),
   remove: (id: string) => fetch(`/api/listings/${id}`, { method: "DELETE" }).then((r) => json(r)),
-  publish: (id: string, platforms: Platform[]) =>
-    put(`/api/listings/${id}/publish`, { platforms }, "POST").then((r) => json<Listing>(r)),
+  publish: (id: string, platforms: Platform[]) => send(`/api/listings/${id}/publish`, { platforms }).then((r) => json<Listing>(r)),
   uploadEnhanced: (id: string, blobs: Blob[]) => {
     const form = new FormData();
     blobs.forEach((b, i) => form.append("photos", b, `enhanced-${i}.jpeg`));
@@ -35,8 +60,8 @@ export const api = {
     photos.forEach((p, i) => form.append("photos", p, `photo-${i}.jpeg`));
     if (note.trim()) form.append("note", note.trim());
     const res = await fetch("/api/analyze", { method: "POST", body: form });
-    if (!res.ok || !res.body) throw new Error((await json<{ error: string }>(res).catch((e) => e)).message);
-    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    if (!res.ok || !res.body) await json(res);
+    const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
     let buf = "";
     for (;;) {
       const { value, done } = await reader.read();
@@ -62,7 +87,7 @@ export const photoUrl = (l: Listing, i: number, enhanced = true) =>
 
 export function formatPrice(value: number, currency: string) {
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(currency === "CZK" ? "cs-CZ" : undefined, {
       style: "currency",
       currency,
       maximumFractionDigits: value % 1 === 0 ? 0 : 2,
@@ -71,3 +96,6 @@ export function formatPrice(value: number, currency: string) {
     return `${value} ${currency}`;
   }
 }
+
+/** Photos picked on one screen (e.g. dropped on the desktop home) handed to the new-listing flow. */
+export const pendingPhotos: { files: File[] } = { files: [] };

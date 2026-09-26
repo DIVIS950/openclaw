@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "SnapSell for Chrome",
+  "version": "1.0.0",
+  "description": "Posts your SnapSell listings to Facebook Marketplace and Vinted from your own logged-in Chrome.",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": { "default_popup": "popup.html", "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png" } },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["storage", "alarms", "cookies", "tabs", "scripting"],
+  "host_permissions": [
+    "https://www.facebook.com/*",
+    "https://*.vinted.com/*",
+    "https://*.vinted.co.uk/*",
+    "https://*.vinted.cz/*",
+    "https://*.vinted.sk/*",
+    "https://*.vinted.de/*",
+    "https://*.vinted.at/*",
+    "https://*.vinted.fr/*",
+    "https://*.vinted.es/*",
+    "https://*.vinted.it/*",
+    "https://*.vinted.nl/*",
+    "https://*.vinted.pl/*"
+  ]
+}
