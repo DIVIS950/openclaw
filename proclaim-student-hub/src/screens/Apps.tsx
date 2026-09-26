@@ -122,9 +122,11 @@ export function Apps() {
             {data.demo ? "Sign in to see your real homework" : profile?.email}
           </div>
         </div>
-        <button className="btn small dark" onClick={signOut}>
-          {data.demo ? "Sign in" : "Sign out"}
-        </button>
+        {!import.meta.env.VITE_STATIC_DEMO && (
+          <button className="btn small dark" onClick={signOut}>
+            {data.demo ? "Sign in" : "Sign out"}
+          </button>
+        )}
       </div>
     </main>
   );

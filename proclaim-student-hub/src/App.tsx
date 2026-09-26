@@ -18,6 +18,10 @@ import { Tutor } from "./screens/Tutor.tsx";
 
 type Mode = "loading" | "signin" | "google" | "demo";
 
+// The web-demo build (npm run build:demo) is a single page with no server,
+// so it skips Google sign-in and opens straight into sample data.
+const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === "1";
+
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [auth, setAuth] = useState<GoogleAuth | null>(null);
@@ -30,6 +34,11 @@ export function App() {
   );
 
   useEffect(() => {
+    if (STATIC_DEMO) {
+      setConfig({ googleClientId: "", aiEnabled: false });
+      setMode("demo");
+      return;
+    }
     fetch("/api/config")
       .then((r) =>
         r.ok ? (r.json() as Promise<AppConfig>) : Promise.reject(new Error("no config")),
@@ -224,10 +233,16 @@ function Shell({
         )}
         {data.demo && current === "today" && (
           <div className="banner between" style={{ margin: "12px 16px 0" }}>
-            <span>Demo mode: sample data only.</span>
-            <button className="btn small dark" onClick={onSignOut}>
-              Sign in
-            </button>
+            <span>
+              {STATIC_DEMO
+                ? "Web demo with sample data. Google sign-in and AI come with the full app."
+                : "Demo mode: sample data only."}
+            </span>
+            {!STATIC_DEMO && (
+              <button className="btn small dark" onClick={onSignOut}>
+                Sign in
+              </button>
+            )}
           </div>
         )}
         {current === "today" && <Today />}

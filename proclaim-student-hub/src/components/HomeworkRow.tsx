@@ -4,6 +4,16 @@ import { dueLabel, isUrgent } from "../lib/format.ts";
 import type { Homework } from "../lib/types.ts";
 
 /** One homework line with a tick box that marks it done in Google too. */
+const titleStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  textAlign: "left",
+  border: "none",
+  background: "none",
+  padding: 0,
+  color: "inherit",
+};
+
 export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProperties }) {
   const { data, replaceHomework, handleError, openAssignment } = useApp();
   const [busy, setBusy] = useState(false);
@@ -22,6 +32,15 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
     }
   };
 
+  const label = (
+    <>
+      <div className="hw-title">{hw.title}</div>
+      <div className="muted" style={{ fontSize: 12 }}>
+        {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
+      </div>
+    </>
+  );
+
   return (
     <div className={`hw-row rise${hw.done ? " hw-done" : ""}`} style={style}>
       <input
@@ -31,26 +50,16 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
         onChange={toggle}
         aria-label={`Mark ${hw.title} done`}
       />
-      <button
-        onClick={() =>
-          hw.source === "Classroom"
-            ? openAssignment(hw)
-            : window.open(hw.link, "_blank", "noopener")
-        }
-        style={{
-          flex: 1,
-          minWidth: 0,
-          textAlign: "left",
-          border: "none",
-          background: "none",
-          padding: 0,
-        }}
-      >
-        <div className="hw-title">{hw.title}</div>
-        <div className="muted" style={{ fontSize: 12 }}>
-          {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
-        </div>
-      </button>
+      {hw.source === "Classroom" ? (
+        <button onClick={() => openAssignment(hw)} style={titleStyle}>
+          {label}
+        </button>
+      ) : (
+        // A real link: pop-ups opened from script are often blocked on phones.
+        <a href={hw.link} target="_blank" rel="noopener noreferrer" style={titleStyle}>
+          {label}
+        </a>
+      )}
       <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
     </div>
   );
