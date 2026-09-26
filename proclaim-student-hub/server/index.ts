@@ -6,7 +6,16 @@ import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { AppConfig } from "../shared/api.ts";
-import { AiRefusalError, dailyBrief, makeRevisionPack, summariseInbox, tutorReply } from "./ai.ts";
+import {
+  AiRefusalError,
+  chatReply,
+  dailyBrief,
+  makeRevisionPack,
+  oneShot,
+  oneShotJson,
+  summariseInbox,
+  tutorReply,
+} from "./ai.ts";
 import { AuthError, createRateLimiter, verifyGoogleToken } from "./auth.ts";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -68,6 +77,15 @@ const InboxBody = z.object({
 const ReviseBody = z.object({
   images: z.array(Image).max(4),
   text: z.string().max(30_000),
+});
+const ChatBody = z.object({
+  instructions: z.string().max(8_000),
+  history: z.array(Turn).min(1).max(60),
+});
+const PromptBody = z.object({
+  prompt: z.string().min(1).max(40_000),
+  quick: z.boolean().optional(),
+  images: z.array(Image).max(4).optional(),
 });
 
 // ---------- Helpers ----------
@@ -156,6 +174,32 @@ function errorResponse(res: ServerResponse, err: unknown) {
   return sendJson(res, 500, { error: "Something went wrong. Please try again." });
 }
 
+/** Streams plain text to the browser as the AI writes it. */
+async function streamText(
+  res: ServerResponse,
+  run: (onText: (text: string) => void, signal: AbortSignal) => Promise<void>,
+) {
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
+  res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+  try {
+    await run((text) => res.write(text), abort.signal);
+  } catch (err) {
+    if (!abort.signal.aborted) {
+      // Headers are already sent, so report the problem inside the stream.
+      const message =
+        err instanceof AiRefusalError
+          ? err.message
+          : "Sorry, something went wrong. Please try again.";
+      if (!(err instanceof AiRefusalError)) {
+        console.error(err);
+      }
+      res.write(`\n\n${message}`);
+    }
+  }
+  res.end();
+}
+
 // ---------- API routes ----------
 
 async function handleApi(req: IncomingMessage, res: ServerResponse, pathname: string) {
@@ -184,28 +228,27 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, pathname: st
       return sendJson(res, 200, await makeRevisionPack(parseBody(ReviseBody, raw)));
     case "/api/ai/tutor": {
       const body = parseBody(TutorBody, raw);
-      const abort = new AbortController();
-      res.on("close", () => abort.abort());
-      res.writeHead(200, {
-        "content-type": "text/plain; charset=utf-8",
-        "cache-control": "no-store",
+      return streamText(res, (onText, signal) =>
+        tutorReply(body.mode, body.history, onText, signal),
+      );
+    }
+    case "/api/ai/chat": {
+      const body = parseBody(ChatBody, raw);
+      return streamText(res, (onText, signal) =>
+        chatReply(body.instructions, body.history, onText, signal),
+      );
+    }
+    case "/api/ai/text": {
+      const body = parseBody(PromptBody, raw);
+      return sendJson(res, 200, {
+        text: await oneShot(body.prompt, body.quick ?? false, body.images),
       });
-      try {
-        await tutorReply(body.mode, body.history, (text) => res.write(text), abort.signal);
-      } catch (err) {
-        if (!abort.signal.aborted) {
-          // Headers are already sent, so report the problem inside the stream.
-          const message =
-            err instanceof AiRefusalError
-              ? err.message
-              : "Sorry, something went wrong. Please try again.";
-          if (!(err instanceof AiRefusalError)) {
-            console.error(err);
-          }
-          res.write(`\n\n${message}`);
-        }
-      }
-      return res.end();
+    }
+    case "/api/ai/json": {
+      const body = parseBody(PromptBody, raw);
+      return sendJson(res, 200, {
+        value: await oneShotJson(body.prompt, body.quick ?? false, body.images),
+      });
     }
     default:
       throw new HttpError(404, "Not found.");

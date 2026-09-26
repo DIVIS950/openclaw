@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { useApp } from "../context.ts";
+import { useAiContext, useApp } from "../context.ts";
+import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
 import { dueLabel } from "../lib/format.ts";
 import type { HandInResult, Homework } from "../lib/types.ts";
 
@@ -9,7 +10,7 @@ type SaveState = "loading" | "saved" | "saving" | "error";
 const SAVE_DELAY_MS = 1200;
 
 export function Assignment({ hw }: { hw: Homework }) {
-  const { data, go, askTutor, handleError } = useApp();
+  const { data, go, ai, handleError, toast } = useApp();
   const [text, setText] = useState("");
   const [state, setState] = useState<SaveState>("loading");
   const [link, setLink] = useState<string | null>(null);
@@ -64,6 +65,24 @@ export function Assignment({ hw }: { hw: Homework }) {
   };
 
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const [feedback, setFeedback] = useState<Feedback | "loading" | null>(null);
+  useAiContext(
+    `Working on "${hw.title}" (${hw.course}). Task: ${hw.description}. Student's work so far: ${text.slice(0, 3000)}`,
+  );
+
+  const getFeedback = async () => {
+    if (!ai) {
+      toast("The AI needs you signed in.");
+      return;
+    }
+    setFeedback("loading");
+    try {
+      setFeedback(await writingFeedback(ai, hw, text));
+    } catch (err) {
+      setFeedback(null);
+      handleError(err);
+    }
+  };
 
   return (
     <main className="screen" style={{ gap: 14, position: "static" }}>
@@ -156,20 +175,91 @@ export function Assignment({ hw }: { hw: Homework }) {
         </div>
       </section>
 
+      {feedback && feedback !== "loading" && (
+        <section className="ai-card pop" aria-label="Writing coach feedback">
+          <div className="between">
+            <h3>
+              <Icon name="sparkle" size={16} />
+              Writing coach
+            </h3>
+            <button
+              className="link-btn"
+              style={{ minHeight: 32 }}
+              onClick={() => setFeedback(null)}
+            >
+              Hide
+            </button>
+          </div>
+          {feedback.good.length > 0 && (
+            <div>
+              <strong style={{ fontSize: 13, color: "var(--good)" }}>What works</strong>
+              <ul className="ai-list">
+                {feedback.good.map((g, i) => (
+                  <li key={i}>{g}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {feedback.improve.length > 0 && (
+            <div>
+              <strong style={{ fontSize: 13, color: "var(--warm)" }}>To make it better</strong>
+              <ul className="ai-list">
+                {feedback.improve.map((f, i) => (
+                  <li key={i}>
+                    <strong>{f.point}</strong>
+                    {f.hint ? ` Hint: ${f.hint}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {feedback.spelling.length > 0 && (
+            <div className="stack" style={{ gap: 6 }}>
+              <strong style={{ fontSize: 13 }}>Spelling and grammar</strong>
+              {feedback.spelling.map((s, i) => (
+                <div key={i} className="between">
+                  <span>
+                    <s style={{ color: "var(--warm)" }}>{s.wrong}</s> → <strong>{s.right}</strong>
+                  </span>
+                  {text.includes(s.wrong) && (
+                    <button
+                      className="btn small"
+                      onClick={() => {
+                        onChange(text.replace(s.wrong, s.right));
+                        setFeedback({
+                          ...feedback,
+                          spelling: feedback.spelling.filter((x) => x !== s),
+                        });
+                      }}
+                    >
+                      Fix
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {feedback.next && (
+            <div style={{ background: "#fff", borderRadius: 12, padding: 12, fontSize: 14 }}>
+              <strong>Next step:</strong> {feedback.next}
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="row rise" style={{ animationDelay: "0.2s" }}>
         <button
           className="btn big"
           style={{ flex: 1, borderColor: "var(--ink)" }}
           disabled={!text.trim()}
-          onClick={() =>
-            askTutor(
-              `Please check my work for "${hw.title}" (${hw.course}).\n\n${hw.description ? `Task: ${hw.description}\n\n` : ""}My work:\n${text}`,
-              "check",
-            )
-          }
+          onClick={() => void getFeedback()}
         >
-          <Icon name="sparkle" size={16} />
-          AI check
+          <Icon
+            name={feedback === "loading" ? "loader" : "sparkle"}
+            size={16}
+            className={feedback === "loading" ? "spin" : undefined}
+          />
+          Writing coach
         </button>
         <button
           className="btn big primary"

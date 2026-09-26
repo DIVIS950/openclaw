@@ -1,15 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SAMPLE_PACK, type RevisionPack } from "../../shared/pack.ts";
 import { Icon } from "../components/Icon.tsx";
-import { useApp } from "../context.ts";
+import { useAiContext, useApp } from "../context.ts";
+import { moreQuestions } from "../lib/aiFeatures.ts";
 import { packs, progress } from "../lib/store.ts";
 
-type Game = "match" | "speed" | "gap";
+type Game = "match" | "speed" | "gap" | "memory" | "boss";
 
 export function Games() {
-  const { go } = useApp();
-  const pack = packs.current()?.pack ?? SAMPLE_PACK;
+  const { go, ai, handleError, toast } = useApp();
+  const [saved, setSaved] = useState(packs.current);
+  const pack = saved?.pack ?? SAMPLE_PACK;
   const [game, setGame] = useState<Game>("match");
+  const [round, setRound] = useState(0);
+  const [making, setMaking] = useState(false);
+  useAiContext(
+    `Learning games on ${pack.topic} (${pack.subject}). Key points: ${pack.summary.join(" ")}`,
+  );
+
+  const newQuestions = async () => {
+    if (!ai) {
+      return;
+    }
+    setMaking(true);
+    try {
+      const next = { pack: await moreQuestions(ai, pack), driveLink: saved?.driveLink ?? null };
+      packs.save(next);
+      setSaved(next);
+      setRound(round + 1);
+      toast("New questions ready!");
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setMaking(false);
+    }
+  };
   const [stats, setStats] = useState(progress.get);
   const [gain, setGain] = useState<{ n: number; key: number } | null>(null);
 
@@ -51,23 +76,21 @@ export function Games() {
         </div>
       </header>
 
-      <div
-        role="tablist"
-        aria-label="Choose a game"
-        style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}
-      >
+      <div role="tablist" aria-label="Choose a game" className="pills">
         {(
           [
             ["match", "Match up"],
             ["speed", "Speed round"],
             ["gap", "Fill the gap"],
+            ["memory", "Memory cards"],
+            ["boss", "Boss battle"],
           ] as [Game, string][]
         ).map(([id, label]) => (
           <button
             key={id}
             role="tab"
             aria-selected={game === id}
-            className={`btn${game === id ? " dark" : ""}`}
+            className={`btn small${game === id ? " dark" : ""}`}
             onClick={() => setGame(id)}
           >
             {label}
@@ -75,9 +98,24 @@ export function Games() {
         ))}
       </div>
 
-      {game === "match" && <MatchUp pack={pack} award={award} />}
-      {game === "speed" && <SpeedRound pack={pack} award={award} />}
-      {game === "gap" && <FillGap pack={pack} award={award} />}
+      <div key={round} className="stack" style={{ gap: 14 }}>
+        {game === "match" && <MatchUp pack={pack} award={award} />}
+        {game === "speed" && <SpeedRound pack={pack} award={award} />}
+        {game === "gap" && <FillGap pack={pack} award={award} />}
+        {game === "memory" && <Memory pack={pack} award={award} />}
+        {game === "boss" && <BossBattle pack={pack} award={award} />}
+      </div>
+
+      {ai && saved && (
+        <button className="btn block" disabled={making} onClick={() => void newQuestions()}>
+          <Icon
+            name={making ? "loader" : "sparkle"}
+            size={16}
+            className={making ? "spin" : undefined}
+          />
+          {making ? "Making new questions…" : "AI: new questions for these games"}
+        </button>
+      )}
     </main>
   );
 }
@@ -426,6 +464,232 @@ function FillGap({ pack, award }: { pack: RevisionPack; award: (n: number) => vo
           Next ›
         </button>
       )}
+    </section>
+  );
+}
+
+/** Flip two cards; a term and its meaning make a pair. */
+function Memory({ pack, award }: { pack: RevisionPack; award: (n: number) => void }) {
+  const [seed, setSeed] = useState(1);
+  const cards = useMemo(
+    () =>
+      shuffled(
+        pack.match.flatMap((m, pair) => [
+          { pair, text: m.term, kind: "term" },
+          { pair, text: m.meaning, kind: "meaning" },
+        ]),
+        seed * 13 + pack.match.length,
+      ),
+    [pack, seed],
+  );
+  const [open, setOpen] = useState<number[]>([]);
+  const [found, setFound] = useState<number[]>([]);
+  const [moves, setMoves] = useState(0);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  if (pack.match.length < 2) {
+    return <div className="card empty">Not enough key terms in these notes for Memory cards.</div>;
+  }
+  const won = found.length === pack.match.length;
+
+  const flip = (i: number) => {
+    if (open.length === 2 || open.includes(i) || found.includes(cards[i].pair)) {
+      return;
+    }
+    const next = [...open, i];
+    setOpen(next);
+    if (next.length === 2) {
+      setMoves(moves + 1);
+      const [a, b] = next;
+      if (cards[a].pair === cards[b].pair) {
+        setFound([...found, cards[a].pair]);
+        setOpen([]);
+        award(5);
+      } else {
+        timer.current = window.setTimeout(() => setOpen([]), 900);
+      }
+    }
+  };
+
+  return (
+    <section className="stack rise">
+      <div className="between muted">
+        <span>Find each word and its meaning</span>
+        <strong style={{ color: "var(--ink)" }}>{moves} moves</strong>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+        {cards.map((c, i) => {
+          const shown = open.includes(i) || found.includes(c.pair);
+          return (
+            <button
+              key={`${seed}-${i}`}
+              className={`game-btn${found.includes(c.pair) ? " matched" : ""}`}
+              style={{
+                minHeight: 76,
+                textAlign: "center",
+                fontSize: c.kind === "term" ? 15 : 13,
+                background: shown ? undefined : "var(--ink)",
+                color: shown ? undefined : "var(--bg)",
+                animation: shown ? "flipIn .35s ease both" : undefined,
+              }}
+              aria-label={shown ? c.text : "Hidden card"}
+              onClick={() => flip(i)}
+            >
+              {shown ? c.text : "?"}
+            </button>
+          );
+        })}
+      </div>
+      {won && (
+        <div className="card-dark row pop" style={{ gap: 12 }}>
+          <Icon name="star" size={28} className="wiggle" />
+          <div style={{ flex: 1, fontWeight: 600 }}>All pairs in {moves} moves!</div>
+          <button
+            className="btn small"
+            onClick={() => {
+              setSeed(seed + 1);
+              setFound([]);
+              setOpen([]);
+              setMoves(0);
+            }}
+          >
+            Again
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const HEARTS = 3;
+
+/** Answer quiz questions to knock the boss's health down before you run out of hearts. */
+function BossBattle({ pack, award }: { pack: RevisionPack; award: (n: number) => void }) {
+  const questions = pack.quiz;
+  const [i, setI] = useState(0);
+  const [hp, setHp] = useState(100);
+  const [hearts, setHearts] = useState(HEARTS);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [hit, setHit] = useState(0);
+
+  if (questions.length === 0) {
+    return <div className="card empty">No quiz questions in these notes for a boss battle.</div>;
+  }
+  const damage = Math.ceil(100 / Math.min(questions.length, 6));
+  const q = questions[i % questions.length];
+  const over = hp <= 0 || hearts <= 0;
+
+  const restart = () => {
+    setI(0);
+    setHp(100);
+    setHearts(HEARTS);
+    setPicked(null);
+  };
+
+  if (over) {
+    const won = hp <= 0;
+    return (
+      <section
+        className="card-dark stack pop"
+        style={{ alignItems: "center", textAlign: "center" }}
+      >
+        <span style={{ color: won ? "#f3c75f" : "#e08a6a" }}>
+          <Icon name={won ? "star" : "flame"} size={48} className="wiggle" />
+        </span>
+        <div style={{ fontFamily: "var(--serif)", fontSize: 28, fontWeight: 600 }}>
+          {won ? "Boss defeated!" : "The boss won this time"}
+        </div>
+        <div style={{ color: "#c9c4b8" }}>
+          {won ? "+30 XP" : "Revise the summary and try again."}
+        </div>
+        <button className="btn" onClick={restart}>
+          Battle again
+        </button>
+      </section>
+    );
+  }
+
+  const answer = (j: number) => {
+    if (picked !== null) {
+      return;
+    }
+    setPicked(j);
+    if (j === q.answer) {
+      const next = Math.max(0, hp - damage);
+      setHp(next);
+      setHit(hit + 1);
+      if (next === 0) {
+        award(30);
+      }
+    } else {
+      setHearts(hearts - 1);
+    }
+  };
+
+  return (
+    <section className="stack rise">
+      <div className="card stack" style={{ gap: 10 }}>
+        <div className="between">
+          <strong>Boss: {pack.topic}</strong>
+          <span
+            aria-label={`${hearts} hearts left`}
+            style={{ color: "var(--warm)", letterSpacing: 2 }}
+          >
+            {"♥".repeat(hearts)}
+            <span style={{ opacity: 0.25 }}>{"♥".repeat(HEARTS - hearts)}</span>
+          </span>
+        </div>
+        <div
+          key={hit}
+          className={hit ? "shake-a" : undefined}
+          style={{ height: 14, borderRadius: 7, background: "var(--line)", overflow: "hidden" }}
+          aria-label={`Boss health ${hp}%`}
+        >
+          <div
+            style={{
+              width: `${hp}%`,
+              height: "100%",
+              background: hp > 50 ? "var(--warm)" : "#c0392b",
+              transition: "width .4s ease",
+            }}
+          />
+        </div>
+      </div>
+      <div key={i} className="card stack rise">
+        <h2
+          style={{
+            margin: 0,
+            fontFamily: "var(--serif)",
+            fontSize: 21,
+            fontWeight: 500,
+            lineHeight: 1.3,
+          }}
+        >
+          {q.question}
+        </h2>
+        {q.options.map((o, j) => (
+          <button
+            key={j}
+            className={`game-btn${picked === null ? "" : j === q.answer ? " right" : picked === j ? " wrong shake-a" : ""}`}
+            style={{ minHeight: 48 }}
+            onClick={() => answer(j)}
+          >
+            {o}
+          </button>
+        ))}
+        {picked !== null && (
+          <button
+            className="btn dark pop"
+            onClick={() => {
+              setPicked(null);
+              setI(i + 1);
+            }}
+          >
+            {picked === q.answer ? "Hit! Next ›" : "Ouch! Next ›"}
+          </button>
+        )}
+      </div>
     </section>
   );
 }

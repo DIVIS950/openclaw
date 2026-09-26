@@ -3,6 +3,7 @@ import type { ChatTurn, ImageInput, TutorMode } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
+import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/voice.ts";
 
 const MODES: { id: TutorMode; label: string }[] = [
   { id: "explain", label: "Explain" },
@@ -31,7 +32,35 @@ export function Tutor() {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [mode, turns]);
 
-  useEffect(() => () => abort.current?.abort(), []);
+  useEffect(
+    () => () => {
+      abort.current?.abort();
+      stopSpeaking();
+    },
+    [],
+  );
+  const [listening, setListening] = useState<(() => void) | null>(null);
+
+  const talk = () => {
+    if (listening) {
+      listening();
+      return;
+    }
+    const session = listen((partial) => setInput(partial));
+    setListening(() => session.stop);
+    session.done.then(
+      (heard) => {
+        setListening(null);
+        if (heard) {
+          void send(heard, images, mode);
+        }
+      },
+      (err: unknown) => {
+        setListening(null);
+        app.handleError(err);
+      },
+    );
+  };
 
   const send = async (text: string, pics: ImageInput[], sendMode: TutorMode) => {
     if ((!text.trim() && pics.length === 0) || busy) {
@@ -198,6 +227,22 @@ export function Tutor() {
                 <img key={j} src={imageSrc(img)} alt="Your photo" />
               ))}
               {t.text}
+              {t.role === "assistant" && canSpeak() && !(busy && i === turns.length - 1) && (
+                <button
+                  className="link-btn"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    minHeight: 32,
+                    fontSize: 13,
+                  }}
+                  onClick={() => speak(t.text)}
+                >
+                  <Icon name="speaker" size={16} />
+                  Read aloud
+                </button>
+              )}
             </div>
           ),
         )}
@@ -254,6 +299,16 @@ export function Tutor() {
           hidden
           onChange={(e) => void addPhotos(e.target.files)}
         />
+        {canListen() && (
+          <button
+            type="button"
+            className={`round${listening ? " dark" : ""}`}
+            aria-label={listening ? "Stop listening" : "Talk"}
+            onClick={talk}
+          >
+            <Icon name="mic" size={20} className={listening ? "wiggle" : undefined} />
+          </button>
+        )}
         <button
           type="button"
           className="round"

@@ -2,11 +2,12 @@ import { useRef, useState } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { SAMPLE_PACK, type RevisionPack } from "../../shared/pack.ts";
 import { Icon } from "../components/Icon.tsx";
-import { useApp } from "../context.ts";
+import { useAiContext, useApp } from "../context.ts";
+import { moreQuestions, revisionSchedule } from "../lib/aiFeatures.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
-import { packs, progress } from "../lib/store.ts";
+import { packs, progress, schedule, type SavedSchedule } from "../lib/store.ts";
 
-type Tab = "Summary" | "Flashcards" | "Quiz";
+type Tab = "Summary" | "Flashcards" | "Quiz" | "Plan";
 
 function packAsText(pack: RevisionPack): string {
   return [
@@ -50,7 +51,18 @@ export function Revise() {
       />
     );
   }
-  return <PackView pack={saved.pack} driveLink={saved.driveLink} onNew={() => setMaking(true)} />;
+  return (
+    <PackView
+      pack={saved.pack}
+      driveLink={saved.driveLink}
+      onNew={() => setMaking(true)}
+      onUpdate={(pack) => {
+        const next = { ...saved, pack };
+        packs.save(next);
+        setSaved(next);
+      }}
+    />
+  );
 }
 
 function NewNotes({
@@ -225,13 +237,34 @@ function PackView({
   pack,
   driveLink,
   onNew,
+  onUpdate,
 }: {
   pack: RevisionPack;
   driveLink: string | null;
   onNew: () => void;
+  onUpdate: (pack: RevisionPack) => void;
 }) {
-  const { go } = useApp();
+  const { go, ai, handleError, toast } = useApp();
   const [tab, setTab] = useState<Tab>("Summary");
+  const [more, setMore] = useState(false);
+  useAiContext(
+    `Revision notes on ${pack.topic} (${pack.subject}). Key points: ${pack.summary.join(" ")}`,
+  );
+
+  const addQuestions = async () => {
+    if (!ai) {
+      return;
+    }
+    setMore(true);
+    try {
+      onUpdate(await moreQuestions(ai, pack));
+      toast("New questions added to your quiz, flashcards and games.");
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setMore(false);
+    }
+  };
 
   return (
     <main className="screen" style={{ gap: 14 }}>
@@ -299,9 +332,9 @@ function PackView({
       <div
         className="segmented"
         role="tablist"
-        style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
+        style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
       >
-        {(["Summary", "Flashcards", "Quiz"] as Tab[]).map((t) => (
+        {(["Summary", "Flashcards", "Quiz", "Plan"] as Tab[]).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
             {t}
           </button>
@@ -334,7 +367,18 @@ function PackView({
         </section>
       )}
       {tab === "Flashcards" && <Flashcards pack={pack} />}
-      {tab === "Quiz" && <Quiz pack={pack} />}
+      {tab === "Quiz" && <Quiz key={pack.quiz.length} pack={pack} />}
+      {tab === "Plan" && <RevisionPlan topic={pack.topic} />}
+      {ai && (tab === "Quiz" || tab === "Flashcards") && (
+        <button className="btn block" disabled={more} onClick={() => void addQuestions()}>
+          <Icon
+            name={more ? "loader" : "sparkle"}
+            size={16}
+            className={more ? "spin" : undefined}
+          />
+          {more ? "Making new questions…" : "AI: make more questions"}
+        </button>
+      )}
     </main>
   );
 }
@@ -479,6 +523,161 @@ function Quiz({ pack }: { pack: RevisionPack }) {
           </button>
         </>
       )}
+    </section>
+  );
+}
+
+/** AI revision timetable: add test dates, get a day-by-day plan to tick off. */
+function RevisionPlan({ topic }: { topic: string }) {
+  const { ai, handleError } = useApp();
+  const [plan, setPlan] = useState<SavedSchedule>(schedule.get);
+  const [newTopic, setNewTopic] = useState(topic);
+  const [newDate, setNewDate] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const update = (next: SavedSchedule) => {
+    setPlan(next);
+    schedule.save(next);
+  };
+
+  const make = async () => {
+    if (!ai || plan.tests.length === 0) {
+      return;
+    }
+    setBusy(true);
+    try {
+      update({ ...plan, days: await revisionSchedule(ai, plan.tests), done: [] });
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="stack rise">
+      <div className="card stack">
+        <h2 className="h2">Your tests</h2>
+        {plan.tests.map((test, i) => (
+          <div key={i} className="between">
+            <span>
+              <strong>{test.topic}</strong> <span className="muted">· {test.date}</span>
+            </span>
+            <button
+              className="round"
+              style={{ width: 32, height: 32 }}
+              aria-label={`Remove ${test.topic}`}
+              onClick={() => update({ ...plan, tests: plan.tests.filter((_, j) => j !== i) })}
+            >
+              <Icon name="close" size={14} />
+            </button>
+          </div>
+        ))}
+        <form
+          className="row"
+          style={{ flexWrap: "wrap" }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (newTopic.trim() && newDate) {
+              update({
+                ...plan,
+                tests: [...plan.tests, { topic: newTopic.trim(), date: newDate }],
+              });
+              setNewTopic("");
+              setNewDate("");
+            }
+          }}
+        >
+          <label htmlFor="test-topic" className="sr-only">
+            Test topic
+          </label>
+          <input
+            id="test-topic"
+            className="field"
+            style={{ flex: "1 1 140px" }}
+            placeholder="Test topic"
+            value={newTopic}
+            onChange={(e) => setNewTopic(e.target.value)}
+          />
+          <label htmlFor="test-date" className="sr-only">
+            Test date
+          </label>
+          <input
+            id="test-date"
+            className="field"
+            style={{ flex: "1 1 120px" }}
+            type="date"
+            value={newDate}
+            onChange={(e) => setNewDate(e.target.value)}
+          />
+          <button className="btn" type="submit" disabled={!newTopic.trim() || !newDate}>
+            Add test
+          </button>
+        </form>
+      </div>
+
+      {ai ? (
+        <button
+          className="btn big primary"
+          disabled={busy || plan.tests.length === 0}
+          onClick={() => void make()}
+        >
+          <Icon
+            name={busy ? "loader" : "sparkle"}
+            size={18}
+            className={busy ? "spin" : undefined}
+          />
+          {busy
+            ? "Planning your revision…"
+            : plan.days.length
+              ? "Make a new plan"
+              : "Make my revision plan"}
+        </button>
+      ) : (
+        <div className="banner">The AI needs you signed in to make a plan.</div>
+      )}
+
+      {plan.days.map((day) => (
+        <div key={day.date} className="card stack pop" style={{ gap: 8 }}>
+          <div className="eyebrow">
+            {new Date(`${day.date}T12:00:00`).toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "short",
+            })}
+          </div>
+          {day.items.map((item, i) => {
+            const key = `${day.date}|${i}`;
+            const done = plan.done.includes(key);
+            return (
+              <label key={key} className="row" style={{ alignItems: "flex-start", gap: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={done}
+                  style={{ width: 20, height: 20, accentColor: "var(--accent)" }}
+                  onChange={() => {
+                    if (!done) {
+                      progress.add(5);
+                    }
+                    update({
+                      ...plan,
+                      done: done ? plan.done.filter((k) => k !== key) : [...plan.done, key],
+                    });
+                  }}
+                />
+                <span
+                  style={
+                    done ? { textDecoration: "line-through", color: "var(--muted)" } : undefined
+                  }
+                >
+                  <strong>{item.topic}</strong>: {item.activity}{" "}
+                  <span className="muted">({item.minutes} min)</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      ))}
     </section>
   );
 }

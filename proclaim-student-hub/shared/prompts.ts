@@ -73,3 +73,28 @@ export const PACK_JSON_SHAPE = `Reply with only one JSON object of this shape:
  "match": [{"term": "key term", "meaning": "max 6 words"}]  (exactly 4),
  "trueFalse": [{"statement": "...", "answer": true, "why": "..."}]  (4-6, mixed true and false),
  "gaps": [{"before": "text before the gap", "answer": "missing word", "after": "text after", "options": ["3 options including the answer"]}]  (3-5)}`;
+
+/**
+ * Reads a JSON value out of a model reply: the whole reply, a fenced block,
+ * or the span from the first { or [ to the last } or ]. Throws if none parses.
+ */
+export function parseJsonLoose(reply: string): unknown {
+  const attempts = [reply.trim()];
+  const fence = reply.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) {
+    attempts.push(fence[1].trim());
+  }
+  const start = reply.search(/[[{]/);
+  const end = Math.max(reply.lastIndexOf("}"), reply.lastIndexOf("]"));
+  if (start >= 0 && end > start) {
+    attempts.push(reply.slice(start, end + 1));
+  }
+  for (const text of attempts) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Try the next shape.
+    }
+  }
+  throw new Error("The AI's answer came back jumbled. Please try again.");
+}

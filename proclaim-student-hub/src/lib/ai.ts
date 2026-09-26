@@ -28,6 +28,17 @@ export interface AiProvider {
   brief(req: BriefRequest): Promise<string>;
   inbox(req: InboxSummaryRequest): Promise<InboxSummaryResponse>;
   revise(req: ReviseRequest): Promise<RevisionPack>;
+  /** One answer to one prompt; `quick` trades depth for speed. */
+  text(prompt: string, opts?: { quick?: boolean }): Promise<string>;
+  /** One JSON answer (the prompt must describe the shape). */
+  json(prompt: string, opts?: { quick?: boolean; images?: ImageInput[] }): Promise<unknown>;
+  /** Streams a chat reply under standing instructions. */
+  chat(
+    instructions: string,
+    history: ChatTurn[],
+    onText: (soFar: string) => void,
+    signal: AbortSignal,
+  ): Promise<string>;
   /** Streams the tutor's answer; onText receives the full text so far. */
   tutor(
     mode: TutorMode,
@@ -53,34 +64,55 @@ async function post<T>(path: string, token: string, body: unknown): Promise<T> {
 }
 
 /** getToken returns the Google token that proves the student is signed in. */
+async function streamPost(
+  path: string,
+  token: string,
+  body: unknown,
+  onText: (soFar: string) => void,
+  signal: AbortSignal,
+): Promise<string> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new AiError(data.error ?? "The AI couldn't answer right now.");
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    text += value;
+    onText(text);
+  }
+  return text;
+}
+
 export function serverAi(getToken: () => string): AiProvider {
   return {
+    text: (prompt, opts) =>
+      post<{ text: string }>("/api/ai/text", getToken(), { prompt, quick: opts?.quick }).then(
+        (r) => r.text,
+      ),
+    json: (prompt, opts) =>
+      post<{ value: unknown }>("/api/ai/json", getToken(), {
+        prompt,
+        quick: opts?.quick,
+        images: opts?.images,
+      }).then((r) => r.value),
+    chat: (instructions, history, onText, signal) =>
+      streamPost("/api/ai/chat", getToken(), { instructions, history }, onText, signal),
     brief: (req) => post<BriefResponse>("/api/ai/brief", getToken(), req).then((r) => r.brief),
     inbox: (req) => post<InboxSummaryResponse>("/api/ai/inbox", getToken(), req),
     revise: (req) => post<RevisionPack>("/api/ai/revise", getToken(), req),
-    async tutor(mode, history, onText, signal) {
-      const res = await fetch("/api/ai/tutor", {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ mode, history }),
-        signal,
-      });
-      if (!res.ok || !res.body) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new AiError(data.error ?? "Study Buddy couldn't answer right now.");
-      }
-      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-      let text = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-        text += value;
-        onText(text);
-      }
-      return text;
-    },
+    tutor: (mode, history, onText, signal) =>
+      streamPost("/api/ai/tutor", getToken(), { mode, history }, onText, signal),
   };
 }
 
@@ -134,7 +166,56 @@ function wrap(err: unknown): never {
 }
 
 export function sampleAi(sample: Sample): AiProvider {
+  const chat: AiProvider["chat"] = async (instructions, history, onText, signal) => {
+    // No system prompt on this path: standing instructions go in a leading
+    // user turn, and only the newest message's photos are sent.
+    const last = history[history.length - 1];
+    const turns = [
+      { role: "user" as const, content: instructions },
+      ...history.map((t) => ({
+        role: t.role,
+        content: t.text.trim() || (t.images?.length ? "(photo)" : "…"),
+      })),
+    ];
+    try {
+      const { text } = await sample(turns, {
+        signal,
+        cache: false,
+        images: last?.images?.length ? last.images.map(toBlob) : undefined,
+        onText: ({ text: soFar }) => onText(soFar),
+      });
+      return text;
+    } catch (err) {
+      return wrap(err);
+    }
+  };
+
   return {
+    chat,
+    tutor: (mode, history, onText, signal) =>
+      chat(tutorInstructions(mode), history, onText, signal),
+    async text(prompt, opts) {
+      try {
+        const { text } = await sample(prompt, {
+          modelTier: opts?.quick ? "quick" : "default",
+          cache: false,
+        });
+        return text.trim();
+      } catch (err) {
+        return wrap(err);
+      }
+    },
+    async json(prompt, opts) {
+      try {
+        return await sample.json(prompt, {
+          modelTier: opts?.quick ? "quick" : "default",
+          cache: false,
+          images: opts?.images?.length ? opts.images.map(toBlob) : undefined,
+        });
+      } catch (err) {
+        return wrap(err);
+      }
+    },
     async brief(req) {
       try {
         const { text } = await sample(
@@ -179,30 +260,6 @@ export function sampleAi(sample: Sample): AiProvider {
           },
         );
         return coercePack(value);
-      } catch (err) {
-        return wrap(err);
-      }
-    },
-
-    async tutor(mode, history, onText, signal) {
-      // No system prompt on this path: standing instructions go in a leading
-      // user turn, and only the newest message's photos are sent.
-      const last = history[history.length - 1];
-      const turns = [
-        { role: "user" as const, content: tutorInstructions(mode) },
-        ...history.map((t) => ({
-          role: t.role,
-          content: t.text.trim() || (t.images?.length ? "(photo)" : "…"),
-        })),
-      ];
-      try {
-        const { text } = await sample(turns, {
-          signal,
-          cache: false,
-          images: last?.images?.length ? last.images.map(toBlob) : undefined,
-          onText: ({ text: soFar }) => onText(soFar),
-        });
-        return text;
       } catch (err) {
         return wrap(err);
       }

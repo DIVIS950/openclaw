@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { useApp } from "../context.ts";
+import { useAiContext, useApp } from "../context.ts";
+import { draftReply } from "../lib/aiFeatures.ts";
 import { shortDate } from "../lib/format.ts";
 import type { Email } from "../lib/types.ts";
 
@@ -60,6 +61,15 @@ export function Inbox() {
   }, [app.data]);
 
   const list = (emails ?? []).filter((e) => filter === "All" || e.kind === filter);
+  useAiContext(
+    "Inbox screen. Emails: " +
+      list
+        .slice(0, 10)
+        .map(
+          (e) => `${e.from}: ${e.subject}${summaries.get(e.id) ? ` (${summaries.get(e.id)})` : ""}`,
+        )
+        .join("; "),
+  );
 
   return (
     <main className="screen">
@@ -115,9 +125,25 @@ function Message({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const { data, handleError } = useApp();
+  const { data, ai, profile, openAi, handleError } = useApp();
   const [reply, setReply] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  const [writing, setWriting] = useState(false);
+
+  // Whatever is already typed is used as the idea for the AI's draft.
+  const writeWithAi = async () => {
+    if (!ai) {
+      return;
+    }
+    setWriting(true);
+    try {
+      setReply(await draftReply(ai, email, reply, profile?.name ?? ""));
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setWriting(false);
+    }
+  };
 
   return (
     <article
@@ -184,6 +210,36 @@ function Message({
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--muted)" }}>
               {email.snippet}
             </p>
+            {ai && (
+              <div className="row" style={{ flexWrap: "wrap" }}>
+                <button
+                  className="btn small"
+                  onClick={() =>
+                    openAi({
+                      context: `Email from ${email.from}. Subject: ${email.subject}. ${email.snippet}`,
+                      question: "What does this email mean for me, and what should I do?",
+                    })
+                  }
+                >
+                  <Icon name="sparkle" size={14} />
+                  Explain
+                </button>
+                {email.kind === "Gmail" && state !== "sent" && (
+                  <button
+                    className="btn small"
+                    disabled={writing}
+                    onClick={() => void writeWithAi()}
+                  >
+                    <Icon
+                      name={writing ? "loader" : "wand"}
+                      size={14}
+                      className={writing ? "spin" : undefined}
+                    />
+                    {reply.trim() ? "Turn my idea into a reply" : "Write a reply with AI"}
+                  </button>
+                )}
+              </div>
+            )}
             {email.kind === "Classroom" ? (
               <a
                 className="btn small"
@@ -227,7 +283,7 @@ function Message({
                 <textarea
                   id={`reply-${email.id}`}
                   className="field"
-                  rows={2}
+                  rows={reply.length > 120 ? 6 : 2}
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   placeholder={`Reply to ${email.from}…`}

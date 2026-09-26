@@ -65,3 +65,15 @@ export const packs = {
   },
   save: (value: SavedPack) => write("psh.pack", value),
 };
+
+export interface SavedSchedule {
+  tests: { topic: string; date: string }[];
+  days: { date: string; items: { topic: string; activity: string; minutes: number }[] }[];
+  /** Keys "date|index" of sessions the student has ticked off. */
+  done: string[];
+}
+
+export const schedule = {
+  get: (): SavedSchedule => read<SavedSchedule>("psh.schedule", { tests: [], days: [], done: [] }),
+  save: (value: SavedSchedule) => write("psh.schedule", value),
+};

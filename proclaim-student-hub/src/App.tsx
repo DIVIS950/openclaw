@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, TutorMode } from "../shared/api.ts";
+import { AskAi } from "./components/AskAi.tsx";
 import { Icon } from "./components/Icon.tsx";
 import { Ctx, SCREENS, type AppContext, type Screen, type TutorSeed } from "./context.ts";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
@@ -140,6 +141,12 @@ function Shell({
   const [homework, setHomework] = useState<Homework[] | null>(null);
   const [assignment, setAssignment] = useState<Homework | null>(null);
   const [tutorSeed, setTutorSeed] = useState<TutorSeed | null>(null);
+  const [aiContext, setAiContext] = useState("");
+  const [aiSheet, setAiSheet] = useState<{
+    key: number;
+    question?: string;
+    context: string;
+  } | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [needReconnect, setNeedReconnect] = useState(false);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -211,6 +218,13 @@ function Shell({
         go("assignment");
       },
       tutorSeed,
+      openAi: (request) =>
+        setAiSheet({
+          key: Date.now(),
+          question: request?.question,
+          context: request?.context ?? aiContext,
+        }),
+      setAiContext,
       askTutor: (text: string, mode: TutorMode = "explain") => {
         setTutorSeed({ text, mode, key: Date.now() });
         go("tutor");
@@ -229,6 +243,7 @@ function Shell({
       go,
       assignment,
       tutorSeed,
+      aiContext,
       handleError,
       toast,
       onSignOut,
@@ -280,6 +295,24 @@ function Shell({
         {current === "games" && <Games />}
         {current === "inbox" && <Inbox />}
         {current === "apps" && <Apps />}
+        {current !== "tutor" && (
+          <button
+            className="ask-fab pop"
+            aria-label="Ask AI about this screen"
+            onClick={() => setAiSheet({ key: Date.now(), context: aiContext })}
+          >
+            <Icon name="sparkle" size={20} />
+            Ask AI
+          </button>
+        )}
+        {aiSheet && (
+          <AskAi
+            key={aiSheet.key}
+            context={aiSheet.context}
+            question={aiSheet.question}
+            onClose={() => setAiSheet(null)}
+          />
+        )}
         <NavBar screen={current} go={go} />
         {toastMsg && (
           <div className="toast" role="status">

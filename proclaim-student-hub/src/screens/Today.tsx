@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon } from "../components/Icon.tsx";
-import { useApp } from "../context.ts";
+import { useAiContext, useApp } from "../context.ts";
+import { planEvening, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import type { CalEvent } from "../lib/types.ts";
 
@@ -13,6 +14,25 @@ export function Today() {
   const [events, setEvents] = useState<CalEvent[] | null>(null);
   const [brief, setBrief] = useState<string | null>(null);
   const [briefFailed, setBriefFailed] = useState(false);
+  const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
+
+  const makePlan = async () => {
+    if (!ai) {
+      app.toast("The AI needs you signed in.");
+      return;
+    }
+    setPlan("loading");
+    try {
+      const steps = await planEvening(ai, homework ?? []);
+      setPlan(steps.length > 0 ? steps : null);
+      if (steps.length === 0) {
+        app.toast("Nothing to plan. Add some homework first!");
+      }
+    } catch (err) {
+      setPlan(null);
+      app.handleError(err);
+    }
+  };
 
   useEffect(() => {
     data.events().then(setEvents, (err: unknown) => {
@@ -23,6 +43,12 @@ export function Today() {
   }, [data]);
 
   const open = (homework ?? []).filter((h) => !h.done);
+  useAiContext(
+    `Today screen. Summary: ${brief ?? ""}. Homework still to do: ` +
+      open
+        .map((h) => `${h.title} (${h.course}, due ${h.due?.slice(0, 10) ?? "no date"})`)
+        .join("; "),
+  );
 
   // Ask the AI for a short summary once the homework has loaded. Cached for the
   // session so switching tabs doesn't cost another call.
@@ -142,8 +168,10 @@ export function Today() {
           <button
             className="btn block"
             style={{ flex: 1 }}
-            onClick={() => app.askTutor("Help me plan my homework for this evening.")}
+            disabled={plan === "loading"}
+            onClick={() => void makePlan()}
           >
+            {plan === "loading" ? <Icon name="loader" size={16} className="spin" /> : null}
             Plan my evening
           </button>
           <button
@@ -160,6 +188,35 @@ export function Today() {
           </button>
         </div>
       </section>
+
+      {Array.isArray(plan) && (
+        <section className="ai-card pop" aria-label="Your plan for this evening">
+          <div className="between">
+            <h3>
+              <Icon name="sparkle" size={16} />
+              Your plan for tonight · {plan.reduce((n, s) => n + s.minutes, 0)} min
+            </h3>
+            <button className="link-btn" style={{ minHeight: 32 }} onClick={() => setPlan(null)}>
+              Hide
+            </button>
+          </div>
+          {plan.map((s, i) => (
+            <div
+              key={i}
+              className="row rise"
+              style={{ alignItems: "flex-start", gap: 10, animationDelay: `${i * 0.06}s` }}
+            >
+              <span className="chip accent" style={{ minWidth: 58, justifyContent: "center" }}>
+                {s.minutes} min
+              </span>
+              <div>
+                <div style={{ fontWeight: 600 }}>{s.title}</div>
+                {s.tip && <div className="muted">{s.tip}</div>}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {events && events.length > 0 && (
         <section className="stack rise" style={{ animationDelay: "0.16s" }}>

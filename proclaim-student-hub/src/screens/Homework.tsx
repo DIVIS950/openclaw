@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { useApp } from "../context.ts";
+import { useAiContext, useApp } from "../context.ts";
+import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 
@@ -14,6 +15,14 @@ export function HomeworkScreen() {
   const list = (homework ?? []).filter((h) => !h.done && (filter === "All" || h.source === filter));
   const sources = new Set((homework ?? []).map((h) => h.source));
   const filters: Filter[] = ["All", "Classroom", ...OTHER_SOURCES.filter((s) => sources.has(s))];
+  useAiContext(
+    "Homework screen. To do: " +
+      list
+        .map(
+          (h) => `${h.title} (${h.course}, ${h.source}, due ${h.due?.slice(0, 10) ?? "no date"})`,
+        )
+        .join("; "),
+  );
 
   return (
     <main className="screen">
@@ -38,6 +47,8 @@ export function HomeworkScreen() {
         </button>
       </div>
 
+      <EmailScan />
+
       {homework === null ? (
         <div className="card stack">
           <div className="skeleton light" />
@@ -61,7 +72,7 @@ export function HomeworkScreen() {
 }
 
 function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
-  const { openAssignment, askTutor, data, replaceHomework, handleError, toast } = useApp();
+  const { openAssignment, openAi, data, replaceHomework, handleError, toast } = useApp();
   const inApp = hw.source === "Classroom";
 
   return (
@@ -77,9 +88,10 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
         <button
           className="btn small dark"
           onClick={() =>
-            askTutor(
-              `Help me with my homework: "${hw.title}" (${hw.course}).${hw.description ? `\n\nInstructions: ${hw.description}` : ""}`,
-            )
+            openAi({
+              context: `Homework: "${hw.title}" (${hw.course}, ${hw.source}). ${hw.description}`,
+              question: `Help me get started with "${hw.title}".`,
+            })
           }
         >
           <Icon name="sparkle" size={14} />
@@ -196,5 +208,107 @@ function AddHomework({ onClose }: { onClose: () => void }) {
         </button>
       </form>
     </div>
+  );
+}
+
+/** AI reads recent emails and suggests homework to add, one tap each. */
+function EmailScan() {
+  const { ai, data, homework, addHomeworkItem, handleError, toast } = useApp();
+  const [found, setFound] = useState<FoundTask[] | "loading" | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
+
+  if (!ai || data.demo) {
+    return null;
+  }
+
+  const scan = async () => {
+    setFound("loading");
+    try {
+      const emails = await data.inbox();
+      const tasks = await findHomeworkInEmails(ai, emails, homework ?? []);
+      setFound(tasks);
+    } catch (err) {
+      setFound(null);
+      handleError(err);
+    }
+  };
+
+  const add = async (task: FoundTask) => {
+    setAdding(task.title);
+    try {
+      addHomeworkItem(
+        await data.addHomework({
+          title: task.title,
+          source: task.source,
+          due: task.due || undefined,
+        }),
+      );
+      toast(data.labels.added);
+      setFound((f) => (Array.isArray(f) ? f.filter((x) => x !== task) : f));
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  if (found === null) {
+    return (
+      <button
+        className="btn block rise"
+        style={{
+          justifyContent: "flex-start",
+          background: "#eef1fc",
+          borderColor: "#d6ddf7",
+          color: "var(--accent-ink)",
+        }}
+        onClick={() => void scan()}
+      >
+        <Icon name="mail" size={18} />
+        <span style={{ flex: 1, textAlign: "left" }}>Find homework in my emails</span>
+        <Icon name="sparkle" size={16} />
+      </button>
+    );
+  }
+  return (
+    <section className="ai-card pop" aria-label="Homework found in your emails">
+      <div className="between">
+        <h3>
+          <Icon name="sparkle" size={16} />
+          Found in your emails
+        </h3>
+        <button className="link-btn" style={{ minHeight: 32 }} onClick={() => setFound(null)}>
+          Hide
+        </button>
+      </div>
+      {found === "loading" ? (
+        <div className="row muted">
+          <Icon name="loader" size={16} className="spin" />
+          Reading your emails…
+        </div>
+      ) : found.length === 0 ? (
+        <div className="muted">No new homework in your recent emails.</div>
+      ) : (
+        found.map((task) => (
+          <div key={task.title} className="between rise">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>{task.title}</div>
+              <div className="muted" style={{ fontSize: 12 }}>
+                {task.source}
+                {task.due ? ` · due ${task.due}` : ""}
+              </div>
+            </div>
+            <button
+              className="btn small primary"
+              disabled={adding === task.title}
+              onClick={() => void add(task)}
+            >
+              <Icon name="plus" size={14} />
+              Add
+            </button>
+          </div>
+        ))
+      )}
+    </section>
   );
 }

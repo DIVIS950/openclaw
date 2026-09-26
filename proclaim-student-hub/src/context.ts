@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import type { TutorMode } from "../shared/api.ts";
 import type { AiProvider } from "./lib/ai.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
@@ -46,6 +46,10 @@ export interface AppContext {
   openAssignment: (hw: Homework) => void;
   tutorSeed: TutorSeed | null;
   askTutor: (text: string, mode?: TutorMode) => void;
+  /** Opens the AI helper over the current screen. */
+  openAi: (request?: { question?: string; context?: string }) => void;
+  /** Screens describe what's on them so the AI helper knows what "this" means. */
+  setAiContext: (context: string) => void;
   handleError: (err: unknown) => void;
   toast: (message: string) => void;
   /** Null on the web link, which has no separate sign-in. */
@@ -60,4 +64,13 @@ export function useApp(): AppContext {
     throw new Error("useApp must be used inside the app");
   }
   return ctx;
+}
+
+/** Tells the AI helper what this screen shows, while it's open. */
+export function useAiContext(context: string) {
+  const { setAiContext } = useApp();
+  useEffect(() => {
+    setAiContext(context);
+    return () => setAiContext("");
+  }, [context, setAiContext]);
 }

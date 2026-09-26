@@ -17,6 +17,7 @@ import {
   briefData,
   inboxData,
   packRequest,
+  parseJsonLoose,
   tutorInstructions,
 } from "../shared/prompts.ts";
 
@@ -46,6 +47,65 @@ function toMessageParam(turn: ChatTurn): Anthropic.Beta.BetaMessageParam {
     content.push({ type: "text", text: turn.text });
   }
   return { role: turn.role, content };
+}
+
+/** Streams a chat reply under the given standing instructions. */
+export async function chatReply(
+  instructions: string,
+  history: ChatTurn[],
+  onText: (text: string) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  const stream = client.beta.messages.stream(
+    {
+      model: MODEL,
+      max_tokens: 64000,
+      system: instructions,
+      messages: history.map(toMessageParam),
+      output_config: { effort: "high" },
+      ...FALLBACK,
+    },
+    { signal },
+  );
+  stream.on("text", onText);
+  const message = await stream.finalMessage();
+  if (message.stop_reason === "refusal") {
+    throw new AiRefusalError("The AI can't help with that one. Try asking in a different way.");
+  }
+}
+
+/** One answer to one prompt. `quick` trades depth for speed. */
+export async function oneShot(
+  prompt: string,
+  quick: boolean,
+  images: ChatTurn["images"] = [],
+): Promise<string> {
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    system:
+      "You are the AI inside Proclaim Student Hub, a school app for a secondary school student.",
+    messages: [toMessageParam({ role: "user", text: prompt, images })],
+    output_config: { effort: quick ? "low" : "high" },
+    ...FALLBACK,
+  });
+  if (response.stop_reason === "refusal") {
+    throw new AiRefusalError("The AI can't help with that one.");
+  }
+  return response.content
+    .flatMap((block) => (block.type === "text" ? [block.text] : []))
+    .join("")
+    .trim();
+}
+
+export async function oneShotJson(
+  prompt: string,
+  quick: boolean,
+  images: ChatTurn["images"] = [],
+): Promise<unknown> {
+  return parseJsonLoose(
+    await oneShot(`${prompt}\n\nReply with only the JSON, no other text.`, quick, images),
+  );
 }
 
 /** Streams the tutor's reply, calling onText for each chunk of text. */

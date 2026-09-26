@@ -104,7 +104,7 @@ button:disabled {
 .screen {
   flex: 1;
   overflow-y: auto;
-  padding: calc(env(safe-area-inset-top) + 24px) 20px 24px;
+  padding: calc(env(safe-area-inset-top) + 24px) 20px 88px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -919,4 +919,54 @@ textarea.field {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- Ask AI ---------- */
+
+.ask-fab {
+  position: absolute;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  z-index: 10;
+  min-height: 48px;
+  padding: 0 18px 0 14px;
+  border-radius: 24px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 6px 18px rgba(43, 69, 201, 0.35);
+}
+
+.ai-card {
+  background: #eef1fc;
+  border: 1px solid #d6ddf7;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-card h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.45;
 }
