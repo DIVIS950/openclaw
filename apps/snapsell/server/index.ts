@@ -1,13 +1,14 @@
-import fs from "node:fs/promises";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { PLATFORMS, type Listing, type Platform, type Settings } from "../shared/types.ts";
-import { aiConfigured, analyzeItem, MODEL, type Photo } from "./ai/analyze.ts";
+import { aiConfigured, analyzeItem, claudeConfigured, MODEL, type Photo } from "./ai/analyze.ts";
+import { GEMINI_MODEL, geminiConfigured } from "./ai/gemini.ts";
+import { storageCheck, supabaseConfigured } from "./storage.ts";
 import { lensSearch, publicPhoto, serpEnabled, visionEnabled } from "./ai/lens.ts";
-import { googleCallback, googleEnabled, googleStart, logout, me, publicUrl, requireUser, type Env } from "./auth.ts";
+import { googleCallback, googleEnabled, googleStart, logout, me, onCloud, publicUrl, requireUser, type Env } from "./auth.ts";
 import {
   ebayAppConfigured,
   ebayCreateLocation,
@@ -27,7 +28,7 @@ import {
   getUser,
   listListings,
   newExtensionToken,
-  photoPath,
+  loadPhoto,
   savePhoto,
   updateListing,
   updateUser,
@@ -64,8 +65,29 @@ app.get("/api/health", (c) =>
     googleLogin: googleEnabled(),
     lens: { vision: visionEnabled(), serpapi: serpEnabled() },
     ebayApp: ebayAppConfigured(),
+    gemini: geminiConfigured(),
+    claude: claudeConfigured(),
   }),
 );
+
+/**
+ * Setup checklist (public, shows only yes/no per item and the exact addresses to paste into
+ * Google and eBay; never any secret values).
+ */
+app.get("/api/setup", async (c) => {
+  const url = publicUrl(c);
+  const storageError = await storageCheck();
+  return c.json({
+    cloud: onCloud(),
+    publicUrl: url,
+    storage: { ok: supabaseConfigured() && !storageError, configured: supabaseConfigured(), error: storageError, required: onCloud() },
+    ai: { gemini: geminiConfigured(), claude: claudeConfigured(), geminiModel: GEMINI_MODEL, claudeModel: MODEL },
+    google: { ok: googleEnabled(), redirectUri: `${url}/auth/google/callback`, origin: url, allowList: Boolean(process.env.ALLOWED_EMAILS) },
+    ebay: { ok: ebayAppConfigured(), acceptUrl: `${url}/auth/ebay/callback` },
+    lens: { vision: visionEnabled(), serpapi: serpEnabled() },
+    ready: googleEnabled() && (!onCloud() || (supabaseConfigured() && !storageError)) && aiConfigured(),
+  });
+});
 app.get("/auth/google", googleStart);
 app.get("/auth/google/callback", googleCallback);
 app.post("/auth/logout", logout);
@@ -74,7 +96,8 @@ app.post("/auth/logout", logout);
 app.get("/p/:token", async (c) => {
   const p = publicPhoto(c.req.param("token"));
   if (!p) return c.notFound();
-  return c.body(await fs.readFile(photoPath(p.id, p.name)), 200, { "Content-Type": "image/jpeg" });
+  const data = await loadPhoto(p.id, p.name);
+  return data ? c.body(new Uint8Array(data), 200, { "Content-Type": "image/jpeg" }) : c.notFound();
 });
 
 // ---------- signed in ----------
@@ -276,14 +299,11 @@ api.post("/api/listings/:id/publish", async (c) => {
 
 api.get("/photos/:id/:name", async (c) => {
   if (!(await getListing(c.req.param("id"), c.var.user.email))) return c.notFound();
-  try {
-    const name = c.req.param("name");
-    const file = await fs.readFile(photoPath(c.req.param("id"), name));
-    const type = name.endsWith(".png") ? "image/png" : name.endsWith(".webp") ? "image/webp" : "image/jpeg";
-    return c.body(file, 200, { "Content-Type": type, "Cache-Control": "private, max-age=31536000, immutable" });
-  } catch {
-    return c.notFound();
-  }
+  const name = c.req.param("name");
+  const file = await loadPhoto(c.req.param("id"), name).catch(() => null);
+  if (!file) return c.notFound();
+  const type = name.endsWith(".png") ? "image/png" : name.endsWith(".webp") ? "image/webp" : "image/jpeg";
+  return c.body(new Uint8Array(file), 200, { "Content-Type": type, "Cache-Control": "private, max-age=31536000, immutable" });
 });
 
 // `npm start` serves the built app from dist/ on the same port as the API.

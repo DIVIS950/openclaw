@@ -92,7 +92,44 @@ export function Connections() {
             detail={health?.lens.serpapi ? "Real Lens results with shop prices" : "Add SERPAPI_KEY on the server"}
             ok={health?.lens.serpapi}
           />
-          <Row title="Sold-price search" detail={health?.ai ? "AI checks eBay, Vinted and more for sold prices" : "Demo mode: add ANTHROPIC_API_KEY"} ok={health?.ai} />
+          <Row title="Sold-price search" detail={health?.ai ? "AI searches the web for sold prices" : "Demo mode: add GEMINI_API_KEY (free)"} ok={health?.ai} />
+        </Card>
+
+        <div className="px-1 pt-3">
+          <Label>AI</Label>
+        </div>
+        <Card className="space-y-3">
+          {health?.gemini && health?.claude ? (
+            <div role="radiogroup" aria-label="AI" className="grid grid-cols-2 gap-2">
+              {[
+                { id: "gemini" as const, name: "Gemini", note: "Free plan" },
+                { id: "claude" as const, name: "Claude", note: "Best quality · paid per item" },
+              ].map((o) => {
+                const on = (settings.aiProvider ?? "gemini") === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => void save({ aiProvider: o.id })}
+                    className={cx("rounded-2xl bg-card p-3 text-left", on ? "border-2 border-ink" : "border-[1.5px] border-line")}
+                  >
+                    <span className="block font-bold">{o.name}</span>
+                    <span className="block text-[13px] text-muted">{o.note}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <Row
+              title={health?.gemini ? "Google Gemini" : health?.claude ? "Claude" : "Demo mode"}
+              detail={health?.gemini ? "Free plan · recognizes items and searches prices" : health?.claude ? "Paid per item" : "Sample results until an AI key is added"}
+              ok={health?.ai}
+            />
+          )}
+          <a href="#/setup" className="flex h-11 items-center justify-center rounded-xl bg-soft text-sm font-semibold">
+            Setup checklist
+          </a>
         </Card>
 
         <div className="px-1 pt-3">

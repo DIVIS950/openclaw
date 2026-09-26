@@ -3,21 +3,23 @@ import { AnimatePresence, motion } from "motion/react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Me, Settings } from "../shared/types.ts";
 import { Avatar, Logo, cx } from "./components/ui.tsx";
-import { api, AuthError, type Health } from "./lib/api.ts";
+import { api, AuthError, SetupError, type Health } from "./lib/api.ts";
 import { Connections } from "./screens/Connections.tsx";
 import { Home } from "./screens/Home.tsx";
 import { ListingScreen } from "./screens/Listing.tsx";
 import { NewListing } from "./screens/NewListing.tsx";
 import { Setup } from "./screens/Setup.tsx";
+import { SetupChecklist } from "./screens/SetupChecklist.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
 
-type Route = { name: "home" } | { name: "new" } | { name: "listing"; id: string } | { name: "connections" };
+type Route = { name: "home" } | { name: "new" } | { name: "listing"; id: string } | { name: "connections" } | { name: "setup" };
 
 function parse(hash: string): Route {
   const [, a, b] = hash.replace(/^#/, "").split("?")[0].split("/");
   if (a === "new") return { name: "new" };
   if (a === "l" && b) return { name: "listing", id: b };
   if (a === "connections" || a === "settings") return { name: "connections" };
+  if (a === "setup") return { name: "setup" };
   return { name: "home" };
 }
 
@@ -40,7 +42,7 @@ export const useApp = () => useContext(Ctx);
 
 export function App() {
   const [route, setRoute] = useState<Route>(() => parse(location.hash));
-  const [me, setMe] = useState<Me | null | "signed-out">(null);
+  const [me, setMe] = useState<Me | null | "signed-out" | "setup">(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
 
@@ -51,6 +53,7 @@ export function App() {
       setSettings(s);
     } catch (e) {
       if (e instanceof AuthError) setMe("signed-out");
+      else if (e instanceof SetupError) setMe("setup");
       else setTimeout(load, 2000); // server restarting: retry
     }
   }, []);
@@ -78,6 +81,7 @@ export function App() {
   }, [go]);
 
   if (me === null) return <div className="min-h-dvh" />;
+  if (me === "setup") return <SetupChecklist />;
   if (me === "signed-out") return <Welcome health={health} />;
   if (!settings) return <div className="min-h-dvh" />;
   if (!settings.onboarded) return <Setup settings={settings} onDone={setSettings} />;
@@ -93,6 +97,7 @@ export function App() {
             {route.name === "new" && <NewListing />}
             {route.name === "listing" && <ListingScreen id={route.id} />}
             {route.name === "connections" && <Connections />}
+            {route.name === "setup" && <SetupChecklist onBack={() => go("/connections")} />}
           </motion.div>
         </AnimatePresence>
       </Shell>

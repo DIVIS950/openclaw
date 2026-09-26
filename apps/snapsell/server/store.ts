@@ -1,12 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { DEFAULT_SETTINGS, type ExtensionStatus, type Listing, type Settings } from "../shared/types.ts";
-
-export const DATA_DIR = path.resolve(process.env.SNAPSELL_DATA_DIR ?? "data");
-export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-const LISTINGS_FILE = path.join(DATA_DIR, "listings.json");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
+import { deletePhotos, readJson, readPhoto, writeJson, writePhoto } from "./storage.ts";
 
 export type EbayAccount = {
   refreshToken: string;
@@ -29,26 +23,11 @@ export type User = {
   extension?: { lastSeen: string; sites: ExtensionStatus["sites"] };
 };
 
-async function readJson<T>(file: string, fallback: T): Promise<T> {
-  try {
-    return JSON.parse(await fs.readFile(file, "utf8")) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-async function writeJson(file: string, value: unknown) {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
-  await fs.rename(tmp, file);
-}
-
-/** A JSON file loaded once and written back in order (writes never interleave on disk). */
+/** A JSON document loaded once and written back in order (writes never interleave). */
 function collection<T>(file: string, key: (v: T) => string) {
-  let map: Map<string, T> | null = null;
+  let loading: Promise<Map<string, T>> | null = null;
   let chain: Promise<void> = Promise.resolve();
-  const load = async () => (map ??= new Map((await readJson<T[]>(file, [])).map((v) => [key(v), v])));
+  const load = () => (loading ??= readJson<T[]>(file, []).then((arr) => new Map(arr.map((v) => [key(v), v]))));
   return {
     load,
     persist() {
@@ -58,8 +37,8 @@ function collection<T>(file: string, key: (v: T) => string) {
   };
 }
 
-const listingsDb = collection<Listing>(LISTINGS_FILE, (l) => l.id);
-const usersDb = collection<User>(USERS_FILE, (u) => u.email);
+const listingsDb = collection<Listing>("listings.json", (l) => l.id);
+const usersDb = collection<User>("users.json", (u) => u.email);
 
 // ---------- listings ----------
 
@@ -117,7 +96,7 @@ export async function deleteListing(id: string, owner: string) {
   if (!(await getListing(id, owner))) return;
   (await listingsDb.load()).delete(id);
   await listingsDb.persist();
-  await fs.rm(path.join(UPLOADS_DIR, safeName(id)), { recursive: true, force: true });
+  await deletePhotos(safeName(id));
 }
 
 /** Only allow plain file names so request data can never escape the uploads dir. */
@@ -126,14 +105,12 @@ export function safeName(name: string) {
   return name;
 }
 
-export async function savePhoto(id: string, name: string, data: Buffer) {
-  const dir = path.join(UPLOADS_DIR, safeName(id));
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, safeName(name)), data);
+export function savePhoto(id: string, name: string, data: Buffer) {
+  return writePhoto(safeName(id), safeName(name), data);
 }
 
-export function photoPath(id: string, name: string) {
-  return path.join(UPLOADS_DIR, safeName(id), safeName(name));
+export function loadPhoto(id: string, name: string) {
+  return readPhoto(safeName(id), safeName(name));
 }
 
 /** Enhanced photo names when available, originals otherwise. */
@@ -190,16 +167,15 @@ export async function userForExtensionToken(token: string) {
 
 // ---------- secrets ----------
 
-/** Session signing secret: SESSION_SECRET, else one generated once and kept in data/. */
-export async function sessionSecret() {
-  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
-  const file = path.join(DATA_DIR, ".session-secret");
-  try {
-    return (await fs.readFile(file, "utf8")).trim();
-  } catch {
+/** Session signing secret: SESSION_SECRET, else one generated once and stored with the data. */
+let secret: Promise<string> | null = null;
+export function sessionSecret() {
+  if (process.env.SESSION_SECRET) return Promise.resolve(process.env.SESSION_SECRET);
+  return (secret ??= (async () => {
+    const saved = await readJson<{ secret?: string }>("session-secret.json", {});
+    if (saved.secret) return saved.secret;
     const s = randomBytes(32).toString("hex");
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(file, s, { mode: 0o600 });
+    await writeJson("session-secret.json", { secret: s });
     return s;
-  }
+  })());
 }

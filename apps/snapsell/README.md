@@ -4,8 +4,7 @@ Snap a photo of anything you want to sell. AI identifies it, checks Google Lens 
 photos, writes the listing, and posts it to **eBay**, **Facebook Marketplace** and **Vinted**.
 
 - **Web app for your phone.** Install it to your home screen. There's a desktop layout too.
-- **Runs on your own computer.** It's free, and your data stays with you. Tailscale Funnel gives it a secure `https://`
-  address that works from anywhere.
+- **Free.** Runs on free cloud plans (Render + Supabase + Gemini) or on your own computer.
 - **Private.** Sign in with Google, and only your account gets in.
 
 The UI follows the "SnapSell App Design" canvas.
@@ -29,34 +28,54 @@ The UI follows the "SnapSell App Design" canvas.
      logged-in Chrome.
    - *Copy & open* works for any site as a fallback.
 
-## 1. Quick start (on your computer)
+## 1. Free, private, in the cloud (recommended)
+
+Everything below is free and needs no card. Your Mac doesn't need to stay on.
+
+| Part | Free service |
+| --- | --- |
+| App online (sleeps when unused, wakes in ~30 s) | [Render](https://render.com) free plan |
+| Listings and photos | [Supabase](https://supabase.com) free plan |
+| AI: recognize, research prices, write listings | [Google Gemini](https://aistudio.google.com/apikey) free plan |
+| Private login, only you | Google login |
+| Facebook + Vinted posting | SnapSell for Chrome on your computer, only while Chrome is open |
+
+1. Sign in at https://render.com with GitHub, then open
+   **[Deploy SnapSell](https://render.com/deploy?repo=https://github.com/DIVIS950/openclaw/tree/claude/photo-listing-marketplace-app-l292ik)**.
+2. Render asks for four values. Get them first:
+   - `GEMINI_API_KEY`: [Google AI Studio](https://aistudio.google.com/apikey) → **Create API key**.
+   - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`: create a free project at [Supabase](https://supabase.com/dashboard/new/new-project),
+     then open **Project Settings → API Keys**.
+   - `ALLOWED_EMAILS`: your Gmail address.
+3. Click **Deploy**. When it's live, open your address (`https://snapsell-….onrender.com`). SnapSell stays locked and
+   shows a **setup checklist** with the exact addresses to paste for Google login (step 3 below).
+4. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` under **Render → snapsell → Environment**. Render restarts the
+   app, then sign in with Google on your phone and add it to your home screen.
+
+The checklist (also in **Connections → Setup checklist**) always shows what's done and what's left, including the
+optional extras: eBay login and SerpApi Lens prices.
+
+Gemini's free plan allows a limited number of requests per minute and per day, which is plenty for personal use.
+Google may use free-plan requests to improve its products. For the best quality you can add a paid Claude key
+(`ANTHROPIC_API_KEY`) and switch AI in Connections.
+
+## 2. Or run it on your own computer
 
 You need [Node.js 22+](https://nodejs.org).
 
 ```bash
 cd apps/snapsell
 npm install
-cp .env.example .env      # put your ANTHROPIC_API_KEY in .env
+cp .env.example .env      # put GEMINI_API_KEY (free) in .env
 npm run dev
 ```
 
-Open http://localhost:5173. Without an API key SnapSell runs in **demo mode** with sample data. Until Google login
-is set up it runs in **local mode** with no sign-in, so keep it off the internet until step 3 is done.
+Open http://localhost:5173. Without any AI key SnapSell runs in **demo mode** with sample data. Locally, data is kept
+in the `data/` folder unless you set the Supabase variables.
 
-## 2. Put it online for free (Tailscale Funnel)
-
-Your computer hosts SnapSell. Tailscale gives it a permanent `https://…ts.net` address, so your phone can use it
-anywhere, not just on home Wi-Fi.
-
-1. Install [Tailscale](https://tailscale.com/download) on the computer and sign in. It's free for personal use.
-2. In a terminal, run `tailscale funnel --bg 8787`. The first time, it shows a link to turn Funnel on; open it and
-   approve. Then it prints your address, for example `https://my-pc.tail1234.ts.net`.
-3. Put that address in `.env` as `PUBLIC_URL=https://my-pc.tail1234.ts.net`.
-4. **Set up Google login (step 3) before you share the address.**
-5. Start SnapSell with `npm run online`. This builds the app and serves everything on port 8787.
-6. On your phone, open the address. In Safari choose *Share → Add to Home Screen*; in Chrome choose *Install app*.
-
-Keep the computer on and awake. Chrome must be open on it for Facebook and Vinted posting anyway.
+To reach it from your phone anywhere, use [Tailscale Funnel](https://tailscale.com/download): run
+`tailscale funnel --bg 8787`, put the printed `https://…ts.net` address in `.env` as `PUBLIC_URL`, set up Google
+login (step 3), and start with `npm run online`. It only works while the computer is on.
 
 ## 3. Sign in with Google
 
@@ -64,8 +83,7 @@ Keep the computer on and awake. Chrome must be open on it for Facebook and Vinte
 2. Open *APIs & Services → OAuth consent screen*. Choose **External**, fill in the app name and your email, and add
    yourself under *Test users*.
 3. Open *Credentials → Create credentials → OAuth client ID → Web application*. Under **Authorized redirect URIs** add:
-   - `https://my-pc.tail1234.ts.net/auth/google/callback` (your `PUBLIC_URL` + `/auth/google/callback`)
-   - `http://localhost:5173/auth/google/callback` (for `npm run dev`)
+   - your address + `/auth/google/callback` (the setup checklist shows it with a Copy button)
 4. Put the client ID and secret in `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then restart SnapSell.
 
 The first Google account that signs in becomes the owner. Anything you created in local mode moves to that account.
@@ -85,7 +103,7 @@ To allow more people, list their emails in `ALLOWED_EMAILS=you@gmail.com,partner
 1. Create a developer account at https://developer.ebay.com and create a **Production** keyset. The App ID is your
    client ID and the Cert ID is your client secret.
 2. Open *User Tokens → Get a Token from eBay via Your Application → Add eBay Redirect URL*. Set **Your auth accepted
-   URL** to `https://my-pc.tail1234.ts.net/auth/ebay/callback`, turn on OAuth, and save. Copy the **RuName** it
+   URL** to your address + `/auth/ebay/callback` (shown in the setup checklist), turn on OAuth, and save. Copy the **RuName** it
    shows.
 3. Put `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` and `EBAY_RUNAME` in `.env`. If you don't sell on eBay US, also set
    `EBAY_MARKETPLACE_ID` (for example `EBAY_DE`) and `EBAY_CONTENT_LANGUAGE` (for example `de-DE`). Restart
@@ -101,7 +119,7 @@ in your normal Chrome, with your own login.
 
 1. In Chrome on your computer, open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and choose the `apps/snapsell/extension` folder.
-3. In SnapSell, open **Connections → SnapSell for Chrome → Create pairing code**. Paste the address and the code into
+3. In SnapSell, open **Connections → SnapSell for Chrome → Create pairing code**. Your SnapSell address is the Render (or Tailscale) address. Paste the address and the code into
    the extension's popup.
 4. Log in to Facebook and Vinted in that Chrome, the normal way.
 

@@ -1,21 +1,25 @@
+# SnapSell on Render's free plan (sleeps when unused, no card needed).
+# Data lives in Supabase (free), because Render's free disk is wiped when the app sleeps.
 services:
   - type: web
-    name: openclaw
-    runtime: docker
-    plan: starter
-    healthCheckPath: /health
+    name: snapsell
+    runtime: node
+    plan: free
+    rootDir: apps/snapsell
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
-      - key: PORT
-        value: "8080"
-      - key: SETUP_PASSWORD
-        sync: false
-      - key: OPENCLAW_STATE_DIR
-        value: /data/.openclaw
-      - key: OPENCLAW_WORKSPACE_DIR
-        value: /data/workspace
-      - key: OPENCLAW_GATEWAY_TOKEN
+      - key: NODE_VERSION
+        value: "22"
+      - key: SESSION_SECRET
         generateValue: true
-    disk:
-      name: openclaw-data
-      mountPath: /data
-      sizeGB: 1
+      # Filled in during deploy (see the in-app setup checklist for where to get each one)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ALLOWED_EMAILS
+        sync: false

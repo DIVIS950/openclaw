@@ -1,10 +1,9 @@
 import { randomBytes } from "node:crypto";
-import fs from "node:fs/promises";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { effectiveCondition, effectiveCopy, effectivePrice, type Condition } from "../../shared/types.ts";
 import { publicUrl } from "../auth.ts";
-import { getUser, photoPath, updateUser, type EbayAccount, type User } from "../store.ts";
+import { getUser, loadPhoto, updateUser, type EbayAccount, type User } from "../store.ts";
 import type { Publisher } from "./types.ts";
 
 /**
@@ -199,9 +198,11 @@ function missingSetup(a: EbayAccount) {
 }
 
 /** Upload each photo to eBay Picture Services: eBay needs publicly hosted image URLs. */
-async function uploadImage(user: User, file: string) {
+async function uploadImage(user: User, listingId: string, name: string) {
+  const data = await loadPhoto(listingId, name);
+  if (!data) throw new Error("A photo is missing");
   const form = new FormData();
-  form.append("image", new Blob([await fs.readFile(file)], { type: "image/jpeg" }), "photo.jpg");
+  form.append("image", new Blob([new Uint8Array(data)], { type: "image/jpeg" }), "photo.jpg");
   const res = await fetch(`${host("apim")}/commerce/media/v1_beta/image/create_image_from_file`, {
     method: "POST",
     headers: { Authorization: `Bearer ${await accessToken(user)}` },
@@ -246,7 +247,7 @@ export const ebayPublisher: Publisher = {
 
     progress("Uploading photos to eBay");
     const imageUrls: string[] = [];
-    for (const n of photoNames.slice(0, 12)) imageUrls.push(await uploadImage(user, photoPath(listing.id, n)));
+    for (const n of photoNames.slice(0, 12)) imageUrls.push(await uploadImage(user, listing.id, n));
 
     progress("Finding the right category");
     const tree = await ebay<{ categoryTreeId: string }>(

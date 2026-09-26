@@ -15,9 +15,14 @@ export const LOCAL_USER = "local@snapsell";
 
 export const googleEnabled = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
+/** Running on a public cloud host: never allow the no-login local mode there. */
+export const onCloud = () => Boolean(process.env.RENDER || process.env.SNAPSELL_CLOUD);
+
 /** Public origin of the app, used for OAuth redirects. */
 export function publicUrl(c: Context) {
-  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, "");
+  // Render sets RENDER_EXTERNAL_URL to the service's https://….onrender.com address.
+  const configured = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL;
+  if (configured) return configured.replace(/\/$/, "");
   const url = new URL(c.req.url);
   const proto = c.req.header("x-forwarded-proto") ?? url.protocol.replace(":", "");
   const host = c.req.header("x-forwarded-host") ?? c.req.header("host") ?? url.host;
@@ -57,6 +62,8 @@ export const requireUser: MiddlewareHandler<Env> = async (c, next) => {
     return next();
   }
   if (!googleEnabled()) {
+    // On the internet without Google login anyone could use it: stay locked until set up.
+    if (onCloud()) return c.json({ error: "SnapSell isn't set up yet", setup: true }, 403);
     c.set("user", (await getUser(LOCAL_USER)) ?? (await upsertUser(LOCAL_USER, { name: "You" })));
     return next();
   }

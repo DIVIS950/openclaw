@@ -7,14 +7,39 @@ import type {
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "../../shared/types.ts";
 import { demoAnalysis } from "./demo.ts";
+import { analyzeWithGemini, geminiConfigured } from "./gemini.ts";
 
 export const MODEL = process.env.SNAPSELL_MODEL ?? "claude-opus-5";
 // Server-side refusal fallbacks: if the primary model declines, the API re-runs the request
 // on a fallback model inside the same call.
 const BETAS = ["server-side-fallback-2026-07-01"];
 
+export const claudeConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+
+/** True when any real AI is set up (Gemini free plan or Claude). Otherwise: demo mode. */
 export function aiConfigured() {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return claudeConfigured() || geminiConfigured();
+}
+
+/** Which AI a user's analysis runs on: their choice when both are set up, else whichever exists. */
+export function aiFor(settings: Settings): "claude" | "gemini" | "demo" {
+  if (settings.aiProvider === "claude" && claudeConfigured()) return "claude";
+  if (geminiConfigured()) return "gemini";
+  if (claudeConfigured()) return "claude";
+  return "demo";
+}
+
+export async function analyzeItem(
+  photos: Photo[],
+  settings: Settings,
+  note: string | undefined,
+  emit: Emit,
+  visual?: string,
+): Promise<Analysis> {
+  const which = aiFor(settings);
+  if (which === "gemini") return analyzeWithGemini(photos, settings, note, emit, visual);
+  if (which === "claude") return analyzeWithClaude(photos, settings, note, emit, visual);
+  return demoAnalysis(photos.length, settings, emit);
 }
 
 export type Photo = { data: Buffer; mediaType: "image/jpeg" | "image/png" | "image/webp" };
@@ -56,7 +81,7 @@ Rules:
 - crops: for every photo give a tight bounding box around the item (normalized 0-1) so it can be auto-cropped.`;
 
 /** Runs the two-step AI pipeline: vision + live market research, then structured listing output. */
-export async function analyzeItem(
+async function analyzeWithClaude(
   photos: Photo[],
   settings: Settings,
   note: string | undefined,
@@ -64,8 +89,6 @@ export async function analyzeItem(
   /** Google Lens / Cloud Vision findings, already formatted as text */
   visual?: string,
 ): Promise<Analysis> {
-  if (!aiConfigured()) return demoAnalysis(photos.length, settings, emit);
-
   const client = new Anthropic();
   emit({ type: "stage", stage: "looking" });
 

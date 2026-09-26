@@ -19,7 +19,23 @@ export type Health = {
   ebayApp: boolean;
   /** Web preview: fake backend in the page, sample AI results */
   preview?: boolean;
+  gemini?: boolean;
+  claude?: boolean;
 };
+
+export type SetupStatus = {
+  cloud: boolean;
+  publicUrl: string;
+  storage: { ok: boolean; configured: boolean; error: string | null; required: boolean };
+  ai: { gemini: boolean; claude: boolean; geminiModel: string; claudeModel: string };
+  google: { ok: boolean; redirectUri: string; origin: string; allowList: boolean };
+  ebay: { ok: boolean; acceptUrl: string };
+  lens: { vision: boolean; serpapi: boolean };
+  ready: boolean;
+};
+
+/** Thrown when the cloud server is locked because setup isn't finished. */
+export class SetupError extends Error {}
 
 /** The web preview serves photos from memory; everywhere else they're real server paths. */
 export const photoResolver: { resolve: (path: string) => string } = { resolve: (p) => p };
@@ -27,6 +43,7 @@ export const photoResolver: { resolve: (path: string) => string } = { resolve: (
 async function json<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
   if (res.status === 401) throw new AuthError((body as { error?: string }).error ?? "Please sign in");
+  if (res.status === 403 && (body as { setup?: boolean }).setup) throw new SetupError("Setup needed");
   if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`);
   return body as T;
 }
@@ -37,6 +54,7 @@ const send = (url: string, body: unknown, method = "POST") =>
 export const api = {
   health: () => fetch("/api/health").then((r) => json<Health>(r)),
   me: () => fetch("/api/me").then((r) => json<Me>(r)),
+  setup: () => fetch("/api/setup").then((r) => json<SetupStatus>(r)),
   logout: () => fetch("/auth/logout", { method: "POST" }).then((r) => json(r)),
   settings: () => fetch("/api/settings").then((r) => json<Settings>(r)),
   saveSettings: (s: Partial<Settings>) => send("/api/settings", s, "PUT").then((r) => json<Settings>(r)),

@@ -134,6 +134,8 @@ export type Settings = {
   /** When false, automation fills forms and leaves the final Publish click to you. */
   autoPublish: boolean;
   onboarded: boolean;
+  /** Which AI analyzes photos when both are set up on the server */
+  aiProvider?: "gemini" | "claude";
 };
 
 export const DEFAULT_SETTINGS: Settings = {
