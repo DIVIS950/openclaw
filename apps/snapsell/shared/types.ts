@@ -136,6 +136,8 @@ export type Settings = {
   onboarded: boolean;
   /** Which AI analyzes photos when both are set up on the server */
   aiProvider?: "gemini" | "claude";
+  /** No-server version only: the user's own free Gemini key, kept on their device */
+  geminiApiKey?: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {

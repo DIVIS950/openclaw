@@ -6,11 +6,12 @@
   "description": "Snap a photo, let AI identify, price and write the listing, then post it to eBay, Facebook Marketplace and Vinted.",
   "scripts": {
     "dev": "concurrently -k -n server,web -c blue,magenta \"tsx watch --env-file-if-exists=.env server/index.ts\" \"vite\"",
-    "build": "vite build",
+    "build": "node scripts/zip-extension.mjs && vite build",
     "start": "tsx --env-file-if-exists=.env server/index.ts --prod",
-    "online": "vite build && tsx --env-file-if-exists=.env server/index.ts --prod",
+    "online": "node scripts/zip-extension.mjs && vite build && tsx --env-file-if-exists=.env server/index.ts --prod",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:preview": "vite build --mode preview"
+    "build:preview": "vite build --mode preview",
+    "build:standalone": "node scripts/zip-extension.mjs && vite build --mode standalone"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.48.0",
     "motion": "^13.4.4",
     "react": "^19.3.0",

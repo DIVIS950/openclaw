@@ -100,6 +100,10 @@ export function Home() {
       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
       {health.preview ? (
         <span>Web preview: sample data and demo AI results. Your photos stay in this browser tab.</span>
+      ) : health.local ? (
+        <span>
+          Sample results for now. <a href="#/connections" className="font-bold underline">Add your free Gemini key</a> to analyze your real photos.
+        </span>
       ) : (
         <span>
           Demo mode: add your Anthropic API key to <code className="font-mono">.env</code> to analyze real photos.

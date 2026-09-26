@@ -2,9 +2,17 @@
   "name": "SnapSell",
   "short_name": "SnapSell",
   "description": "Snap it. Price it. Sell it everywhere.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f3efe6",
   "theme_color": "#f3efe6",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "scope": "./"
 }

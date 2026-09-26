@@ -41,3 +41,13 @@ input:focus { outline: 2px solid #17150f; outline-offset: 1px; }
 .foot { font-size: 12px; }
 .error { margin: 0; color: #b42318; font-size: 13px; }
 .link { border: 0; background: none; padding: 4px 0; color: #5b574d; font: 12px inherit; font-family: inherit; text-decoration: underline; cursor: pointer; align-self: flex-start; }
+.allow { border: 2px solid #17150f; display: flex; flex-direction: column; gap: 6px; }
+.primary.small { height: 36px; margin: 0; padding: 0 16px; font-size: 14px; }
+.row { gap: 12px; }
+details { border-top: 1px solid #e3ddd0; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+details[open] { display: flex; }
+summary { cursor: pointer; font-size: 13px; font-weight: 600; color: #5b574d; }
+details > * + * { margin-top: 8px; }
+details label, details input, details button { display: block; width: 100%; }
+#paired { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#paired[hidden] { display: none; }

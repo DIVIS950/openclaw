@@ -33,6 +33,7 @@ type AppCtx = {
   settings: Settings;
   setSettings: (s: Settings) => void;
   health: Health | null;
+  refreshHealth: () => Promise<void>;
   go: (path: string, replace?: boolean) => void;
   back: () => void;
   signOut: () => Promise<void>;
@@ -74,6 +75,7 @@ export function App() {
     else location.hash = path;
   }, []);
   const back = useCallback(() => (history.length > 1 ? history.back() : go("/")), [go]);
+  const refreshHealth = useCallback(async () => setHealth(await api.health()), []);
   const signOut = useCallback(async () => {
     await api.logout();
     setMe("signed-out");
@@ -84,11 +86,22 @@ export function App() {
   if (me === "setup") return <SetupChecklist />;
   if (me === "signed-out") return <Welcome health={health} />;
   if (!settings) return <div className="min-h-dvh" />;
-  if (!settings.onboarded) return <Setup settings={settings} onDone={setSettings} />;
+  if (!settings.onboarded) {
+    return (
+      <Setup
+        settings={settings}
+        local={Boolean(health?.local)}
+        onDone={(s) => {
+          setSettings(s);
+          void api.health().then(setHealth);
+        }}
+      />
+    );
+  }
 
   const key = route.name === "listing" ? `l-${route.id}` : route.name;
   return (
-    <Ctx.Provider value={{ me, settings, setSettings, health, go, back, signOut }}>
+    <Ctx.Provider value={{ me, settings, setSettings, health, refreshHealth, go, back, signOut }}>
       <Shell route={route}>
         {/* Opacity-only transition: a transform here would break the screens' fixed bottom bars. */}
         <AnimatePresence mode="wait" initial={false}>

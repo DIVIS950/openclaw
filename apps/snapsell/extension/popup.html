@@ -12,29 +12,28 @@
   </div>
   <div class="grow">
     <div class="title">SnapSell for Chrome</div>
-    <div class="sub" id="who">Not connected</div>
+    <div class="sub" id="who">Ready</div>
   </div>
   <span class="badge" id="badge" hidden><span class="dot"></span><span id="badgeText">Online</span></span>
 </header>
 
-<section id="pair" hidden>
-  <p class="lead">Connect this Chrome to your SnapSell. In the app open <b>Connections → Chrome extension</b> and copy the pairing code.</p>
-  <label for="server">SnapSell address</label>
-  <input id="server" type="url" placeholder="https://your-computer.ts.net" autocomplete="off">
-  <label for="token">Pairing code</label>
-  <input id="token" type="text" placeholder="ss_…" autocomplete="off">
-  <button id="connect" class="primary">Connect</button>
-  <p class="error" id="pairError" hidden></p>
+<section class="card allow" id="allow" hidden>
+  <div class="strong">Allow this SnapSell page?</div>
+  <div class="sub" id="allowOrigin"></div>
+  <p class="hint">It will be able to ask this Chrome to fill in Facebook and Vinted listings. Only allow your own SnapSell.</p>
+  <div class="row">
+    <button id="allowYes" class="primary small">Allow</button>
+    <button id="allowNo" class="link">Not now</button>
+  </div>
 </section>
 
-<section id="main" hidden>
+<section id="main">
   <div class="label">Posting now</div>
-  <div class="card" id="current">
-    <div class="empty" id="idle">Nothing to post. Snap something on your phone and choose Facebook or Vinted.</div>
+  <div class="card">
+    <div class="empty" id="idle">Nothing to post. Choose Facebook or Vinted in SnapSell and it appears here.</div>
     <div id="job" hidden>
-      <div class="row">
-        <div class="grow"><div class="strong" id="jobTitle"></div><div class="sub" id="jobWhere"></div></div>
-      </div>
+      <div class="strong" id="jobTitle"></div>
+      <div class="sub" id="jobWhere"></div>
       <div class="bar"><div class="fill"></div></div>
       <div class="sub" id="jobMsg"></div>
     </div>
@@ -45,13 +44,28 @@
     <button class="chip" id="fb"><span class="dot"></span>Facebook</button>
     <button class="chip" id="vi"><span class="dot"></span>Vinted</button>
   </div>
-  <p class="hint" id="loginHint" hidden>Tap a site to log in. SnapSell posts with your own account.</p>
-  <p class="error" id="error" hidden></p>
 
-  <div class="grow"></div>
-  <p class="foot">Leave Chrome open and SnapSell can post the items you snap on your phone. It types like you and stops if a site asks for a check.</p>
-  <button class="link" id="unpair">Disconnect this Chrome</button>
+  <div class="label">Allowed SnapSell pages</div>
+  <div class="sub" id="allowedList">None yet. Open your SnapSell page and allow it here.</div>
+  <p class="error" id="error" hidden></p>
 </section>
+
+<details id="pairBox">
+  <summary>Server version (optional)</summary>
+  <p class="lead">Using SnapSell with its own server? In the app open <b>Connections → Chrome extension</b> and copy the pairing code.</p>
+  <label for="server">SnapSell address</label>
+  <input id="server" type="url" placeholder="https://snapsell-….onrender.com" autocomplete="off">
+  <label for="token">Pairing code</label>
+  <input id="token" type="text" placeholder="ss_…" autocomplete="off">
+  <button id="connect" class="primary">Connect</button>
+  <p class="error" id="pairError" hidden></p>
+</details>
+<div id="paired" hidden>
+  <span class="sub" id="pairedTo"></span>
+  <button class="link" id="unpair">Disconnect</button>
+</div>
+
+<p class="foot">SnapSell types like you and stops if a site asks for a check. Keep "Let me check before it goes live" on in SnapSell to press Publish yourself.</p>
 <script src="popup.js"></script>
 </body>
 </html>

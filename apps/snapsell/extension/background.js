@@ -49,13 +49,21 @@ async function poll() {
   }
 }
 
-async function report(job, status, message, url) {
-  await setStatus({ current: status === "working" ? { ...summary(job), message } : null });
-  await api(`/api/ext/jobs/${job.listingId}/${job.platform}`, { status, message, url }).catch(() => {});
+/** Where progress goes: the SnapSell server, or straight back to the no-server page's tab. */
+function reporter(job, pageTabId) {
+  return async (status, message, url) => {
+    await setStatus({ current: status === "working" ? { ...summary(job), message } : null });
+    if (pageTabId !== undefined) {
+      const update = { listingId: job.listingId, platform: job.platform, status, message, url };
+      await chrome.tabs.sendMessage(pageTabId, { type: "job-update", update }).catch(() => {});
+    } else {
+      await api(`/api/ext/jobs/${job.listingId}/${job.platform}`, { status, message, url }).catch(() => {});
+    }
+  };
 }
 
 function summary(job) {
-  return { title: job.title, platform: job.platform, price: job.price, currency: job.currency, photo: job.photos[0] };
+  return { title: job.title, platform: job.platform, price: job.price, currency: job.currency };
 }
 
 /** Download the listing's photos (the content script can't reach your server itself). */
@@ -85,17 +93,22 @@ function waitForTab(tabId) {
   });
 }
 
-async function runJob(job) {
+/**
+ * Posts one listing. `given` comes from the no-server page: its photos plus the tab to report to.
+ * Without it the job came from the SnapSell server and photos are downloaded from there.
+ */
+async function runJob(job, given) {
+  const report = reporter(job, given?.pageTabId);
   await chrome.storage.local.set({ busy: true, busySince: Date.now() });
   let tabId;
   try {
-    await report(job, "working", "Downloading photos");
-    const photos = await fetchPhotos(job);
+    await report("working", "Getting photos ready");
+    const photos = given?.photos ?? (await fetchPhotos(job));
     const url =
       job.platform === "facebook"
         ? "https://www.facebook.com/marketplace/create/item"
         : `https://${job.vintedDomain}/items/new`;
-    await report(job, "working", `Opening ${job.platform === "facebook" ? "Marketplace" : "Vinted"}`);
+    await report("working", `Opening ${job.platform === "facebook" ? "Marketplace" : "Vinted"}`);
     const tab = await chrome.tabs.create({ url, active: false });
     tabId = tab.id;
     await waitForTab(tabId);
@@ -111,7 +124,7 @@ async function runJob(job) {
       };
       const listener = (msg, sender) => {
         if (sender.tab?.id !== tabId) return;
-        if (msg.type === "progress") void report(job, "working", msg.message);
+        if (msg.type === "progress") void report("working", msg.message);
         if (msg.type === "result") done(msg);
       };
       // A full page load after publishing kills the content script before it can report,
@@ -132,9 +145,9 @@ async function runJob(job) {
       const t = await chrome.tabs.update(tabId, { active: true });
       await chrome.windows.update(t.windowId, { focused: true });
     }
-    await report(job, result.status, result.message, result.url);
+    await report(result.status, result.message, result.url);
   } catch (e) {
-    await report(job, "error", String(e.message || e));
+    await report("error", String(e.message || e));
   } finally {
     await chrome.storage.local.set({ busy: false, busySince: 0 });
   }
@@ -144,9 +157,36 @@ chrome.alarms.create("poll", { periodInMinutes: POLL_MINUTES });
 chrome.alarms.onAlarm.addListener((a) => a.name === "poll" && poll());
 chrome.runtime.onStartup.addListener(poll);
 chrome.runtime.onInstalled.addListener(poll);
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+async function allowedOrigins() {
+  const { allowed = [] } = await chrome.storage.local.get("allowed");
+  return allowed;
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "poll-now") {
     poll().then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  // No-server SnapSell page says hello: tell it whether it's allowed and which sites are logged in.
+  if (msg.type === "bridge-hello") {
+    (async () => {
+      const allowed = (await allowedOrigins()).includes(msg.origin);
+      // localhost is your own computer: allowed without asking.
+      const ok = allowed || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(msg.origin);
+      if (!ok) await chrome.storage.local.set({ pendingOrigin: msg.origin });
+      sendResponse({ allowed: ok, sites: ok ? await siteLogins() : {} });
+    })();
+    return true;
+  }
+  if (msg.type === "direct-job") {
+    (async () => {
+      const ok = (await allowedOrigins()).includes(msg.origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(msg.origin);
+      if (!ok) return sendResponse({ ok: false, error: "Allow this page in the SnapSell extension first." });
+      const { busy, busySince } = await chrome.storage.local.get(["busy", "busySince"]);
+      if (busy && Date.now() - (busySince ?? 0) < JOB_TIMEOUT_MS) return sendResponse({ ok: false, error: "Chrome is still posting another item. Try again in a minute." });
+      sendResponse({ ok: true });
+      await runJob(msg.job, { photos: msg.photos, pageTabId: sender.tab?.id });
+    })();
     return true;
   }
 });

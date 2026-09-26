@@ -1,26 +1,42 @@
 const $ = (id) => document.getElementById(id);
 const NAMES = { facebook: "Facebook Marketplace", vinted: "Vinted" };
 
+async function siteLogins() {
+  const fb = await chrome.cookies.get({ url: "https://www.facebook.com", name: "c_user" });
+  const vi = await chrome.cookies.getAll({ name: "access_token_web" });
+  return { facebook: Boolean(fb), vinted: vi.some((c) => c.domain.includes("vinted")) };
+}
+
 async function render() {
-  const { server, token, status = {} } = await chrome.storage.local.get(["server", "token", "status"]);
+  const { server, token, status = {}, allowed = [], pendingOrigin } = await chrome.storage.local.get([
+    "server",
+    "token",
+    "status",
+    "allowed",
+    "pendingOrigin",
+  ]);
   const paired = Boolean(server && token);
-  $("pair").hidden = paired;
-  $("main").hidden = !paired;
+
+  // A no-server SnapSell page asked to use this Chrome.
+  const pending = pendingOrigin && !allowed.includes(pendingOrigin) ? pendingOrigin : null;
+  $("allow").hidden = !pending;
+  $("allowOrigin").textContent = pending ?? "";
+
+  $("allowedList").textContent = allowed.length ? allowed.join(", ") : "None yet. Open your SnapSell page and allow it here.";
+  $("pairBox").hidden = paired;
+  $("paired").hidden = !paired;
+  $("pairedTo").textContent = paired ? `Server: ${server}` : "";
+
   $("badge").hidden = !paired;
-  if (!paired) {
-    $("who").textContent = "Not connected";
-    return;
-  }
-  $("who").textContent = status.user?.email ?? server;
   $("badge").classList.toggle("off", !status.online);
   $("badgeText").textContent = status.online ? "Online" : "Offline";
-  $("error").hidden = !status.error;
-  $("error").textContent = status.error ? `Can't reach SnapSell: ${status.error}` : "";
+  $("who").textContent = status.user?.email ?? (allowed.length ? "Ready for your SnapSell page" : "Ready");
+  $("error").hidden = !(paired && status.error);
+  $("error").textContent = status.error ? `Can't reach the SnapSell server: ${status.error}` : "";
 
-  const sites = status.sites ?? {};
-  $("fb").classList.toggle("on", !!sites.facebook);
-  $("vi").classList.toggle("on", !!sites.vinted);
-  $("loginHint").hidden = !!(sites.facebook && sites.vinted);
+  const sites = await siteLogins();
+  $("fb").classList.toggle("on", sites.facebook);
+  $("vi").classList.toggle("on", sites.vinted);
 
   const cur = status.current;
   $("idle").hidden = !!cur;
@@ -31,6 +47,13 @@ async function render() {
     $("jobMsg").textContent = cur.message ?? "";
   }
 }
+
+$("allowYes").addEventListener("click", async () => {
+  const { allowed = [], pendingOrigin } = await chrome.storage.local.get(["allowed", "pendingOrigin"]);
+  if (pendingOrigin && !allowed.includes(pendingOrigin)) allowed.push(pendingOrigin);
+  await chrome.storage.local.set({ allowed, pendingOrigin: null });
+});
+$("allowNo").addEventListener("click", () => chrome.storage.local.set({ pendingOrigin: null }));
 
 $("connect").addEventListener("click", async () => {
   const server = $("server").value.trim().replace(/\/$/, "");
@@ -56,15 +79,10 @@ $("connect").addEventListener("click", async () => {
     $("pairError").hidden = false;
   } finally {
     $("connect").disabled = false;
-    render();
   }
 });
 
-$("unpair").addEventListener("click", async () => {
-  await chrome.storage.local.remove(["server", "token", "status"]);
-  render();
-});
-
+$("unpair").addEventListener("click", () => chrome.storage.local.remove(["server", "token", "status"]));
 $("fb").addEventListener("click", () => chrome.tabs.create({ url: "https://www.facebook.com/marketplace" }));
 $("vi").addEventListener("click", async () => {
   const { status } = await chrome.storage.local.get("status");

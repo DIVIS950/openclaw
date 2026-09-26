@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { PLATFORM_META, type ExtensionStatus, type PlatformStatus } from "../../shared/types.ts";
 import { hashParams, useApp } from "../App.tsx";
 import { Avatar, Button, Card, Label, PlatformLogo, Toggle, TopBar, cx } from "../components/ui.tsx";
+import { GeminiKeyField } from "../components/GeminiKey.tsx";
 import { api, copyText } from "../lib/api.ts";
 import { LANGUAGES, REGIONS } from "../lib/regions.ts";
 
@@ -15,6 +16,7 @@ const EBAY_MESSAGES: Record<string, { text: string; ok: boolean }> = {
 /** Account, marketplaces, Chrome extension, price research and selling settings (design artboard 9). */
 export function Connections() {
   const { back, me, settings, setSettings, health, signOut } = useApp();
+  const local = Boolean(health?.local);
   const [statuses, setStatuses] = useState<PlatformStatus[]>([]);
   const [ext, setExt] = useState<(ExtensionStatus & { paired: boolean }) | null>(null);
   const banner = EBAY_MESSAGES[hashParams().get("ebay") ?? ""];
@@ -80,26 +82,39 @@ export function Connections() {
           })}
         </Card>
 
-        <ExtensionCard ext={ext} onPaired={refresh} />
+        <ExtensionCard ext={ext} onPaired={refresh} local={local} />
 
         <div className="px-1 pt-3">
           <Label>Price research</Label>
         </div>
         <Card className="divide-y divide-soft p-0">
-          <Row title="Google Lens (Cloud Vision)" detail={health?.lens.vision ? "Finds your item from the photo" : "Add GOOGLE_VISION_API_KEY on the server"} ok={health?.lens.vision} />
+          {!local && (
+            <>
+              <Row title="Google Lens (Cloud Vision)" detail={health?.lens.vision ? "Finds your item from the photo" : "Add GOOGLE_VISION_API_KEY on the server"} ok={health?.lens.vision} />
+              <Row
+                title="Google Lens shopping matches (SerpApi)"
+                detail={health?.lens.serpapi ? "Real Lens results with shop prices" : "Add SERPAPI_KEY on the server"}
+                ok={health?.lens.serpapi}
+              />
+            </>
+          )}
           <Row
-            title="Google Lens shopping matches (SerpApi)"
-            detail={health?.lens.serpapi ? "Real Lens results with shop prices" : "Add SERPAPI_KEY on the server"}
-            ok={health?.lens.serpapi}
+            title="Sold-price search"
+            detail={health?.ai ? "AI searches Google for sold prices" : local ? "Sample results until you add your Gemini key below" : "Demo mode: add GEMINI_API_KEY (free)"}
+            ok={health?.ai}
           />
-          <Row title="Sold-price search" detail={health?.ai ? "AI searches the web for sold prices" : "Demo mode: add GEMINI_API_KEY (free)"} ok={health?.ai} />
         </Card>
 
         <div className="px-1 pt-3">
           <Label>AI</Label>
         </div>
         <Card className="space-y-3">
-          {health?.gemini && health?.claude ? (
+          {local ? (
+            <>
+              <Row title="Google Gemini" detail={health?.ai ? "Connected · free plan" : "Add your free key to analyze real photos"} ok={health?.ai} />
+              <GeminiKeyField />
+            </>
+          ) : health?.gemini && health?.claude ? (
             <div role="radiogroup" aria-label="AI" className="grid grid-cols-2 gap-2">
               {[
                 { id: "gemini" as const, name: "Gemini", note: "Free plan" },
@@ -127,9 +142,16 @@ export function Connections() {
               ok={health?.ai}
             />
           )}
-          <a href="#/setup" className="flex h-11 items-center justify-center rounded-xl bg-soft text-sm font-semibold">
-            Setup checklist
-          </a>
+          {local ? (
+            <p className="text-[13px] text-muted">
+              This version has no server: your listings and key stay on this device. eBay is copy &amp; open here; the server version posts to
+              eBay automatically.
+            </p>
+          ) : (
+            <a href="#/setup" className="flex h-11 items-center justify-center rounded-xl bg-soft text-sm font-semibold">
+              Setup checklist
+            </a>
+          )}
         </Card>
 
         <div className="px-1 pt-3">
@@ -261,7 +283,7 @@ function EbayRow({ status, onChange }: { status?: PlatformStatus; onChange: () =
 }
 
 /** The dark "SnapSell for Chrome" card with setup steps and the pairing code. */
-function ExtensionCard({ ext, onPaired }: { ext: (ExtensionStatus & { paired: boolean }) | null; onPaired: () => void }) {
+function ExtensionCard({ ext, onPaired, local }: { ext: (ExtensionStatus & { paired: boolean }) | null; onPaired: () => void; local: boolean }) {
   const [pair, setPair] = useState<{ token: string; server: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const copy = async (text: string, what: string) => {
@@ -277,7 +299,13 @@ function ExtensionCard({ ext, onPaired }: { ext: (ExtensionStatus & { paired: bo
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-bold">SnapSell for Chrome</div>
           <div className="text-[13px] text-[#b9b2a2]">
-            {!ext?.paired
+            {local
+              ? ext?.online
+                ? ext.paired
+                  ? "Connected in this Chrome · posts to Facebook and Vinted"
+                  : "Found. Click Allow in the extension's popup"
+                : "Automatic Facebook and Vinted posting when you use SnapSell in Chrome on your computer"
+              : !ext?.paired
               ? "Posts to Facebook and Vinted for you, from your own Chrome"
               : ext.online
                 ? "Online · posts to Facebook and Vinted for you"
@@ -290,16 +318,25 @@ function ExtensionCard({ ext, onPaired }: { ext: (ExtensionStatus & { paired: bo
       {!ext?.paired && (
         <ol className="mt-4 list-inside list-decimal space-y-1.5 text-sm text-[#d9d3c4]">
           <li>
-            In Chrome on your computer open <b className="text-paper">chrome://extensions</b> and turn on Developer mode.
+            On your computer,{" "}
+            <a href="./snapsell-extension.zip" download className="font-bold text-paper underline">
+              download SnapSell for Chrome
+            </a>{" "}
+            and unzip it.
           </li>
           <li>
-            Click <b className="text-paper">Load unpacked</b> and choose the <b className="text-paper">apps/snapsell/extension</b> folder.
+            In Chrome open <b className="text-paper">chrome://extensions</b>, turn on Developer mode, click <b className="text-paper">Load unpacked</b>{" "}
+            and choose the unzipped folder.
           </li>
-          <li>Create a pairing code below and paste it into the extension.</li>
+          {local ? (
+            <li>Open this SnapSell page in that Chrome, click the extension's icon and choose Allow.</li>
+          ) : (
+            <li>Create a pairing code below and paste it into the extension.</li>
+          )}
         </ol>
       )}
 
-      {pair ? (
+      {local ? null : pair ? (
         <div className="mt-4 space-y-2">
           {[
             ["SnapSell address", pair.server],

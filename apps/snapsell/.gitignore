@@ -3,3 +3,5 @@ dist/
 data/
 .env
 dist-preview/
+dist-standalone/
+public/snapsell-extension.zip

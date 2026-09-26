@@ -5,6 +5,8 @@ import "./index.css";
 
 // `vite build --mode preview`: a static web preview with a fake backend inside the page.
 if (import.meta.env.MODE === "preview") await import("./preview/mock.ts");
+// `vite build --mode standalone`: SnapSell without a server (GitHub Pages); data stays on this device.
+if (import.meta.env.MODE === "standalone") await import("./local/backend.ts");
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

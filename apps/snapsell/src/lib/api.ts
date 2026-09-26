@@ -19,6 +19,10 @@ export type Health = {
   ebayApp: boolean;
   /** Web preview: fake backend in the page, sample AI results */
   preview?: boolean;
+  /** No-server version: everything runs on this device */
+  local?: boolean;
+  /** No-server version: the SnapSell Chrome extension answered on this computer */
+  extension?: boolean;
   gemini?: boolean;
   claude?: boolean;
 };
