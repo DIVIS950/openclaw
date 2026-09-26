@@ -1,0 +1,33 @@
+{
+  "name": "proclaim-student-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "All your school apps in one place, with an AI study buddy.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "node --env-file-if-exists=.env --import tsx --watch server/index.ts & vite",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env --import tsx server/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
