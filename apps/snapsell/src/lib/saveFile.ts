@@ -25,3 +25,25 @@ export async function saveFile(filename: string, data: Blob) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return true;
 }
+
+/**
+ * Saves several photos. On an iPhone the share sheet's "Save Images" puts them all in Photos in one
+ * go, which is where the Vinted and Facebook apps pick photos from.
+ */
+export async function savePhotos(files: { name: string; blob: Blob }[]) {
+  if (!w.claude) {
+    const list = files.map((f) => new File([f.blob], f.name, { type: f.blob.type || "image/jpeg" }));
+    if (navigator.canShare?.({ files: list })) {
+      try {
+        await navigator.share({ files: list });
+        return true;
+      } catch (e) {
+        // The viewer closed the sheet: nothing saved, but nothing broken either.
+        if ((e as Error).name === "AbortError") return false;
+      }
+    }
+  }
+  let ok = true;
+  for (const f of files) ok = (await saveFile(f.name, f.blob)) && ok;
+  return ok;
+}

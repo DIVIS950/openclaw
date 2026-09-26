@@ -1,22 +1,18 @@
-import { AlertCircle, Bot, Check, CheckCircle2, Clock, Eye, Loader2 } from "lucide-react";
+import { AlertCircle, Bot, Check, CheckCircle2, Clock, Eye, Loader2, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   PLATFORMS,
   PLATFORM_META,
-  effectiveCopy,
   effectivePrice,
   type Listing,
   type Platform,
   type PlatformStatus,
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
-import { api, copyText, formatPrice } from "../lib/api.ts";
+import { api, formatPrice } from "../lib/api.ts";
 import { AGENT_BETA, AgentSheet, BetaPill } from "./AgentSheet.tsx";
+import { PhoneSheet } from "./PhoneSheet.tsx";
 import { Button, PlatformLogo, Sheet, Toggle, cx } from "./ui.tsx";
-
-export function sellUrl(p: Platform, vintedDomain: string) {
-  return p === "vinted" ? `https://${vintedDomain}/items/new` : PLATFORM_META[p].sellUrl;
-}
 
 /** "Sell everywhere" sheet (design artboard 8). */
 export function PublishSheet({ open, onClose, listing, onChange }: { open: boolean; onClose: () => void; listing: Listing; onChange: (l: Listing) => void }) {
@@ -24,7 +20,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
   const [statuses, setStatuses] = useState<PlatformStatus[]>([]);
   const [selected, setSelected] = useState<Set<Platform>>(new Set());
   const [sending, setSending] = useState(false);
-  const [copied, setCopied] = useState<Platform | null>(null);
+  const [phoneFor, setPhoneFor] = useState<Platform | null>(null);
   const [agentFor, setAgentFor] = useState<Platform | null>(null);
 
   useEffect(() => {
@@ -49,14 +45,6 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
     } finally {
       setSending(false);
     }
-  };
-
-  // Runs on the link's click: copies the text, and the link itself opens the site's sell page.
-  const copyForSite = async (p: Platform) => {
-    const c = effectiveCopy(listing, p);
-    if (!(await copyText(`${c.title}\n\n${price}\n\n${c.description}`))) return;
-    setCopied(p);
-    setTimeout(() => setCopied(null), 2500);
   };
 
   const action = (st?: PlatformStatus) => {
@@ -127,15 +115,13 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
               {state && state.status !== "idle" && <StateRow state={state} />}
 
               {state?.status !== "live" && (
-                <a
-                  href={sellUrl(p, settings.vintedDomain)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => void copyForSite(p)}
-                  className="mt-2 inline-flex h-8 items-center text-[13px] font-semibold text-muted underline underline-offset-4"
+                <button
+                  onClick={() => setPhoneFor(p)}
+                  className="mt-2 flex h-10 w-full items-center gap-2 rounded-xl bg-soft px-3 text-[13px] font-bold"
                 >
-                  {copied === p ? "Copied. Paste it into the form" : `Or copy the text and open ${p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}`}
-                </a>
+                  <Smartphone className="size-4" />
+                  <span className="flex-1 text-left">Post it myself: photos, text, open {p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}</span>
+                </button>
               )}
 
               {AGENT_BETA && state?.status !== "live" && (
@@ -169,8 +155,8 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
 
       {statuses.length > 0 && statuses.every((x) => x.unavailable) ? (
         <p className="mt-4 rounded-2xl bg-soft px-4 py-3 text-sm text-muted">
-          Tap <b className="text-ink">copy the text and open</b> under a site: the listing is copied, the site's sell page opens, and you paste it
-          there with your photos.
+          Tap <b className="text-ink">Post it myself</b> under a site: save the photos, copy the text, open the site and paste. About a minute
+          per site.
         </p>
       ) : (
       <Button variant="accent" size="lg" className="mt-4 w-full" disabled={!selected.size} loading={sending} onClick={publish}>
@@ -182,6 +168,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
       </Button>
       )}
     </Sheet>
+    <PhoneSheet platform={phoneFor} listing={listing} onClose={() => setPhoneFor(null)} />
     {AGENT_BETA && <AgentSheet platform={agentFor} listing={listing} onClose={() => setAgentFor(null)} />}
     </>
   );

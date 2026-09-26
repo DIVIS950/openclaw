@@ -390,7 +390,7 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
           </button>
         ))}
       </div>
-      {preset === "studio" && busy && <p className="mt-3 text-xs text-muted">The first cut-out downloads a small AI model to this device. After that it's quick and private.</p>}
+      {preset === "studio" && busy && <p className="mt-3 text-xs text-muted">The first White photo can take a few seconds. It all runs on this device, free and private.</p>}
       {error && <p className="mt-3 text-sm text-bad">{error}</p>}
       <Button size="lg" className="mt-4 w-full" onClick={apply} loading={busy === "apply"} disabled={!!busy}>
         Apply to {n} photo{n > 1 ? "s" : ""}

@@ -5,7 +5,7 @@ export type Preset = "auto" | "vivid" | "studio";
 export const PRESETS: { id: Preset; label: string; hint: string }[] = [
   { id: "auto", label: "Auto", hint: "Fix light" },
   { id: "vivid", label: "Vivid", hint: "Rich color" },
-  { id: "studio", label: "White", hint: "AI cut-out" },
+  { id: "studio", label: "White", hint: "Clean backdrop" },
 ];
 
 const OUT = 1600;
@@ -41,35 +41,141 @@ export async function prepareForUpload(file: Blob, max = 1600) {
 function tone(ctx: CanvasRenderingContext2D, w: number, h: number, vivid: boolean) {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
+  whiteBalance(d);
   const hist = new Uint32Array(256);
-  for (let i = 0; i < d.length; i += 16) hist[(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0]++;
+  // Transparent pixels (around a cut-out) would read as black and skew the stats, so skip them.
+  for (let i = 0; i < d.length; i += 16) if (d[i + 3] > 128) hist[(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0]++;
   const total = hist.reduce((a, b) => a + b, 0);
   let lo = 0;
   let hi = 255;
   for (let acc = 0, i = 0; i < 256; i++) if ((acc += hist[i]) > total * 0.005) { lo = i; break; }
   for (let acc = 0, i = 255; i >= 0; i--) if ((acc += hist[i]) > total * 0.005) { hi = i; break; }
   // Stretch dark/flat shots, but cap the gain at ~2x so noise doesn't explode.
-  lo = Math.min(lo, 60);
+  lo = Math.min(lo, 30);
   hi = Math.max(hi, lo + 128);
   const range = Math.max(1, hi - lo);
-  const sat = vivid ? 1.3 : 1.12;
+  const sat = vivid ? 1.22 : 1.06;
   const contrast = vivid ? 1.08 : 1.03;
   const lift = vivid ? 4 : 6; // tiny brightness lift, most phone shots are underexposed indoors
+  // Dark indoor shots: open up the shadows with a gamma curve (brightens mids, keeps white white).
+  let sum = 0;
+  for (let i = lo; i <= hi; i++) sum += hist[i] * ((i - lo) / range) * 255;
+  const mean = sum / total;
+  const gamma = mean < 110 ? Math.max(0.72, mean / 125) : 1;
   const lut = new Uint8ClampedArray(256);
   for (let i = 0; i < 256; i++) {
-    const v = ((i - lo) / range) * 255;
+    const v = Math.pow(Math.min(1, Math.max(0, (i - lo) / range)), gamma) * 255;
     lut[i] = (v - 128) * contrast + 128 + lift;
   }
+  // The curve moves brightness only; each pixel keeps its colour offsets, so a navy mug stays navy
+  // instead of the stretch exaggerating whichever channel was darkest.
   for (let i = 0; i < d.length; i += 4) {
-    const r = lut[d[i]];
-    const g = lut[d[i + 1]];
-    const b = lut[d[i + 2]];
-    const l = r * 0.299 + g * 0.587 + b * 0.114;
-    d[i] = l + (r - l) * sat;
-    d[i + 1] = l + (g - l) * sat;
-    d[i + 2] = l + (b - l) * sat;
+    const l = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    const L = lut[l | 0];
+    d[i] = L + (d[i] - l) * sat;
+    d[i + 1] = L + (d[i + 1] - l) * sat;
+    d[i + 2] = L + (d[i + 2] - l) * sat;
   }
   ctx.putImageData(sharpen(img, w, h, vivid ? 0.5 : 0.35), 0, 0);
+}
+
+/**
+ * Removes colour casts (yellow bulbs, blue shade) with a damped grey-world estimate over the
+ * mid-tones, so the item's real colour isn't pushed too far.
+ */
+function whiteBalance(d: Uint8ClampedArray) {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 32) {
+    const l = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    if (d[i + 3] < 128 || l < 40 || l > 235) continue;
+    r += d[i];
+    g += d[i + 1];
+    b += d[i + 2];
+    n++;
+  }
+  if (n < 100) return;
+  const avg = (r + g + b) / 3;
+  const gain = (c: number) => Math.min(1.1, Math.max(0.92, 1 + (avg / c - 1) * 0.35));
+  const [gr, gg, gb] = [gain(r), gain(g), gain(b)];
+  if (Math.abs(gr - 1) + Math.abs(gg - 1) + Math.abs(gb - 1) < 0.03) return;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] *= gr;
+    d[i + 1] *= gg;
+    d[i + 2] *= gb;
+  }
+}
+
+/** Blur by down- and up-scaling: works everywhere (iPhone Safari ignores `ctx.filter`). */
+function softBlur(src: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, factor = 24) {
+  const small = canvas(Math.max(1, Math.round(sw / factor)), Math.max(1, Math.round(sh / factor)));
+  const sctx = small.getContext("2d")!;
+  sctx.imageSmoothingQuality = "high";
+  sctx.drawImage(src, sx, sy, sw, sh, 0, 0, small.width, small.height);
+  return small;
+}
+
+/**
+ * Free cut-out for items shot on a plain surface: flood-fills the background from the photo's
+ * edges (colours close to the border colour), then softens the mask edge. Returns null when the
+ * background is too busy to separate, so the caller can fall back.
+ */
+function plainCutout(src: HTMLCanvasElement) {
+  const W = 320;
+  const scale = W / Math.max(src.width, src.height);
+  const w = Math.max(1, Math.round(src.width * scale));
+  const h = Math.max(1, Math.round(src.height * scale));
+  const small = canvas(w, h);
+  const sctx = small.getContext("2d", { willReadFrequently: true })!;
+  sctx.drawImage(src, 0, 0, w, h);
+  const d = sctx.getImageData(0, 0, w, h).data;
+
+  // Background colour = median of the border pixels.
+  const border: number[][] = [];
+  for (let x = 0; x < w; x++) for (const y of [0, h - 1]) border.push([d[(y * w + x) * 4], d[(y * w + x) * 4 + 1], d[(y * w + x) * 4 + 2]]);
+  for (let y = 0; y < h; y++) for (const x of [0, w - 1]) border.push([d[(y * w + x) * 4], d[(y * w + x) * 4 + 1], d[(y * w + x) * 4 + 2]]);
+  const med = [0, 1, 2].map((c) => border.map((p) => p[c]).sort((a, b) => a - b)[border.length >> 1]);
+  const dist = (i: number) => Math.hypot(d[i] - med[0], d[i + 1] - med[1], d[i + 2] - med[2]);
+  const nearBorder = border.filter((p) => Math.hypot(p[0] - med[0], p[1] - med[1], p[2] - med[2]) < 38).length / border.length;
+  if (nearBorder < 0.6) return null; // edges aren't one plain colour
+
+  // Flood fill from every border pixel; neighbours may drift a little from each other (soft shadows, gradients).
+  const bg = new Uint8Array(w * h);
+  const stack: number[] = [];
+  for (let x = 0; x < w; x++) stack.push(x, (h - 1) * w + x);
+  for (let y = 0; y < h; y++) stack.push(y * w, y * w + w - 1);
+  while (stack.length) {
+    const p = stack.pop()!;
+    if (bg[p]) continue;
+    const i = p * 4;
+    if (dist(i) > 60) continue;
+    bg[p] = 1;
+    const x = p % w;
+    const y = (p / w) | 0;
+    for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]) {
+      if (q < 0 || bg[q]) continue;
+      const j = q * 4;
+      if (Math.hypot(d[j] - d[i], d[j + 1] - d[i + 1], d[j + 2] - d[i + 2]) < 22) stack.push(q);
+    }
+  }
+  const share = bg.reduce((a, b) => a + b, 0) / (w * h);
+  if (share < 0.2 || share > 0.93) return null; // found almost nothing, or swallowed the item
+
+  // Mask canvas (item = opaque), scaled up with smoothing and a light blur for soft edges.
+  const mask = canvas(w, h);
+  const mctx = mask.getContext("2d")!;
+  const md = mctx.createImageData(w, h);
+  for (let p = 0; p < w * h; p++) md.data[p * 4 + 3] = bg[p] ? 0 : 255;
+  mctx.putImageData(md, 0, 0);
+  const out = canvas(src.width, src.height);
+  const octx = out.getContext("2d")!;
+  octx.imageSmoothingQuality = "high";
+  octx.drawImage(mask, 0, 0, out.width, out.height);
+  octx.globalCompositeOperation = "source-in";
+  octx.drawImage(src, 0, 0);
+  return out;
 }
 
 function sharpen(img: ImageData, w: number, h: number, amount: number) {
@@ -121,11 +227,19 @@ export async function enhancePhoto(src: string, preset: Preset, crop?: Crop): Pr
   const dy = (OUT - dh) / 2;
 
   if (preset === "studio") {
-    bgRemoval ??= import("@imgly/background-removal");
-    const { removeBackground } = await bgRemoval;
     const piece = canvas(Math.round(r.w), Math.round(r.h));
     piece.getContext("2d")!.drawImage(bmp, r.x, r.y, r.w, r.h, 0, 0, piece.width, piece.height);
-    const cut = await bitmap(await removeBackground(await toBlob(piece, "image/png")));
+    let cut: CanvasImageSource;
+    try {
+      bgRemoval ??= import("@imgly/background-removal");
+      const { removeBackground } = await bgRemoval;
+      cut = await bitmap(await removeBackground(await toBlob(piece, "image/png")));
+    } catch (e) {
+      // The AI model can't load here (e.g. the Claude page): use the free plain-background cut-out.
+      const plain = plainCutout(piece);
+      if (!plain) throw new Error("The background is too busy for the white cut-out here. Try Auto, or take the photo on a plain surface.", { cause: e });
+      cut = plain;
+    }
     // Soft studio backdrop + contact shadow.
     const grad = ctx.createRadialGradient(OUT / 2, OUT * 0.45, OUT * 0.1, OUT / 2, OUT / 2, OUT * 0.75);
     grad.addColorStop(0, "#ffffff");
@@ -137,13 +251,15 @@ export async function enhancePhoto(src: string, preset: Preset, crop?: Crop): Pr
     const h = dh * s;
     const x = (OUT - w) / 2;
     const y = (OUT - h) / 2;
+    // Contact shadow: a radial gradient instead of a blurred shape, so it looks the same on Safari.
     ctx.save();
-    ctx.filter = "blur(24px)";
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.ellipse(OUT / 2, y + h * 0.98, w * 0.38, h * 0.04, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.translate(OUT / 2, y + h * 0.98);
+    ctx.scale(1, 0.12);
+    const sh = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 0.42);
+    sh.addColorStop(0, "rgba(0,0,0,0.2)");
+    sh.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = sh;
+    ctx.fillRect(-w / 2, -w / 2, w, w);
     ctx.restore();
     const layer = canvas(OUT, OUT);
     const lctx = layer.getContext("2d", { willReadFrequently: true })!;
@@ -155,10 +271,10 @@ export async function enhancePhoto(src: string, preset: Preset, crop?: Crop): Pr
 
   // Blurred, darkened copy of the photo fills the square so nothing looks letterboxed.
   if (dw < OUT || dh < OUT) {
-    ctx.save();
-    ctx.filter = "blur(40px) brightness(0.9)";
-    ctx.drawImage(bmp, r.x, r.y, r.w, r.h, -80, -80, OUT + 160, OUT + 160);
-    ctx.restore();
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(softBlur(bmp, r.x, r.y, r.w, r.h), -80, -80, OUT + 160, OUT + 160);
+    ctx.fillStyle = "rgba(0,0,0,0.04)";
+    ctx.fillRect(0, 0, OUT, OUT);
   }
   ctx.drawImage(bmp, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
   tone(ctx, OUT, OUT, preset === "vivid");
