@@ -15,7 +15,7 @@ import {
 import { useApp } from "../App.tsx";
 import { PublishSheet } from "../components/PublishSheet.tsx";
 import { Button, Card, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
-import { api, formatPrice, photoUrl } from "../lib/api.ts";
+import { api, copyText, formatPrice, photoResolver, photoUrl } from "../lib/api.ts";
 import { PRESETS, enhancePhoto, type Preset } from "../lib/image.ts";
 
 const TITLE_LIMIT: Record<Platform, number> = { ebay: 80, facebook: 100, vinted: 60 };
@@ -24,6 +24,7 @@ export function ListingScreen({ id }: { id: string }) {
   const { back, go } = useApp();
   const [listing, setListing] = useState<Listing | null>(null);
   const [menu, setMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const current = useRef<Listing | null>(null);
@@ -186,7 +187,13 @@ export function ListingScreen({ id }: { id: string }) {
 
       <PublishSheet open={publishing} onClose={() => setPublishing(false)} listing={listing} onChange={setListing} />
 
-      <Sheet open={menu} onClose={() => setMenu(false)}>
+      <Sheet
+        open={menu}
+        onClose={() => {
+          setMenu(false);
+          setConfirmDelete(false);
+        }}
+      >
         <div className="space-y-2">
           <Button
             variant="soft"
@@ -198,17 +205,31 @@ export function ListingScreen({ id }: { id: string }) {
           >
             <Check className="size-5" /> {listing.status === "sold" ? "Mark as not sold" : "Mark as sold"}
           </Button>
-          <Button
-            variant="danger"
-            className="w-full justify-start"
-            onClick={async () => {
-              if (!confirm("Delete this listing from SnapSell? Listings already posted on marketplaces stay there.")) return;
-              await api.remove(listing.id);
-              go("/", true);
-            }}
-          >
-            <Trash2 className="size-5" /> Delete listing
-          </Button>
+          {confirmDelete ? (
+            <div className="rounded-2xl bg-bad-soft p-3.5">
+              <p className="text-sm text-bad">Delete this listing from SnapSell? Anything already posted on marketplaces stays there.</p>
+              <div className="mt-3 flex gap-2">
+                <Button
+                  variant="ink"
+                  size="sm"
+                  className="bg-bad hover:bg-bad"
+                  onClick={async () => {
+                    await api.remove(listing.id);
+                    go("/", true);
+                  }}
+                >
+                  Delete
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+                  Keep it
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="danger" className="w-full justify-start" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="size-5" /> Delete listing
+            </Button>
+          )}
         </div>
       </Sheet>
     </div>
@@ -279,7 +300,7 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
   const [split, setSplit] = useState(50);
   const [error, setError] = useState<string | null>(null);
   const crop = (i: number) => listing.analysis?.crops.find((c) => c.photo === i);
-  const original = `/photos/${listing.id}/${listing.photos[0]}`;
+  const original = photoResolver.resolve(`/photos/${listing.id}/${listing.photos[0]}`);
 
   const choose = async (p: Preset) => {
     setPreset(p);
@@ -506,7 +527,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
         right={
           <button
             onClick={async () => {
-              await navigator.clipboard.writeText(`${copy.title}\n\n${copy.description}`);
+              if (!(await copyText(`${copy.title}\n\n${copy.description}`))) return;
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}

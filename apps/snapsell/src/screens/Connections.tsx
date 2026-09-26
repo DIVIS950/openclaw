@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { PLATFORM_META, type ExtensionStatus, type PlatformStatus } from "../../shared/types.ts";
 import { hashParams, useApp } from "../App.tsx";
 import { Avatar, Button, Card, Label, PlatformLogo, Toggle, TopBar, cx } from "../components/ui.tsx";
-import { api } from "../lib/api.ts";
+import { api, copyText } from "../lib/api.ts";
 import { LANGUAGES, REGIONS } from "../lib/regions.ts";
 
 const EBAY_MESSAGES: Record<string, { text: string; ok: boolean }> = {
@@ -228,7 +228,7 @@ function ExtensionCard({ ext, onPaired }: { ext: (ExtensionStatus & { paired: bo
   const [pair, setPair] = useState<{ token: string; server: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const copy = async (text: string, what: string) => {
-    await navigator.clipboard.writeText(text);
+    if (!(await copyText(text))) return;
     setCopied(what);
     setTimeout(() => setCopied(null), 1500);
   };

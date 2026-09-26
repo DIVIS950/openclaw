@@ -17,7 +17,12 @@ export type Health = {
   googleLogin: boolean;
   lens: { vision: boolean; serpapi: boolean };
   ebayApp: boolean;
+  /** Web preview: fake backend in the page, sample AI results */
+  preview?: boolean;
 };
+
+/** The web preview serves photos from memory; everywhere else they're real server paths. */
+export const photoResolver: { resolve: (path: string) => string } = { resolve: (p) => p };
 
 async function json<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
@@ -83,7 +88,17 @@ export const api = {
 };
 
 export const photoUrl = (l: Listing, i: number, enhanced = true) =>
-  `/photos/${l.id}/${(enhanced && l.enhanced[i]) || l.photos[i]}`;
+  photoResolver.resolve(`/photos/${l.id}/${(enhanced && l.enhanced[i]) || l.photos[i]}`);
+
+/** Copies text; returns false where the clipboard is blocked (some embedded views). */
+export async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function formatPrice(value: number, currency: string) {
   try {

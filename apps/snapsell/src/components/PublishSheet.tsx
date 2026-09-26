@@ -10,7 +10,7 @@ import {
   type PlatformStatus,
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
-import { api, formatPrice } from "../lib/api.ts";
+import { api, copyText, formatPrice } from "../lib/api.ts";
 import { Button, PlatformLogo, Sheet, Toggle, cx } from "./ui.tsx";
 
 export function sellUrl(p: Platform, vintedDomain: string) {
@@ -49,12 +49,12 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
     }
   };
 
-  const copyAndOpen = async (p: Platform) => {
+  // Runs on the link's click: copies the text, and the link itself opens the site's sell page.
+  const copyForSite = async (p: Platform) => {
     const c = effectiveCopy(listing, p);
-    await navigator.clipboard.writeText(`${c.title}\n\n${price}\n\n${c.description}`);
+    if (!(await copyText(`${c.title}\n\n${price}\n\n${c.description}`))) return;
     setCopied(p);
     setTimeout(() => setCopied(null), 2500);
-    window.open(sellUrl(p, settings.vintedDomain), "_blank");
   };
 
   const action = (st?: PlatformStatus) => {
@@ -124,9 +124,15 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
               {state && state.status !== "idle" && <StateRow state={state} />}
 
               {state?.status !== "live" && (
-                <button onClick={() => copyAndOpen(p)} className="mt-2 h-8 text-[13px] font-semibold text-muted underline underline-offset-4">
+                <a
+                  href={sellUrl(p, settings.vintedDomain)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => void copyForSite(p)}
+                  className="mt-2 inline-flex h-8 items-center text-[13px] font-semibold text-muted underline underline-offset-4"
+                >
                   {copied === p ? "Copied. Paste it into the form" : `Or copy the text and open ${p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}`}
-                </button>
+                </a>
               )}
             </div>
           );
