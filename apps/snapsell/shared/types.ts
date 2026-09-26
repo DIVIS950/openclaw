@@ -200,7 +200,8 @@ export type AnalyzeEvent =
   | { type: "price"; value: number; currency: string; source: string }
   | { type: "source"; title: string; url: string }
   | { type: "listing"; listing: Listing }
-  | { type: "error"; message: string };
+  /** code "needs_description": the AI can't see photos here; ask the seller what the item is */
+  | { type: "error"; message: string; code?: string };
 
 export const CONDITION_SHORT: Record<Condition, string> = {
   new: "New",

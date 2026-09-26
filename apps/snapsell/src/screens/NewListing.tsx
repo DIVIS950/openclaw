@@ -19,11 +19,23 @@ export function NewListing() {
     return s;
   });
   const [note, setNote] = useState("");
+  // When the AI can't see photos in this app, the seller describes the item and we try again.
+  const [described, setDescribed] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const { go } = useApp();
 
   if (running) {
-    return <Analyzing shots={shots} note={note} onDone={(id) => go(`/l/${id}`, true)} onCancel={() => setRunning(false)} />;
+    return (
+      <Analyzing
+        key={described ?? ""}
+        shots={shots}
+        note={described ? [described, note].filter(Boolean).join(". ") : note}
+        textOnly={described !== null}
+        onDescribe={setDescribed}
+        onDone={(id) => go(`/l/${id}`, true)}
+        onCancel={() => setRunning(false)}
+      />
+    );
   }
   return <CameraScreen shots={shots} setShots={setShots} note={note} setNote={setNote} onDone={() => setRunning(true)} />;
 }
@@ -212,13 +224,29 @@ function CameraScreen({
 type Stage = "looking" | "lens" | "searching" | "pricing" | "writing" | "polishing" | "done";
 const ORDER: Stage[] = ["looking", "lens", "searching", "pricing", "writing", "polishing", "done"];
 
-function Analyzing({ shots, note, onDone, onCancel }: { shots: Shot[]; note: string; onDone: (id: string) => void; onCancel: () => void }) {
+function Analyzing({
+  shots,
+  note,
+  textOnly,
+  onDescribe,
+  onDone,
+  onCancel,
+}: {
+  shots: Shot[];
+  note: string;
+  textOnly: boolean;
+  onDescribe: (text: string) => void;
+  onDone: (id: string) => void;
+  onCancel: () => void;
+}) {
   const { health, settings } = useApp();
   const [stage, setStage] = useState<Stage>("looking");
   const [lens, setLens] = useState<{ matches: number; bestGuess?: string } | null>(null);
   const [prices, setPrices] = useState<{ value: number; currency: string }[]>([]);
   const [queries, setQueries] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [needsDescription, setNeedsDescription] = useState(false);
+  const [description, setDescription] = useState("");
   const [preview, setPreview] = useState(0);
   const started = useRef(false);
 
@@ -234,13 +262,19 @@ function Analyzing({ shots, note, onDone, onCancel }: { shots: Shot[]; note: str
       try {
         const files = await Promise.all(shots.map((s) => prepareForUpload(s.file)));
         let listing: Listing | null = null;
-        for await (const e of api.analyze(files, note)) {
+        for await (const e of api.analyze(files, note, textOnly)) {
           if (e.type === "stage" && e.stage !== "done") setStage(e.stage);
           else if (e.type === "lens") setLens({ matches: e.matches, bestGuess: e.bestGuess });
           else if (e.type === "price") setPrices((p) => [...p, { value: e.value, currency: e.currency }]);
           else if (e.type === "search") setQueries((q) => (q.includes(e.query) ? q : [...q, e.query].slice(-4)));
           else if (e.type === "listing") listing = e.listing;
-          else if (e.type === "error") throw new Error(e.message);
+          else if (e.type === "error") {
+            if (e.code === "needs_description") {
+              setNeedsDescription(true);
+              return;
+            }
+            throw new Error(e.message);
+          }
         }
         if (!listing?.analysis) throw new Error("Analysis didn't finish. Please try again.");
         // Comparables found by the AI also feed the price chart.
@@ -260,7 +294,7 @@ function Analyzing({ shots, note, onDone, onCancel }: { shots: Shot[]; note: str
         setError(err instanceof Error ? err.message : String(err));
       }
     })();
-  }, [shots, note, onDone]);
+  }, [shots, note, textOnly, onDone]);
 
   const lensOn = Boolean(health?.lens.vision || health?.lens.serpapi) || lens !== null;
   const steps = [
@@ -314,7 +348,33 @@ function Analyzing({ shots, note, onDone, onCancel }: { shots: Shot[]; note: str
         )}
       </div>
 
-      {error ? (
+      {needsDescription ? (
+        <form
+          className="mt-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (description.trim()) onDescribe(description.trim());
+          }}
+        >
+          <h1 className="font-display text-[26px] font-extrabold leading-tight">What is it?</h1>
+          <p className="mt-2 text-muted">Claude can't see photos inside this app, so tell it in a few words. Your photos still go on the listing.</p>
+          <label htmlFor="describe" className="sr-only">
+            What is it?
+          </label>
+          <input
+            id="describe"
+            autoFocus
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. Varta CR2032 battery, new in pack"
+            className="mt-4 h-14 w-full rounded-2xl border-[1.5px] border-line bg-card px-4 text-ink placeholder:text-faint focus:border-ink focus:outline-none"
+          />
+          <Button type="submit" size="lg" className="mt-3 w-full" disabled={!description.trim()}>
+            Price it and write the listing
+          </Button>
+          <p className="mt-3 text-center text-xs text-muted">Tip: on claude.ai in Safari, Claude can look at the photo itself.</p>
+        </form>
+      ) : error ? (
         <div className="mt-8 text-center">
           <h1 className="font-display text-2xl font-extrabold">Something went wrong</h1>
           <p className="mt-2 text-muted">{error}</p>

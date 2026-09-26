@@ -84,10 +84,11 @@ export const api = {
   },
 
   /** Uploads photos and yields analysis progress events from the server-sent event stream. */
-  async *analyze(photos: Blob[], note: string): AsyncGenerator<AnalyzeEvent> {
+  async *analyze(photos: Blob[], note: string, textOnly = false): AsyncGenerator<AnalyzeEvent> {
     const form = new FormData();
     photos.forEach((p, i) => form.append("photos", p, `photo-${i}.jpeg`));
     if (note.trim()) form.append("note", note.trim());
+    if (textOnly) form.append("textOnly", "1");
     const res = await fetch("/api/analyze", { method: "POST", body: form });
     if (!res.ok || !res.body) await json(res);
     const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();

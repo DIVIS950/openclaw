@@ -102,8 +102,11 @@ const SHAPE = `{
   "shipping": {"weightKg": number, "packageSize": "small"|"medium"|"large"}
 }`;
 
-function prompt(n: number, s: Settings, note?: string) {
-  return `You are an expert resale appraiser. The ${n} attached photo(s) show ONE item someone wants to sell second-hand on eBay, Facebook Marketplace and Vinted.
+function prompt(n: number, s: Settings, note?: string, textOnly = false) {
+  const what = textOnly
+    ? `Someone wants to sell ONE item second-hand on eBay, Facebook Marketplace and Vinted. You can't see their photos; work from the seller's description below and assume normal used condition unless it says otherwise.`
+    : `The ${n} attached photo(s) show ONE item someone wants to sell second-hand on eBay, Facebook Marketplace and Vinted.`;
+  return `You are an expert resale appraiser. ${what}
 Seller location: ${s.country}. Currency: ${s.currency}. Write all buyer-facing text in ${s.language}.${note ? `\nSeller's note: """${note}"""` : ""}
 
 1. Identify the exact item (brand, model, variant, size, generation). Judge condition honestly from what is visible.
@@ -155,6 +158,9 @@ function normalize(raw: Record<string, unknown>, photoCount: number, s: Settings
   return checked.data;
 }
 
+/** Thrown when this view can't send photos to Claude: the app then asks what the item is. */
+class NeedsDescription extends Error {}
+
 const SAMPLE_ERRORS: Record<string, string> = {
   not_granted: "SnapSell needs your OK to use Claude. Try again and choose Allow.",
   rate_limited: "Claude is busy or your usage limit is reached. Try again in a little while.",
@@ -165,16 +171,16 @@ const SAMPLE_ERRORS: Record<string, string> = {
   session_expired: "Please sign in to Claude again.",
 };
 
-async function analyzeWithClaude(files: File[], s: Settings, note: string | undefined, emit: (e: AnalyzeEvent) => void) {
+async function analyzeWithClaude(files: File[], s: Settings, note: string | undefined, emit: (e: AnalyzeEvent) => void, textOnly: boolean) {
+  // Some Claude apps report no image support; try anyway and only fall back if the call refuses.
   const limits = await sample!.limits().catch(() => ({}) as { images?: { maxCount: number } });
-  if (!limits.images) throw new Error(SAMPLE_ERRORS.images_unavailable);
-  const images = files.slice(0, limits.images.maxCount);
+  const images = textOnly ? [] : files.slice(0, limits.images?.maxCount ?? 4);
   emit({ type: "stage", stage: "looking" });
   let wrote = false;
   const timer = setTimeout(() => !wrote && emit({ type: "stage", stage: "pricing" }), 6000);
   try {
-    const raw = await sample!.json<Record<string, unknown>>(prompt(images.length, s, note), {
-      images,
+    const raw = await sample!.json<Record<string, unknown>>(prompt(images.length, s, note, textOnly), {
+      ...(images.length ? { images } : {}),
       cache: false,
       onText: () => {
         if (!wrote) emit({ type: "stage", stage: "writing" });
@@ -184,6 +190,7 @@ async function analyzeWithClaude(files: File[], s: Settings, note: string | unde
     return normalize(raw, files.length, s);
   } catch (e) {
     const code = (e as { code?: string }).code;
+    if (!textOnly && (code === "images_unavailable" || code === "image_rejected" || code === "capability_disabled")) throw new NeedsDescription();
     throw new Error(SAMPLE_ERRORS[code ?? ""] ?? (e instanceof Error ? e.message : "Claude couldn't finish. Please try again."));
   } finally {
     clearTimeout(timer);
@@ -193,6 +200,7 @@ async function analyzeWithClaude(files: File[], s: Settings, note: string | unde
 function analyzeStream(form: FormData) {
   const files = form.getAll("photos").filter((f): f is File => f instanceof File).slice(0, 12);
   const note = (form.get("note") as string | null)?.trim() || undefined;
+  const textOnly = form.get("textOnly") === "1";
   const now = new Date().toISOString();
   const l: Listing = { id: id8(), owner: ME.email, createdAt: now, updatedAt: now, status: "analyzing", note, photos: [], enhanced: [], edits: {}, publish: {} };
   const enc = new TextEncoder();
@@ -202,7 +210,7 @@ function analyzeStream(form: FormData) {
       // Upload photos while Claude looks at them.
       const uploads = Promise.all(files.map(storePhoto));
       try {
-        const analysis = sample ? await analyzeWithClaude(files, settings, note, send) : await demoAnalysis(files.length, settings, send);
+        const analysis = sample ? await analyzeWithClaude(files, settings, note, send, textOnly) : await demoAnalysis(files.length, settings, send);
         l.photos = await uploads;
         l.analysis = analysis;
         l.status = "draft";
@@ -210,8 +218,10 @@ function analyzeStream(form: FormData) {
         send({ type: "stage", stage: "done" });
         send({ type: "listing", listing: l });
       } catch (e) {
-        l.photos = await uploads.catch(() => []);
-        send({ type: "error", message: e instanceof Error ? e.message : String(e) });
+        // Nothing is saved for a failed attempt: remove its uploaded photos again.
+        for (const id of await uploads.catch(() => [] as string[])) if (!id.startsWith("local-")) void assets?.delete(id).catch(() => {});
+        if (e instanceof NeedsDescription) send({ type: "error", message: "What is it?", code: "needs_description" });
+        else send({ type: "error", message: e instanceof Error ? e.message : String(e) });
       }
       ctrl.close();
     },
