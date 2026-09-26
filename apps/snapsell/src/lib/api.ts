@@ -21,6 +21,8 @@ export type Health = {
   preview?: boolean;
   /** No-server version: everything runs on this device */
   local?: boolean;
+  /** Claude page version: AI, storage and photos come from claude.ai */
+  hosted?: boolean;
   /** No-server version: the SnapSell Chrome extension answered on this computer */
   extension?: boolean;
   gemini?: boolean;

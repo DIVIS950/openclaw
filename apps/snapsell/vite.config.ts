@@ -16,6 +16,12 @@ const MODES: Record<string, UserConfig> = {
     build: { target: "es2022", outDir: "dist-preview", cssCodeSplit: false, rollupOptions: { output: { inlineDynamicImports: true } } },
     resolve: { alias: { "@imgly/background-removal": path.resolve("src/preview/bg-removal-stub.ts") } },
   },
+  hosted: {
+    // Claude page: one inlinable bundle like the preview; the cut-out model can't be downloaded there.
+    base: "./",
+    build: { target: "es2022", outDir: "dist-hosted", cssCodeSplit: false, rollupOptions: { output: { inlineDynamicImports: true } } },
+    resolve: { alias: { "@imgly/background-removal": path.resolve("src/preview/bg-removal-stub.ts") } },
+  },
   standalone: {
     // Relative asset paths so it works under https://<user>.github.io/<repo>/.
     base: "./",

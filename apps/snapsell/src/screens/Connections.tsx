@@ -17,6 +17,7 @@ const EBAY_MESSAGES: Record<string, { text: string; ok: boolean }> = {
 export function Connections() {
   const { back, me, settings, setSettings, health, signOut } = useApp();
   const local = Boolean(health?.local);
+  const hosted = Boolean(health?.hosted);
   const [statuses, setStatuses] = useState<PlatformStatus[]>([]);
   const [ext, setExt] = useState<(ExtensionStatus & { paired: boolean }) | null>(null);
   const banner = EBAY_MESSAGES[hashParams().get("ebay") ?? ""];
@@ -44,7 +45,7 @@ export function Connections() {
           <Avatar name={me.name} picture={me.picture} />
           <div className="min-w-0 flex-1">
             <div className="truncate font-bold">{me.name}</div>
-            <div className="truncate text-[13px] text-muted">{me.authEnabled ? `Signed in with Google · ${me.email}` : "Local mode: no login set up"}</div>
+            <div className="truncate text-[13px] text-muted">{me.authEnabled ? `Signed in with Google · ${me.email}` : hosted ? "Saved with your Claude account" : local ? "Saved on this device" : "Local mode: no login set up"}</div>
           </div>
           {me.authEnabled && (
             <Button variant="outline" size="sm" onClick={signOut}>
@@ -82,13 +83,13 @@ export function Connections() {
           })}
         </Card>
 
-        <ExtensionCard ext={ext} onPaired={refresh} local={local} />
+        {!hosted && <ExtensionCard ext={ext} onPaired={refresh} local={local} />}
 
         <div className="px-1 pt-3">
           <Label>Price research</Label>
         </div>
         <Card className="divide-y divide-soft p-0">
-          {!local && (
+          {!local && !hosted && (
             <>
               <Row title="Google Lens (Cloud Vision)" detail={health?.lens.vision ? "Finds your item from the photo" : "Add GOOGLE_VISION_API_KEY on the server"} ok={health?.lens.vision} />
               <Row
@@ -100,7 +101,7 @@ export function Connections() {
           )}
           <Row
             title="Sold-price search"
-            detail={health?.ai ? "AI searches Google for sold prices" : local ? "Sample results until you add your Gemini key below" : "Demo mode: add GEMINI_API_KEY (free)"}
+            detail={hosted ? "Claude estimates prices from what it knows about the market" : health?.ai ? "AI searches Google for sold prices" : local ? "Sample results until you add your Gemini key below" : "Demo mode: add GEMINI_API_KEY (free)"}
             ok={health?.ai}
           />
         </Card>
@@ -109,7 +110,9 @@ export function Connections() {
           <Label>AI</Label>
         </div>
         <Card className="space-y-3">
-          {local ? (
+          {hosted ? (
+            <Row title="Claude" detail={health?.ai ? "Runs on your Claude plan · nothing to set up" : "Open SnapSell on claude.ai to use Claude"} ok={health?.ai} />
+          ) : local ? (
             <>
               <Row title="Google Gemini" detail={health?.ai ? "Connected · free plan" : "Add your free key to analyze real photos"} ok={health?.ai} />
               <GeminiKeyField />
@@ -142,7 +145,12 @@ export function Connections() {
               ok={health?.ai}
             />
           )}
-          {local ? (
+          {hosted ? (
+            <p className="text-[13px] text-muted">
+              Your listings and photos are saved with this page on claude.ai, so they're the same on your phone and computer. To post, tap Sell
+              and copy the text for each site.
+            </p>
+          ) : local ? (
             <p className="text-[13px] text-muted">
               This version has no server: your listings and key stay on this device. eBay is copy &amp; open here; the server version posts to
               eBay automatically.

@@ -100,6 +100,8 @@ export function Home() {
       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
       {health.preview ? (
         <span>Web preview: sample data and demo AI results. Your photos stay in this browser tab.</span>
+      ) : health.hosted ? (
+        <span>Sample results: open SnapSell on claude.ai so Claude can analyze your photos.</span>
       ) : health.local ? (
         <span>
           Sample results for now. <a href="#/connections" className="font-bold underline">Add your free Gemini key</a> to analyze your real photos.

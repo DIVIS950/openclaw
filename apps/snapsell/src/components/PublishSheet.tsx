@@ -139,6 +139,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
         })}
       </div>
 
+      {statuses.some((x) => !x.unavailable) && (
       <label className="mt-2.5 flex items-center gap-3 rounded-2xl bg-soft px-3.5 py-3">
         <span className="flex-1">
           <span className="block text-[15px] font-bold">Let me check before it goes live</span>
@@ -150,7 +151,14 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
           onChange={async (on) => setSettings(await api.saveSettings({ autoPublish: !on }))}
         />
       </label>
+      )}
 
+      {statuses.length > 0 && statuses.every((x) => x.unavailable) ? (
+        <p className="mt-4 rounded-2xl bg-soft px-4 py-3 text-sm text-muted">
+          Tap <b className="text-ink">copy the text and open</b> under a site: the listing is copied, the site's sell page opens, and you paste it
+          there with your photos.
+        </p>
+      ) : (
       <Button variant="accent" size="lg" className="mt-4 w-full" disabled={!selected.size} loading={sending} onClick={publish}>
         {selected.size
           ? `Post to ${selected.size}${liveCount ? " more" : ""} marketplace${selected.size > 1 ? "s" : ""}`
@@ -158,6 +166,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
             ? `Live on ${liveCount}`
             : "Choose where to sell"}
       </Button>
+      )}
     </Sheet>
   );
 }
