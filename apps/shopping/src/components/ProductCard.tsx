@@ -25,7 +25,10 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
           <div className="truncate font-medium">{product.title}</div>
           <div className="mt-0.5 flex items-baseline gap-1.5 text-sm">
             {best && <span className="font-semibold">{money(best.price)}</span>}
-            <span className="text-muted">· {shops} shops</span>
+            <span className="truncate text-muted">{best ? `at ${getStore(best.storeId)?.name}` : "no safe offer"}</span>
+          </div>
+          <div className="mt-0.5 text-xs text-muted">
+            {shops} {shops === 1 ? "shop" : "shops"} compared{product.source === "estimate" ? " · est." : product.source === "web" ? " · live" : ""}
           </div>
         </div>
       </Link>

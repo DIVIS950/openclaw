@@ -22,6 +22,8 @@ export type Offer = {
   price: number;
   condition: "new" | "refurbished";
   inStock: boolean;
+  /** Link to the shop's product page (live results only). */
+  url?: string;
 };
 
 export type Product = {
@@ -34,6 +36,8 @@ export type Product = {
   /** Two-stop gradient + glyph used for the product art tile. */
   art: { from: string; to: string; glyph: string };
   typicalPrice: number;
+  /** Where the data came from: built-in sample, live web search, or AI estimate. */
+  source?: "sample" | "web" | "estimate";
 };
 
 const place = (city: string) => PLACES.find((p) => p.city === city)!;
@@ -93,10 +97,59 @@ export const OFFERS: Offer[] = PRODUCTS.flatMap((p) =>
   })),
 );
 
-export const getProduct = (id: string) => PRODUCTS.find((p) => p.id === id);
-export const getStore = (id: string) => STORES.find((s) => s.id === id);
-export const getOffer = (id: string) => OFFERS.find((o) => o.id === id);
-export const offersFor = (productId: string) => OFFERS.filter((o) => o.productId === productId);
+// Products found by live/AI search are registered here at runtime (browser only)
+// and persisted so product and checkout pages survive a reload.
+const DYN_KEY = "orbit.catalog.v1";
+const dyn = { products: new Map<string, Product>(), stores: new Map<string, Store>(), offers: new Map<string, Offer>(), loaded: false };
+
+function loadDynamic() {
+  if (dyn.loaded || typeof window === "undefined") return;
+  dyn.loaded = true;
+  try {
+    const raw = window.localStorage.getItem(DYN_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as { products: Product[]; stores: Store[]; offers: Offer[] };
+    saved.products.forEach((p) => dyn.products.set(p.id, p));
+    saved.stores.forEach((st) => dyn.stores.set(st.id, st));
+    saved.offers.forEach((o) => dyn.offers.set(o.id, o));
+  } catch {
+    // Storage unavailable: keep results in memory only.
+  }
+}
+
+export function registerDynamic(products: Product[], stores: Store[], offers: Offer[]) {
+  loadDynamic();
+  products.forEach((p) => dyn.products.set(p.id, p));
+  stores.forEach((st) => dyn.stores.set(st.id, st));
+  offers.forEach((o) => dyn.offers.set(o.id, o));
+  // Keep the most recent 80 products and whatever they reference.
+  const keep = [...dyn.products.values()].slice(-80);
+  const offersKept = [...dyn.offers.values()].filter((o) => keep.some((p) => p.id === o.productId));
+  const storesKept = [...dyn.stores.values()].filter((st) => offersKept.some((o) => o.storeId === st.id));
+  try {
+    window.localStorage.setItem(DYN_KEY, JSON.stringify({ products: keep, stores: storesKept, offers: offersKept }));
+  } catch {
+    // ignore
+  }
+}
+
+export const getStaticProduct = (id: string) => PRODUCTS.find((p) => p.id === id);
+export const getProduct = (id: string) => {
+  loadDynamic();
+  return getStaticProduct(id) ?? dyn.products.get(id);
+};
+export const getStore = (id: string) => {
+  loadDynamic();
+  return STORES.find((s) => s.id === id) ?? dyn.stores.get(id);
+};
+export const getOffer = (id: string) => {
+  loadDynamic();
+  return OFFERS.find((o) => o.id === id) ?? dyn.offers.get(id);
+};
+export const offersFor = (productId: string) => {
+  loadDynamic();
+  return [...OFFERS, ...dyn.offers.values()].filter((o) => o.productId === productId);
+};
 
 export function searchProducts(q: string): Product[] {
   const terms = q.toLowerCase().split(/\s+/).filter(Boolean);

@@ -9,7 +9,9 @@ import { askAI } from "@/components/Assistant";
 import { ProductCard } from "@/components/ProductCard";
 import { useUser } from "@/components/Providers";
 import { SectionTitle } from "@/components/ui";
-import { CATEGORIES, PRODUCTS } from "@/lib/data";
+import { OrbitArt } from "@/components/OrbitArt";
+import { PRODUCTS } from "@/lib/data";
+import { POPULAR } from "@/lib/search";
 import { parcelProgress, parcelStatus } from "@/lib/parcels";
 import { useAppState } from "@/lib/store";
 
@@ -30,7 +32,8 @@ export default function Home() {
 
   return (
     <div>
-      <section className="pt-6 md:pt-12">
+      <section className="relative pt-6 md:grid md:grid-cols-[1.4fr_1fr] md:items-center md:gap-8 md:pt-12">
+        <div>
         <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="font-serif text-[2.1rem] font-semibold leading-[1.1] tracking-tight md:text-5xl">
           {hello}
           {user ? `, ${user.name.split(" ")[0]}` : ""}.
@@ -49,7 +52,7 @@ export default function Home() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search every shop at once…"
+            placeholder="Search anything, every shop at once…"
             className="h-14 w-full rounded-full border border-line bg-surface pl-12 pr-32 text-[16px] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] outline-none focus:border-accent"
           />
           <button type="button" onClick={() => askAI(q || undefined)} className="btn btn-accent absolute right-2 top-2 h-10 px-4 text-sm">
@@ -57,13 +60,15 @@ export default function Home() {
           </button>
         </form>
 
-        <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4">
-          {CATEGORIES.map((c) => (
+        <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
+          {POPULAR.slice(0, 6).map((c) => (
             <Link key={c} href={`/search?q=${encodeURIComponent(c)}`} className="shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm hover:border-accent">
               {c}
             </Link>
           ))}
         </div>
+        </div>
+        <OrbitArt />
       </section>
 
       {active.length > 0 && (

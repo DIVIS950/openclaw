@@ -3,10 +3,10 @@
 import { AlertTriangle, Check, ChevronDown, MapPin, Plane, Sparkles, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { askAI } from "@/components/Assistant";
 import { ProductArt, ScoreRing, TrustBadge } from "@/components/ui";
-import { getProduct, getStore, offersFor } from "@/lib/data";
+import { getProduct, getStaticProduct, getStore, offersFor, type Product } from "@/lib/data";
 import { quoteDelivery, type DeliverySpeed } from "@/lib/delivery";
 import { arrivalWindow, cn, daysRange, money } from "@/lib/format";
 import { findPlace, PLACES } from "@/lib/geo";
@@ -14,7 +14,29 @@ import { assessStore } from "@/lib/safety";
 import { setAppState, useAppState } from "@/lib/store";
 
 export function ProductView({ productId }: { productId: string }) {
-  const product = getProduct(productId)!;
+  // Built-in products render on the server; search results exist only in the browser.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const product = mounted ? getProduct(productId) : getStaticProduct(productId);
+  if (!product) {
+    return mounted ? (
+      <div className="py-24 text-center">
+        <p className="text-muted">This product isn't saved on this device any more.</p>
+        <Link href="/search" className="btn btn-primary mt-4 px-5 py-2">
+          Search again
+        </Link>
+      </div>
+    ) : (
+      <div className="shimmer mt-4 aspect-[4/3] rounded-2xl" />
+    );
+  }
+  return <ProductDetail product={product} />;
+}
+
+function ProductDetail({ product }: { product: Product }) {
   const { address } = useAppState();
   const to = findPlace(address.city) ?? findPlace("Prague")!;
 
@@ -49,6 +71,8 @@ export function ProductView({ productId }: { productId: string }) {
           <div className="text-sm font-medium text-muted">{product.brand}</div>
           <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">{product.title}</h1>
           <p className="mt-2 text-muted">{product.blurb}</p>
+          {product.source === "estimate" && <p className="mt-2 text-xs text-warn">Prices are AI estimates. Check the shop's site before you buy.</p>}
+          {product.source === "web" && <p className="mt-2 text-xs text-ok">Live prices found on the web just now.</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {product.specs.map((s) => (
               <span key={s} className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium">
@@ -63,12 +87,18 @@ export function ProductView({ productId }: { productId: string }) {
         <div className="card flex items-start gap-3 border-accent/30 bg-accent-soft/40 p-4">
           <Sparkles className="mt-0.5 shrink-0 text-accent" size={20} />
           <div className="text-[15px] leading-relaxed">
-            <b>{rows[0].store.name}</b> is the best safe deal — {money(rows[0].cheapestTotal)} delivered to {to.city}
-            {saving > 1 && <>, saving you {money(saving)}</>}.
+            {rows[0].safety.level === "danger" ? (
+              <>None of these shops passed the safety check. Don&apos;t buy this here.</>
+            ) : (
+              <>
+                <b>{rows[0].store.name}</b> is the best safe deal: {money(rows[0].cheapestTotal)} delivered to {to.city}
+                {saving > 1 && <>, saving you {money(saving)}</>}.
+              </>
+            )}
             {scams.length > 0 && (
               <>
                 {" "}
-                I hid a trap: <b className="text-bad">{scams.map((s) => s.store.name).join(", ")}</b> looks like a scam.
+                Watch out: <b className="text-bad">{scams.map((s) => s.store.name).join(", ")}</b> looks like a scam.
               </>
             )}
             <button onClick={() => askAI(`Compare offers for ${product.brand} ${product.title}`)} className="mt-1 block text-sm font-semibold text-accent-ink">
@@ -154,6 +184,11 @@ export function ProductView({ productId }: { productId: string }) {
                                 </span>
                               ))}
                             </div>
+                            {r.offer.url && (
+                              <a href={r.offer.url} target="_blank" rel="noopener noreferrer nofollow" className="mb-2 inline-block text-xs font-semibold text-accent-ink underline underline-offset-2">
+                                Open on {r.store.domain} ↗
+                              </a>
+                            )}
                             <div className="grid gap-2 sm:grid-cols-2">
                               {r.quotes.map((q) => (
                                 <button

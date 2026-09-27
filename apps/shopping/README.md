@@ -54,6 +54,15 @@ switches on its own feature:
 | `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in |
 | `ORBIT_GMAIL=1` | Reads tracking numbers from shipping emails (Gmail read-only scope) |
 
+**Deploying:** see [DEPLOY.md](DEPLOY.md) for step-by-step Vercel setup.
+
+## Search
+
+Search works for any product. With `ANTHROPIC_API_KEY`, the server uses Claude
+with web search for live prices, and results stream in as they're found. In the
+one-file web demo, Claude answers from what it knows, so prices are labeled as
+estimates. With neither, the built-in sample catalog is used.
+
 ## Roadmap for going fully live
 
 1. **Payments:** replace the simulated payment in `CheckoutView.tsx` with a

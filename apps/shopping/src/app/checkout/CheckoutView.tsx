@@ -187,6 +187,7 @@ export function CheckoutView() {
       <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted">
         <ShieldCheck size={13} /> Encrypted · buyer protection · scam-checked shop
       </p>
+      <p className="mt-1 text-center text-xs text-muted">Demo payment: no money is charged yet.</p>
 
       <AnimatePresence>
         {stage !== "form" && (
