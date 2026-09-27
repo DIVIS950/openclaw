@@ -61,7 +61,9 @@ export function HomeworkScreen() {
           onClick={() => setImporting(true)}
         >
           <Icon name="classroom" size={18} />
-          <span style={{ flex: 1, textAlign: "left" }}>Import from Classroom (screenshot)</span>
+          <span style={{ flex: 1, textAlign: "left" }}>
+            Import from Classroom (video or screenshot)
+          </span>
           <Icon name="sparkle" size={16} />
         </button>
       )}

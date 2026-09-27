@@ -115,7 +115,7 @@ export interface ImportedTask {
   due: string;
 }
 
-export function readImportedTasks(value: unknown, known: Homework[]): ImportedTask[] {
+export function readImportedTasks(value: unknown, known: { title: string }[]): ImportedTask[] {
   const knownTitles = new Set(known.map((h) => h.title.toLowerCase()));
   const sources: Source[] = ["Classroom", ...OTHER_SOURCES];
   const seen = new Set<string>();
@@ -140,7 +140,7 @@ export function readImportedTasks(value: unknown, known: Homework[]): ImportedTa
 export async function readHomeworkList(
   ai: AiProvider,
   input: { images: ImageInput[]; text: string },
-  known: Homework[],
+  known: { title: string }[],
   now = new Date(),
 ): Promise<ImportedTask[]> {
   const value = await ai.json(

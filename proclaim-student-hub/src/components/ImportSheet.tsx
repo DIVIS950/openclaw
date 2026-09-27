@@ -9,6 +9,7 @@ import {
 } from "../lib/aiFeatures.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
 import { timetable } from "../lib/store.ts";
+import { videoToFrames } from "../lib/video.ts";
 import { Icon } from "./Icon.tsx";
 
 type Mode = "homework" | "timetable";
@@ -17,9 +18,9 @@ const COPY: Record<Mode, { title: string; help: string[]; paste: string; action:
   homework: {
     title: "Import homework",
     help: [
-      "Open Google Classroom and go to To-do (the list of assigned work).",
-      "Take a screenshot, or select the list and copy it.",
-      "Add the screenshot, paste it here (Ctrl+V), or paste the text.",
+      "Start your phone's screen recording (or take screenshots).",
+      "Tap Open Classroom below, go to To-do and scroll slowly through all your work.",
+      "Stop recording, come back here and add the video. Screenshots or pasted text work too.",
     ],
     paste: "Or paste your to-do list here…",
     action: "Find my homework",
@@ -54,21 +55,39 @@ export function ImportSheet({
   const [lessons, setLessons] = useState<Lesson[] | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const copy = COPY[mode];
+  // A video becomes many frames; photos are capped at four.
+  const maxImages = mode === "homework" ? 16 : 4;
+  const [videoProgress, setVideoProgress] = useState<string | null>(null);
 
   const add = async (files: FileList | null) => {
     if (!files) {
       return;
     }
     try {
+      const list = [...files];
+      const video = list.find((f) => f.type.startsWith("video/"));
+      if (video) {
+        setVideoProgress("Watching your video…");
+        const frames = await videoToFrames(video, (done, total) =>
+          setVideoProgress(`Watching your video… ${Math.round((done / total) * 100)}%`),
+        );
+        setImages((prev) => [...prev, ...frames].slice(0, maxImages));
+        toast(
+          `Found ${frames.length} different ${frames.length === 1 ? "screen" : "screens"} in your video.`,
+        );
+        return;
+      }
       const picked = await Promise.all(
-        [...files]
+        list
           .filter((f) => f.type.startsWith("image/"))
-          .slice(0, 4 - images.length)
+          .slice(0, maxImages - images.length)
           .map(photoToImageInput),
       );
-      setImages((prev) => [...prev, ...picked].slice(0, 4));
+      setImages((prev) => [...prev, ...picked].slice(0, maxImages));
     } catch (err) {
       handleError(err);
+    } finally {
+      setVideoProgress(null);
     }
   };
 
@@ -79,7 +98,16 @@ export function ImportSheet({
     setBusy(true);
     try {
       if (mode === "homework") {
-        const found = await readHomeworkList(ai, { images, text }, homework ?? []);
+        // Four images per AI call; later batches skip what earlier ones found.
+        const found: ImportedTask[] = [];
+        const batches = Math.max(1, Math.ceil(images.length / 4));
+        for (let b = 0; b < batches; b++) {
+          const batch = images.slice(b * 4, b * 4 + 4);
+          const known = [...(homework ?? []), ...found];
+          found.push(
+            ...(await readHomeworkList(ai, { images: batch, text: b === 0 ? text : "" }, known)),
+          );
+        }
         setTasks(found.map((t) => ({ ...t, pick: true })));
       } else {
         setLessons(await readTimetablePhoto(ai, { images, text }));
@@ -161,18 +189,36 @@ export function ImportSheet({
             <input
               ref={picker}
               type="file"
-              accept="image/*"
+              accept={mode === "homework" ? "image/*,video/*" : "image/*"}
               multiple
               hidden
               onChange={(e) => void add(e.target.files)}
             />
+            {mode === "homework" && (
+              <a
+                className="btn big"
+                href="https://classroom.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="classroom" size={20} />
+                Open Classroom To-do
+              </a>
+            )}
             <button
               className="btn big dark"
-              disabled={images.length >= 4}
+              disabled={images.length >= maxImages || videoProgress !== null}
               onClick={() => picker.current?.click()}
             >
-              <Icon name="image" size={20} />
-              Add screenshot or photo
+              <Icon
+                name={videoProgress ? "loader" : "image"}
+                size={20}
+                className={videoProgress ? "spin" : undefined}
+              />
+              {videoProgress ??
+                (mode === "homework"
+                  ? "Add screen recording or screenshots"
+                  : "Add screenshot or photo")}
             </button>
             {images.length > 0 && (
               <div className="row" style={{ flexWrap: "wrap" }}>
