@@ -10,6 +10,10 @@ A one-page padel scoreboard for your phone, with an AI coach. Open `index.html` 
 - Tag how each point was won (winner, smash, volley, lob, opponent error, double fault).
 - Stats: points won, points won on serve, break points, longest run, how points were won; copy the result.
 - AI Coach: tips for the next point, a match review, or ask any question. It reads the live score and stats. The coach works when the page is opened in Claude; scoring works everywhere.
+- Party: start a party, friends join with a 4-letter code, and every tap shows on all phones (needs the page opened in Claude).
+- Watch mode: big buttons and huge numbers only, for a phone on court or on your arm.
+- Who pays: set a bet before the match (what the losers pay, optional amount). When the match ends it remembers who owes whom, with running totals and a Paid button.
+- Confetti when a set or the match is won.
 - The match is saved on the device, so a refresh does not lose the score.
 
 Keyboard: `W`/Up arrow = top team, `S`/Down arrow = bottom team, `U`/Backspace = undo.

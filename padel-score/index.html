@@ -3,6 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
 <style>
   /* One deliberate look in every theme: a padel court under night lights. */
   :root {
@@ -21,6 +22,7 @@
     --b: #e2f04a;
     --b-ink: #2a2d02;
     --hot: #ff7a45;
+    --good: #4fd69c;
     --ball: #dff04a;
     --scrim: rgba(2, 7, 14, 0.72);
     color-scheme: dark;
@@ -36,6 +38,7 @@
   }
   .num, .display { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; }
   .num { font-variant-numeric: tabular-nums; }
+  svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   .app {
     box-sizing: border-box; min-height: 100%; max-width: 560px; margin: 0 auto;
@@ -47,8 +50,7 @@
   .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .brand { display: flex; align-items: center; gap: 9px; white-space: nowrap; font-weight: 800; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; }
   .brand small { display: block; font-family: "Figtree", system-ui, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--muted); margin-top: 3px; }
-  .row { display: flex; gap: 8px; }
-  .top .btn { padding: 8px 12px; white-space: nowrap; }
+  .row { display: flex; gap: 8px; align-items: center; }
 
   .ball {
     display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none;
@@ -61,14 +63,22 @@
     font: inherit; font-weight: 600; color: var(--ink);
     background: var(--panel); border: 1px solid var(--line);
     border-radius: 11px; padding: 9px 14px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
   }
   .btn:hover { background: var(--panel-2); }
   .btn.primary { background: var(--ball); color: #1b1f00; border-color: transparent; }
   .btn.primary:hover { filter: brightness(1.06); }
+  .btn.icon { padding: 9px; }
   .btn:disabled { opacity: 0.4; cursor: default; }
-  button:focus-visible, input:focus-visible + span, input[type="text"]:focus-visible, textarea:focus-visible {
+  button:focus-visible, input:focus-visible + span, input[type="text"]:focus-visible, input[type="number"]:focus-visible, select:focus-visible, textarea:focus-visible {
     outline: 3px solid var(--a); outline-offset: 2px;
   }
+
+  .party-chip { font-size: 13px; padding: 7px 11px; }
+  .party-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .party-chip.live { border-color: rgba(79, 214, 156, 0.5); }
+  .party-chip.live .dot { background: var(--good); box-shadow: 0 0 8px var(--good); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
 
   .demo {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
@@ -96,6 +106,8 @@
   .sb tr.b .p { background: var(--b); color: var(--b-ink); }
   .sb .srv { visibility: hidden; }
   .sb .srv.on { visibility: visible; }
+  .stake { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .stake strong { color: var(--ink); font-weight: 600; }
 
   .status { min-height: 20px; text-align: center; font-weight: 600; font-size: 14px; color: var(--muted); }
   .status strong { color: var(--ink); }
@@ -159,8 +171,27 @@
   .tag { font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; cursor: pointer; }
   .tag.on { background: var(--ink); color: var(--night); border-color: var(--ink); }
 
-  .bar { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; }
-  .bar .btn { padding-block: 13px; }
+  .bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .bar .btn { padding: 11px 6px; flex-direction: column; gap: 3px; font-size: 12px; }
+  .bar .btn svg.i { width: 20px; height: 20px; }
+
+  /* Watch mode: nothing but the two halves, huge numbers, and a mini score line */
+  .mini { display: none; align-items: center; justify-content: space-between; gap: 8px; font-size: 20px; font-weight: 700; }
+  body.watch header.top, body.watch .demo, body.watch .board, body.watch .tags, body.watch .status, body.watch .bar { display: none; }
+  body.watch .mini { display: flex; }
+  body.watch .app { max-width: none; padding-block: 8px; }
+  body.watch .court { min-height: 0; }
+  body.watch .half .pt { font-size: clamp(90px, 34vw, 240px); }
+  body.watch .half .pl { display: none; }
+  body.watch .half .tname { font-size: 20px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 20;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    background: var(--ink); color: var(--night); font-weight: 600; font-size: 14px;
+    padding: 10px 16px; border-radius: 12px; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center;
+  }
 
   /* Sheets */
   .sheet {
@@ -174,6 +205,7 @@
     display: flex; flex-direction: column; gap: 16px;
   }
   .panel h2 { margin: 0; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 800; font-size: 30px; letter-spacing: 0.04em; text-transform: uppercase; text-wrap: balance; line-height: 1; }
+  .panel h3 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .help { font-size: 13px; color: var(--muted); margin: 0; }
@@ -181,11 +213,13 @@
   @media (max-width: 460px) { .teams { grid-template-columns: 1fr; } }
   .teambox { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--panel-2); }
   .teambox .lbl { display: flex; align-items: center; gap: 6px; }
-  input[type="text"], textarea {
+  input[type="text"], input[type="number"], select, textarea {
     font: inherit; color: var(--ink); background: var(--night); border: 1px solid var(--line);
     border-radius: 9px; padding: 9px 11px; width: 100%; box-sizing: border-box;
   }
   input::placeholder, textarea::placeholder { color: #5f7390; }
+  .bet-row { display: grid; grid-template-columns: 1fr 96px 80px; gap: 8px; }
+  @media (max-width: 400px) { .bet-row { grid-template-columns: 1fr 1fr; } .bet-row > :first-child { grid-column: 1 / -1; } }
   .seg { display: flex; flex-wrap: wrap; gap: 6px; }
   .seg label { flex: 1 1 auto; }
   .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -194,6 +228,9 @@
   .seg input:checked + span { background: var(--ink); color: var(--night); border-color: var(--ink); }
   .seg input:checked + span small { color: #3d4b5e; }
   .actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+  .menu-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .menu-list .btn { justify-content: flex-start; padding: 14px; }
 
   .stats { width: 100%; border-collapse: collapse; }
   .stats th, .stats td { padding: 8px 6px; border-top: 1px solid var(--line); text-align: center; }
@@ -204,9 +241,30 @@
   .stats tr.sec td { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding-top: 14px; }
 
   .final { font-size: 38px; font-weight: 800; letter-spacing: 0.02em; }
+  .owe-banner { border-radius: 12px; padding: 12px 14px; background: var(--panel-2); border: 1px solid rgba(255, 122, 69, 0.45); }
+  .owe-banner strong { color: var(--hot); }
   .history { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
   .history li { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
   textarea.copy { resize: none; }
+
+  /* Party */
+  .code { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 800; font-size: 56px; letter-spacing: 0.18em; line-height: 1; text-align: center; padding: 14px; border-radius: 14px; background: var(--night); border: 1px solid var(--line); }
+  .join { display: flex; gap: 8px; }
+  .join input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; }
+  .steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--muted); }
+  .steps strong { color: var(--ink); }
+
+  /* Bets ledger */
+  .debts { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .debt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); flex-wrap: wrap; }
+  .debt .who { font-weight: 700; }
+  .debt .amt { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 24px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; }
+  .entry { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .entry .line { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .entry .what { font-weight: 600; }
+  .entry.paid .what { color: var(--muted); text-decoration: line-through; }
+  .entry .meta { font-size: 12px; color: var(--muted); }
+  .paid-badge { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good); }
 
   /* Coach */
   .coach-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -219,17 +277,33 @@
   .msg .a { white-space: pre-wrap; max-width: 65ch; }
   .msg .a.wait { color: var(--muted); }
   .msg .note { font-size: 12px; color: var(--hot); margin-top: 6px; }
-  .coach-off { border: 1px dashed var(--line); border-radius: 12px; padding: 12px; color: var(--muted); font-size: 14px; }
+  .off { border: 1px dashed var(--line); border-radius: 12px; padding: 12px; color: var(--muted); font-size: 14px; }
 
-  @media (prefers-reduced-motion: reduce) { .half.flash .fx { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .half.flash .fx { animation: none; }
+    .party-chip.live .dot { animation: none; }
+  }
 </style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="m7 4-3 3 3 3"/><path d="M4 7h16"/><path d="m17 20 3-3-3-3"/><path d="M20 17H4"/></symbol>
+  <symbol id="i-coach" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M9 15v2c0 1.7 2.7 3 6 3s6-1.3 6-3v-5c0-1.7-2.7-3-6-3"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.8c1.6.8 2.6 2.5 3 5.2"/></symbol>
+  <symbol id="i-watch" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6 9.6 2h4.8L15 6M9 18l.6 4h4.8l.6-4"/><path d="M12 10v2.5l1.5 1"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+</svg>
 
 <div class="app">
   <header class="top">
-    <div class="brand display"><span class="ball"></span><div>Padel Score<small>Live match</small></div></div>
+    <div class="brand display"><span class="ball"></span><div>Padel Score<small id="brand-sub">Live match</small></div></div>
     <div class="row">
-      <button class="btn" id="btn-stats" type="button">Stats</button>
-      <button class="btn" id="btn-new" type="button">New match</button>
+      <button class="btn party-chip" id="btn-party" type="button"><span class="dot"></span><span id="party-label">Party</span></button>
+      <button class="btn icon" id="btn-menu" type="button" aria-label="Menu"><svg class="i"><use href="#i-menu"/></svg></button>
     </div>
   </header>
 
@@ -238,8 +312,19 @@
     <button class="btn" id="demo-start" type="button">Set up your match</button>
   </div>
 
-  <section class="board" id="board" aria-label="Scoreboard"></section>
+  <section class="board" aria-label="Scoreboard">
+    <div id="board"></div>
+    <div class="stake" id="stake" hidden><svg class="i"><use href="#i-coins"/></svg><span>Losers pay <strong id="stake-text"></strong></span></div>
+  </section>
   <div class="status" id="status" aria-live="polite"></div>
+
+  <div class="mini num" id="mini">
+    <span id="mini-score"></span>
+    <span class="row">
+      <button class="btn icon" id="w-undo" type="button" aria-label="Undo point"><svg class="i"><use href="#i-undo"/></svg></button>
+      <button class="btn icon" id="w-exit" type="button" aria-label="Leave watch mode"><svg class="i"><use href="#i-x"/></svg></button>
+    </span>
+  </div>
 
   <main class="court" aria-label="Court. Tap the half of the team that won the point.">
     <button class="half top" id="half-top" type="button"></button>
@@ -250,10 +335,33 @@
   <div class="tags" id="tags" hidden></div>
 
   <footer class="bar">
-    <button class="btn" id="btn-undo" type="button">Undo</button>
-    <button class="btn" id="btn-swap" type="button">Swap ends</button>
-    <button class="btn primary" id="btn-coach" type="button">AI Coach</button>
+    <button class="btn" id="btn-undo" type="button"><svg class="i"><use href="#i-undo"/></svg>Undo</button>
+    <button class="btn" id="btn-swap" type="button"><svg class="i"><use href="#i-swap"/></svg>Swap ends</button>
+    <button class="btn primary" id="btn-coach" type="button"><svg class="i"><use href="#i-coach"/></svg>AI Coach</button>
+    <button class="btn" id="btn-bets" type="button"><svg class="i"><use href="#i-coins"/></svg>Who pays</button>
   </footer>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- Menu -->
+<div class="sheet" id="sheet-menu" hidden>
+  <div class="panel">
+    <h2>Menu</h2>
+    <div class="menu-list">
+      <button class="btn" type="button" id="m-new"><svg class="i"><use href="#i-plus"/></svg>New match</button>
+      <button class="btn" type="button" id="m-stats"><svg class="i"><use href="#i-chart"/></svg>Stats</button>
+      <button class="btn" type="button" id="m-party"><svg class="i"><use href="#i-users"/></svg>Party</button>
+      <button class="btn" type="button" id="m-bets"><svg class="i"><use href="#i-coins"/></svg>Who pays</button>
+      <button class="btn" type="button" id="m-watch"><svg class="i"><use href="#i-watch"/></svg>Watch mode</button>
+      <button class="btn" type="button" id="m-coach"><svg class="i"><use href="#i-coach"/></svg>AI Coach</button>
+    </div>
+    <div class="field" id="history-field" hidden>
+      <h3>Past matches on this device</h3>
+      <ul class="history" id="history"></ul>
+    </div>
+    <div class="actions"><button class="btn" type="button" data-close>Close</button></div>
+  </div>
 </div>
 
 <!-- New match -->
@@ -282,6 +390,18 @@
         <input type="text" id="p10" maxlength="20" placeholder="Player 1" aria-label="Team 2 player 1">
         <input type="text" id="p11" class="dbl" maxlength="20" placeholder="Player 2" aria-label="Team 2 player 2">
       </div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">The bet (optional)</span>
+      <div class="bet-row">
+        <input type="text" id="bet-what" maxlength="40" placeholder="Losers pay... e.g. court + drinks" aria-label="What the losers pay">
+        <input type="number" id="bet-amount" min="0" step="0.5" inputmode="decimal" placeholder="Amount" aria-label="Amount">
+        <select id="bet-cur" aria-label="Currency">
+          <option value="€">€</option><option value="Kč">Kč</option><option value="$">$</option><option value="£">£</option>
+        </select>
+      </div>
+      <p class="help">When the match ends, the app remembers who owes whom under Who pays.</p>
     </div>
 
     <div class="field">
@@ -316,16 +436,61 @@
       <div class="seg" id="first-server"></div>
     </div>
 
+    <p class="help" id="setup-party-note" hidden>You are in a party: everyone connected switches to this new match.</p>
+
     <div class="actions">
-      <button class="btn" type="button" id="setup-cancel">Cancel</button>
+      <button class="btn" type="button" data-close>Cancel</button>
       <button class="btn primary" type="submit">Start match</button>
     </div>
-
-    <div class="field" id="history-field" hidden>
-      <span class="lbl">Past matches on this device</span>
-      <ul class="history" id="history"></ul>
-    </div>
   </form>
+</div>
+
+<!-- Party -->
+<div class="sheet" id="sheet-party" hidden>
+  <div class="panel">
+    <h2>Party</h2>
+    <div class="off" id="party-off" hidden></div>
+    <div id="party-out" class="field" hidden>
+      <p class="help">Play one match on several phones. Every tap shows up on all of them right away.</p>
+      <button class="btn primary" type="button" id="party-create"><svg class="i"><use href="#i-users"/></svg>Start a party with this match</button>
+      <span class="lbl" style="margin-top:8px">Or join a friend's party</span>
+      <form class="join" id="party-join">
+        <input type="text" id="party-code" maxlength="4" placeholder="CODE" aria-label="Party code" autocapitalize="characters">
+        <button class="btn" type="submit">Join</button>
+      </form>
+    </div>
+    <div id="party-in" class="field" hidden>
+      <span class="lbl">Party code</span>
+      <div class="code" id="party-code-big"></div>
+      <ol class="steps">
+        <li>Share this page with your friends in Claude: <strong>Share</strong> menu, add them as <strong>Editor</strong>.</li>
+        <li>They open the page, tap <strong>Party</strong> and enter the code.</li>
+        <li>Anyone can score. Put a phone in <strong>Watch mode</strong> for big buttons on court.</li>
+      </ol>
+      <div class="actions">
+        <button class="btn" type="button" id="party-watch"><svg class="i"><use href="#i-watch"/></svg>Watch mode</button>
+        <button class="btn" type="button" id="party-leave">Leave party</button>
+      </div>
+    </div>
+    <div class="actions"><button class="btn" type="button" data-close>Close</button></div>
+  </div>
+</div>
+
+<!-- Who pays -->
+<div class="sheet" id="sheet-bets" hidden>
+  <div class="panel">
+    <h2>Who pays</h2>
+    <div class="field">
+      <h3>Open debts</h3>
+      <ul class="debts" id="debts"></ul>
+    </div>
+    <div class="field">
+      <h3>All bets</h3>
+      <div id="entries"></div>
+    </div>
+    <p class="help" id="bets-where"></p>
+    <div class="actions"><button class="btn" type="button" data-close>Close</button></div>
+  </div>
 </div>
 
 <!-- Stats -->
@@ -335,7 +500,7 @@
     <div id="stats-body"></div>
     <div class="actions">
       <button class="btn" type="button" id="copy-result">Copy result</button>
-      <button class="btn primary" type="button" id="stats-close">Close</button>
+      <button class="btn primary" type="button" data-close>Close</button>
     </div>
     <textarea class="copy" id="copy-fallback" rows="2" readonly hidden aria-label="Result text"></textarea>
   </div>
@@ -363,11 +528,11 @@
         <p class="help">The coach reads the live score, serve, stats and how points were won. Tag points under the court for better advice.</p>
       </div>
     </div>
-    <div class="coach-off" id="coach-off" hidden></div>
+    <div class="off" id="coach-off" hidden></div>
     <div class="feed" id="coach-feed"></div>
     <div class="actions">
       <button class="btn" type="button" id="coach-stop" hidden>Stop</button>
-      <button class="btn" type="button" id="coach-close">Back to score</button>
+      <button class="btn" type="button" data-close>Back to score</button>
     </div>
   </div>
 </div>
@@ -378,6 +543,7 @@
     <h2 id="end-title"></h2>
     <div class="final num" id="end-score"></div>
     <p class="help" id="end-players"></p>
+    <div class="owe-banner" id="end-owe" hidden></div>
     <div class="actions">
       <button class="btn" type="button" id="end-close">Back to score</button>
       <button class="btn" type="button" id="end-stats">Stats</button>
@@ -392,7 +558,8 @@
 (() => {
   // ---------- Scoring engine ----------
   // A match is its config plus the list of point winners (0 or 1).
-  // The full state is rebuilt by replaying that list, which makes undo exact.
+  // The full state is rebuilt by replaying that list, which makes undo exact
+  // and lets every phone in a party rebuild the same score from the same list.
   const DEUCES_BEFORE_DECIDER = { golden: 1, star: 3, adv: Infinity };
   const PT = ["0", "15", "30", "40"];
   const setsNeeded = (cfg) => Math.ceil(cfg.sets / 2);
@@ -519,10 +686,12 @@
     return x;
   }
 
-  // ---------- App state ----------
+  // ---------- Local state ----------
   const TAGS = ["Winner", "Smash", "Volley", "Lob", "Opponent error", "Double fault"];
   const KEY = "padel-score:match";
+  const UKEY = "padel-score:ui";
   const HKEY = "padel-score:history";
+  const LKEY = "padel-score:ledger";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } };
 
@@ -530,6 +699,7 @@
     const cfg = {
       mode: "doubles", teams: ["Blue", "Yellow"], players: [["Ana", "Marta"], ["Leo", "Pablo"]],
       scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0],
+      bet: { what: "court + drinks", amount: 20, cur: "€" },
     };
     const log = [];
     const game = (w) => log.push(w, 1 - w, w, w, 1 - w, w); // a 40-30 game
@@ -538,39 +708,95 @@
     log.push(0, 1, 0); // 30-15
     const tags = {};
     log.forEach((w, i) => { if (i % 3 === 0) tags[i] = TAGS[(i * 7) % TAGS.length]; });
-    return { id: Date.now(), cfg, log, tags, flip: false, demo: true, endSeen: -1, coachTeam: 0 };
+    return { id: Date.now(), cfg, log, tags, demo: true };
   }
 
+  // The shared part of a match: what every phone in a party must agree on.
+  const shared = (x) => ({ id: x.id, cfg: x.cfg, log: x.log, tags: x.tags || {}, demo: !!x.demo });
   function normalize(x) {
     if (!x || !x.cfg || !Array.isArray(x.log)) return null;
     x.cfg.mode = x.cfg.mode || "doubles";
-    x.tags = x.tags || {};
-    x.coachTeam = x.coachTeam || 0;
-    return x;
+    x.cfg.bet = x.cfg.bet || null;
+    return shared(x);
   }
 
   let m = normalize(load(KEY, null)) || demoMatch();
+  // Per-device settings that never sync: which team is on top, coach side, watch mode.
+  const ui = Object.assign({ flip: false, coachTeam: 0, watch: false, endSeen: "", party: "" }, load(UKEY, {}));
+  const saveUi = () => store(UKEY, ui);
   let s = build(m);
-  const save = () => store(KEY, m);
 
   const $ = (id) => document.getElementById(id);
   const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const cls = (t) => (t === 0 ? "a" : "b");
   const tn = (t) => m.cfg.teams[t];
   const pn = (t, i) => m.cfg.players[t][i];
-  const playersOf = (t) => (isSingles(m.cfg) ? [m.cfg.players[t][0]] : m.cfg.players[t]).filter(Boolean).join(" & ");
-  const topTeam = () => (m.flip ? 1 : 0);
+  const people = (t) => (isSingles(m.cfg) ? [m.cfg.players[t][0] || tn(t)] : m.cfg.players[t].filter(Boolean));
+  const playersOf = (t) => people(t).join(" & ");
+  const topTeam = () => (ui.flip ? 1 : 0);
+  const money = (n, cur) => `${Math.round(n * 100) / 100} ${cur}`;
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (t.hidden = true), 2600);
+  }
+
+  // Save locally, and push to the party when connected.
+  function commit() {
+    store(KEY, m);
+    pushParty();
+  }
 
   // ---------- Render ----------
+  let lastLen = m.log.length;
   function render() {
     s = build(m);
+    document.body.classList.toggle("watch", !!ui.watch);
     $("demo").hidden = !m.demo;
     renderBoard();
     renderStatus();
     renderCourt();
     renderTags();
-    $("btn-undo").disabled = m.log.length === 0;
-    if (s.winner !== null && m.endSeen !== m.log.length) openEnd();
+    renderParty();
+    $("btn-undo").disabled = $("w-undo").disabled = m.log.length === 0;
+    const bet = m.cfg.bet;
+    $("stake").hidden = !bet;
+    if (bet) $("stake-text").textContent = bet.what + (bet.amount ? ` · ${money(bet.amount, bet.cur)}` : "");
+    syncBet();
+    celebrate();
+    lastLen = m.log.length;
+  }
+
+  let celebrated = "";
+  function celebrate() {
+    const grew = m.log.length > lastLen;
+    const endKey = `${m.id}:${m.log.length}`;
+    if (s.winner !== null && ui.endSeen !== endKey && celebrated !== endKey) {
+      celebrated = endKey;
+      openEnd();
+      confettiBurst(true);
+    } else if (grew && s.last && s.last.kind === "set") {
+      confettiBurst(false);
+    }
+  }
+
+  function confettiBurst(big) {
+    if (typeof window.confetti !== "function") return;
+    const colors = ["#5cc8ff", "#e2f04a", "#ffffff", "#ff7a45"];
+    try {
+      if (!big) { window.confetti({ particleCount: 70, spread: 70, origin: { y: 0.55 }, colors, disableForReducedMotion: true }); return; }
+      const end = Date.now() + 1600;
+      (function frame() {
+        window.confetti({ particleCount: 6, angle: 60, spread: 60, origin: { x: 0, y: 0.7 }, colors, disableForReducedMotion: true });
+        window.confetti({ particleCount: 6, angle: 120, spread: 60, origin: { x: 1, y: 0.7 }, colors, disableForReducedMotion: true });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      })();
+      window.confetti({ particleCount: 160, spread: 100, startVelocity: 45, origin: { y: 0.45 }, colors, disableForReducedMotion: true });
+    } catch { /* confetti is decoration only */ }
   }
 
   function renderBoard() {
@@ -599,6 +825,11 @@
       body += "</tr>";
     }
     $("board").innerHTML = `<table class="sb"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    // Watch mode score line: sets, then current games
+    const top = topTeam(), bot = 1 - top;
+    const parts = s.sets.map((x) => setText(x, top));
+    if (live && !sup) parts.push(`${s.games[top]}-${s.games[bot]}`);
+    $("mini-score").textContent = parts.join("  ") || "0-0";
   }
 
   function renderStatus() {
@@ -607,6 +838,7 @@
     let label = "", hot = false;
     if (s.winner !== null) {
       html = `<strong>Game, set and match ${esc(tn(s.winner))}</strong>`;
+      label = `${tn(s.winner)} win`;
     } else {
       if (s.last) {
         const who = esc(tn(s.last.team));
@@ -669,16 +901,18 @@
     const b = e.target.closest(".tag");
     if (!b) return;
     const i = m.log.length - 1;
-    if (m.tags[i] === b.dataset.tag) delete m.tags[i]; else m.tags[i] = b.dataset.tag;
-    save();
+    const tags = { ...m.tags };
+    if (tags[i] === b.dataset.tag) delete tags[i]; else tags[i] = b.dataset.tag;
+    m = { ...m, tags };
+    commit();
     renderTags();
   });
 
   // ---------- Actions ----------
   function score(t) {
     if (s.winner !== null) return;
-    m.log.push(t);
-    save();
+    m = { ...m, log: [...m.log, t] };
+    commit();
     try { navigator.vibrate && navigator.vibrate(12); } catch { /* not allowed */ }
     render();
     const el = [$("half-top"), $("half-bottom")].find((e) => Number(e.dataset.team) === t);
@@ -687,10 +921,10 @@
   }
   function undo() {
     if (!m.log.length) return;
-    delete m.tags[m.log.length - 1];
-    m.log.pop();
-    m.endSeen = -1;
-    save();
+    const tags = { ...m.tags };
+    delete tags[m.log.length - 1];
+    m = { ...m, log: m.log.slice(0, -1), tags };
+    commit();
     render();
   }
 
@@ -701,25 +935,41 @@
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && m.log.length) keepAwake(); });
 
+  const openSheet = (id) => { document.querySelectorAll(".sheet").forEach((x) => (x.hidden = x.id !== id)); };
+  const closeSheets = () => document.querySelectorAll(".sheet").forEach((x) => (x.hidden = true));
+
   $("half-top").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
   $("half-bottom").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
   $("btn-undo").addEventListener("click", undo);
-  $("btn-swap").addEventListener("click", () => { m.flip = !m.flip; save(); render(); });
-  $("btn-new").addEventListener("click", openSetup);
+  $("w-undo").addEventListener("click", undo);
+  $("btn-swap").addEventListener("click", () => { ui.flip = !ui.flip; saveUi(); render(); });
+  $("btn-menu").addEventListener("click", openMenu);
+  $("btn-party").addEventListener("click", openParty);
+  $("btn-bets").addEventListener("click", openBets);
   $("demo-start").addEventListener("click", openSetup);
-  $("btn-stats").addEventListener("click", openStats);
   $("btn-coach").addEventListener("click", openCoach);
+  $("m-new").addEventListener("click", openSetup);
+  $("m-stats").addEventListener("click", openStats);
+  $("m-party").addEventListener("click", openParty);
+  $("m-bets").addEventListener("click", openBets);
+  $("m-coach").addEventListener("click", openCoach);
+  const setWatch = (on) => { ui.watch = on; saveUi(); closeSheets(); render(); if (on) keepAwake(); };
+  $("m-watch").addEventListener("click", () => setWatch(true));
+  $("party-watch").addEventListener("click", () => setWatch(true));
+  $("w-exit").addEventListener("click", () => setWatch(false));
+  document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeSheets));
 
   const anySheetOpen = () => [...document.querySelectorAll(".sheet")].some((x) => !x.hidden);
   document.addEventListener("keydown", (e) => {
-    if (anySheetOpen() || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.key === "Escape" && anySheetOpen()) { if (!$("sheet-end").hidden) closeEnd(); else closeSheets(); return; }
+    if (anySheetOpen() || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     const k = e.key.toLowerCase();
     if (k === "arrowup" || k === "w") { e.preventDefault(); score(topTeam()); }
     else if (k === "arrowdown" || k === "s") { e.preventDefault(); score(1 - topTeam()); }
     else if (k === "u" || k === "backspace") undo();
   });
 
-  // ---------- History ----------
+  // ---------- Menu + history ----------
   function resultLine(st, mm) {
     const w = st.winner;
     const sets = st.sets.map((x) => setText(x, w === null ? 0 : w)).join(" ");
@@ -731,6 +981,13 @@
     const h = load(HKEY, []).filter((x) => x.id !== m.id);
     h.unshift({ id: m.id, date: new Date(m.id).toISOString(), line: resultLine(s, m) });
     store(HKEY, h.slice(0, 20));
+  }
+  function openMenu() {
+    const h = load(HKEY, []);
+    $("history-field").hidden = h.length === 0;
+    $("history").innerHTML = h.map((x) =>
+      `<li><span>${esc(x.line)}</span><span class="help">${esc(new Date(x.date).toLocaleDateString())}</span></li>`).join("");
+    openSheet("sheet-menu");
   }
 
   // ---------- Setup sheet ----------
@@ -767,29 +1024,28 @@
 
   function openSetup() {
     const c = m.demo
-      ? { mode: "doubles", teams: ["", ""], players: [["", ""], ["", ""]], scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0] }
+      ? { mode: "doubles", teams: ["", ""], players: [["", ""], ["", ""]], scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0], bet: null }
       : m.cfg;
     $("t0").value = isSingles(c) ? "" : c.teams[0];
     $("t1").value = isSingles(c) ? "" : c.teams[1];
     $("p00").value = c.players[0][0]; $("p01").value = c.players[0][1] || "";
     $("p10").value = c.players[1][0]; $("p11").value = c.players[1][1] || "";
+    $("bet-what").value = c.bet ? c.bet.what : "";
+    $("bet-amount").value = c.bet && c.bet.amount ? c.bet.amount : "";
+    $("bet-cur").value = c.bet ? c.bet.cur : "€";
     $(`mode-${c.mode}`).checked = true;
     $(`sc-${c.scoring}`).checked = true;
     $(`sets-${c.sets}`).checked = true;
     $(`dec-${c.decider}`).checked = true;
     syncSetup();
     renderServerChoices(`${c.serveTeam}-${isSingles(c) ? 0 : c.servePlayer[c.serveTeam]}`);
-    const h = load(HKEY, []);
-    $("history-field").hidden = h.length === 0;
-    $("history").innerHTML = h.map((x) =>
-      `<li><span>${esc(x.line)}</span><span class="help">${esc(new Date(x.date).toLocaleDateString())}</span></li>`).join("");
-    $("sheet-setup").hidden = false;
+    $("setup-party-note").hidden = !party;
+    openSheet("sheet-setup");
   }
   $("setup-form").addEventListener("input", (e) => {
     syncSetup();
     if (e.target.type === "text" || e.target.name === "mode") renderServerChoices(radio("server"));
   });
-  $("setup-cancel").addEventListener("click", () => { $("sheet-setup").hidden = true; });
   $("setup-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const one = radio("mode") === "singles";
@@ -800,6 +1056,8 @@
     const teams = one
       ? [p[0][0] || "Player 1", p[1][0] || "Player 2"]
       : [$("t0").value.trim() || "Team 1", $("t1").value.trim() || "Team 2"];
+    const what = $("bet-what").value.trim();
+    const amount = Math.max(0, Number($("bet-amount").value) || 0);
     startMatch({
       mode: one ? "singles" : "doubles",
       teams,
@@ -809,17 +1067,18 @@
       decider: radio("decider") || "super",
       serveTeam: st,
       servePlayer,
+      bet: what || amount ? { what: what || "the bet", amount, cur: $("bet-cur").value } : null,
     });
-    $("sheet-setup").hidden = true;
+    closeSheets();
   });
 
   function startMatch(cfg) {
     archive();
-    m = { id: Date.now(), cfg, log: [], tags: {}, flip: false, demo: false, endSeen: -1, coachTeam: m.coachTeam || 0 };
+    m = { id: Date.now(), cfg, log: [], tags: {}, demo: false };
     coachFeed = [];
     renderFeed();
-    save();
-    [$("sheet-end"), $("sheet-stats")].forEach((x) => (x.hidden = true));
+    commit();
+    closeSheets();
     render();
   }
 
@@ -855,9 +1114,8 @@
       `</tbody></table></div>` +
       `<p class="help">${esc(resultLine(s, m))}. ${m.log.length} points played${tagged.length ? "" : ". Tag points under the court to see how they were won"}.</p>`;
     $("copy-fallback").hidden = true;
-    $("sheet-stats").hidden = false;
+    openSheet("sheet-stats");
   }
-  $("stats-close").addEventListener("click", () => { $("sheet-stats").hidden = true; });
   $("copy-result").addEventListener("click", () => {
     const text = resultLine(s, m);
     const fallback = () => { const ta = $("copy-fallback"); ta.value = text; ta.hidden = false; ta.select(); };
@@ -868,6 +1126,254 @@
       }, fallback);
     } catch { fallback(); }
   });
+
+  // ---------- Shared storage (party + ledger) ----------
+  // Uses the artifact "db" capability when the page runs inside Claude; otherwise
+  // everything stays on this device.
+  let db = null, dbState = "pending";
+  let party = null; // { code, rev, unsub }
+  let writing = false, writeAgain = false;
+  const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  async function pushParty() {
+    if (!party || !db) return;
+    if (writing) { writeAgain = true; return; }
+    writing = true;
+    try {
+      party.rev += 1;
+      await db.doc("parties/" + party.code).set({ match: shared(m), rev: party.rev, at: Date.now() });
+    } catch (e) {
+      toast(e && e.code === "invalid_argument" ? "You can't score in this party. Ask the owner to share it with you as Editor." : "Could not sync the score. Check your connection.");
+    } finally {
+      writing = false;
+      if (writeAgain) { writeAgain = false; pushParty(); }
+    }
+  }
+
+  function adopt(d) {
+    if (!d || !d.match) return;
+    party.rev = Math.max(party.rev, d.rev || 0);
+    const next = normalize(JSON.parse(JSON.stringify(d.match)));
+    if (!next || JSON.stringify(next) === JSON.stringify(shared(m))) return;
+    if (next.id !== m.id) { archive(); coachFeed = []; renderFeed(); }
+    m = next;
+    store(KEY, m);
+    render();
+  }
+
+  function subscribeParty(code) {
+    const ref = db.doc("parties/" + code);
+    party.unsub = ref.onSnapshot((snap) => {
+      if (!party || party.code !== code) return;
+      if (snap.metadata.hasPendingWrites) return;
+      if (!snap.exists) return;
+      const d = snap.data();
+      if ((d.rev || 0) < party.rev) return; // older than what this phone already sent
+      adopt(d);
+    }, () => {
+      toast("Lost the party connection. Rejoin with the code.");
+      leaveParty(true);
+    });
+  }
+
+  async function createParty() {
+    if (!db) return;
+    let code = "";
+    for (let i = 0; i < 4; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    try {
+      party = { code, rev: 1, unsub: null };
+      await db.doc("parties/" + code).set({ match: shared(m), rev: 1, at: Date.now() });
+      subscribeParty(code);
+      ui.party = code; saveUi();
+      toast(`Party ${code} started`);
+      render();
+      openParty();
+    } catch (e) {
+      party = null;
+      toast(e && e.code === "invalid_argument" ? "You don't have permission to start a party here." : "Could not start the party. Try again.");
+    }
+  }
+
+  async function joinParty(code, quiet) {
+    if (!db) return;
+    code = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length !== 4) { toast("Party codes have 4 characters."); return; }
+    try {
+      const snap = await db.doc("parties/" + code).get();
+      if (!snap.exists) {
+        if (!quiet) toast(`No party with code ${code}.`);
+        if (ui.party === code) { ui.party = ""; saveUi(); }
+        return;
+      }
+      if (party) leaveParty(true);
+      party = { code, rev: 0, unsub: null };
+      adopt(snap.data());
+      subscribeParty(code);
+      ui.party = code; saveUi();
+      if (!quiet) toast(`Joined party ${code}`);
+      render();
+      if (!quiet) closeSheets();
+    } catch {
+      if (!quiet) toast("Could not join. Check the code and try again.");
+    }
+  }
+
+  function leaveParty(silent) {
+    if (party && party.unsub) party.unsub();
+    party = null;
+    ui.party = ""; saveUi();
+    if (!silent) toast("You left the party. The match stays on this phone.");
+    render();
+  }
+
+  function renderParty() {
+    const live = !!party;
+    $("btn-party").classList.toggle("live", live);
+    $("party-label").textContent = live ? `Live · ${party.code}` : "Party";
+    $("brand-sub").textContent = live ? "Party match" : "Live match";
+    if (!$("sheet-party").hidden) fillPartySheet();
+  }
+
+  function fillPartySheet() {
+    const off = dbState !== "ready";
+    $("party-off").hidden = !off;
+    $("party-off").textContent = dbState === "pending"
+      ? "Connecting..."
+      : "Parties work when this page is opened in Claude (web or app). Scoring on this phone still works.";
+    $("party-out").hidden = off || !!party;
+    $("party-in").hidden = off || !party;
+    if (party) $("party-code-big").textContent = party.code;
+  }
+
+  function openParty() { fillPartySheet(); openSheet("sheet-party"); }
+  $("party-create").addEventListener("click", createParty);
+  $("party-join").addEventListener("submit", (e) => { e.preventDefault(); joinParty($("party-code").value); });
+  $("party-leave").addEventListener("click", () => { leaveParty(false); fillPartySheet(); });
+
+  // ---------- Who pays (bets ledger) ----------
+  // Entries: {id, date, what, amount, cur, from:[names], to:[names], match, paid}
+  let ledger = load(LKEY, []);
+  const betPending = new Set();
+
+  async function ledgerPut(e) {
+    if (db) {
+      await db.doc("ledger/" + e.id).set(e);
+    } else {
+      ledger = [e, ...ledger.filter((x) => x.id !== e.id)];
+      store(LKEY, ledger);
+      renderBets();
+    }
+  }
+  async function ledgerDelete(id) {
+    if (db) await db.doc("ledger/" + id).delete();
+    else { ledger = ledger.filter((x) => x.id !== id); store(LKEY, ledger); renderBets(); }
+  }
+
+  // Keep the ledger in step with the match: a win adds the debt, an undo removes it.
+  function syncBet() {
+    const bet = m.cfg.bet;
+    if (!bet || m.demo) return;
+    const id = "m" + m.id;
+    if (betPending.has(id)) return;
+    const have = ledger.find((x) => x.id === id);
+    let job = null;
+    if (s.winner !== null) {
+      const w = s.winner;
+      const entry = {
+        id, date: new Date().toISOString(), what: bet.what, amount: bet.amount || 0, cur: bet.cur,
+        from: people(1 - w), to: people(w), match: resultLine(s, m), paid: false,
+      };
+      if (!have || (!have.paid && have.to.join() !== entry.to.join())) job = ledgerPut(entry);
+    } else if (have && !have.paid) {
+      job = ledgerDelete(id);
+    }
+    if (job) {
+      betPending.add(id);
+      job.catch(() => toast("Could not save the bet. It will retry on the next point."))
+        .finally(() => betPending.delete(id));
+    }
+  }
+
+  // Net what each person owes each other person, per currency, over unpaid bets.
+  function openDebts() {
+    const pair = new Map();
+    for (const e of ledger) {
+      if (e.paid || !e.amount || !e.from.length || !e.to.length) continue;
+      const share = e.amount / (e.from.length * e.to.length);
+      for (const a of e.from) for (const b of e.to) {
+        const [x, y, sign] = a < b ? [a, b, 1] : [b, a, -1];
+        const k = `${x}\u0000${y}\u0000${e.cur}`;
+        pair.set(k, (pair.get(k) || 0) + sign * share); // positive: x owes y
+      }
+    }
+    const out = [];
+    for (const [k, v] of pair) {
+      const [x, y, cur] = k.split("\u0000");
+      if (Math.abs(v) < 0.005) continue;
+      out.push(v > 0 ? { from: x, to: y, amount: v, cur } : { from: y, to: x, amount: -v, cur });
+    }
+    return out.sort((p, q) => q.amount - p.amount);
+  }
+
+  function renderBets() {
+    if ($("sheet-bets").hidden) return;
+    const debts = openDebts();
+    const unpaidItems = ledger.filter((e) => !e.paid && !e.amount);
+    $("debts").innerHTML = debts.length || unpaidItems.length
+      ? debts.map((d) => `<li class="debt"><span><span class="who">${esc(d.from)}</span> owes <span class="who">${esc(d.to)}</span></span><span class="amt">${esc(money(d.amount, d.cur))}</span></li>`).join("") +
+        unpaidItems.map((e) => `<li class="debt"><span><span class="who">${esc(e.from.join(" & "))}</span> owe${e.from.length > 1 ? "" : "s"} <span class="who">${esc(e.to.join(" & "))}</span></span><span>${esc(e.what)}</span></li>`).join("")
+      : `<li class="help">Nobody owes anything. Add a bet when you set up a match.</li>`;
+    $("entries").innerHTML = ledger.length
+      ? [...ledger].sort((a, b) => (a.date < b.date ? 1 : -1)).map((e) =>
+        `<div class="entry ${e.paid ? "paid" : ""}">` +
+        `<div class="line"><span class="what">${esc(e.from.join(" & "))} pay ${esc(e.what)}${e.amount ? ` · ${esc(money(e.amount, e.cur))}` : ""}</span>` +
+        (e.paid ? `<span class="paid-badge">Paid</span>` : "") + `</div>` +
+        `<div class="meta">${esc(e.match || "")} · ${esc(new Date(e.date).toLocaleDateString())}</div>` +
+        `<div class="actions">` +
+        (e.paid
+          ? `<button class="btn" type="button" data-unpay="${esc(e.id)}">Mark unpaid</button>`
+          : `<button class="btn primary" type="button" data-pay="${esc(e.id)}">Mark paid</button>`) +
+        `<button class="btn" type="button" data-del="${esc(e.id)}">Delete</button></div></div>`).join("")
+      : `<p class="help">No bets yet.</p>`;
+    $("bets-where").textContent = db
+      ? "Everyone who opens this page in Claude sees the same list."
+      : "Saved on this phone only. Open the page in Claude to share it with friends.";
+  }
+  function openBets() { openSheet("sheet-bets"); renderBets(); }
+
+  let confirmDel = "";
+  $("entries").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const find = (id) => ledger.find((x) => x.id === id);
+    const run = (p) => p.catch(() => toast("Could not save. Try again."));
+    if (b.dataset.pay) { const x = find(b.dataset.pay); if (x) run(ledgerPut({ ...x, paid: true, paidAt: new Date().toISOString() })); }
+    else if (b.dataset.unpay) { const x = find(b.dataset.unpay); if (x) run(ledgerPut({ ...x, paid: false })); }
+    else if (b.dataset.del) {
+      // Two taps to delete, since the viewer can't show confirm dialogs.
+      if (confirmDel !== b.dataset.del) { confirmDel = b.dataset.del; b.textContent = "Tap again to delete"; return; }
+      confirmDel = "";
+      run(ledgerDelete(b.dataset.del));
+    }
+  });
+
+  (async () => {
+    try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch { db = null; }
+    dbState = db ? "ready" : "off";
+    if (db) {
+      // Move any bets saved on this device before sharing was available.
+      const local = load(LKEY, []);
+      for (const e of local) { try { await db.doc("ledger/" + e.id).set(e); } catch { break; } }
+      if (local.length) store(LKEY, []);
+      db.collection("ledger").limit(500).onSnapshot((snap) => {
+        ledger = snap.docs.map((d) => d.data());
+        renderBets();
+        syncBet();
+      }, () => { /* keep the last list we had */ });
+      if (ui.party) await joinParty(ui.party, true);
+    }
+    renderParty();
+  })();
 
   // ---------- AI coach ----------
   // Uses the viewer's Claude through the artifact "sample" capability; hidden where unavailable.
@@ -887,35 +1393,34 @@
   $("coach-quick").innerHTML = QUICK.map((q) => `<button type="button" class="tag" data-q="${esc(q)}">${esc(q)}</button>`).join("");
 
   function syncCoachAvail() {
-    const off = sampleState === "off";
-    $("coach-on").hidden = off;
-    $("coach-off").hidden = !off && sampleState !== "pending";
+    $("coach-on").hidden = sampleState !== "ready";
+    $("coach-off").hidden = sampleState === "ready";
     $("coach-off").textContent = sampleState === "pending"
       ? "Connecting to the coach..."
       : "The AI coach runs on Claude. Open this page in Claude (web or app) to use it. Scoring works everywhere.";
-    if (sampleState === "pending") $("coach-off").hidden = false;
   }
 
   function renderCoachTeam() {
     $("coach-team").innerHTML = [0, 1].map((t) =>
-      `<label><input type="radio" name="coachteam" id="ct-${t}" value="${t}" ${m.coachTeam === t ? "checked" : ""}><span>${esc(tn(t))}</span></label>`).join("");
+      `<label><input type="radio" name="coachteam" id="ct-${t}" value="${t}" ${ui.coachTeam === t ? "checked" : ""}><span>${esc(tn(t))}</span></label>`).join("");
   }
-  $("coach-team").addEventListener("change", () => { m.coachTeam = Number(radio("coachteam")); save(); });
+  $("coach-team").addEventListener("change", () => { ui.coachTeam = Number(radio("coachteam")); saveUi(); });
 
   function openCoach() {
     renderCoachTeam();
     syncCoachAvail();
     renderFeed();
-    $("sheet-coach").hidden = false;
+    openSheet("sheet-coach");
   }
 
   const SCORING_NAME = { golden: "golden point", star: "star point (2 advantages, then deciding point)", adv: "advantage" };
   function matchContext() {
-    const me = m.coachTeam, o = 1 - me, st = s.st, c = m.cfg, sv = server(s);
+    const me = ui.coachTeam, o = 1 - me, st = s.st, c = m.cfg, sv = server(s);
     const L = [];
     L.push(`Format: ${isSingles(c) ? "singles" : "doubles"}, ${c.sets === 1 ? "1 set" : "best of " + c.sets}, at 40-40: ${SCORING_NAME[c.scoring]}` +
       (c.sets > 1 ? `, deciding set: ${c.decider === "super" ? "super tiebreak to 10" : "full set"}` : "") + ".");
     L.push(`Coaching: ${tn(me)}${isSingles(c) ? "" : ` (${playersOf(me)})`}. Opponent: ${tn(o)}${isSingles(c) ? "" : ` (${playersOf(o)})`}.`);
+    if (c.bet) L.push(`Friendly bet: the losers pay ${c.bet.what}.`);
     const sets = s.sets.map((x) => setText(x, me)).join(", ") || "none finished";
     if (s.winner !== null) {
       L.push(`Match finished. Winner: ${tn(s.winner)}. Sets (${tn(me)} first): ${sets}.`);
@@ -956,7 +1461,7 @@
   };
 
   function coachPrompt(kind, question) {
-    const me = tn(m.coachTeam);
+    const me = tn(ui.coachTeam);
     const prior = coachFeed.filter((x) => x.done && x.q).slice(0, 3).reverse()
       .map((x) => `Q: ${x.q}\nA: ${x.a}`).join("\n\n");
     return [
@@ -1051,26 +1556,31 @@
     askCoach("ask", q);
   });
   $("coach-stop").addEventListener("click", () => coachCtl && coachCtl.abort());
-  $("coach-close").addEventListener("click", () => { $("sheet-coach").hidden = true; });
 
   // ---------- Match over ----------
   function openEnd() {
     const w = s.winner;
-    $("end-title").textContent = `${tn(w)} win${isSingles(m.cfg) ? "s" : ""}`;
+    $("end-title").textContent = `${tn(w)} win${isSingles(m.cfg) ? "s" : ""}!`;
     $("end-score").textContent = s.sets.map((x) => setText(x, w)).join("  ");
     $("end-players").textContent = `${playersOf(w) || tn(w)} beat ${playersOf(1 - w) || tn(1 - w)}.`;
-    $("sheet-end").hidden = false;
+    const bet = m.cfg.bet;
+    $("end-owe").hidden = !bet;
+    if (bet) {
+      $("end-owe").innerHTML = `<strong>${esc(playersOf(1 - w))}</strong> pay ${esc(bet.what)}` +
+        (bet.amount ? ` · <strong>${esc(money(bet.amount, bet.cur))}</strong>` : "") + `. Saved in Who pays.`;
+    }
+    openSheet("sheet-end");
   }
-  const closeEnd = () => { m.endSeen = m.log.length; save(); $("sheet-end").hidden = true; };
+  function closeEnd() { ui.endSeen = `${m.id}:${m.log.length}`; saveUi(); closeSheets(); }
   $("end-close").addEventListener("click", closeEnd);
   $("end-stats").addEventListener("click", () => { closeEnd(); openStats(); });
   $("end-coach").addEventListener("click", () => { closeEnd(); openCoach(); askCoach("review"); });
-  $("end-rematch").addEventListener("click", () => startMatch({ ...m.cfg }));
+  $("end-rematch").addEventListener("click", () => { closeEnd(); startMatch({ ...m.cfg }); });
   $("end-new").addEventListener("click", () => { closeEnd(); openSetup(); });
 
   // Close sheets by tapping the dimmed area.
   document.querySelectorAll(".sheet").forEach((sh) =>
-    sh.addEventListener("click", (e) => { if (e.target === sh) (sh.id === "sheet-end" ? closeEnd() : (sh.hidden = true)); }));
+    sh.addEventListener("click", (e) => { if (e.target === sh) (sh.id === "sheet-end" ? closeEnd() : closeSheets()); }));
 
   render();
 })();
