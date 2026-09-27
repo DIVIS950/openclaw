@@ -108,3 +108,66 @@ body {
     transform: translateX(300%);
   }
 }
+
+/* ---------- colour + motion (colourful Apple style) ---------- */
+.bg-hero {
+  background: linear-gradient(135deg, #3a7bff 0%, #7a5cff 52%, #ff5ca8 100%);
+}
+.bg-cta {
+  background: linear-gradient(110deg, #0a84ff, #5e5ce6 45%, #bf5af2 70%, #0a84ff);
+  background-size: 250% 100%;
+  animation: cta-flow 6s ease-in-out infinite;
+}
+@keyframes cta-flow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.bg-assistant {
+  background: linear-gradient(135deg, #bf5af2, #ff375f);
+}
+.text-gradient {
+  background: linear-gradient(90deg, #0a84ff, #bf5af2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Soft colour glow behind the top of a screen */
+.aurora {
+  background:
+    radial-gradient(40% 60% at 15% 20%, rgba(10, 132, 255, 0.22), transparent 70%),
+    radial-gradient(35% 55% at 85% 10%, rgba(191, 90, 242, 0.2), transparent 70%),
+    radial-gradient(40% 50% at 60% 60%, rgba(255, 55, 95, 0.12), transparent 70%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-cta {
+    animation: none;
+  }
+}
+
+/* Sections rise in one after another when a screen opens */
+.rise > * {
+  animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.rise > *:nth-child(2) { animation-delay: 0.05s; }
+.rise > *:nth-child(3) { animation-delay: 0.1s; }
+.rise > *:nth-child(4) { animation-delay: 0.15s; }
+.rise > *:nth-child(5) { animation-delay: 0.2s; }
+.rise > *:nth-child(6) { animation-delay: 0.25s; }
+.rise > *:nth-child(7) { animation-delay: 0.3s; }
+.rise > *:nth-child(n + 8) { animation-delay: 0.35s; }
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise > * {
+    animation: none;
+  }
+}

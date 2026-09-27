@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2, type LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Platform } from "../../shared/types.ts";
@@ -16,7 +16,8 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function Button({ variant = "ink", loading, size = "md", className, children, disabled, ...rest }: BtnProps) {
   return (
     <motion.button
-      whileTap={{ scale: 0.98, opacity: 0.8 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 500, damping: 18 }}
       disabled={disabled || loading}
       className={cx(
         "inline-flex items-center justify-center gap-2 font-semibold transition-colors disabled:opacity-45",
@@ -24,7 +25,7 @@ export function Button({ variant = "ink", loading, size = "md", className, child
         size === "md" && "h-11 rounded-xl px-5 text-[16px]",
         size === "sm" && "h-8 rounded-full px-3.5 text-[14px]",
         variant === "ink" && "bg-accent text-white hover:brightness-110",
-        variant === "accent" && "bg-accent text-white hover:brightness-110",
+        variant === "accent" && "bg-cta text-white shadow-[0_10px_24px_-10px_rgba(94,92,230,0.7)] hover:brightness-110",
         variant === "outline" && "bg-card text-accent ring-1 ring-line hover:bg-soft",
         variant === "soft" && "bg-accent-soft text-accent hover:brightness-95",
         variant === "danger" && "bg-bad-soft text-bad hover:brightness-95",
@@ -154,10 +155,38 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
   );
 }
 
-export function Label({ children, right }: { children: ReactNode; right?: ReactNode }) {
+/** iOS Settings-style coloured icon square. */
+export const TONES = {
+  blue: "from-[#40a0ff] to-[#0a6cff]",
+  green: "from-[#4cd964] to-[#28b048]",
+  orange: "from-[#ffb340] to-[#ff8a00]",
+  red: "from-[#ff6b6b] to-[#ff2d55]",
+  purple: "from-[#c57bff] to-[#8e44f5]",
+  pink: "from-[#ff7ab8] to-[#ff2d8a]",
+  teal: "from-[#5ce1e6] to-[#20a4c8]",
+  indigo: "from-[#7d7aff] to-[#5046e5]",
+  yellow: "from-[#ffd60a] to-[#ffb300]",
+} as const;
+export type Tone = keyof typeof TONES;
+
+export function IconBadge({ icon: Icon, tone, size = 28 }: { icon: LucideIcon; tone: Tone; size?: number }) {
   return (
-    <div className="mb-2 flex items-center justify-between px-1">
-      <span className="text-[13px] font-normal uppercase tracking-[0.02em] text-muted">{children}</span>
+    <span
+      className={cx("grid shrink-0 place-items-center bg-gradient-to-b text-white shadow-sm", TONES[tone])}
+      style={{ width: size, height: size, borderRadius: size * 0.26 }}
+    >
+      <Icon style={{ width: size * 0.58, height: size * 0.58 }} strokeWidth={2.2} />
+    </span>
+  );
+}
+
+export function Label({ children, right, icon, tone = "blue" }: { children: ReactNode; right?: ReactNode; icon?: LucideIcon; tone?: Tone }) {
+  return (
+    <div className="mb-2.5 flex items-center justify-between gap-2">
+      <span className="flex items-center gap-2 text-[15px] font-semibold">
+        {icon && <IconBadge icon={icon} tone={tone} size={26} />}
+        {children}
+      </span>
       {right}
     </div>
   );
@@ -190,11 +219,11 @@ export function PriceTag({ children, size = "md" }: { children: ReactNode; size?
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-[12px] bg-accent-soft font-display font-bold tabular-nums text-accent",
+        "inline-flex items-center rounded-[12px] bg-gradient-to-r from-[#e3efff] to-[#f3e8ff] font-display font-bold tabular-nums",
         size === "lg" ? "h-[52px] px-4 text-[32px]" : "h-10 px-3.5 text-xl",
       )}
     >
-      {children}
+      <span className="text-gradient">{children}</span>
     </span>
   );
 }

@@ -1,4 +1,4 @@
-import { Check, ChevronRight, ChevronsLeftRight, Copy, ExternalLink, Lightbulb, Loader2, Mic, MoreHorizontal, Trash2, Wand2 } from "lucide-react";
+import { Check, ChevronRight, ChevronsLeftRight, Copy, ExternalLink, Lightbulb, ListChecks, Loader2, Mic, MoreHorizontal, PenLine, Sparkles, Tag, Trash2, Wand2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -16,7 +16,8 @@ import { useApp } from "../App.tsx";
 import { GeminiApp } from "../components/GeminiApp.tsx";
 import { PublishSheet } from "../components/PublishSheet.tsx";
 import { VoiceAssistant } from "../components/VoiceAssistant.tsx";
-import { Button, Card, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
+import { CountUp } from "../components/CountUp.tsx";
+import { Button, Card, IconBadge, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
 import { api, copyText, formatPrice, photoResolver, photoUrl } from "../lib/api.ts";
 import { PRESETS, enhancePhoto, type Preset } from "../lib/image.ts";
 
@@ -118,7 +119,7 @@ export function ListingScreen({ id }: { id: string }) {
           <Photos listing={listing} onChange={setListing} />
         </div>
 
-        <div className="space-y-3 px-4 lg:px-0">
+        <div className="rise space-y-3 px-4 lg:px-0">
           {/* Identity */}
           <div className="px-1 pt-4 lg:pt-0">
             <div className="text-[13px] font-semibold uppercase tracking-[0.02em] text-accent">{a.item.category}</div>
@@ -132,8 +133,9 @@ export function ListingScreen({ id }: { id: string }) {
           </div>
 
           <button onClick={() => setVoice(true)} className="flex w-full items-center gap-3 rounded-[14px] bg-card p-3 text-left active:bg-soft">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-b from-[#3a9bff] to-[#0062e0] text-white">
-              <Mic className="size-5" />
+            <span className="bg-assistant relative grid size-11 shrink-0 place-items-center rounded-full text-white shadow-[0_8px_20px_-8px_rgba(255,55,95,0.7)]">
+              <motion.span className="absolute inset-0 rounded-full bg-[#ff375f]/40" animate={{ scale: [1, 1.45], opacity: [0.6, 0] }} transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2 }} />
+              <Mic className="relative size-5" />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[16px] font-semibold">Asistent</span>
@@ -145,7 +147,7 @@ export function ListingScreen({ id }: { id: string }) {
           <PriceCard listing={listing} price={price} onPrice={(v) => edit((e) => ({ ...e, price: v }))} />
 
           <Card>
-            <Label>Condition</Label>
+            <Label icon={Sparkles} tone="orange">Condition</Label>
             <Segmented
               label="Condition"
               value={effectiveCondition(listing)}
@@ -158,7 +160,7 @@ export function ListingScreen({ id }: { id: string }) {
           <CopyEditor listing={listing} onEdit={edit} />
 
           <Card>
-            <Label>Item specifics</Label>
+            <Label icon={ListChecks} tone="purple">Item specifics</Label>
             <div className="grid grid-cols-2 gap-2">
               {a.attributes.map((at) => (
                 <div key={at.name} className="min-w-0 rounded-xl bg-paper px-2.5 py-2">
@@ -175,7 +177,7 @@ export function ListingScreen({ id }: { id: string }) {
           {a.photoTips.length > 0 && (
             <Card className="bg-warn-soft">
               <div className="flex items-center gap-2 text-sm font-bold">
-                <Lightbulb className="size-4 text-accent" /> Photo tips to sell faster
+                <IconBadge icon={Lightbulb} tone="yellow" size={24} /> Photo tips to sell faster
               </div>
               <ul className="mt-2 space-y-1 text-sm text-muted">
                 {a.photoTips.map((t) => (
@@ -186,7 +188,7 @@ export function ListingScreen({ id }: { id: string }) {
           )}
 
           <div className="hidden lg:block">
-            <Button size="lg" className="w-full" onClick={() => setPublishing(true)}>
+            <Button size="lg" variant="accent" className="w-full" onClick={() => setPublishing(true)}>
               {liveCount ? `Live on ${liveCount} · Manage` : "Sell on 3 marketplaces"}
             </Button>
           </div>
@@ -194,7 +196,7 @@ export function ListingScreen({ id }: { id: string }) {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg bg-gradient-to-b from-paper/0 via-paper/90 to-paper px-4 pt-8 safe-bottom lg:hidden">
-        <Button size="lg" className="w-full" onClick={() => setPublishing(true)}>
+        <Button size="lg" variant="accent" className="w-full" onClick={() => setPublishing(true)}>
           {liveCount ? `Live on ${liveCount} · Manage` : "Sell on 3 marketplaces"}
         </Button>
       </div>
@@ -430,7 +432,7 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Your price</span>
+        <span className="flex items-center gap-2 text-[15px] font-semibold"><IconBadge icon={Tag} tone="green" size={26} />Your price</span>
         <Pill tone={p.demand === "high" ? "ok" : "soft"} className="h-[26px] text-xs">
           {demand}
         </Pill>
@@ -452,7 +454,7 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
           />
         ) : (
           <button onClick={() => setEditing(true)} aria-label={`Price ${formatPrice(price, p.currency)}, tap to edit`}>
-            <PriceTag size="lg">{formatPrice(price, p.currency)}</PriceTag>
+            <PriceTag size="lg"><CountUp value={price} format={(v) => formatPrice(v, p.currency)} /></PriceTag>
           </button>
         )}
         <span className="text-[13px] leading-snug text-muted">
@@ -552,6 +554,8 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? "Copied" : "Copy"}
           </button>
         }
+        icon={PenLine}
+        tone="blue"
       >
         Written for each site
       </Label>
@@ -576,7 +580,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
         id="copy-title"
         value={copy.title}
         onChange={(e) => set("title", e.target.value)}
-        className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 text-[15px] font-semibold focus:border-ink focus:outline-none"
+        className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 text-[15px] font-semibold focus:border-accent focus:outline-none"
       />
       <label className="mt-3 block text-[13px] font-semibold text-muted" htmlFor="copy-desc">
         Description
@@ -586,7 +590,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
         value={copy.description}
         onChange={(e) => set("description", e.target.value)}
         rows={9}
-        className="mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-line bg-paper p-3 text-sm leading-relaxed focus:border-ink focus:outline-none"
+        className="mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-line bg-paper p-3 text-sm leading-relaxed focus:border-accent focus:outline-none"
       />
     </Card>
   );

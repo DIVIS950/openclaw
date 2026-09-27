@@ -4,6 +4,7 @@ import type { Listing } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import bookmarklet from "virtual:vinted-bookmarklet";
 import { copyText } from "../lib/api.ts";
+import { celebrate } from "../lib/celebrate.ts";
 import { BOT_SCRIPT_URL, vintedBotLink } from "../lib/vintedBot.ts";
 import { Sheet, cx } from "./ui.tsx";
 
@@ -57,9 +58,10 @@ export function VintedBotSheet({ open, listing, onClose }: { open: boolean; list
         target="_blank"
         rel="noreferrer"
         aria-disabled={!link}
+        onClick={() => celebrate(60)}
         className={cx(
           "flex h-14 w-full items-center justify-center gap-2 rounded-full text-[17px] font-bold",
-          link ? "bg-accent text-white" : "pointer-events-none bg-soft text-muted",
+          link ? "bg-cta text-white shadow-[0_14px_30px_-12px_rgba(94,92,230,0.8)]" : "pointer-events-none bg-soft text-muted",
         )}
       >
         {link ? <Bot className="size-5" /> : <Loader2 className="size-5 animate-spin" />}

@@ -103,9 +103,15 @@ export function App() {
   return (
     <Ctx.Provider value={{ me, settings, setSettings, health, refreshHealth, go, back, signOut }}>
       <Shell route={route}>
-        {/* Opacity-only transition: a transform here would break the screens' fixed bottom bars. */}
+        {/* Slide in; the transform is cleared when it ends, so the screens' fixed bottom bars stay put. */}
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={key} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+          <motion.div
+            key={key}
+            initial={{ opacity: 0, x: route.name === "home" ? -24 : 32 }}
+            animate={{ opacity: 1, x: 0, transitionEnd: { transform: "none" } }}
+            exit={{ opacity: 0, x: route.name === "home" ? 24 : -24 }}
+            transition={{ type: "spring", stiffness: 420, damping: 38 }}
+          >
             {route.name === "home" && <Home />}
             {route.name === "new" && <NewListing />}
             {route.name === "listing" && <ListingScreen id={route.id} />}

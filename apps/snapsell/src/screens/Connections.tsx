@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, Search, SlidersHorizontal, Sparkles, Store } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { PLATFORM_META, type ExtensionStatus, type PlatformStatus } from "../../shared/types.ts";
 import { hashParams, useApp } from "../App.tsx";
@@ -56,7 +56,7 @@ export function Connections() {
         </Card>
 
         <div className="px-1 pt-3">
-          <Label>Marketplaces</Label>
+          <Label icon={Store} tone="blue">Marketplaces</Label>
         </div>
         <Card className="divide-y divide-soft p-0">
           <EbayRow status={st("ebay")} onChange={refresh} />
@@ -87,7 +87,7 @@ export function Connections() {
         {!hosted && <ExtensionCard ext={ext} onPaired={refresh} local={local} />}
 
         <div className="px-1 pt-3">
-          <Label>Price research</Label>
+          <Label icon={Search} tone="green">Price research</Label>
         </div>
         <Card className="divide-y divide-soft p-0">
           {!local && !hosted && (
@@ -108,7 +108,7 @@ export function Connections() {
         </Card>
 
         <div className="px-1 pt-3">
-          <Label>AI</Label>
+          <Label icon={Sparkles} tone="purple">AI</Label>
         </div>
         <Card className="space-y-3">
           {hosted ? (
@@ -164,7 +164,7 @@ export function Connections() {
         </Card>
 
         <div className="px-1 pt-3">
-          <Label>Selling</Label>
+          <Label icon={SlidersHorizontal} tone="orange">Selling</Label>
         </div>
         <Card className="space-y-3">
           <label className="block">

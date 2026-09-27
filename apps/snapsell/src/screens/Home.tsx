@@ -1,10 +1,11 @@
-import { AlertTriangle, Camera, Loader2 } from "lucide-react";
+import { AlertTriangle, Camera, Loader2, Radio, Timer, Wallet } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { PLATFORMS, PLATFORM_META, effectivePrice, type Listing } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { ItemArt } from "../components/ItemArt.tsx";
-import { Avatar, PlatformLogo, Segmented, cx } from "../components/ui.tsx";
+import { CountUp } from "../components/CountUp.tsx";
+import { Avatar, IconBadge, PlatformLogo, Segmented, cx } from "../components/ui.tsx";
 import { api, formatPrice, pendingPhotos, photoUrl } from "../lib/api.ts";
 
 type Filter = "all" | "live" | "draft" | "sold";
@@ -53,26 +54,46 @@ export function Home() {
   const month = new Date().toLocaleString(undefined, { month: "long" });
 
   const statsCard = (
-    <div className="rounded-[16px] bg-card p-4">
-      <div className="flex items-start justify-between">
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      className="relative overflow-hidden rounded-[22px] bg-hero p-5 text-white shadow-[0_18px_40px_-18px_rgba(122,92,255,0.8)]"
+    >
+      <div className="pointer-events-none absolute -right-10 -top-14 size-44 rounded-full bg-white/15 blur-2xl" />
+      <div className="relative flex items-start justify-between">
         <div>
-          <div className="text-[13px] font-medium text-muted">Earned in {month}</div>
-          <div className="mt-0.5 font-display text-[34px] font-bold leading-tight tabular-nums">{formatPrice(st.earned, cur)}</div>
-        </div>
-        {st.soldCount > 0 && <span className="rounded-full bg-ok-soft px-2.5 py-1 text-[13px] font-semibold text-ok">+{st.soldCount} sold</span>}
-      </div>
-      <div className="mt-3 grid grid-cols-3 divide-x divide-line border-t border-line pt-3">
-        {[
-          [String(st.live), "Live"],
-          [formatPrice(st.listedValue, cur), "Listed value"],
-          [st.avgDays ? `${st.avgDays} day${st.avgDays > 1 ? "s" : ""}` : "—", "Avg. to sell"],
-        ].map(([v, l]) => (
-          <div key={l} className="min-w-0 px-3 first:pl-0">
-            <div className="truncate text-[17px] font-semibold tabular-nums">{v}</div>
-            <div className="text-[12px] text-muted">{l}</div>
+          <div className="text-[13px] font-medium text-white/80">Earned in {month}</div>
+          <div className="mt-0.5 font-display text-[38px] font-bold leading-tight tabular-nums">
+            <CountUp value={st.earned} format={(v) => formatPrice(v, cur)} />
           </div>
-        ))}
+        </div>
+        {st.soldCount > 0 && <span className="rounded-full bg-white/25 px-2.5 py-1 text-[13px] font-semibold backdrop-blur">+{st.soldCount} sold</span>}
       </div>
+    </motion.div>
+  );
+
+  const tiles = (
+    <div className="grid grid-cols-3 gap-2.5">
+      {(
+        [
+          [Radio, "green", String(st.live), "Live"],
+          [Wallet, "orange", formatPrice(st.listedValue, cur), "Listed"],
+          [Timer, "pink", st.avgDays ? `${st.avgDays} d` : "—", "To sell"],
+        ] as const
+      ).map(([icon, tone, v, l], i) => (
+        <motion.div
+          key={l}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 + i * 0.06, type: "spring", stiffness: 300, damping: 24 }}
+          className="min-w-0 rounded-[16px] bg-card p-3"
+        >
+          <IconBadge icon={icon} tone={tone} size={26} />
+          <div className="mt-2 truncate text-[17px] font-semibold tabular-nums">{v}</div>
+          <div className="text-[12px] text-muted">{l}</div>
+        </motion.div>
+      ))}
     </div>
   );
 
@@ -111,7 +132,8 @@ export function Home() {
     <>
       {/* ---------- phone ---------- */}
       <div className="relative min-h-dvh pb-36 lg:hidden">
-        <header className="flex items-end justify-between px-5 pt-[max(24px,env(safe-area-inset-top))]">
+        <div className="aurora pointer-events-none absolute inset-x-0 top-0 h-80" aria-hidden="true" />
+        <header className="relative flex items-end justify-between px-5 pt-[max(24px,env(safe-area-inset-top))]">
           <div>
             <div className="text-[13px] font-semibold uppercase tracking-[0.02em] text-muted">{new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</div>
             <h1 className="font-display text-[34px] font-bold leading-tight">Listings</h1>
@@ -120,9 +142,10 @@ export function Home() {
             <Avatar name={me.name} picture={me.picture} size={36} />
           </button>
         </header>
-        <div className="mt-5 space-y-4 px-5">
+        <div className="relative mt-5 space-y-3 px-5">
           {demoBanner}
           {statsCard}
+          {tiles}
         </div>
         {all.length > 0 && <div className="mt-4 px-5">{filters}</div>}
         {listings === null ? (
@@ -144,9 +167,12 @@ export function Home() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => go("/new")}
-            className="pointer-events-auto flex h-[54px] w-full items-center justify-center gap-2.5 rounded-[16px] bg-accent text-[17px] font-semibold text-white shadow-[0_10px_30px_-10px_rgba(0,98,224,0.6)]"
+            className="bg-cta pointer-events-auto flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[18px] text-[17px] font-semibold text-white shadow-[0_14px_34px_-12px_rgba(94,92,230,0.85)]"
           >
-            <Camera className="size-[22px]" /> Snap &amp; sell
+            <motion.span animate={{ rotate: [0, -12, 10, 0] }} transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 3 }}>
+              <Camera className="size-[22px]" />
+            </motion.span>
+            Snap &amp; sell
           </motion.button>
         </div>
       </div>
@@ -261,12 +287,12 @@ function StatusPill({ l }: { l: Listing }) {
 function ListingCard({ listing: l, index, onOpen }: { listing: Listing; index: number; onOpen: () => void }) {
   return (
     <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index, 8) * 0.04 }}
-      whileTap={{ scale: 0.97 }}
+      initial={{ opacity: 0, y: 18, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.15 + Math.min(index, 8) * 0.05, type: "spring", stiffness: 280, damping: 22 }}
+      whileTap={{ scale: 0.95 }}
       onClick={onOpen}
-      className="overflow-hidden rounded-[16px] bg-card text-left"
+      className="overflow-hidden rounded-[18px] bg-card text-left shadow-[0_6px_18px_-10px_rgba(0,0,0,0.18)]"
     >
       <div className="relative aspect-square overflow-hidden bg-soft">
         {l.photos[0] && <img src={photoUrl(l, 0)} alt="" className="size-full object-cover" loading="lazy" />}
@@ -277,7 +303,7 @@ function ListingCard({ listing: l, index, onOpen }: { listing: Listing; index: n
       <div className="px-3 pb-3 pt-2.5">
         <div className="line-clamp-2 text-[14px] font-medium leading-snug">{title(l)}</div>
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="font-display text-[17px] font-semibold tabular-nums">{l.analysis ? formatPrice(effectivePrice(l), l.analysis.price.currency) : "—"}</span>
+          <span className="text-gradient font-display text-[17px] font-bold tabular-nums">{l.analysis ? formatPrice(effectivePrice(l), l.analysis.price.currency) : "—"}</span>
           <span className="flex gap-[3px]">
             {livePlatforms(l).map((p) => (
               <PlatformLogo key={p} platform={p} size={18} />
