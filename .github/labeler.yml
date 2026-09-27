@@ -126,6 +126,10 @@
           - "apps/macos/**"
           - "docs/platforms/macos.md"
           - "docs/platforms/mac/**"
+"app: shopping":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/shopping/**"
 "app: web-ui":
   - changed-files:
       - any-glob-to-any-file:

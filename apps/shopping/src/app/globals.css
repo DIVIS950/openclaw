@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+/* Warm, paper-like palette inspired by Claude's design language. */
+:root {
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --surface-2: #f3f1ea;
+  --ink: #1f1e1b;
+  --muted: #6b6860;
+  --line: #e6e2d8;
+  --accent: #d97757;
+  --accent-ink: #b5573a;
+  --accent-soft: #f6e4db;
+  --ok: #3f7d4e;
+  --ok-soft: #e3efe4;
+  --warn: #b27a1f;
+  --warn-soft: #f6ecd8;
+  --bad: #c2463b;
+  --bad-soft: #f7e0dd;
+  --ocean: #eeebe2;
+  --land: #dcd6c8;
+  --land-line: #cbc4b3;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1a17;
+    --surface: #24231f;
+    --surface-2: #2d2b26;
+    --ink: #f2efe7;
+    --muted: #a39e92;
+    --line: #38362f;
+    --accent: #e08a6b;
+    --accent-ink: #f0a489;
+    --accent-soft: #3a2a23;
+    --ok: #7fbf8e;
+    --ok-soft: #22322a;
+    --warn: #e0b060;
+    --warn-soft: #3a3120;
+    --bad: #ef7d70;
+    --bad-soft: #3d2522;
+    --ocean: #201f1b;
+    --land: #34322c;
+    --land-line: #45423a;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-display), ui-serif, Georgia, serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--bg);
+}
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-ghost {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.field {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.field:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes road-dash {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    r: 4;
+    opacity: 0.8;
+  }
+  100% {
+    r: 16;
+    opacity: 0;
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--line) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
