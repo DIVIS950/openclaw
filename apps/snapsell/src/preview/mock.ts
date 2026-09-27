@@ -353,6 +353,11 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
   if (path === "/api/extension") return json({ online: true, paired: true, lastSeen: new Date().toISOString(), sites: { facebook: true, vinted: true } });
   if (path === "/api/extension/pair") return json({ token: "ss_preview-only-code", server: "https://your-computer.your-tailnet.ts.net" });
   if (path.startsWith("/api/ebay/")) return json(platformStatuses()[0]);
+  if (path === "/api/identify") {
+    // Sample answer for the web preview: unsure, so the "What is it?" question shows.
+    await new Promise((r) => setTimeout(r, 900));
+    return json({ name: "Sony WH-1000XM4", category: "Headphones", confidence: 0.55, alternatives: ["Sony WH-1000XM5", "Bose QuietComfort 45"] });
+  }
   if (path === "/api/analyze") return analyzeStream(init!.body as FormData);
   if (path === "/api/listings") return json([...listings.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 

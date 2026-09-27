@@ -9,7 +9,8 @@
 import { extractGeminiKey } from "../lib/geminiKey.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
-import { geminiAnalyze, geminiAssistant, geminiPhotoPlan } from "../../shared/gemini.ts";
+import { geminiAnalyze, geminiAssistant, geminiIdentify, geminiPhotoPlan } from "../../shared/gemini.ts";
+import { identifyPrompt, normalizeIdentity } from "../../shared/identify.ts";
 import { normalizePhotoPlan, photoPlanPrompt } from "../../shared/photoPlan.ts";
 import { effectiveSize, finalizeAnalysis, noteWithCondition, sellerCondition } from "../../shared/pricing.ts";
 import {
@@ -203,6 +204,17 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
   }
   if (path === "/api/platforms") return json(platformStatuses());
   if (path === "/api/extension") return json({ online: Boolean(extension), paired: Boolean(extension?.allowed), sites: extension?.sites ?? {} });
+  if (path === "/api/identify") {
+    // No key yet: nothing to identify with, so skip straight to the (sample) analysis.
+    if (!settings.geminiApiKey) return json({ name: "", category: "", confidence: 1, alternatives: [] });
+    const files = (init!.body as FormData).getAll("photos").filter((f): f is File => f instanceof File);
+    try {
+      const photos = await Promise.all(files.slice(0, 4).map(async (f) => ({ mediaType: f.type || "image/jpeg", base64: await toBase64(f) })));
+      return json(normalizeIdentity(await geminiIdentify({ apiKey: settings.geminiApiKey }, photos, identifyPrompt(settings.language))));
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : String(e) }, 502);
+    }
+  }
   if (path === "/api/analyze") return analyzeStream(init!.body as FormData);
   if (path === "/api/listings") return json([...listings.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 

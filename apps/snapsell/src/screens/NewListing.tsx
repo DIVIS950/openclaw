@@ -1,6 +1,7 @@
 import { Check, ImagePlus, Loader2, PenLine, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { SURE_ENOUGH, identityNote, type Identity } from "../../shared/identify.ts";
 import type { Condition, Listing } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { Button, Sheet, cx } from "../components/ui.tsx";
@@ -24,14 +25,27 @@ export function NewListing() {
   const [running, setRunning] = useState(false);
   const [asking, setAsking] = useState(false);
   const [condition, setCondition] = useState<Condition | null>(null);
+  // Step 1: the AI's quick guess at what the item is (null while it looks).
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [confirmed, setConfirmed] = useState<string | null>(null);
   const { go } = useApp();
+
+  const startCheck = () => {
+    setAsking(true);
+    setIdentity(null);
+    void Promise.all(shots.map((s) => prepareForUpload(s.file, 1024)))
+      .then((files) => api.identify(files))
+      // If the quick look fails, just ask the seller.
+      .catch(() => ({ name: "", category: "", confidence: 0, alternatives: [] }))
+      .then(setIdentity);
+  };
 
   if (running) {
     return (
       <Analyzing
         key={described ?? ""}
         shots={shots}
-        note={described ? [described, note].filter(Boolean).join(". ") : note}
+        note={[described, confirmed ? identityNote(confirmed) : "", note].filter(Boolean).join("\n")}
         textOnly={described !== null}
         condition={condition}
         onDescribe={setDescribed}
@@ -42,11 +56,13 @@ export function NewListing() {
   }
   return (
     <>
-      <CameraScreen shots={shots} setShots={setShots} note={note} setNote={setNote} onDone={() => setAsking(true)} />
-      <ConditionSheet
+      <CameraScreen shots={shots} setShots={setShots} note={note} setNote={setNote} onDone={startCheck} />
+      <ItemCheckSheet
         open={asking}
+        identity={identity}
         onClose={() => setAsking(false)}
-        onPick={(c) => {
+        onGo={(name, c) => {
+          setConfirmed(name);
           setCondition(c);
           setAsking(false);
           setRunning(true);
@@ -65,29 +81,125 @@ const CONDITION_CHOICES: { id: Condition | null; emoji: string; label: string; h
   { id: null, emoji: "🤖", label: "Not sure", hint: "Let the AI judge from the photos" },
 ];
 
-/** Asked once before the analysis: the seller knows the condition better than a photo shows. */
-function ConditionSheet({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (c: Condition | null) => void }) {
+/**
+ * Before pricing: what is it (the AI's quick guess, confirmed or corrected by the seller only when the
+ * AI isn't sure) and what condition is it in (the seller knows better than a photo shows).
+ */
+function ItemCheckSheet({
+  open,
+  identity,
+  onClose,
+  onGo,
+}: {
+  open: boolean;
+  identity: Identity | null;
+  onClose: () => void;
+  onGo: (name: string | null, c: Condition | null) => void;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
+  const [typed, setTyped] = useState("");
+  useEffect(() => {
+    setPicked(null);
+    setChanging(false);
+    setTyped("");
+  }, [identity]);
+
+  const loading = open && !identity;
+  // No name at all means there was nothing to check with (e.g. no AI key yet): skip the question.
+  const skip = !!identity && !identity.name && identity.confidence >= SURE_ENOUGH;
+  const sure = !!identity && !!identity.name && identity.confidence >= SURE_ENOUGH;
+  const mustAsk = !!identity && !skip && !sure;
+  const asking = mustAsk || changing;
+  const name = typed.trim() || picked || (sure && !changing ? identity!.name : null);
+  const ready = !loading && (skip || !!name);
+  const options = identity ? [identity.name, ...identity.alternatives].filter(Boolean) : [];
+
   return (
-    <Sheet open={open} onClose={onClose} title="What condition is it in?" subtitle="The price depends on it. Worse shape, lower price.">
-      <div className="grid grid-cols-2 gap-2.5">
-        {CONDITION_CHOICES.map((c, i) => (
-          <motion.button
-            key={c.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onPick(c.id)}
-            className={cx("rounded-[20px] border-[1.5px] bg-card p-3.5 text-left", c.id ? "border-line" : "border-dashed border-line-strong")}
-          >
-            <span className="text-2xl" aria-hidden="true">
-              {c.emoji}
-            </span>
-            <span className="mt-1 block text-[15px] font-bold">{c.label}</span>
-            <span className="block text-[12px] leading-snug text-muted">{c.hint}</span>
-          </motion.button>
-        ))}
-      </div>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={loading ? "Looking at your item…" : asking ? "What is it?" : "Looks good?"}
+      subtitle={loading ? "A quick first look before the price research." : asking ? "The AI isn't sure. Pick the right one or type it." : undefined}
+    >
+      {loading && (
+        <div className="grid place-items-center py-8">
+          <Loader2 className="size-8 animate-spin text-accent" />
+        </div>
+      )}
+
+      {sure && !changing && (
+        <div className="flex items-center gap-3 rounded-[20px] bg-ink p-3.5 text-paper">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-ink">
+            <Check className="size-5" strokeWidth={3} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] text-[#b9b2a2]">Looks like</span>
+            <span className="block truncate font-display text-[17px] font-extrabold">{identity!.name}</span>
+          </span>
+          <button onClick={() => setChanging(true)} className="rounded-full bg-white/12 px-3 py-1.5 text-[13px] font-bold">
+            Change
+          </button>
+        </div>
+      )}
+
+      {asking && (
+        <div className="space-y-2">
+          {options.map((o, i) => (
+            <motion.button
+              key={o}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.05 }}
+              onClick={() => {
+                setPicked(o);
+                setTyped("");
+              }}
+              className={cx(
+                "flex w-full items-center justify-between rounded-2xl bg-card px-4 py-3 text-left text-[15px] font-semibold",
+                picked === o && !typed ? "border-2 border-ink" : "border-[1.5px] border-line",
+              )}
+            >
+              {o}
+              {picked === o && !typed && <Check className="size-5" />}
+            </motion.button>
+          ))}
+          <input
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={options.length ? "Something else? Type it, e.g. iPhone 12 128 GB" : "e.g. iPhone 12 128 GB, Nike Air Max 90"}
+            aria-label="What is the item"
+            className="h-12 w-full rounded-2xl border-[1.5px] border-line bg-card px-4 text-[15px] focus:border-ink focus:outline-none"
+          />
+        </div>
+      )}
+
+      {!loading && (
+        <>
+          <div className="mb-2 mt-5 font-display text-[17px] font-extrabold">What condition is it in?</div>
+          <div className={cx("grid grid-cols-2 gap-2.5 transition-opacity", !ready && "pointer-events-none opacity-40")}>
+            {CONDITION_CHOICES.map((c, i) => (
+              <motion.button
+                key={c.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                whileTap={{ scale: 0.95 }}
+                disabled={!ready}
+                onClick={() => onGo(skip ? null : name, c.id)}
+                className={cx("rounded-[20px] border-[1.5px] bg-card p-3.5 text-left", c.id ? "border-line" : "border-dashed border-line-strong")}
+              >
+                <span className="text-2xl" aria-hidden="true">
+                  {c.emoji}
+                </span>
+                <span className="mt-1 block text-[15px] font-bold">{c.label}</span>
+                <span className="block text-[12px] leading-snug text-muted">{c.hint}</span>
+              </motion.button>
+            ))}
+          </div>
+          {!ready && <p className="mt-2 text-center text-[13px] text-muted">First tell us what it is.</p>}
+        </>
+      )}
     </Sheet>
   );
 }

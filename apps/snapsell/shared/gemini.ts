@@ -2,6 +2,7 @@ import { GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
 import { assistantJsonSchema } from "./assistant.ts";
 import { PRICING_RULES } from "./pricing.ts";
+import { identifyJsonSchema } from "./identify.ts";
 import { photoPlanJsonSchema } from "./photoPlan.ts";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "./types.ts";
 
@@ -203,6 +204,32 @@ export async function geminiPhotoPlan(opts: GeminiOptions, photo: GeminiPhoto, p
           model: m,
           contents: [{ role: "user", parts: [{ inlineData: { mimeType: photo.mediaType, data: photo.base64 } }, { text: prompt }] }],
           config: { responseMimeType: "application/json", responseJsonSchema: photoPlanJsonSchema },
+        });
+        return JSON.parse(res.text ?? "{}");
+      } catch (e) {
+        last = e;
+        const f = failure(e);
+        if (!busy(f) && !overQuota(f)) throw e;
+      }
+    }
+    throw last;
+  } catch (e) {
+    throw friendly(e);
+  }
+}
+
+/** Quick identification (no web search) before pricing: see shared/identify.ts. */
+export async function geminiIdentify(opts: GeminiOptions, photos: GeminiPhoto[], prompt: string): Promise<unknown> {
+  try {
+    const ai = new GoogleGenAI({ apiKey: opts.apiKey });
+    const parts: Part[] = [...photos.slice(0, 4).map((p) => ({ inlineData: { mimeType: p.mediaType, data: p.base64 } })), { text: prompt }];
+    let last: unknown;
+    for (const m of [...new Set([opts.model || DEFAULT_GEMINI_MODEL, ...FALLBACK_MODELS])]) {
+      try {
+        const res = await ai.models.generateContent({
+          model: m,
+          contents: [{ role: "user", parts }],
+          config: { responseMimeType: "application/json", responseJsonSchema: identifyJsonSchema },
         });
         return JSON.parse(res.text ?? "{}");
       } catch (e) {

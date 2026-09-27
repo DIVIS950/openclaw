@@ -6,6 +6,7 @@
  * and posting is copy & open.
  */
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
+import { identifyJsonSchema, identifyPrompt, normalizeIdentity } from "../../shared/identify.ts";
 import { normalizePhotoPlan, photoPlanJsonSchema, photoPlanPrompt } from "../../shared/photoPlan.ts";
 import { PRICING_RULES, finalizeAnalysis, noteWithCondition, sellerCondition } from "../../shared/pricing.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
@@ -327,6 +328,23 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
   }
   if (path === "/api/platforms") return json(platforms);
   if (path === "/api/extension") return json({ online: false, paired: false, sites: {} });
+  if (path === "/api/identify") {
+    const files = (init!.body as FormData).getAll("photos").filter((f): f is File => f instanceof File);
+    if (!sample) return json({ name: "", category: "", confidence: 1, alternatives: [] });
+    const limits = await sample.limits().catch(() => ({}) as { images?: { maxCount: number } });
+    // Claude can't see photos in this view: ask the seller straight away.
+    if (!limits.images) return json({ name: "", category: "", confidence: 0, alternatives: [] });
+    try {
+      const raw = await sample.json(`${identifyPrompt(settings.language)}\nJSON shape (JSON Schema): ${JSON.stringify(identifyJsonSchema)}`, {
+        images: files.slice(0, Math.min(4, limits.images.maxCount)),
+        modelTier: "quick",
+        cache: false,
+      });
+      return json(normalizeIdentity(raw));
+    } catch {
+      return json({ name: "", category: "", confidence: 0, alternatives: [] });
+    }
+  }
   if (path === "/api/analyze") return analyzeStream(init!.body as FormData);
   if (path === "/api/listings") return json([...listings.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 

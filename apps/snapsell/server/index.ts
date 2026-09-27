@@ -6,7 +6,8 @@ import { streamSSE } from "hono/streaming";
 import { PLATFORMS, type Listing, type Platform, type Settings } from "../shared/types.ts";
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply, type AssistantTurn } from "../shared/assistant.ts";
 import { aiConfigured, analyzeItem, assistantTurn, claudeConfigured, MODEL, type Photo } from "./ai/analyze.ts";
-import { geminiPhotoPlan } from "../shared/gemini.ts";
+import { geminiIdentify, geminiPhotoPlan } from "../shared/gemini.ts";
+import { identifyPrompt, normalizeIdentity } from "../shared/identify.ts";
 import { normalizePhotoPlan, photoPlanPrompt } from "../shared/photoPlan.ts";
 import { finalizeAnalysis, noteWithCondition, sellerCondition } from "../shared/pricing.ts";
 import { GEMINI_MODEL, geminiConfigured } from "./ai/gemini.ts";
@@ -229,6 +230,18 @@ function mediaType(file: File): Photo["mediaType"] {
 }
 
 /** Upload photos + optional note, stream analysis progress back as server-sent events. */
+api.post("/api/identify", async (c) => {
+  const user = c.var.user;
+  const files = (await c.req.formData()).getAll("photos").filter((f): f is File => f instanceof File);
+  if (!files.length || !geminiConfigured()) return c.json({ name: "", category: "", confidence: 1, alternatives: [] });
+  try {
+    const photos = await Promise.all(files.slice(0, 4).map(async (f) => ({ mediaType: mediaType(f), base64: Buffer.from(await f.arrayBuffer()).toString("base64") })));
+    return c.json(normalizeIdentity(await geminiIdentify({ apiKey: process.env.GEMINI_API_KEY!, model: GEMINI_MODEL }, photos, identifyPrompt(user.settings.language))));
+  } catch {
+    return c.json({ name: "", category: "", confidence: 1, alternatives: [] });
+  }
+});
+
 api.post("/api/analyze", async (c) => {
   const user = c.var.user;
   const form = await c.req.formData();
