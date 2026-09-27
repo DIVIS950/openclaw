@@ -1,0 +1,784 @@
+<title>Padel Score</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #e8eef4;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --ink: #0d1b2a;
+    --muted: #55677a;
+    --line: #c9d4df;
+    --a: #1b5aa6;
+    --a-ink: #ffffff;
+    --b: #e2be12;
+    --b-ink: #231e02;
+    --hot: #c2410c;
+    --scrim: rgba(6, 14, 24, 0.55);
+    --ball: #d7e83a;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a1522;
+      --surface: #12213a;
+      --surface-2: #0e1b2e;
+      --ink: #e7eef6;
+      --muted: #8fa2b7;
+      --line: #23374f;
+      --a: #4a8ee0;
+      --a-ink: #061020;
+      --b: #f2d33b;
+      --b-ink: #1e1a02;
+      --hot: #fb8a4c;
+      --scrim: rgba(0, 0, 0, 0.6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a1522;
+    --surface: #12213a;
+    --surface-2: #0e1b2e;
+    --ink: #e7eef6;
+    --muted: #8fa2b7;
+    --line: #23374f;
+    --a: #4a8ee0;
+    --a-ink: #061020;
+    --b: #f2d33b;
+    --b-ink: #1e1a02;
+    --hot: #fb8a4c;
+    --scrim: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.4 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .num { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-variant-numeric: tabular-nums; }
+
+  .app {
+    box-sizing: border-box;
+    min-height: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .brand {
+    display: flex; align-items: center; gap: 8px;
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .ball {
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--ball);
+    box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.25);
+    flex: none;
+  }
+  .brand .ball { width: 16px; height: 16px; }
+
+  .btn {
+    font: inherit; font-weight: 600;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 10px; padding: 9px 14px; cursor: pointer;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  button:focus-visible, input:focus-visible + span, input[type="text"]:focus-visible {
+    outline: 3px solid var(--a); outline-offset: 2px;
+  }
+
+  .demo {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    background: var(--surface); border: 1px dashed var(--line); border-radius: 12px;
+    padding: 8px 12px; color: var(--muted); font-size: 14px;
+  }
+
+  /* Scoreboard */
+  .board { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+  .sb { width: 100%; border-collapse: collapse; }
+  .sb th {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); padding: 7px 8px 2px; text-align: center; white-space: nowrap;
+  }
+  .sb th:first-child { text-align: left; padding-left: 12px; }
+  .sb td { padding: 6px 8px; text-align: center; border-top: 1px solid var(--line); }
+  .sb td.name { text-align: left; padding-left: 12px; width: 100%; }
+  .sb .team { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .sb .players { color: var(--muted); font-size: 12px; padding-left: 18px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .sw.a { background: var(--a); }
+  .sw.b { background: var(--b); }
+  .sb .g { font-size: 28px; font-weight: 600; line-height: 1; min-width: 26px; }
+  .sb .g.won { font-weight: 700; }
+  .sb .g.lost { color: var(--muted); font-weight: 500; }
+  .sb .g sup { font-size: 13px; vertical-align: 12px; margin-left: 1px; color: var(--muted); }
+  .sb .cur { background: var(--surface-2); }
+  .sb .p { font-size: 28px; font-weight: 700; background: var(--ink); color: var(--bg); min-width: 44px; }
+  .sb .srv { visibility: hidden; }
+  .sb .srv.on { visibility: visible; }
+
+  .status {
+    min-height: 22px; text-align: center; font-weight: 600; font-size: 15px;
+    display: flex; justify-content: center; align-items: center; gap: 6px 14px; flex-wrap: wrap;
+  }
+  .status .hot { color: var(--hot); }
+  .status .muted { color: var(--muted); font-weight: 500; }
+
+  /* Court: two tap zones */
+  .court { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 300px; }
+  .side {
+    font: inherit; border: 0; border-radius: 18px; cursor: pointer; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 18px 10px; text-align: center; touch-action: manipulation; user-select: none;
+    transition: transform 0.08s ease;
+  }
+  .side:active { transform: scale(0.985); }
+  .side.a { background: var(--a); color: var(--a-ink); }
+  .side.b { background: var(--b); color: var(--b-ink); }
+  /* faint court outline */
+  .side::before {
+    content: ""; position: absolute; inset: 12px; border: 2px solid currentColor; opacity: 0.14;
+    border-radius: 8px; pointer-events: none;
+  }
+  .side .tname {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700;
+    font-size: clamp(22px, 5vw, 34px); letter-spacing: 0.03em; text-transform: uppercase; line-height: 1;
+    overflow-wrap: anywhere;
+  }
+  .side .tplayers { font-size: 13px; opacity: 0.85; }
+  .side .pt { font-weight: 700; font-size: clamp(84px, 26vw, 190px); line-height: 0.85; margin-block: 6px; }
+  .side .chip {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; background: var(--ink); color: var(--bg);
+  }
+  .side .serving { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .side .hint { font-size: 12px; opacity: 0.7; }
+  .side.flash { animation: flash 0.35s ease-out; }
+  @keyframes flash { from { filter: brightness(1.35); } to { filter: none; } }
+
+  .bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bar .btn { padding-block: 13px; }
+
+  /* Sheets */
+  .sheet {
+    position: fixed; inset: 0; z-index: 10; background: var(--scrim);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    box-sizing: border-box;
+  }
+  .panel {
+    background: var(--surface); color: var(--ink); border-radius: 18px; width: 100%; max-width: 560px;
+    max-height: 100%; overflow: auto; padding: 20px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .panel h2 {
+    margin: 0; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700;
+    font-size: 28px; letter-spacing: 0.02em; text-transform: uppercase; text-wrap: balance;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .help { font-size: 13px; color: var(--muted); margin: 0; }
+  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 460px) { .teams { grid-template-columns: 1fr; } }
+  .teambox { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+  .teambox .lbl { display: flex; align-items: center; gap: 6px; }
+  input[type="text"] {
+    font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box;
+  }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg label { flex: 1 1 auto; }
+  .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .seg span {
+    display: block; text-align: center; padding: 9px 10px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--line); font-weight: 600; font-size: 14px;
+  }
+  .seg input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+  .stats { width: 100%; border-collapse: collapse; }
+  .stats th, .stats td { padding: 8px 6px; border-top: 1px solid var(--line); text-align: center; }
+  .stats th:first-child, .stats td:first-child { text-align: left; }
+  .stats thead th { border-top: 0; font-size: 12px; }
+  .stats td.v { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stats td small { color: var(--muted); font-family: "Figtree", system-ui, sans-serif; font-size: 12px; font-weight: 500; }
+
+  .final { font-size: 34px; font-weight: 700; letter-spacing: 0.02em; }
+  .history { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .history li { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .history .num { font-size: 18px; font-weight: 600; }
+  textarea.copy { font: inherit; width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); padding: 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .side { transition: none; }
+    .side.flash { animation: none; }
+  }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="ball"></span>Padel Score</div>
+    <div class="row">
+      <button class="btn" id="btn-stats" type="button">Stats</button>
+      <button class="btn" id="btn-new" type="button">New match</button>
+    </div>
+  </header>
+
+  <div class="demo" id="demo" hidden>
+    <span>This is an example match in progress.</span>
+    <button class="btn" id="demo-start" type="button">Set up your match</button>
+  </div>
+
+  <section class="board" id="board" aria-label="Scoreboard"></section>
+  <div class="status" id="status" aria-live="polite"></div>
+
+  <main class="court">
+    <button class="side" id="side-l" type="button"></button>
+    <button class="side" id="side-r" type="button"></button>
+  </main>
+
+  <footer class="bar">
+    <button class="btn" id="btn-undo" type="button">Undo point</button>
+    <button class="btn" id="btn-swap" type="button">Swap sides</button>
+  </footer>
+</div>
+
+<!-- New match setup -->
+<div class="sheet" id="sheet-setup" hidden>
+  <form class="panel" id="setup-form" autocomplete="off">
+    <h2>New match</h2>
+    <div class="teams">
+      <div class="teambox">
+        <span class="lbl"><span class="sw a"></span>Team 1</span>
+        <input type="text" id="t0" maxlength="20" placeholder="Team name" aria-label="Team 1 name">
+        <input type="text" id="p00" maxlength="20" placeholder="Player 1" aria-label="Team 1 player 1">
+        <input type="text" id="p01" maxlength="20" placeholder="Player 2" aria-label="Team 1 player 2">
+      </div>
+      <div class="teambox">
+        <span class="lbl"><span class="sw b"></span>Team 2</span>
+        <input type="text" id="t1" maxlength="20" placeholder="Team name" aria-label="Team 2 name">
+        <input type="text" id="p10" maxlength="20" placeholder="Player 1" aria-label="Team 2 player 1">
+        <input type="text" id="p11" maxlength="20" placeholder="Player 2" aria-label="Team 2 player 2">
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">At 40-40</span>
+      <div class="seg">
+        <label><input type="radio" name="scoring" id="sc-golden" value="golden"><span>Golden point</span></label>
+        <label><input type="radio" name="scoring" id="sc-star" value="star"><span>Star point</span></label>
+        <label><input type="radio" name="scoring" id="sc-adv" value="adv"><span>Advantage</span></label>
+      </div>
+      <p class="help" id="scoring-help"></p>
+    </div>
+
+    <div class="field">
+      <span class="lbl">Match length</span>
+      <div class="seg">
+        <label><input type="radio" name="sets" id="sets-1" value="1"><span>1 set</span></label>
+        <label><input type="radio" name="sets" id="sets-3" value="3"><span>Best of 3</span></label>
+        <label><input type="radio" name="sets" id="sets-5" value="5"><span>Best of 5</span></label>
+      </div>
+    </div>
+
+    <div class="field" id="decider-field">
+      <span class="lbl">Deciding set</span>
+      <div class="seg">
+        <label><input type="radio" name="decider" id="dec-set" value="set"><span>Full set</span></label>
+        <label><input type="radio" name="decider" id="dec-super" value="super"><span>Super tiebreak to 10</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">Serves first</span>
+      <div class="seg" id="first-server"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" type="button" id="setup-cancel">Cancel</button>
+      <button class="btn primary" type="submit">Start match</button>
+    </div>
+
+    <div class="field" id="history-field" hidden>
+      <span class="lbl">Past matches on this device</span>
+      <ul class="history" id="history"></ul>
+    </div>
+  </form>
+</div>
+
+<!-- Stats -->
+<div class="sheet" id="sheet-stats" hidden>
+  <div class="panel">
+    <h2>Match stats</h2>
+    <div id="stats-body"></div>
+    <div class="actions">
+      <button class="btn" type="button" id="copy-result">Copy result</button>
+      <button class="btn primary" type="button" id="stats-close">Close</button>
+    </div>
+    <textarea class="copy" id="copy-fallback" rows="2" readonly hidden aria-label="Result text"></textarea>
+  </div>
+</div>
+
+<!-- Match over -->
+<div class="sheet" id="sheet-end" hidden>
+  <div class="panel">
+    <h2 id="end-title"></h2>
+    <div class="final num" id="end-score"></div>
+    <p class="help" id="end-players"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="end-close">Back to score</button>
+      <button class="btn" type="button" id="end-stats">Stats</button>
+      <button class="btn" type="button" id="end-rematch">Rematch</button>
+      <button class="btn primary" type="button" id="end-new">New match</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Scoring engine ----------
+  // A match is its config plus the list of point winners (0 or 1).
+  // The full state is rebuilt by replaying that list, which makes undo trivial and exact.
+  const DEUCES_BEFORE_DECIDER = { golden: 1, star: 3, adv: Infinity };
+  const PT = ["0", "15", "30", "40"];
+  const setsNeeded = (cfg) => Math.ceil(cfg.sets / 2);
+
+  function init(cfg) {
+    const s = {
+      cfg, sets: [], setsWon: [0, 0], games: [0, 0], pts: [0, 0], tb: null,
+      serveTeam: cfg.serveTeam, pIdx: [...cfg.servePlayer], winner: null, changeEnds: false, last: null,
+      st: { pts: [0, 0], srvPlayed: [0, 0], srvWon: [0, 0], bpChances: [0, 0], bpWon: [0, 0], games: [0, 0], best: [0, 0], cur: -1, run: 0 },
+    };
+    startSuperIfDecider(s);
+    return s;
+  }
+
+  function startSuperIfDecider(s) {
+    const n = setsNeeded(s.cfg);
+    if (s.cfg.sets > 1 && s.cfg.decider === "super" && s.setsWon[0] === n - 1 && s.setsWon[1] === n - 1) {
+      s.tb = { target: 10, start: s.serveTeam, super: true };
+    }
+  }
+
+  // Tiebreak serve order: first server serves 1 point, then each server serves 2,
+  // rotating through all four players (A1, B1, A2, B2).
+  function server(s) {
+    if (!s.tb) return { team: s.serveTeam, player: s.pIdx[s.serveTeam] };
+    const n = s.pts[0] + s.pts[1];
+    const k = n === 0 ? 0 : Math.floor((n + 1) / 2);
+    const team = k % 2 === 0 ? s.tb.start : 1 - s.tb.start;
+    return { team, player: s.pIdx[team] ^ (Math.floor(k / 2) % 2) };
+  }
+
+  function winsGame(s, w) {
+    const p = s.pts[w], q = s.pts[1 - w];
+    if (s.tb) return p + 1 >= s.tb.target && p + 1 - q >= 2;
+    // 3-3 is the 1st deuce, 4-4 the 2nd, 5-5 the 3rd.
+    if (p === q && p >= 3 && p - 2 >= DEUCES_BEFORE_DECIDER[s.cfg.scoring]) return true;
+    return p + 1 >= 4 && p + 1 - q >= 2;
+  }
+  function winsSet(s, w) {
+    if (!winsGame(s, w)) return false;
+    if (s.tb) return true;
+    const g = s.games[w] + 1, h = s.games[1 - w];
+    return g >= 6 && g - h >= 2;
+  }
+  const winsMatch = (s, w) => winsSet(s, w) && s.setsWon[w] + 1 === setsNeeded(s.cfg);
+  const isDecidingPoint = (s) =>
+    !s.tb && s.pts[0] === s.pts[1] && s.pts[0] >= 3 && s.pts[0] - 2 >= DEUCES_BEFORE_DECIDER[s.cfg.scoring];
+
+  function point(s, w) {
+    if (s.winner !== null) return;
+    const sv = server(s), rc = 1 - sv.team, st = s.st;
+    st.pts[w]++;
+    st.srvPlayed[sv.team]++;
+    if (w === sv.team) st.srvWon[sv.team]++;
+    if (!s.tb && winsGame(s, rc)) { st.bpChances[rc]++; if (w === rc) st.bpWon[rc]++; }
+    if (st.cur === w) st.run++; else { st.cur = w; st.run = 1; }
+    st.best[w] = Math.max(st.best[w], st.run);
+    s.changeEnds = false;
+    s.last = null;
+    if (winsGame(s, w)) {
+      if (s.tb) winTiebreak(s, w); else winGame(s, w, sv.team);
+    } else {
+      s.pts[w]++;
+      if (s.tb && (s.pts[0] + s.pts[1]) % 6 === 0) s.changeEnds = true;
+    }
+  }
+
+  function winGame(s, w, srvTeam) {
+    const g = s.games;
+    g[w]++;
+    s.st.games[w]++;
+    s.pts = [0, 0];
+    s.pIdx[s.serveTeam] ^= 1; // partner serves this team's next service game
+    s.serveTeam ^= 1;
+    s.last = { kind: "game", team: w, brk: w !== srvTeam };
+    if (g[w] >= 6 && g[w] - g[1 - w] >= 2) return winSet(s, w, null);
+    if (g[0] === 6 && g[1] === 6) { s.tb = { target: 7, start: s.serveTeam, super: false }; return; }
+    s.changeEnds = (g[0] + g[1]) % 2 === 1;
+  }
+
+  function winTiebreak(s, w) {
+    const pts = [...s.pts];
+    pts[w]++;
+    const sup = s.tb.super;
+    // The team that received first in the tiebreak serves first in the next set.
+    s.serveTeam = 1 - s.tb.start;
+    if (!sup) { s.games[w]++; s.st.games[w]++; }
+    winSet(s, w, { pts, super: sup });
+  }
+
+  function winSet(s, w, tb) {
+    const sum = s.games[0] + s.games[1];
+    s.sets.push({ g: [...s.games], tb });
+    s.setsWon[w]++;
+    s.games = [0, 0];
+    s.pts = [0, 0];
+    s.tb = null;
+    s.last = { kind: "set", team: w };
+    if (s.setsWon[w] === setsNeeded(s.cfg)) { s.winner = w; s.last = { kind: "match", team: w }; return; }
+    s.changeEnds = !(tb && tb.super) && sum % 2 === 1;
+    startSuperIfDecider(s);
+  }
+
+  function build(m) {
+    const s = init(m.cfg);
+    for (const w of m.log) point(s, w);
+    return s;
+  }
+
+  function pointLabel(s, t) {
+    if (s.tb) return String(s.pts[t]);
+    const p = s.pts[t], q = s.pts[1 - t];
+    if (p >= 3 && q >= 3) return p > q ? "AD" : "40";
+    return PT[p];
+  }
+
+  function setText(set, t = 0) {
+    const o = 1 - t;
+    if (set.tb && set.tb.super) return `[${set.tb.pts[t]}-${set.tb.pts[o]}]`;
+    let x = `${set.g[t]}-${set.g[o]}`;
+    if (set.tb) x += `(${Math.min(...set.tb.pts)})`;
+    return x;
+  }
+
+  // ---------- App state ----------
+  const KEY = "padel-score:match";
+  const HKEY = "padel-score:history";
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } };
+
+  function demoMatch() {
+    const cfg = {
+      teams: ["Blue", "Yellow"], players: [["Ana", "Marta"], ["Leo", "Pablo"]],
+      scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0],
+    };
+    const log = [];
+    const game = (w) => log.push(w, 1 - w, w, w, 1 - w, w); // a 40-30 game
+    [0, 0, 1, 0, 1, 0, 1, 0, 1, 0].forEach(game); // set 1: 6-4
+    [1, 0, 1, 1, 0].forEach(game); // set 2: 2-3
+    log.push(0, 1, 0); // 30-15
+    return { id: Date.now(), cfg, log, flip: false, demo: true, endSeen: -1 };
+  }
+
+  let m = load(KEY, null) || demoMatch();
+  let s = build(m);
+  const save = () => store(KEY, m);
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const cls = (t) => (t === 0 ? "a" : "b");
+  const tn = (t) => m.cfg.teams[t];
+  const pn = (t, i) => m.cfg.players[t][i];
+  const playersOf = (t) => m.cfg.players[t].filter(Boolean).join(" · ");
+
+  // ---------- Render ----------
+  function render() {
+    s = build(m);
+    $("demo").hidden = !m.demo;
+    renderBoard();
+    renderStatus();
+    renderSides();
+    $("btn-undo").disabled = m.log.length === 0;
+    if (s.winner !== null && m.endSeen !== m.log.length) openEnd();
+  }
+
+  function renderBoard() {
+    const live = s.winner === null;
+    const sv = server(s);
+    const sup = s.tb && s.tb.super;
+    let head = "<tr><th>Team</th>";
+    s.sets.forEach((set, i) => { head += `<th>${set.tb && set.tb.super ? "STB" : "Set " + (i + 1)}</th>`; });
+    if (live && !sup) head += `<th>Set ${s.sets.length + 1}</th>`;
+    if (live) head += `<th>${sup ? "Super TB" : s.tb ? "TB" : "Pts"}</th>`;
+    head += "</tr>";
+    let body = "";
+    for (const t of [0, 1]) {
+      body += `<tr><td class="name"><div class="team"><span class="sw ${cls(t)}"></span>${esc(tn(t))}` +
+        `<span class="ball srv ${live && sv.team === t ? "on" : ""}" title="Serving"></span></div>` +
+        `<div class="players">${esc(playersOf(t))}</div></td>`;
+      for (const set of s.sets) {
+        const won = set.tb && set.tb.super ? set.tb.pts[t] > set.tb.pts[1 - t] : set.g[t] > set.g[1 - t];
+        const val = set.tb && set.tb.super ? set.tb.pts[t] : set.g[t];
+        const sup2 = set.tb && !set.tb.super && !won ? `<sup>${set.tb.pts[t]}</sup>` : "";
+        body += `<td class="g num ${won ? "won" : "lost"}">${val}${sup2}</td>`;
+      }
+      if (live && !sup) body += `<td class="g num cur">${s.games[t]}</td>`;
+      if (live) body += `<td class="g p num">${pointLabel(s, t)}</td>`;
+      body += "</tr>";
+    }
+    $("board").innerHTML = `<table class="sb"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  }
+
+  function renderStatus() {
+    const parts = [];
+    if (s.winner !== null) {
+      parts.push(`<span>Game, set and match ${esc(tn(s.winner))}</span>`);
+    } else {
+      if (s.last) {
+        const who = esc(tn(s.last.team));
+        if (s.last.kind === "set") parts.push(`<span>Set ${who}</span>`);
+        else if (s.last.brk) parts.push(`<span>Break! Game ${who}</span>`);
+        else parts.push(`<span>Game ${who}</span>`);
+      }
+      if (s.changeEnds) parts.push(`<span class="hot">Change ends</span>`);
+      if (s.tb) parts.push(`<span class="muted">${s.tb.super ? "Super tiebreak" : "Tiebreak"} · first to ${s.tb.target}, win by 2</span>`);
+      else if (isDecidingPoint(s)) {
+        parts.push(`<span class="hot">${m.cfg.scoring === "star" ? "Star point" : "Golden point"} · receivers pick the side</span>`);
+      } else if (s.pts[0] >= 3 && s.pts[0] === s.pts[1]) {
+        const n = s.pts[0] - 2;
+        parts.push(`<span>Deuce${m.cfg.scoring === "star" ? ` ${n} of 2` : ""}</span>`);
+      }
+    }
+    $("status").innerHTML = parts.join("");
+  }
+
+  function renderSides() {
+    const sv = server(s);
+    const live = s.winner === null;
+    [[$("side-l"), m.flip ? 1 : 0], [$("side-r"), m.flip ? 0 : 1]].forEach(([el, t]) => {
+      el.className = `side ${cls(t)}`;
+      el.dataset.team = t;
+      let chip = "";
+      if (live) {
+        if (winsMatch(s, t)) chip = "Match point";
+        else if (winsSet(s, t)) chip = "Set point";
+        else if (!s.tb && sv.team !== t && winsGame(s, t)) chip = "Break point";
+      }
+      const serving = live && sv.team === t
+        ? `<span class="serving"><span class="ball"></span>${esc(pn(t, sv.player) || "Serving")} serving</span>`
+        : `<span class="serving" style="visibility:hidden"><span class="ball"></span>&nbsp;</span>`;
+      el.innerHTML =
+        `<span class="tname">${esc(tn(t))}</span>` +
+        `<span class="tplayers">${esc(playersOf(t))}</span>` +
+        `<span class="pt num">${live ? pointLabel(s, t) : s.setsWon[t]}</span>` +
+        (chip ? `<span class="chip">${chip}</span>` : "") +
+        serving +
+        `<span class="hint">${live ? "Tap when this team wins the point" : t === s.winner ? "Winners" : ""}</span>`;
+      el.setAttribute("aria-label", `Point to ${tn(t)}`);
+      el.disabled = !live;
+    });
+  }
+
+  // ---------- Actions ----------
+  function score(t) {
+    if (s.winner !== null) return;
+    m.log.push(t);
+    save();
+    try { navigator.vibrate && navigator.vibrate(12); } catch { /* not allowed */ }
+    render();
+    const el = [$("side-l"), $("side-r")].find((e) => Number(e.dataset.team) === t);
+    if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+    keepAwake();
+  }
+  function undo() {
+    if (!m.log.length) return;
+    m.log.pop();
+    m.endSeen = -1;
+    save();
+    render();
+  }
+
+  let wake = null;
+  async function keepAwake() {
+    if (wake || !("wakeLock" in navigator)) return;
+    try { wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => { wake = null; }); } catch { /* refused */ }
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && m.log.length) keepAwake(); });
+
+  $("side-l").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
+  $("side-r").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
+  $("btn-undo").addEventListener("click", undo);
+  $("btn-swap").addEventListener("click", () => { m.flip = !m.flip; save(); render(); });
+  $("btn-new").addEventListener("click", openSetup);
+  $("demo-start").addEventListener("click", openSetup);
+  $("btn-stats").addEventListener("click", openStats);
+
+  document.addEventListener("keydown", (e) => {
+    if (!$("sheet-setup").hidden || e.target.tagName === "INPUT") return;
+    const k = e.key.toLowerCase();
+    if (k === "arrowleft" || k === "a") score(m.flip ? 1 : 0);
+    else if (k === "arrowright" || k === "l") score(m.flip ? 0 : 1);
+    else if (k === "u" || k === "backspace") undo();
+  });
+
+  // ---------- History ----------
+  function resultLine(st, mm) {
+    const w = st.winner;
+    const sets = st.sets.map((x) => setText(x, w === null ? 0 : w)).join(" ");
+    if (w === null) return `${mm.cfg.teams[0]} vs ${mm.cfg.teams[1]}: ${sets || "0-0"} (in progress)`;
+    return `${mm.cfg.teams[w]} beat ${mm.cfg.teams[1 - w]} ${sets}`;
+  }
+  function archive() {
+    if (m.demo || s.winner === null) return;
+    const h = load(HKEY, []).filter((x) => x.id !== m.id);
+    h.unshift({ id: m.id, date: new Date(m.id).toISOString(), line: resultLine(s, m) });
+    store(HKEY, h.slice(0, 20));
+  }
+
+  // ---------- Setup sheet ----------
+  const HELP = {
+    golden: "At 40-40 the next point wins the game. The receiving team chooses who receives.",
+    star: "Up to two advantages are played. At the third deuce, the next point wins the game.",
+    adv: "Classic scoring: a team must win two points in a row from deuce.",
+  };
+  function renderServerChoices(sel) {
+    const names = [[$("p00").value || "Player 1", $("p01").value || "Player 2"], [$("p10").value || "Player 1", $("p11").value || "Player 2"]];
+    const team = [$("t0").value || "Team 1", $("t1").value || "Team 2"];
+    let html = "";
+    for (const t of [0, 1]) for (const i of [0, 1]) {
+      const v = `${t}-${i}`;
+      html += `<label><input type="radio" name="server" id="srv-${v}" value="${v}" ${v === sel ? "checked" : ""}><span>${esc(names[t][i])} <small>(${esc(team[t])})</small></span></label>`;
+    }
+    $("first-server").innerHTML = html;
+  }
+  const radio = (name) => (document.querySelector(`input[name="${name}"]:checked`) || {}).value;
+
+  function syncSetupHints() {
+    $("scoring-help").textContent = HELP[radio("scoring")] || "";
+    $("decider-field").hidden = radio("sets") === "1";
+  }
+
+  function openSetup() {
+    const c = m.demo
+      ? { teams: ["", ""], players: [["", ""], ["", ""]], scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0] }
+      : m.cfg;
+    $("t0").value = c.teams[0]; $("t1").value = c.teams[1];
+    $("p00").value = c.players[0][0]; $("p01").value = c.players[0][1];
+    $("p10").value = c.players[1][0]; $("p11").value = c.players[1][1];
+    $(`sc-${c.scoring}`).checked = true;
+    $(`sets-${c.sets}`).checked = true;
+    $(`dec-${c.decider}`).checked = true;
+    renderServerChoices(`${c.serveTeam}-${c.servePlayer[c.serveTeam]}`);
+    syncSetupHints();
+    const h = load(HKEY, []);
+    $("history-field").hidden = h.length === 0;
+    $("history").innerHTML = h.map((x) =>
+      `<li><span>${esc(x.line)}</span><span class="help">${esc(new Date(x.date).toLocaleDateString())}</span></li>`).join("");
+    $("sheet-setup").hidden = false;
+    $("t0").focus();
+  }
+  $("setup-form").addEventListener("input", (e) => {
+    if (e.target.type === "text") renderServerChoices(radio("server"));
+    syncSetupHints();
+  });
+  $("setup-cancel").addEventListener("click", () => { $("sheet-setup").hidden = true; });
+  $("setup-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const [st, sp] = (radio("server") || "0-0").split("-").map(Number);
+    const servePlayer = [0, 0];
+    servePlayer[st] = sp;
+    const cfg = {
+      teams: [$("t0").value.trim() || "Team 1", $("t1").value.trim() || "Team 2"],
+      players: [[$("p00").value.trim(), $("p01").value.trim()], [$("p10").value.trim(), $("p11").value.trim()]],
+      scoring: radio("scoring") || "golden",
+      sets: Number(radio("sets") || 3),
+      decider: radio("decider") || "super",
+      serveTeam: st,
+      servePlayer,
+    };
+    startMatch(cfg);
+    $("sheet-setup").hidden = true;
+  });
+
+  function startMatch(cfg) {
+    archive();
+    m = { id: Date.now(), cfg, log: [], flip: false, demo: false, endSeen: -1 };
+    save();
+    [$("sheet-end"), $("sheet-stats")].forEach((x) => (x.hidden = true));
+    render();
+  }
+
+  // ---------- Stats sheet ----------
+  function pct(a, b) { return b ? Math.round((100 * a) / b) + "%" : "–"; }
+  function openStats() {
+    const st = s.st;
+    const row = (label, f) => `<tr><td>${label}</td><td class="v">${f(0)}</td><td class="v">${f(1)}</td></tr>`;
+    const sets = s.sets.length
+      ? s.sets.map((x, i) => `<tr><td>${x.tb && x.tb.super ? "Super tiebreak" : "Set " + (i + 1)}</td>` +
+          `<td class="v">${x.tb && x.tb.super ? x.tb.pts[0] : x.g[0]}</td><td class="v">${x.tb && x.tb.super ? x.tb.pts[1] : x.g[1]}</td></tr>`).join("")
+      : "";
+    $("stats-body").innerHTML =
+      `<div style="overflow-x:auto"><table class="stats"><thead><tr><th></th>` +
+      `<th><span class="sw a"></span> ${esc(tn(0))}</th>` +
+      `<th><span class="sw b"></span> ${esc(tn(1))}</th></tr></thead><tbody>` +
+      sets +
+      row("Points won", (t) => st.pts[t]) +
+      row("Games won", (t) => st.games[t]) +
+      row("Points won on serve", (t) => `${st.srvWon[t]}/${st.srvPlayed[t]} <small>${pct(st.srvWon[t], st.srvPlayed[t])}</small>`) +
+      row("Break points won", (t) => `${st.bpWon[t]}/${st.bpChances[t]}`) +
+      row("Longest point run", (t) => st.best[t]) +
+      `</tbody></table></div>` +
+      `<p class="help">${esc(resultLine(s, m))}. ${m.log.length} points played.</p>`;
+    $("copy-fallback").hidden = true;
+    $("sheet-stats").hidden = false;
+  }
+  $("stats-close").addEventListener("click", () => { $("sheet-stats").hidden = true; });
+  $("copy-result").addEventListener("click", () => {
+    const text = resultLine(s, m);
+    const fallback = () => { const ta = $("copy-fallback"); ta.value = text; ta.hidden = false; ta.select(); };
+    try {
+      navigator.clipboard.writeText(text).then(() => { $("copy-result").textContent = "Copied"; setTimeout(() => ($("copy-result").textContent = "Copy result"), 1500); }, fallback);
+    } catch { fallback(); }
+  });
+
+  // ---------- Match over sheet ----------
+  function openEnd() {
+    const w = s.winner;
+    $("end-title").textContent = `${tn(w)} win`;
+    $("end-score").textContent = s.sets.map((x) => setText(x, w)).join("  ");
+    $("end-players").textContent = `${playersOf(w) || tn(w)} beat ${playersOf(1 - w) || tn(1 - w)}.`;
+    $("sheet-end").hidden = false;
+  }
+  const closeEnd = () => { m.endSeen = m.log.length; save(); $("sheet-end").hidden = true; };
+  $("end-close").addEventListener("click", closeEnd);
+  $("end-stats").addEventListener("click", () => { closeEnd(); openStats(); });
+  $("end-rematch").addEventListener("click", () => startMatch({ ...m.cfg }));
+  $("end-new").addEventListener("click", () => { closeEnd(); openSetup(); });
+
+  // Close sheets by tapping the dimmed area.
+  document.querySelectorAll(".sheet").forEach((sh) =>
+    sh.addEventListener("click", (e) => { if (e.target === sh) (sh.id === "sheet-end" ? closeEnd() : (sh.hidden = true)); }));
+
+  render();
+})();
+</script>
