@@ -71,7 +71,7 @@ export default function OrdersPage() {
           {orders.map((p, i) => {
             const t = parcelProgress(p);
             return (
-              <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <motion.div key={p.id} initial={{ y: 8 }} animate={{ y: 0 }} transition={{ delay: i * 0.05 }}>
                 <Link href={`/track/${p.id}`} className="card flex items-center gap-4 p-4 transition hover:border-accent/50">
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-surface-2">{p.mode === "air" ? <Plane size={20} /> : <Truck size={20} />}</span>
                   <div className="min-w-0 flex-1">

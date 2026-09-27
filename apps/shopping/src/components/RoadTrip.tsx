@@ -13,7 +13,7 @@ export function RoadTrip({ parcel, progress, eta }: { parcel: Parcel; progress: 
   const hoursLeft = Math.max(0, (eta - Date.now()) / 36e5);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card overflow-hidden rounded-[26px]">
+    <motion.div initial={{ y: 24 }} animate={{ y: 0 }} transition={{ delay: 0.2 }} className="card overflow-hidden rounded-[26px]">
       <div className="flex items-center justify-between bg-ink px-5 py-3 text-bg">
         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em]">
           <Truck size={16} /> On the road

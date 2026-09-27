@@ -10,7 +10,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { useUser } from "@/components/Providers";
 import { SectionTitle } from "@/components/ui";
 import { OrbitArt } from "@/components/OrbitArt";
-import { PRODUCTS } from "@/lib/data";
+import { getProduct, PRODUCTS } from "@/lib/data";
 import { POPULAR } from "@/lib/search";
 import { parcelProgress, parcelStatus } from "@/lib/parcels";
 import { useAppState } from "@/lib/store";
@@ -22,7 +22,8 @@ function greeting() {
 
 export default function Home() {
   const user = useUser();
-  const { orders } = useAppState();
+  const { orders, saved } = useAppState();
+  const savedProducts = saved.map((id) => getProduct(id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
   const router = useRouter();
   const [q, setQ] = useState("");
   const [hello, setHello] = useState("Hello");
@@ -34,7 +35,7 @@ export default function Home() {
     <div>
       <section className="relative pt-6 md:grid md:grid-cols-[1.4fr_1fr] md:items-center md:gap-8 md:pt-12">
         <div>
-        <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="font-serif text-[2.1rem] font-semibold leading-[1.1] tracking-tight md:text-5xl">
+        <motion.h1 initial={{ y: 8 }} animate={{ y: 0 }} className="font-serif text-[2.1rem] font-semibold leading-[1.1] tracking-tight md:text-5xl">
           {hello}
           {user ? `, ${user.name.split(" ")[0]}` : ""}.
           <br />
@@ -114,6 +115,17 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {savedProducts.length > 0 && (
+        <>
+          <SectionTitle>Saved for later</SectionTitle>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
+            {savedProducts.slice(0, 8).map((p, i) => (
+              <ProductCard key={p.id} product={p} index={i} />
+            ))}
+          </div>
+        </>
+      )}
 
       <SectionTitle action={<Link href="/search" className="flex items-center gap-1 text-sm text-accent-ink">See all <ArrowRight size={14} /></Link>}>
         Trending now

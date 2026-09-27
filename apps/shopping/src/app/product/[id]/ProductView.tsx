@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { askAI } from "@/components/Assistant";
+import { PriceRange } from "@/components/PriceRange";
+import { SaveButton } from "@/components/SaveButton";
 import { ProductArt, ScoreRing, TrustBadge } from "@/components/ui";
 import { getProduct, getStaticProduct, getStore, offersFor, type Product } from "@/lib/data";
 import { quoteDelivery, type DeliverySpeed } from "@/lib/delivery";
@@ -69,7 +71,10 @@ function ProductDetail({ product }: { product: Product }) {
         <ProductArt product={product} big className="aspect-[4/3.4] w-full" />
         <div className="mt-5">
           <div className="text-sm font-medium text-muted">{product.brand}</div>
-          <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">{product.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">{product.title}</h1>
+            <SaveButton productId={product.id} />
+          </div>
           <p className="mt-2 text-muted">{product.blurb}</p>
           {product.source === "estimate" && <p className="mt-2 text-xs text-warn">Prices are AI estimates. Check the shop's site before you buy.</p>}
           {product.source === "web" && <p className="mt-2 text-xs text-ok">Live prices found on the web just now.</p>}
@@ -124,6 +129,13 @@ function ProductDetail({ product }: { product: Product }) {
           </label>
         </div>
 
+        <PriceRange
+          points={rows.filter((r) => r.safety.level !== "danger").map((r) => ({ id: r.offer.id, store: r.store.name, total: r.offer.price + (r.offer.id === selected ? quote.price : Math.min(...r.quotes.map((q) => q.price))) }))}
+          selected={selected}
+          onSelect={setSelected}
+          hiddenRisky={scams.length}
+        />
+
         <div className="mt-3 space-y-2.5">
           {rows.map((r, i) => {
             const isSel = r.offer.id === selected;
@@ -132,8 +144,8 @@ function ProductDetail({ product }: { product: Product }) {
               <motion.div
                 key={r.offer.id}
                 layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ y: 8 }}
+                animate={{ y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className={cn("card overflow-hidden transition", isSel && "ring-2 ring-accent", danger && "border-bad/40 bg-bad-soft/30")}
               >
@@ -233,7 +245,7 @@ function ProductDetail({ product }: { product: Product }) {
           <Link href={`/checkout?offer=${encodeURIComponent(current.offer.id)}&speed=${quote.speed}`} className="btn btn-primary h-12 px-7">
             Buy now
           </Link>
-          <div className="w-24 md:w-32" aria-hidden />
+          <div className="hidden w-32 md:block" aria-hidden />
         </div>
       </div>
     </div>

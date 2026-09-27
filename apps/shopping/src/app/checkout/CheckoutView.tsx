@@ -96,7 +96,7 @@ export function CheckoutView() {
       </p>
 
       <div className="card mt-5 flex gap-3 p-3">
-        <ProductArt product={product} className="h-20 w-20 shrink-0 [&>span:first-child]:text-4xl [&>span:last-child]:hidden" />
+        <ProductArt product={product} small className="h-20 w-20 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="truncate font-semibold">
             {product.brand} {product.title}

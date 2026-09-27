@@ -20,6 +20,7 @@
   --ocean: #eeebe2;
   --land: #dcd6c8;
   --land-line: #cbc4b3;
+  --art-veil: transparent;
   color-scheme: light;
 }
 
@@ -43,6 +44,7 @@
     --ocean: #201f1b;
     --land: #34322c;
     --land-line: #45423a;
+    --art-veil: rgba(27, 26, 23, 0.38);
     color-scheme: dark;
   }
 }
@@ -66,6 +68,7 @@
   --ocean: #201f1b;
   --land: #34322c;
   --land-line: #45423a;
+  --art-veil: rgba(27, 26, 23, 0.38);
   color-scheme: dark;
 }
 
@@ -99,6 +102,12 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Visible keyboard focus everywhere, in the accent colour. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .card {

@@ -18,7 +18,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
   const best = bestSafeOffer(product);
   const shops = offersFor(product.id).length;
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
+    <motion.div initial={{ y: 12 }} animate={{ y: 0 }} transition={{ delay: index * 0.04 }}>
       <Link href={`/product/${product.id}`} className="group block">
         <ProductArt product={product} className="aspect-square transition duration-300 group-hover:scale-[1.02]" />
         <div className="mt-2.5 px-0.5">

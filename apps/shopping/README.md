@@ -43,6 +43,16 @@ node static/build.mjs   # -> static/dist/orbit.html (no server needed)
 This bundles the whole demo, including the map data and the demo AI, into one
 HTML page that can be hosted anywhere.
 
+### Tests
+
+```bash
+npm test          # logic: scam scoring, delivery, cards, search parsing, parcels
+npm run test:e2e  # clicks through the whole web build on phone + desktop (light/dark)
+```
+
+The end-to-end run replaces Claude with a scripted stand-in, so it's free and
+repeatable. It checks for page errors and sideways scrolling on every screen.
+
 ## Turn on the real services
 
 Copy `.env.example` to `.env.local` and fill in the keys you want. Each one

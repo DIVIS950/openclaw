@@ -32,8 +32,8 @@ export function BoardingPass({ parcel, progress, eta }: { parcel: Parcel; progre
   const f = parcel.flight ?? { number: "OR 101", gate: "A1", seat: "1A" };
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, rotateX: 25 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+      initial={{ y: 30, rotateX: 25 }}
+      animate={{ y: 0, rotateX: 0 }}
       transition={{ type: "spring", damping: 18, stiffness: 120, delay: 0.2 }}
       whileHover={{ y: -3, rotate: -0.4 }}
       style={{ transformPerspective: 900 }}

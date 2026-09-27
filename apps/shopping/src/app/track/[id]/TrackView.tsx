@@ -84,7 +84,7 @@ export function TrackView({ id }: { id: string }) {
         <WorldMap parcel={parcel} progress={progress} />
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card mt-4 flex gap-3 p-4">
+      <motion.div initial={{ y: 10 }} animate={{ y: 0 }} className="card mt-4 flex gap-3 p-4">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent-soft">
           <Sparkles size={18} className="text-accent" />
         </span>

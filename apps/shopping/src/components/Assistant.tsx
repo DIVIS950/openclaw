@@ -129,7 +129,7 @@ export function Assistant() {
       <motion.button
         onClick={() => setOpen(true)}
         whileTap={{ scale: 0.92 }}
-        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-ink py-3 pl-3.5 pr-4 text-sm font-semibold text-bg shadow-[0_10px_30px_-8px_rgba(0,0,0,0.45)] md:bottom-6 md:right-6"
+        className="fixed bottom-6 right-6 z-40 hidden items-center gap-2 rounded-full bg-ink py-3 pl-3.5 pr-4 text-sm font-semibold text-bg shadow-[0_10px_30px_-8px_rgba(0,0,0,0.45)] md:flex"
         aria-label="Ask Orbit AI"
       >
         <Sparkles size={18} className="text-accent" />

@@ -14,6 +14,7 @@ export type AppState = {
   gmailConnected: boolean;
   demoUser: { name: string; email: string } | null;
   recent: string[];
+  saved: string[];
 };
 
 const KEY = "orbit.v1";
@@ -25,6 +26,7 @@ const DEFAULT: AppState = {
   gmailConnected: false,
   demoUser: null,
   recent: [],
+  saved: [],
 };
 
 let state: AppState = DEFAULT;

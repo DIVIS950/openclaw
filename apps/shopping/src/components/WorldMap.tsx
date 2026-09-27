@@ -2,7 +2,7 @@
 
 import { geoDistance, geoGraticule10, geoInterpolate, geoMercator, geoOrthographic, geoPath, type GeoProjection } from "d3-geo";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
-import { RotateCcw } from "lucide-react";
+import { Play, Radio, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
@@ -74,7 +74,9 @@ export function WorldMap({ parcel, progress }: { parcel: Parcel; progress: numbe
   const air = parcel.mode === "air";
   const [countries, setCountries] = useState<Feature<Geometry>[]>([]);
   const [replay, setReplay] = useState(0);
-  const t = useIntro(progress, replay);
+  // "Watch full trip" animates the whole route end to end; live mode shows real progress.
+  const [preview, setPreview] = useState(false);
+  const t = useIntro(preview ? 1 : progress, replay);
   const from = parcel.from.coords;
   const to = parcel.to.coords;
 
@@ -192,11 +194,21 @@ export function WorldMap({ parcel, progress }: { parcel: Parcel; progress: numbe
         </g>
       </svg>
 
-      <button onClick={() => setReplay((r) => r + 1)} className="btn btn-ghost absolute right-3 top-3 h-9 gap-1.5 px-3 text-xs" aria-label="Replay journey">
-        <RotateCcw size={14} /> Replay
-      </button>
-      <div className="absolute bottom-3 left-3 rounded-full bg-surface/85 px-3 py-1 text-xs font-semibold backdrop-blur">
-        {Math.round(t * 100)}% of the way
+      {/* Controls live in a bar under the map so they never cover the route or its labels. */}
+      <div className="flex items-center gap-2 border-t border-line bg-surface px-3 py-2">
+        <span className="flex-1 text-xs font-semibold tabular-nums">{preview ? "Preview of the full trip" : `${Math.round(t * 100)}% of the way`}</span>
+        <button
+          onClick={() => {
+            setPreview((p) => !p);
+            setReplay((r) => r + 1);
+          }}
+          className="btn btn-ghost h-8 gap-1.5 px-3 text-xs"
+        >
+          {preview ? <Radio size={14} /> : <Play size={14} />} {preview ? "Back to live" : "Watch full trip"}
+        </button>
+        <button onClick={() => setReplay((r) => r + 1)} className="btn btn-ghost h-8 w-8" aria-label="Replay journey">
+          <RotateCcw size={14} />
+        </button>
       </div>
     </div>
   );
