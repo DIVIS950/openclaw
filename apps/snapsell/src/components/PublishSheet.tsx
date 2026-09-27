@@ -12,6 +12,7 @@ import { useApp } from "../App.tsx";
 import { api, formatPrice } from "../lib/api.ts";
 import { AGENT_BETA, AgentSheet, BetaPill } from "./AgentSheet.tsx";
 import { PhoneSheet } from "./PhoneSheet.tsx";
+import { VintedBotSheet } from "./VintedBotSheet.tsx";
 import { Button, PlatformLogo, Sheet, Toggle, cx } from "./ui.tsx";
 
 /** "Sell everywhere" sheet (design artboard 8). */
@@ -21,6 +22,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
   const [selected, setSelected] = useState<Set<Platform>>(new Set());
   const [sending, setSending] = useState(false);
   const [phoneFor, setPhoneFor] = useState<Platform | null>(null);
+  const [botOpen, setBotOpen] = useState(false);
   const [agentFor, setAgentFor] = useState<Platform | null>(null);
 
   useEffect(() => {
@@ -114,6 +116,15 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
 
               {state && state.status !== "idle" && <StateRow state={state} />}
 
+              {p === "vinted" && state?.status !== "live" && (
+                <button
+                  onClick={() => setBotOpen(true)}
+                  className="mt-2 flex h-11 w-full items-center gap-2 rounded-xl bg-ink px-3 text-[14px] font-bold text-white"
+                >
+                  <Bot className="size-4" />
+                  <span className="flex-1 text-left">Post on Vinted automatically</span>
+                </button>
+              )}
               {state?.status !== "live" && (
                 <button
                   onClick={() => setPhoneFor(p)}
@@ -168,6 +179,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
       </Button>
       )}
     </Sheet>
+    <VintedBotSheet open={botOpen} listing={listing} onClose={() => setBotOpen(false)} />
     <PhoneSheet platform={phoneFor} listing={listing} onClose={() => setPhoneFor(null)} />
     {AGENT_BETA && <AgentSheet platform={agentFor} listing={listing} onClose={() => setAgentFor(null)} />}
     </>
