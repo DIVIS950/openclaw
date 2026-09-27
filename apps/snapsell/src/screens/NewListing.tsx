@@ -114,7 +114,7 @@ function CameraScreen({
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#0e0d0a] text-paper lg:mx-auto lg:max-w-lg lg:rounded-[28px]">
+    <div className="flex min-h-dvh flex-col bg-black text-paper lg:mx-auto lg:max-w-lg lg:rounded-[28px]">
       <input ref={gallery} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
       <input ref={nativeCamera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => add(e.target.files)} />
 
@@ -125,12 +125,12 @@ function CameraScreen({
         <div className="flex h-8 items-center rounded-full bg-white/12 px-3.5 text-[13px] font-semibold">
           {shots.length ? `Photo ${Math.min(shots.length + 1, MAX)} of ${MAX}` : "New listing"}
         </div>
-        <button onClick={() => setNoteOpen(true)} aria-label="Add a note for the AI" className={cx("grid size-11 place-items-center rounded-full", note ? "bg-accent text-ink" : "bg-white/12")}>
+        <button onClick={() => setNoteOpen(true)} aria-label="Add a note for the AI" className={cx("grid size-11 place-items-center rounded-full", note ? "bg-accent text-white" : "bg-white/12")}>
           <PenLine className="size-5" />
         </button>
       </div>
 
-      <div className="relative mx-4 mt-4 flex-1 overflow-hidden rounded-[28px] bg-[#3a352d]" style={{ minHeight: 380, maxHeight: 520 }}>
+      <div className="relative mx-4 mt-4 flex-1 overflow-hidden rounded-[28px] bg-[#1c1c1e]" style={{ minHeight: 380, maxHeight: 520 }}>
         <video ref={video} playsInline muted className={cx("absolute inset-0 size-full object-cover", live !== "on" && "hidden")} />
         {live === "unavailable" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
@@ -143,12 +143,12 @@ function CameraScreen({
                 <circle cx="12" cy="13" r="3" />
               </svg>
             </button>
-            <div className="relative font-display text-xl font-extrabold">Take a photo</div>
+            <div className="relative font-display text-xl font-bold">Take a photo</div>
           </div>
         )}
         {live === "on" && <div className="pointer-events-none absolute inset-[14%] rounded-[18px] border-2 border-accent" />}
         <AnimatePresence>{flash && <motion.div className="absolute inset-0 bg-white" initial={{ opacity: 0.8 }} animate={{ opacity: 0 }} exit={{ opacity: 0 }} />}</AnimatePresence>
-        <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-[#0e0d0a]/75 px-3.5 py-3 text-sm leading-snug backdrop-blur">
+        <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-black/75 px-3.5 py-3 text-sm leading-snug backdrop-blur">
           {TIPS[Math.min(shots.length, TIPS.length - 1)]}
         </div>
       </div>
@@ -195,7 +195,7 @@ function CameraScreen({
         <button
           onClick={onDone}
           disabled={!shots.length}
-          className="h-[52px] rounded-2xl bg-accent px-[18px] text-base font-bold text-ink disabled:opacity-40"
+          className="h-[52px] rounded-2xl bg-accent px-[18px] text-base font-bold text-white disabled:opacity-40"
         >
           Done · {shots.length}
         </button>
@@ -336,13 +336,13 @@ function Analyzing({
         )}
         {stage === "done" && (
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute inset-0 grid place-items-center bg-ink/30">
-            <div className="grid size-20 place-items-center rounded-full bg-accent text-ink">
+            <div className="grid size-20 place-items-center rounded-full bg-accent text-white">
               <Check className="size-10" strokeWidth={3} />
             </div>
           </motion.div>
         )}
         {lens?.bestGuess && (
-          <div className="absolute bottom-3.5 left-3.5 flex h-[30px] max-w-[85%] items-center truncate rounded-full bg-ink px-3 text-[13px] font-semibold capitalize text-paper">
+          <div className="absolute bottom-3.5 left-3.5 flex h-[30px] max-w-[85%] items-center truncate rounded-full bg-black/60 px-3 text-[13px] font-semibold capitalize text-white backdrop-blur-md">
             {lens.bestGuess}
           </div>
         )}
@@ -356,7 +356,7 @@ function Analyzing({
             if (description.trim()) onDescribe(description.trim());
           }}
         >
-          <h1 className="font-display text-[26px] font-extrabold leading-tight">What is it?</h1>
+          <h1 className="font-display text-[26px] font-bold leading-tight">What is it?</h1>
           <p className="mt-2 text-muted">Claude can't see photos inside this app, so tell it in a few words. Your photos still go on the listing.</p>
           <label htmlFor="describe" className="sr-only">
             What is it?
@@ -376,7 +376,7 @@ function Analyzing({
         </form>
       ) : error ? (
         <div className="mt-8 text-center">
-          <h1 className="font-display text-2xl font-extrabold">Something went wrong</h1>
+          <h1 className="font-display text-2xl font-bold">Something went wrong</h1>
           <p className="mt-2 text-muted">{error}</p>
           <Button className="mt-6" onClick={onCancel}>
             Back to photos
@@ -384,7 +384,7 @@ function Analyzing({
         </div>
       ) : (
         <>
-          <h1 className="mt-5 font-display text-[28px] font-extrabold">{stage === "done" ? "Ready to sell" : "Finding the best price"}</h1>
+          <h1 className="mt-5 font-display text-[28px] font-bold">{stage === "done" ? "Ready to sell" : "Finding the best price"}</h1>
           <ol className="mt-3 space-y-1.5">
             {steps.map((s) => {
               const st = stepState(s.id);
@@ -394,7 +394,7 @@ function Analyzing({
                     className={cx(
                       "grid size-8 shrink-0 place-items-center rounded-[10px]",
                       st === "done" && "bg-ok-soft text-ok",
-                      st === "active" && "bg-accent text-ink",
+                      st === "active" && "bg-accent text-white",
                       st === "todo" && "bg-soft",
                     )}
                   >
@@ -420,7 +420,7 @@ function PriceChart({ prices, currency }: { prices: { value: number; currency: s
   const values = prices.map((p) => p.value).filter((v) => v > 0);
   if (values.length < 2) {
     return (
-      <div className="mt-4 rounded-[20px] border border-line bg-card p-3.5">
+      <div className="mt-4 rounded-[14px] bg-card p-3.5">
         <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Prices found so far</div>
         <div className="shimmer mt-3 h-14 rounded-lg" />
         <div className="mt-2 text-[13px] text-muted">Prices appear here as they're found.</div>
@@ -437,7 +437,7 @@ function PriceChart({ prices, currency }: { prices: { value: number; currency: s
   const medianBin = Math.min(6, Math.floor(((median - lo) / Math.max(1, hi - lo)) * 7));
   const fmt = (v: number) => formatPrice(Math.round(v), currency);
   return (
-    <div className="mt-4 rounded-[20px] border border-line bg-card p-3.5">
+    <div className="mt-4 rounded-[14px] bg-card p-3.5">
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Prices found so far</span>
         <span className="text-[13px] text-muted">{values.length} listings</span>

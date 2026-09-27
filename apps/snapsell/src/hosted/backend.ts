@@ -5,6 +5,7 @@
  * The page can't reach other websites, so prices are Claude's estimate (no live search)
  * and posting is copy & open.
  */
+import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import {
   AnalysisSchema,
@@ -344,6 +345,18 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
       }
       await saveListing(l);
       return json(l);
+    }
+    if (sub === "assistant" && method === "POST") {
+      if (!sample || !l.analysis) return json({ error: "Claude isn't available on this page right now." }, 400);
+      try {
+        const ask = assistantPrompt(l, settings, body?.history ?? [], String(body?.text ?? ""), body?.language);
+        const r = parseAssistantReply(await sample.json(ask, { modelTier: "default", cache: false }));
+        l.edits = applyAssistantChanges(l, r.changes);
+        await saveListing(l);
+        return json({ reply: r.reply, changes: r.changes, listing: l });
+      } catch (e) {
+        return json({ error: (e as { message?: string })?.message ?? String(e) }, 502);
+      }
     }
     if (sub === "enhanced") {
       const files = (init!.body as FormData).getAll("photos").filter((f): f is File => f instanceof File);

@@ -1,3 +1,4 @@
+import type { AssistantTurn } from "../../shared/assistant.ts";
 import type {
   AnalyzeEvent,
   ExtensionStatus,
@@ -77,6 +78,10 @@ export const api = {
     send(`/api/listings/${id}`, patch, "PATCH").then((r) => json<Listing>(r)),
   remove: (id: string) => fetch(`/api/listings/${id}`, { method: "DELETE" }).then((r) => json(r)),
   publish: (id: string, platforms: Platform[]) => send(`/api/listings/${id}/publish`, { platforms }).then((r) => json<Listing>(r)),
+  assistant: (id: string, text: string, history: AssistantTurn[], language = "cs") =>
+    send(`/api/listings/${id}/assistant`, { text, history, language }).then((r) =>
+      json<{ reply: string; changes: Record<string, unknown>; listing: Listing }>(r),
+    ),
   uploadEnhanced: (id: string, blobs: Blob[]) => {
     const form = new FormData();
     blobs.forEach((b, i) => form.append("photos", b, `enhanced-${i}.jpeg`));

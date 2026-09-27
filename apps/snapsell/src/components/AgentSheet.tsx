@@ -11,7 +11,7 @@ import { Button, Sheet } from "./ui.tsx";
 export const AGENT_BETA = import.meta.env.VITE_AGENT_BETA === "1";
 
 export function BetaPill() {
-  return <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-accent-ink">Beta</span>;
+  return <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-accent">Beta</span>;
 }
 
 /** Instructions for Claude in Chrome to fill a marketplace's sell form in the user's own browser. */

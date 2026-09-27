@@ -4,7 +4,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { PLATFORMS, type Listing, type Platform, type Settings } from "../shared/types.ts";
-import { aiConfigured, analyzeItem, claudeConfigured, MODEL, type Photo } from "./ai/analyze.ts";
+import { applyAssistantChanges, assistantPrompt, parseAssistantReply, type AssistantTurn } from "../shared/assistant.ts";
+import { aiConfigured, analyzeItem, assistantTurn, claudeConfigured, MODEL, type Photo } from "./ai/analyze.ts";
 import { GEMINI_MODEL, geminiConfigured } from "./ai/gemini.ts";
 import { storageCheck, supabaseConfigured } from "./storage.ts";
 import { lensSearch, publicPhoto, serpEnabled, visionEnabled } from "./ai/lens.ts";
@@ -177,6 +178,22 @@ api.patch("/api/listings/:id", async (c) => {
     }
   });
   return c.json(l);
+});
+
+api.post("/api/listings/:id/assistant", async (c) => {
+  const body = (await c.req.json()) as { text?: string; history?: AssistantTurn[]; language?: string };
+  const user = c.var.user;
+  const current = await getListing(c.req.param("id"), user.email);
+  if (!current?.analysis) return c.json({ error: "Not found" }, 404);
+  try {
+    const r = parseAssistantReply(
+      await assistantTurn(user.settings, assistantPrompt(current, user.settings, body.history ?? [], String(body.text ?? ""), body.language)),
+    );
+    const l = await updateListing(current.id, user.email, (l) => void (l.edits = applyAssistantChanges(l, r.changes)));
+    return c.json({ reply: r.reply, changes: r.changes, listing: l });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 502);
+  }
 });
 
 api.delete("/api/listings/:id", async (c) => {

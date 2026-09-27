@@ -53,7 +53,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
     if (!st || st.connected || st.unavailable) return null;
     if (st.action === "ebay_login")
       return (
-        <a href="/auth/ebay" className="flex h-[38px] items-center rounded-full bg-ink px-3.5 text-[13px] font-bold text-white">
+        <a href="/auth/ebay" className="flex h-[38px] items-center rounded-full bg-accent px-3.5 text-[14px] font-semibold text-white">
           Log in
         </a>
       );
@@ -64,7 +64,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
           onClose();
           go("/connections");
         }}
-        className="h-[38px] rounded-full bg-ink px-3.5 text-[13px] font-bold text-white"
+        className="h-[38px] rounded-full bg-accent px-3.5 text-[14px] font-semibold text-white"
       >
         {label}
       </button>
@@ -85,7 +85,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
           const state = listing.publish[p];
           const busy = state?.status === "working" || state?.status === "queued";
           return (
-            <div key={p} className="rounded-[20px] border border-line bg-card p-3.5">
+            <div key={p} className="rounded-[14px] bg-card p-3.5">
               <div className="flex items-center gap-3">
                 <PlatformLogo platform={p} size={44} />
                 <div className="min-w-0 flex-1">
@@ -119,7 +119,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
               {p === "vinted" && state?.status !== "live" && (
                 <button
                   onClick={() => setBotOpen(true)}
-                  className="mt-2 flex h-11 w-full items-center gap-2 rounded-xl bg-ink px-3 text-[14px] font-bold text-white"
+                  className="mt-2 flex h-11 w-full items-center gap-2 rounded-xl bg-accent px-3 text-[15px] font-semibold text-white"
                 >
                   <Bot className="size-4" />
                   <span className="flex-1 text-left">Post on Vinted automatically</span>
@@ -151,7 +151,7 @@ export function PublishSheet({ open, onClose, listing, onChange }: { open: boole
       </div>
 
       {statuses.some((x) => !x.unavailable) && (
-      <label className="mt-2.5 flex items-center gap-3 rounded-2xl bg-soft px-3.5 py-3">
+      <label className="mt-2.5 flex items-center gap-3 rounded-[14px] bg-card px-3.5 py-3">
         <span className="flex-1">
           <span className="block text-[15px] font-bold">Let me check before it goes live</span>
           <span className="block text-[13px] text-muted">You press the final Publish on Facebook and Vinted</span>
@@ -191,8 +191,8 @@ function StateRow({ state }: { state: NonNullable<Listing["publish"][Platform]> 
     idle: "",
     queued: "bg-soft",
     working: "bg-soft",
-    needs_review: "bg-[#fdf0d5] text-[#7a4b00]",
-    live: "bg-ok-soft text-[#174f34]",
+    needs_review: "bg-warn-soft text-warn",
+    live: "bg-ok-soft text-ok",
     error: "bg-bad-soft text-bad",
   }[state.status];
   const Icon = { idle: Check, queued: Clock, working: Loader2, needs_review: Eye, live: Check, error: AlertCircle }[state.status];
@@ -209,7 +209,7 @@ function StateRow({ state }: { state: NonNullable<Listing["publish"][Platform]> 
       </div>
       {state.status === "working" && (
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
-          <div className="h-full w-1/3 indeterminate rounded-full bg-ink" />
+          <div className="h-full w-1/3 indeterminate rounded-full bg-accent" />
         </div>
       )}
     </div>

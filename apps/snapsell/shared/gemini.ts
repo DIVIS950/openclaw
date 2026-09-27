@@ -1,5 +1,6 @@
 import { GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
+import { assistantJsonSchema } from "./assistant.ts";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "./types.ts";
 
 /**
@@ -159,4 +160,31 @@ async function analyze(
   const parsed = AnalysisSchema.safeParse(raw);
   if (!parsed.success) throw new Error("Gemini's answer was incomplete. Please try again.");
   return parsed.data;
+}
+
+/** One turn of the voice assistant: a short spoken answer plus any listing changes, as JSON. */
+export async function geminiAssistant(opts: GeminiOptions, prompt: string): Promise<unknown> {
+  try {
+    const ai = new GoogleGenAI({ apiKey: opts.apiKey });
+    // Short chat turns: when one model's free quota is used up, a lighter model (own quota) answers instead.
+    const models = [opts.model || DEFAULT_GEMINI_MODEL, ...FALLBACK_MODELS];
+    let last: unknown;
+    for (const m of [...new Set(models)]) {
+      try {
+        const res = await ai.models.generateContent({
+          model: m,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: { responseMimeType: "application/json", responseJsonSchema: assistantJsonSchema },
+        });
+        return JSON.parse(res.text ?? "{}");
+      } catch (e) {
+        last = e;
+        const f = failure(e);
+        if (!busy(f) && !overQuota(f)) throw e;
+      }
+    }
+    throw last;
+  } catch (e) {
+    throw friendly(e);
+  }
 }

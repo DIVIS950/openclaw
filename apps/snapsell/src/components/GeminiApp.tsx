@@ -85,9 +85,9 @@ export function GeminiApp({ listing, onChange, disabled }: { listing: Listing; o
   );
 
   return (
-    <div className="mt-5 rounded-[20px] border border-line bg-card p-3.5">
+    <div className="mt-5 rounded-[14px] bg-card p-3.5">
       <div className="flex items-center gap-2">
-        <Sparkles className="size-5 text-accent-ink" />
+        <Sparkles className="size-5 text-accent" />
         <div className="flex-1">
           <div className="font-bold">Improve in the Gemini app</div>
           <div className="text-[12px] text-muted">Free with your Google plan. You share the photo yourself.</div>
@@ -109,7 +109,7 @@ export function GeminiApp({ listing, onChange, disabled }: { listing: Listing; o
               setStyle(id);
               setCopied(false);
             }}
-            className={cx("rounded-2xl bg-paper px-3 py-2 text-left", style === id ? "border-2 border-ink" : "border-[1.5px] border-line")}
+            className={cx("rounded-2xl bg-paper px-3 py-2 text-left", style === id ? "ring-2 ring-accent" : "ring-1 ring-line")}
           >
             <span className="block text-sm font-bold">{label}</span>
             <span className="block text-xs text-muted">{hint}</span>
@@ -154,7 +154,7 @@ export function GeminiApp({ listing, onChange, disabled }: { listing: Listing; o
           href="https://gemini.google.com/app"
           target="_blank"
           rel="noreferrer"
-          className="flex h-11 items-center justify-center gap-2 rounded-full bg-ink text-[15px] font-bold text-white"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-[16px] font-semibold text-white"
         >
           <ExternalLink className="size-4" />
           Open Gemini

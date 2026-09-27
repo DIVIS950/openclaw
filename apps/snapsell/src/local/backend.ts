@@ -8,7 +8,8 @@
  */
 import { extractGeminiKey } from "../lib/geminiKey.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
-import { geminiAnalyze } from "../../shared/gemini.ts";
+import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
+import { geminiAnalyze, geminiAssistant } from "../../shared/gemini.ts";
 import {
   DEFAULT_SETTINGS,
   PLATFORMS,
@@ -221,6 +222,19 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
       l.updatedAt = new Date().toISOString();
       await saveListings();
       return json(l);
+    }
+    if (sub === "assistant" && method === "POST") {
+      if (!settings.geminiApiKey || !l.analysis) return json({ error: "The voice assistant needs your Gemini key (Connections)." }, 400);
+      try {
+        const ask = assistantPrompt(l, settings, body?.history ?? [], String(body?.text ?? ""), body?.language);
+        const r = parseAssistantReply(await geminiAssistant({ apiKey: settings.geminiApiKey }, ask));
+        l.edits = applyAssistantChanges(l, r.changes);
+        l.updatedAt = new Date().toISOString();
+        await saveListings();
+        return json({ reply: r.reply, changes: r.changes, listing: l });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : String(e) }, 502);
+      }
     }
     if (sub === "enhanced") {
       const stamp = Date.now().toString(36);

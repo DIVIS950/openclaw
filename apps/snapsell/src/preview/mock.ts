@@ -372,6 +372,18 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
       }
       return json(l);
     }
+    if (sub === "assistant" && method === "POST") {
+      // Sample answers for the web preview: a number sets the price, anything else gets advice.
+      await new Promise((r) => setTimeout(r, 700));
+      const text = String(body?.text ?? "");
+      const num = /(\d[\d\s]{1,6})/.exec(text)?.[1]?.replace(/\s/g, "");
+      const changes = num ? { price: Number(num) } : {};
+      if (num) l.edits = { ...l.edits, price: Number(num) };
+      const reply = num
+        ? `Hotovo, cenu jsem změnil na ${num} korun.`
+        : `Podobné kusy se prodávají kolem ${l.analysis?.price.suggested ?? 0} korun, to je dobrá cena pro rychlý prodej.`;
+      return json({ reply, changes, listing: l });
+    }
     if (sub === "enhanced") {
       const stamp = Date.now().toString(36);
       l.enhanced = (init!.body as FormData)

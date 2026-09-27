@@ -22,9 +22,9 @@ export function Welcome({ health }: { health: Health | null }) {
           initial={{ opacity: 0, y: 20, rotate: -7 }}
           animate={{ opacity: 1, y: 0, rotate: -7 }}
           transition={{ delay: 0.1 }}
-          className="absolute left-1.5 top-9 w-[170px] rounded-[22px] bg-card p-2.5 shadow-[0_18px_40px_-18px_rgba(23,21,15,0.35)]"
+          className="absolute left-1.5 top-9 w-[170px] rounded-[22px] bg-card p-2.5 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.22)]"
         >
-          <div className="grid h-[150px] place-items-center rounded-[14px] bg-[#cfe0d8]">
+          <div className="grid h-[150px] place-items-center rounded-[14px] bg-[#e8f1ff]">
             <ItemArt kind="sneaker" size={130} />
           </div>
           <div className="mt-2 text-[13px] font-semibold">Nike Air Max 90</div>
@@ -33,9 +33,9 @@ export function Welcome({ health }: { health: Health | null }) {
           initial={{ opacity: 0, y: 20, rotate: 5 }}
           animate={{ opacity: 1, y: 0, rotate: 5 }}
           transition={{ delay: 0.2 }}
-          className="absolute right-1 top-0 w-[180px] rounded-[22px] bg-card p-2.5 shadow-[0_18px_40px_-18px_rgba(23,21,15,0.35)]"
+          className="absolute right-1 top-0 w-[180px] rounded-[22px] bg-card p-2.5 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.22)]"
         >
-          <div className="grid h-[164px] place-items-center rounded-[14px] bg-[#d9cfbd]">
+          <div className="grid h-[164px] place-items-center rounded-[14px] bg-[#f2f2f7]">
             <ItemArt kind="headphones" size={136} />
           </div>
           <div className="mt-2 text-[13px] font-semibold">Sony WH-1000XM4</div>
@@ -44,7 +44,7 @@ export function Welcome({ health }: { health: Health | null }) {
           initial={{ opacity: 0, scale: 0.6, rotate: -4 }}
           animate={{ opacity: 1, scale: 1, rotate: -4 }}
           transition={{ delay: 0.45, type: "spring" }}
-          className="absolute right-8 top-[196px] shadow-[0_10px_24px_-10px_rgba(194,65,12,0.7)]"
+          className="absolute right-8 top-[196px] shadow-[0_10px_24px_-10px_rgba(0,98,224,0.45)]"
         >
           <PriceTag>3 790 Kč</PriceTag>
         </motion.div>
@@ -52,18 +52,18 @@ export function Welcome({ health }: { health: Health | null }) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="absolute left-8 top-[262px] flex h-10 items-center gap-2 rounded-full bg-ink px-3.5 text-[13px] font-semibold text-paper"
+          className="absolute left-8 top-[262px] flex h-10 items-center gap-2 rounded-full bg-card px-3.5 text-[13px] font-semibold text-ink shadow-lg"
         >
-          <Check className="size-4 text-[#7bd88f]" strokeWidth={3} /> Sold in 2 days
+          <Check className="size-4 text-[#30d158]" strokeWidth={3} /> Sold in 2 days
         </motion.div>
       </div>
 
-      <h1 className="mt-2 font-display text-[44px] font-extrabold leading-[1.02] tracking-[-0.035em]">
+      <h1 className="mt-2 font-display text-[40px] font-bold leading-[1.05] tracking-[-0.03em]">
         Snap it.
         <br />
         Price it.
         <br />
-        <span className="text-accent-ink">Sell it everywhere.</span>
+        <span className="text-accent">Sell it everywhere.</span>
       </h1>
       <p className="mt-3.5 text-base leading-relaxed text-muted">
         Take a photo. AI finds out what it is, what it sells for, and posts it to eBay, Facebook Marketplace and Vinted.
@@ -75,12 +75,12 @@ export function Welcome({ health }: { health: Health | null }) {
         {health?.googleLogin !== false ? (
           <a
             href="/auth/google"
-            className="flex h-14 items-center justify-center gap-3 rounded-2xl bg-ink text-[17px] font-semibold text-white hover:bg-ink-2"
+            className="flex h-14 items-center justify-center gap-3 rounded-[14px] bg-ink text-[17px] font-semibold text-white hover:bg-ink-2"
           >
             <GoogleG /> Continue with Google
           </a>
         ) : (
-          <a href="/" className="flex h-14 items-center justify-center rounded-2xl bg-ink text-[17px] font-semibold text-white">
+          <a href="/" className="flex h-14 items-center justify-center rounded-[14px] bg-ink text-[17px] font-semibold text-white">
             Get started
           </a>
         )}

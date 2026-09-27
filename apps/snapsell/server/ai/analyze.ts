@@ -7,7 +7,8 @@ import type {
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "../../shared/types.ts";
 import { demoAnalysis } from "./demo.ts";
-import { analyzeWithGemini, geminiConfigured } from "./gemini.ts";
+import { geminiAssistant } from "../../shared/gemini.ts";
+import { GEMINI_MODEL, analyzeWithGemini, geminiConfigured } from "./gemini.ts";
 
 export const MODEL = process.env.SNAPSELL_MODEL ?? "claude-opus-5";
 // Server-side refusal fallbacks: if the primary model declines, the API re-runs the request
@@ -160,4 +161,15 @@ async function analyzeWithClaude(
   if (res.stop_reason === "refusal") throw new Error("The AI declined to write this listing.");
   if (!res.parsed_output) throw new Error("The AI response could not be parsed. Try again.");
   return res.parsed_output;
+}
+
+/** One voice-assistant turn on the server: Gemini when configured (free), else Claude. Returns raw JSON-ish output. */
+export async function assistantTurn(settings: Settings, prompt: string): Promise<unknown> {
+  const which = aiFor(settings);
+  if (which === "gemini") return geminiAssistant({ apiKey: process.env.GEMINI_API_KEY!, model: GEMINI_MODEL }, prompt);
+  if (which === "claude") {
+    const res = await new Anthropic().messages.create({ model: MODEL, max_tokens: 2000, messages: [{ role: "user", content: prompt }] });
+    return res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+  }
+  return { reply: "Hlasový asistent potřebuje nastavenou AI (Gemini nebo Claude).", changes: {} };
 }

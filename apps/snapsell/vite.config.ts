@@ -1,7 +1,28 @@
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type UserConfig } from "vite";
+import fs from "node:fs";
+import { transformSync } from "esbuild";
+import { defineConfig, type Plugin, type UserConfig } from "vite";
+
+/**
+ * `virtual:vinted-bookmarklet`: the Vinted bot (public/snapsell-vinted.user.js) minified into a
+ * `javascript:` bookmark, for iPhones without the Userscripts app.
+ */
+function vintedBookmarklet(): Plugin {
+  const id = "virtual:vinted-bookmarklet";
+  return {
+    name: "vinted-bookmarklet",
+    resolveId: (s) => (s === id ? `\0${id}` : null),
+    load(s) {
+      if (s !== `\0${id}`) return null;
+      const src = fs.readFileSync(path.resolve("public/snapsell-vinted.user.js"), "utf8");
+      this.addWatchFile(path.resolve("public/snapsell-vinted.user.js"));
+      const { code } = transformSync(`window.__snapsellBookmark=true;${src}`, { minify: true, target: "es2020" });
+      return `export default ${JSON.stringify(`javascript:${encodeURIComponent(code.trim())}`)};`;
+    },
+  };
+}
 
 /**
  * Build modes:
@@ -30,7 +51,7 @@ const MODES: Record<string, UserConfig> = {
 };
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), vintedBookmarklet()],
   server: {
     host: true,
     port: 5173,
