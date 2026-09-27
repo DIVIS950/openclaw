@@ -1,13 +1,15 @@
 # Padel Score
 
-A one-page padel scoreboard for your phone. Open `index.html` in a browser.
+A one-page padel scoreboard for your phone, with an AI coach. Open `index.html` in a browser.
 
-- Tap the team that wins each point; the app handles 0/15/30/40, deuce, games, sets and tiebreaks.
+- The screen is a padel court: tap the half of the team that won the point. The app handles 0/15/30/40, deuce, games, sets and tiebreaks.
+- Doubles (2 vs 2) or singles (1 vs 1).
 - At 40-40: Golden point, Star point (two advantages, then a deciding point) or classic Advantage.
 - 1 set, best of 3 or best of 5, with an optional super tiebreak to 10 as the deciding set.
-- Tracks who serves (all four players, including the tiebreak serve order) and tells you when to change ends.
-- Shows break, set and match points; Undo any point; Swap sides to match where you stand.
-- Stats: points won, points won on serve, break points, longest run of points; copy the result.
-- Your match is saved on the device, so a refresh does not lose the score.
+- Shows who serves (including the tiebreak order), when to change ends, and break, set and match points.
+- Tag how each point was won (winner, smash, volley, lob, opponent error, double fault).
+- Stats: points won, points won on serve, break points, longest run, how points were won; copy the result.
+- AI Coach: tips for the next point, a match review, or ask any question. It reads the live score and stats. The coach works when the page is opened in Claude; scoring works everywhere.
+- The match is saved on the device, so a refresh does not lose the score.
 
-Keyboard: `A`/Left arrow = left team, `L`/Right arrow = right team, `U`/Backspace = undo.
+Keyboard: `W`/Up arrow = top team, `S`/Down arrow = bottom team, `U`/Backspace = undo.

@@ -2,121 +2,83 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
+  /* One deliberate look in every theme: a padel court under night lights. */
   :root {
-    --bg: #e8eef4;
-    --surface: #ffffff;
-    --surface-2: #f1f5f9;
-    --ink: #0d1b2a;
-    --muted: #55677a;
-    --line: #c9d4df;
-    --a: #1b5aa6;
-    --a-ink: #ffffff;
-    --b: #e2be12;
-    --b-ink: #231e02;
-    --hot: #c2410c;
-    --scrim: rgba(6, 14, 24, 0.55);
-    --ball: #d7e83a;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0a1522;
-      --surface: #12213a;
-      --surface-2: #0e1b2e;
-      --ink: #e7eef6;
-      --muted: #8fa2b7;
-      --line: #23374f;
-      --a: #4a8ee0;
-      --a-ink: #061020;
-      --b: #f2d33b;
-      --b-ink: #1e1a02;
-      --hot: #fb8a4c;
-      --scrim: rgba(0, 0, 0, 0.6);
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0a1522;
-    --surface: #12213a;
-    --surface-2: #0e1b2e;
-    --ink: #e7eef6;
-    --muted: #8fa2b7;
-    --line: #23374f;
-    --a: #4a8ee0;
-    --a-ink: #061020;
-    --b: #f2d33b;
-    --b-ink: #1e1a02;
-    --hot: #fb8a4c;
-    --scrim: rgba(0, 0, 0, 0.6);
+    --night: #07111f;
+    --panel: #0f1d33;
+    --panel-2: #16294a;
+    --line: rgba(190, 215, 255, 0.14);
+    --ink: #eef4fb;
+    --muted: #8ea3bd;
+    --court: #1d4f94;
+    --court-deep: #173f78;
+    --chalk: rgba(244, 248, 255, 0.55);
+    --glass: rgba(150, 205, 255, 0.28);
+    --a: #5cc8ff;
+    --a-ink: #03253a;
+    --b: #e2f04a;
+    --b-ink: #2a2d02;
+    --hot: #ff7a45;
+    --ball: #dff04a;
+    --scrim: rgba(2, 7, 14, 0.72);
     color-scheme: dark;
   }
-
   [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
-    background: var(--bg);
+    background: radial-gradient(120% 60% at 50% 0%, #10284a 0%, var(--night) 60%) fixed, var(--night);
     color: var(--ink);
-    font: 15px/1.4 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 15px/1.45 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
     -webkit-tap-highlight-color: transparent;
   }
-  .num { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-variant-numeric: tabular-nums; }
+  .num, .display { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; }
+  .num { font-variant-numeric: tabular-nums; }
 
   .app {
-    box-sizing: border-box;
-    min-height: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    padding-inline: 16px;
-    padding-block: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    box-sizing: border-box; min-height: 100%; max-width: 560px; margin: 0 auto;
+    padding-inline: 16px; padding-block: 12px;
+    display: flex; flex-direction: column; gap: 10px;
   }
 
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .brand {
-    display: flex; align-items: center; gap: 8px;
-    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-    font-weight: 700; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase;
-  }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* Header */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 9px; white-space: nowrap; font-weight: 800; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; }
+  .brand small { display: block; font-family: "Figtree", system-ui, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--muted); margin-top: 3px; }
+  .row { display: flex; gap: 8px; }
+  .top .btn { padding: 8px 12px; white-space: nowrap; }
 
   .ball {
-    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-    background: var(--ball);
-    box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.25);
-    flex: none;
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none;
+    background: radial-gradient(circle at 35% 30%, #f4ff9a 0 20%, var(--ball) 55%, #a9b823 100%);
+    box-shadow: 0 0 10px rgba(223, 240, 74, 0.55);
   }
-  .brand .ball { width: 16px; height: 16px; }
+  .brand .ball { width: 22px; height: 22px; }
 
   .btn {
-    font: inherit; font-weight: 600;
-    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-    border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    font: inherit; font-weight: 600; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 11px; padding: 9px 14px; cursor: pointer;
   }
-  .btn:hover { background: var(--surface-2); }
-  .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-  .btn:disabled { opacity: 0.45; cursor: default; }
-  button:focus-visible, input:focus-visible + span, input[type="text"]:focus-visible {
+  .btn:hover { background: var(--panel-2); }
+  .btn.primary { background: var(--ball); color: #1b1f00; border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  button:focus-visible, input:focus-visible + span, input[type="text"]:focus-visible, textarea:focus-visible {
     outline: 3px solid var(--a); outline-offset: 2px;
   }
 
   .demo {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
-    background: var(--surface); border: 1px dashed var(--line); border-radius: 12px;
-    padding: 8px 12px; color: var(--muted); font-size: 14px;
+    border: 1px dashed var(--line); border-radius: 12px; padding: 8px 12px; color: var(--muted); font-size: 14px;
   }
 
-  /* Scoreboard */
-  .board { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+  /* Broadcast scoreboard */
+  .board { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
   .sb { width: 100%; border-collapse: collapse; }
-  .sb th {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--muted); padding: 7px 8px 2px; text-align: center; white-space: nowrap;
-  }
+  .sb th { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 8px 8px 2px; text-align: center; white-space: nowrap; }
   .sb th:first-child { text-align: left; padding-left: 12px; }
   .sb td { padding: 6px 8px; text-align: center; border-top: 1px solid var(--line); }
   .sb td.name { text-align: left; padding-left: 12px; width: 100%; }
@@ -125,117 +87,146 @@
   .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
   .sw.a { background: var(--a); }
   .sw.b { background: var(--b); }
-  .sb .g { font-size: 28px; font-weight: 600; line-height: 1; min-width: 26px; }
-  .sb .g.won { font-weight: 700; }
+  .sb .g { font-size: 28px; font-weight: 600; line-height: 1; min-width: 24px; }
   .sb .g.lost { color: var(--muted); font-weight: 500; }
   .sb .g sup { font-size: 13px; vertical-align: 12px; margin-left: 1px; color: var(--muted); }
-  .sb .cur { background: var(--surface-2); }
-  .sb .p { font-size: 28px; font-weight: 700; background: var(--ink); color: var(--bg); min-width: 44px; }
+  .sb .cur { background: var(--panel-2); }
+  .sb .p { font-size: 28px; font-weight: 800; min-width: 46px; }
+  .sb tr.a .p { background: var(--a); color: var(--a-ink); }
+  .sb tr.b .p { background: var(--b); color: var(--b-ink); }
   .sb .srv { visibility: hidden; }
   .sb .srv.on { visibility: visible; }
 
-  .status {
-    min-height: 22px; text-align: center; font-weight: 600; font-size: 15px;
-    display: flex; justify-content: center; align-items: center; gap: 6px 14px; flex-wrap: wrap;
-  }
+  .status { min-height: 20px; text-align: center; font-weight: 600; font-size: 14px; color: var(--muted); }
+  .status strong { color: var(--ink); }
   .status .hot { color: var(--hot); }
-  .status .muted { color: var(--muted); font-weight: 500; }
 
-  /* Court: two tap zones */
-  .court { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 300px; }
-  .side {
-    font: inherit; border: 0; border-radius: 18px; cursor: pointer; position: relative; overflow: hidden;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-    padding: 18px 10px; text-align: center; touch-action: manipulation; user-select: none;
-    transition: transform 0.08s ease;
+  /* The court: top half and bottom half are the tap zones, the net sits between them */
+  .court {
+    flex: 1; min-height: 440px; position: relative; overflow: hidden;
+    display: grid; grid-template-rows: 1fr 16px 1fr;
+    border-radius: 16px;
+    background: linear-gradient(180deg, var(--court) 0%, var(--court-deep) 50%, var(--court) 100%);
+    box-shadow: 0 0 0 3px var(--glass), 0 0 0 7px rgba(150, 205, 255, 0.08), inset 0 0 70px rgba(0, 0, 0, 0.3);
   }
-  .side:active { transform: scale(0.985); }
-  .side.a { background: var(--a); color: var(--a-ink); }
-  .side.b { background: var(--b); color: var(--b-ink); }
-  /* faint court outline */
-  .side::before {
-    content: ""; position: absolute; inset: 12px; border: 2px solid currentColor; opacity: 0.14;
-    border-radius: 8px; pointer-events: none;
+  .half {
+    position: relative; border: 0; background: transparent; color: var(--ink); font: inherit;
+    cursor: pointer; padding: 14px 12px; touch-action: manipulation; user-select: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px;
   }
-  .side .tname {
-    font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700;
-    font-size: clamp(22px, 5vw, 34px); letter-spacing: 0.03em; text-transform: uppercase; line-height: 1;
-    overflow-wrap: anywhere;
-  }
-  .side .tplayers { font-size: 13px; opacity: 0.85; }
-  .side .pt { font-weight: 700; font-size: clamp(84px, 26vw, 190px); line-height: 0.85; margin-block: 6px; }
-  .side .chip {
-    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 4px 10px; border-radius: 999px; background: var(--ink); color: var(--bg);
-  }
-  .side .serving { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-  .side .hint { font-size: 12px; opacity: 0.7; }
-  .side.flash { animation: flash 0.35s ease-out; }
-  @keyframes flash { from { filter: brightness(1.35); } to { filter: none; } }
+  .half.bottom { flex-direction: column-reverse; }
+  .half:disabled { cursor: default; }
+  /* court lines: service line 6.95 m from the net on a 10 m half, centre line from service line to net */
+  .half .svc { position: absolute; left: 0; right: 0; top: 30.5%; border-top: 2px solid var(--chalk); pointer-events: none; }
+  .half .ctr { position: absolute; left: 50%; top: 30.5%; bottom: 0; border-left: 2px solid var(--chalk); pointer-events: none; }
+  .half.bottom .svc { top: auto; bottom: 30.5%; }
+  .half.bottom .ctr { top: 0; bottom: 30.5%; }
+  .half > :not(.svc):not(.ctr):not(.fx) { position: relative; z-index: 1; }
 
-  .bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .half .head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .half .tname { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 800; font-size: clamp(22px, 6vw, 30px); letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; overflow-wrap: anywhere; text-align: center; }
+  .half.a .tname { color: var(--a); }
+  .half.b .tname { color: var(--b); }
+  .half .chip { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; background: var(--hot); color: #2a0d00; }
+  .half .pt {
+    font-weight: 800; font-size: clamp(84px, 25vw, 150px); line-height: 0.82;
+    padding-inline: 14px; border-radius: 10px;
+    background: var(--court-deep); text-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  }
+  .half .pl { display: grid; grid-template-columns: 1fr 1fr; width: 100%; font-size: 14px; font-weight: 600; }
+  .half .pl.one { grid-template-columns: 1fr; }
+  .half .pl span { display: flex; align-items: center; justify-content: center; gap: 6px; color: rgba(238, 244, 251, 0.72); padding-inline: 4px; text-align: center; overflow-wrap: anywhere; }
+  .half .pl span.on { color: var(--ink); }
+  .half .fx { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .half.flash .fx { animation: flash 0.4s ease-out; }
+  @keyframes flash { from { opacity: 0.22; } to { opacity: 0; } }
+
+  .net {
+    position: relative; z-index: 2;
+    background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0 1px, transparent 1px 6px), #0a1628;
+    border-block: 2px solid rgba(244, 248, 255, 0.85);
+  }
+  .net .pill {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap;
+    background: var(--night); border: 1px solid var(--line); color: var(--ink);
+    font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 12px; border-radius: 999px;
+  }
+  .net .pill.hot { border-color: var(--hot); color: var(--hot); }
+
+  /* How was the point won */
+  .tags { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .tags .lbl { white-space: nowrap; }
+  .tag { font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; cursor: pointer; }
+  .tag.on { background: var(--ink); color: var(--night); border-color: var(--ink); }
+
+  .bar { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; }
   .bar .btn { padding-block: 13px; }
 
   /* Sheets */
   .sheet {
     position: fixed; inset: 0; z-index: 10; background: var(--scrim);
-    display: flex; align-items: flex-end; justify-content: center;
-    padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-    padding-top: calc(16px + env(safe-area-inset-top, 0px));
-    box-sizing: border-box;
+    display: flex; align-items: flex-end; justify-content: center; box-sizing: border-box;
+    padding: 16px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
   .panel {
-    background: var(--surface); color: var(--ink); border-radius: 18px; width: 100%; max-width: 560px;
-    max-height: 100%; overflow: auto; padding: 20px; box-sizing: border-box;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 18px;
+    width: 100%; max-width: 560px; max-height: 100%; overflow: auto; padding: 20px; box-sizing: border-box;
     display: flex; flex-direction: column; gap: 16px;
   }
-  .panel h2 {
-    margin: 0; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700;
-    font-size: 28px; letter-spacing: 0.02em; text-transform: uppercase; text-wrap: balance;
-  }
+  .panel h2 { margin: 0; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 800; font-size: 30px; letter-spacing: 0.04em; text-transform: uppercase; text-wrap: balance; line-height: 1; }
   .field { display: flex; flex-direction: column; gap: 6px; }
-  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .help { font-size: 13px; color: var(--muted); margin: 0; }
   .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 460px) { .teams { grid-template-columns: 1fr; } }
-  .teambox { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+  .teambox { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--panel-2); }
   .teambox .lbl { display: flex; align-items: center; gap: 6px; }
-  input[type="text"] {
-    font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
-    border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box;
+  input[type="text"], textarea {
+    font: inherit; color: var(--ink); background: var(--night); border: 1px solid var(--line);
+    border-radius: 9px; padding: 9px 11px; width: 100%; box-sizing: border-box;
   }
+  input::placeholder, textarea::placeholder { color: #5f7390; }
   .seg { display: flex; flex-wrap: wrap; gap: 6px; }
   .seg label { flex: 1 1 auto; }
   .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .seg span {
-    display: block; text-align: center; padding: 9px 10px; border-radius: 9px; cursor: pointer;
-    border: 1px solid var(--line); font-weight: 600; font-size: 14px;
-  }
-  .seg input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .seg span { display: block; text-align: center; padding: 9px 10px; border-radius: 9px; cursor: pointer; border: 1px solid var(--line); font-weight: 600; font-size: 14px; }
+  .seg span small { color: var(--muted); font-weight: 500; }
+  .seg input:checked + span { background: var(--ink); color: var(--night); border-color: var(--ink); }
+  .seg input:checked + span small { color: #3d4b5e; }
   .actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
   .stats { width: 100%; border-collapse: collapse; }
   .stats th, .stats td { padding: 8px 6px; border-top: 1px solid var(--line); text-align: center; }
   .stats th:first-child, .stats td:first-child { text-align: left; }
-  .stats thead th { border-top: 0; font-size: 12px; }
-  .stats td.v { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stats thead th { border-top: 0; font-size: 12px; white-space: nowrap; }
+  .stats td.v { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .stats td small { color: var(--muted); font-family: "Figtree", system-ui, sans-serif; font-size: 12px; font-weight: 500; }
+  .stats tr.sec td { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding-top: 14px; }
 
-  .final { font-size: 34px; font-weight: 700; letter-spacing: 0.02em; }
-  .history { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .final { font-size: 38px; font-weight: 800; letter-spacing: 0.02em; }
+  .history { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
   .history li { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
-  .history .num { font-size: 18px; font-weight: 600; }
-  textarea.copy { font: inherit; width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); padding: 8px; }
+  textarea.copy { resize: none; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .side { transition: none; }
-    .side.flash { animation: none; }
-  }
+  /* Coach */
+  .coach-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .quick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ask { display: flex; gap: 8px; }
+  .ask input { flex: 1; min-width: 0; }
+  .feed { display: flex; flex-direction: column; gap: 12px; }
+  .msg { border-radius: 12px; padding: 12px 14px; background: var(--panel-2); }
+  .msg .q { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .msg .a { white-space: pre-wrap; max-width: 65ch; }
+  .msg .a.wait { color: var(--muted); }
+  .msg .note { font-size: 12px; color: var(--hot); margin-top: 6px; }
+  .coach-off { border: 1px dashed var(--line); border-radius: 12px; padding: 12px; color: var(--muted); font-size: 14px; }
+
+  @media (prefers-reduced-motion: reduce) { .half.flash .fx { animation: none; } }
 </style>
 
 <div class="app">
   <header class="top">
-    <div class="brand"><span class="ball"></span>Padel Score</div>
+    <div class="brand display"><span class="ball"></span><div>Padel Score<small>Live match</small></div></div>
     <div class="row">
       <button class="btn" id="btn-stats" type="button">Stats</button>
       <button class="btn" id="btn-new" type="button">New match</button>
@@ -250,33 +241,46 @@
   <section class="board" id="board" aria-label="Scoreboard"></section>
   <div class="status" id="status" aria-live="polite"></div>
 
-  <main class="court">
-    <button class="side" id="side-l" type="button"></button>
-    <button class="side" id="side-r" type="button"></button>
+  <main class="court" aria-label="Court. Tap the half of the team that won the point.">
+    <button class="half top" id="half-top" type="button"></button>
+    <div class="net"><span class="pill" id="net-pill" hidden></span></div>
+    <button class="half bottom" id="half-bottom" type="button"></button>
   </main>
 
+  <div class="tags" id="tags" hidden></div>
+
   <footer class="bar">
-    <button class="btn" id="btn-undo" type="button">Undo point</button>
-    <button class="btn" id="btn-swap" type="button">Swap sides</button>
+    <button class="btn" id="btn-undo" type="button">Undo</button>
+    <button class="btn" id="btn-swap" type="button">Swap ends</button>
+    <button class="btn primary" id="btn-coach" type="button">AI Coach</button>
   </footer>
 </div>
 
-<!-- New match setup -->
+<!-- New match -->
 <div class="sheet" id="sheet-setup" hidden>
   <form class="panel" id="setup-form" autocomplete="off">
     <h2>New match</h2>
+
+    <div class="field">
+      <span class="lbl">Format</span>
+      <div class="seg">
+        <label><input type="radio" name="mode" id="mode-doubles" value="doubles"><span>Doubles <small>2 vs 2</small></span></label>
+        <label><input type="radio" name="mode" id="mode-singles" value="singles"><span>Singles <small>1 vs 1</small></span></label>
+      </div>
+    </div>
+
     <div class="teams">
       <div class="teambox">
-        <span class="lbl"><span class="sw a"></span>Team 1</span>
-        <input type="text" id="t0" maxlength="20" placeholder="Team name" aria-label="Team 1 name">
+        <span class="lbl"><span class="sw a"></span><span id="side1-lbl">Team 1</span></span>
+        <input type="text" id="t0" class="dbl" maxlength="20" placeholder="Team name" aria-label="Team 1 name">
         <input type="text" id="p00" maxlength="20" placeholder="Player 1" aria-label="Team 1 player 1">
-        <input type="text" id="p01" maxlength="20" placeholder="Player 2" aria-label="Team 1 player 2">
+        <input type="text" id="p01" class="dbl" maxlength="20" placeholder="Player 2" aria-label="Team 1 player 2">
       </div>
       <div class="teambox">
-        <span class="lbl"><span class="sw b"></span>Team 2</span>
-        <input type="text" id="t1" maxlength="20" placeholder="Team name" aria-label="Team 2 name">
+        <span class="lbl"><span class="sw b"></span><span id="side2-lbl">Team 2</span></span>
+        <input type="text" id="t1" class="dbl" maxlength="20" placeholder="Team name" aria-label="Team 2 name">
         <input type="text" id="p10" maxlength="20" placeholder="Player 1" aria-label="Team 2 player 1">
-        <input type="text" id="p11" maxlength="20" placeholder="Player 2" aria-label="Team 2 player 2">
+        <input type="text" id="p11" class="dbl" maxlength="20" placeholder="Player 2" aria-label="Team 2 player 2">
       </div>
     </div>
 
@@ -337,6 +341,37 @@
   </div>
 </div>
 
+<!-- Coach -->
+<div class="sheet" id="sheet-coach" hidden>
+  <div class="panel">
+    <h2>AI Coach</h2>
+    <div class="field">
+      <span class="lbl">Coaching</span>
+      <div class="seg" id="coach-team"></div>
+    </div>
+    <div id="coach-on">
+      <div class="field">
+        <div class="coach-actions">
+          <button class="btn primary" type="button" id="coach-tip">Tip for the next point</button>
+          <button class="btn" type="button" id="coach-review">Review the match</button>
+        </div>
+        <div class="quick" id="coach-quick"></div>
+        <form class="ask" id="coach-ask">
+          <input type="text" id="coach-q" maxlength="300" placeholder="Ask the coach anything" aria-label="Question for the coach">
+          <button class="btn" type="submit" id="coach-send">Ask</button>
+        </form>
+        <p class="help">The coach reads the live score, serve, stats and how points were won. Tag points under the court for better advice.</p>
+      </div>
+    </div>
+    <div class="coach-off" id="coach-off" hidden></div>
+    <div class="feed" id="coach-feed"></div>
+    <div class="actions">
+      <button class="btn" type="button" id="coach-stop" hidden>Stop</button>
+      <button class="btn" type="button" id="coach-close">Back to score</button>
+    </div>
+  </div>
+</div>
+
 <!-- Match over -->
 <div class="sheet" id="sheet-end" hidden>
   <div class="panel">
@@ -346,6 +381,7 @@
     <div class="actions">
       <button class="btn" type="button" id="end-close">Back to score</button>
       <button class="btn" type="button" id="end-stats">Stats</button>
+      <button class="btn" type="button" id="end-coach">Coach review</button>
       <button class="btn" type="button" id="end-rematch">Rematch</button>
       <button class="btn primary" type="button" id="end-new">New match</button>
     </div>
@@ -356,10 +392,11 @@
 (() => {
   // ---------- Scoring engine ----------
   // A match is its config plus the list of point winners (0 or 1).
-  // The full state is rebuilt by replaying that list, which makes undo trivial and exact.
+  // The full state is rebuilt by replaying that list, which makes undo exact.
   const DEUCES_BEFORE_DECIDER = { golden: 1, star: 3, adv: Infinity };
   const PT = ["0", "15", "30", "40"];
   const setsNeeded = (cfg) => Math.ceil(cfg.sets / 2);
+  const isSingles = (cfg) => cfg.mode === "singles";
 
   function init(cfg) {
     const s = {
@@ -378,14 +415,15 @@
     }
   }
 
-  // Tiebreak serve order: first server serves 1 point, then each server serves 2,
-  // rotating through all four players (A1, B1, A2, B2).
+  // Tiebreak serve order: the first server serves 1 point, then each server serves 2,
+  // rotating through all four players (A1, B1, A2, B2). Singles: always player 0.
   function server(s) {
-    if (!s.tb) return { team: s.serveTeam, player: s.pIdx[s.serveTeam] };
+    const one = isSingles(s.cfg);
+    if (!s.tb) return { team: s.serveTeam, player: one ? 0 : s.pIdx[s.serveTeam] };
     const n = s.pts[0] + s.pts[1];
     const k = n === 0 ? 0 : Math.floor((n + 1) / 2);
     const team = k % 2 === 0 ? s.tb.start : 1 - s.tb.start;
-    return { team, player: s.pIdx[team] ^ (Math.floor(k / 2) % 2) };
+    return { team, player: one ? 0 : s.pIdx[team] ^ (Math.floor(k / 2) % 2) };
   }
 
   function winsGame(s, w) {
@@ -482,6 +520,7 @@
   }
 
   // ---------- App state ----------
+  const TAGS = ["Winner", "Smash", "Volley", "Lob", "Opponent error", "Double fault"];
   const KEY = "padel-score:match";
   const HKEY = "padel-score:history";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
@@ -489,7 +528,7 @@
 
   function demoMatch() {
     const cfg = {
-      teams: ["Blue", "Yellow"], players: [["Ana", "Marta"], ["Leo", "Pablo"]],
+      mode: "doubles", teams: ["Blue", "Yellow"], players: [["Ana", "Marta"], ["Leo", "Pablo"]],
       scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0],
     };
     const log = [];
@@ -497,10 +536,20 @@
     [0, 0, 1, 0, 1, 0, 1, 0, 1, 0].forEach(game); // set 1: 6-4
     [1, 0, 1, 1, 0].forEach(game); // set 2: 2-3
     log.push(0, 1, 0); // 30-15
-    return { id: Date.now(), cfg, log, flip: false, demo: true, endSeen: -1 };
+    const tags = {};
+    log.forEach((w, i) => { if (i % 3 === 0) tags[i] = TAGS[(i * 7) % TAGS.length]; });
+    return { id: Date.now(), cfg, log, tags, flip: false, demo: true, endSeen: -1, coachTeam: 0 };
   }
 
-  let m = load(KEY, null) || demoMatch();
+  function normalize(x) {
+    if (!x || !x.cfg || !Array.isArray(x.log)) return null;
+    x.cfg.mode = x.cfg.mode || "doubles";
+    x.tags = x.tags || {};
+    x.coachTeam = x.coachTeam || 0;
+    return x;
+  }
+
+  let m = normalize(load(KEY, null)) || demoMatch();
   let s = build(m);
   const save = () => store(KEY, m);
 
@@ -509,7 +558,8 @@
   const cls = (t) => (t === 0 ? "a" : "b");
   const tn = (t) => m.cfg.teams[t];
   const pn = (t, i) => m.cfg.players[t][i];
-  const playersOf = (t) => m.cfg.players[t].filter(Boolean).join(" · ");
+  const playersOf = (t) => (isSingles(m.cfg) ? [m.cfg.players[t][0]] : m.cfg.players[t]).filter(Boolean).join(" & ");
+  const topTeam = () => (m.flip ? 1 : 0);
 
   // ---------- Render ----------
   function render() {
@@ -517,7 +567,8 @@
     $("demo").hidden = !m.demo;
     renderBoard();
     renderStatus();
-    renderSides();
+    renderCourt();
+    renderTags();
     $("btn-undo").disabled = m.log.length === 0;
     if (s.winner !== null && m.endSeen !== m.log.length) openEnd();
   }
@@ -526,21 +577,22 @@
     const live = s.winner === null;
     const sv = server(s);
     const sup = s.tb && s.tb.super;
-    let head = "<tr><th>Team</th>";
+    let head = "<tr><th>" + (isSingles(m.cfg) ? "Player" : "Team") + "</th>";
     s.sets.forEach((set, i) => { head += `<th>${set.tb && set.tb.super ? "STB" : "Set " + (i + 1)}</th>`; });
     if (live && !sup) head += `<th>Set ${s.sets.length + 1}</th>`;
     if (live) head += `<th>${sup ? "Super TB" : s.tb ? "TB" : "Pts"}</th>`;
     head += "</tr>";
     let body = "";
     for (const t of [0, 1]) {
-      body += `<tr><td class="name"><div class="team"><span class="sw ${cls(t)}"></span>${esc(tn(t))}` +
-        `<span class="ball srv ${live && sv.team === t ? "on" : ""}" title="Serving"></span></div>` +
-        `<div class="players">${esc(playersOf(t))}</div></td>`;
+      const sub = isSingles(m.cfg) ? "" : `<div class="players">${esc(playersOf(t))}</div>`;
+      body += `<tr class="${cls(t)}"><td class="name"><div class="team"><span class="sw ${cls(t)}"></span>${esc(tn(t))}` +
+        `<span class="ball srv ${live && sv.team === t ? "on" : ""}" title="Serving"></span></div>${sub}</td>`;
       for (const set of s.sets) {
-        const won = set.tb && set.tb.super ? set.tb.pts[t] > set.tb.pts[1 - t] : set.g[t] > set.g[1 - t];
-        const val = set.tb && set.tb.super ? set.tb.pts[t] : set.g[t];
-        const sup2 = set.tb && !set.tb.super && !won ? `<sup>${set.tb.pts[t]}</sup>` : "";
-        body += `<td class="g num ${won ? "won" : "lost"}">${val}${sup2}</td>`;
+        const stb = set.tb && set.tb.super;
+        const won = stb ? set.tb.pts[t] > set.tb.pts[1 - t] : set.g[t] > set.g[1 - t];
+        const val = stb ? set.tb.pts[t] : set.g[t];
+        const tbSup = set.tb && !stb && !won ? `<sup>${set.tb.pts[t]}</sup>` : "";
+        body += `<td class="g num ${won ? "won" : "lost"}">${val}${tbSup}</td>`;
       }
       if (live && !sup) body += `<td class="g num cur">${s.games[t]}</td>`;
       if (live) body += `<td class="g p num">${pointLabel(s, t)}</td>`;
@@ -550,33 +602,37 @@
   }
 
   function renderStatus() {
-    const parts = [];
+    let html = "";
+    const pill = $("net-pill");
+    let label = "", hot = false;
     if (s.winner !== null) {
-      parts.push(`<span>Game, set and match ${esc(tn(s.winner))}</span>`);
+      html = `<strong>Game, set and match ${esc(tn(s.winner))}</strong>`;
     } else {
       if (s.last) {
         const who = esc(tn(s.last.team));
-        if (s.last.kind === "set") parts.push(`<span>Set ${who}</span>`);
-        else if (s.last.brk) parts.push(`<span>Break! Game ${who}</span>`);
-        else parts.push(`<span>Game ${who}</span>`);
+        if (s.last.kind === "set") html = `<strong>Set ${who}</strong>`;
+        else if (s.last.brk) html = `<span class="hot">Break!</span> <strong>Game ${who}</strong>`;
+        else html = `<strong>Game ${who}</strong>`;
+      } else if (m.log.length === 0) {
+        html = "Tap the half of the court that won the point";
       }
-      if (s.changeEnds) parts.push(`<span class="hot">Change ends</span>`);
-      if (s.tb) parts.push(`<span class="muted">${s.tb.super ? "Super tiebreak" : "Tiebreak"} · first to ${s.tb.target}, win by 2</span>`);
-      else if (isDecidingPoint(s)) {
-        parts.push(`<span class="hot">${m.cfg.scoring === "star" ? "Star point" : "Golden point"} · receivers pick the side</span>`);
-      } else if (s.pts[0] >= 3 && s.pts[0] === s.pts[1]) {
-        const n = s.pts[0] - 2;
-        parts.push(`<span>Deuce${m.cfg.scoring === "star" ? ` ${n} of 2` : ""}</span>`);
-      }
+      if (s.changeEnds) { label = "Change ends"; hot = true; }
+      else if (s.tb) label = `${s.tb.super ? "Super tiebreak" : "Tiebreak"} · to ${s.tb.target}`;
+      else if (isDecidingPoint(s)) { label = m.cfg.scoring === "star" ? "Star point" : "Golden point"; hot = true; }
+      else if (s.pts[0] >= 3 && s.pts[0] === s.pts[1]) label = m.cfg.scoring === "star" ? `Deuce ${s.pts[0] - 2} of 2` : "Deuce";
     }
-    $("status").innerHTML = parts.join("");
+    $("status").innerHTML = html;
+    pill.textContent = label;
+    pill.className = "pill" + (hot ? " hot" : "");
+    pill.hidden = !label;
   }
 
-  function renderSides() {
+  function renderCourt() {
     const sv = server(s);
     const live = s.winner === null;
-    [[$("side-l"), m.flip ? 1 : 0], [$("side-r"), m.flip ? 0 : 1]].forEach(([el, t]) => {
-      el.className = `side ${cls(t)}`;
+    const one = isSingles(m.cfg);
+    [[$("half-top"), topTeam(), "top"], [$("half-bottom"), 1 - topTeam(), "bottom"]].forEach(([el, t, pos]) => {
+      el.className = `half ${pos} ${cls(t)}`;
       el.dataset.team = t;
       let chip = "";
       if (live) {
@@ -584,20 +640,39 @@
         else if (winsSet(s, t)) chip = "Set point";
         else if (!s.tb && sv.team !== t && winsGame(s, t)) chip = "Break point";
       }
-      const serving = live && sv.team === t
-        ? `<span class="serving"><span class="ball"></span>${esc(pn(t, sv.player) || "Serving")} serving</span>`
-        : `<span class="serving" style="visibility:hidden"><span class="ball"></span>&nbsp;</span>`;
+      const names = one ? [pn(t, 0) || tn(t)] : [pn(t, 0) || "Player 1", pn(t, 1) || "Player 2"];
+      const pl = names.map((n, i) => {
+        const on = live && sv.team === t && sv.player === i;
+        return `<span class="${on ? "on" : ""}">${on ? '<span class="ball"></span>' : ""}${esc(n)}</span>`;
+      }).join("");
+      const big = live ? pointLabel(s, t) : s.setsWon[t];
       el.innerHTML =
-        `<span class="tname">${esc(tn(t))}</span>` +
-        `<span class="tplayers">${esc(playersOf(t))}</span>` +
-        `<span class="pt num">${live ? pointLabel(s, t) : s.setsWon[t]}</span>` +
-        (chip ? `<span class="chip">${chip}</span>` : "") +
-        serving +
-        `<span class="hint">${live ? "Tap when this team wins the point" : t === s.winner ? "Winners" : ""}</span>`;
-      el.setAttribute("aria-label", `Point to ${tn(t)}`);
+        `<span class="svc"></span><span class="ctr"></span><span class="fx"></span>` +
+        `<span class="head"><span class="tname">${esc(tn(t))}</span>${chip ? `<span class="chip">${chip}</span>` : ""}</span>` +
+        `<span class="pt num">${big}</span>` +
+        `<span class="pl ${one ? "one" : ""}">${pl}</span>`;
+      el.setAttribute("aria-label", live ? `Point to ${tn(t)}, now ${pointLabel(s, t)}` : `${tn(t)}, ${s.setsWon[t]} sets`);
       el.disabled = !live;
     });
   }
+
+  function renderTags() {
+    const i = m.log.length - 1;
+    const box = $("tags");
+    if (i < 0) { box.hidden = true; return; }
+    box.hidden = false;
+    const cur = m.tags[i];
+    box.innerHTML = `<span class="lbl">${esc(tn(m.log[i]))} won it with</span>` +
+      TAGS.map((t) => `<button type="button" class="tag ${cur === t ? "on" : ""}" data-tag="${esc(t)}">${esc(t)}</button>`).join("");
+  }
+  $("tags").addEventListener("click", (e) => {
+    const b = e.target.closest(".tag");
+    if (!b) return;
+    const i = m.log.length - 1;
+    if (m.tags[i] === b.dataset.tag) delete m.tags[i]; else m.tags[i] = b.dataset.tag;
+    save();
+    renderTags();
+  });
 
   // ---------- Actions ----------
   function score(t) {
@@ -606,12 +681,13 @@
     save();
     try { navigator.vibrate && navigator.vibrate(12); } catch { /* not allowed */ }
     render();
-    const el = [$("side-l"), $("side-r")].find((e) => Number(e.dataset.team) === t);
+    const el = [$("half-top"), $("half-bottom")].find((e) => Number(e.dataset.team) === t);
     if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
     keepAwake();
   }
   function undo() {
     if (!m.log.length) return;
+    delete m.tags[m.log.length - 1];
     m.log.pop();
     m.endSeen = -1;
     save();
@@ -625,19 +701,21 @@
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && m.log.length) keepAwake(); });
 
-  $("side-l").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
-  $("side-r").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
+  $("half-top").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
+  $("half-bottom").addEventListener("click", (e) => score(Number(e.currentTarget.dataset.team)));
   $("btn-undo").addEventListener("click", undo);
   $("btn-swap").addEventListener("click", () => { m.flip = !m.flip; save(); render(); });
   $("btn-new").addEventListener("click", openSetup);
   $("demo-start").addEventListener("click", openSetup);
   $("btn-stats").addEventListener("click", openStats);
+  $("btn-coach").addEventListener("click", openCoach);
 
+  const anySheetOpen = () => [...document.querySelectorAll(".sheet")].some((x) => !x.hidden);
   document.addEventListener("keydown", (e) => {
-    if (!$("sheet-setup").hidden || e.target.tagName === "INPUT") return;
+    if (anySheetOpen() || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
     const k = e.key.toLowerCase();
-    if (k === "arrowleft" || k === "a") score(m.flip ? 1 : 0);
-    else if (k === "arrowright" || k === "l") score(m.flip ? 0 : 1);
+    if (k === "arrowup" || k === "w") { e.preventDefault(); score(topTeam()); }
+    else if (k === "arrowdown" || k === "s") { e.preventDefault(); score(1 - topTeam()); }
     else if (k === "u" || k === "backspace") undo();
   });
 
@@ -657,98 +735,125 @@
 
   // ---------- Setup sheet ----------
   const HELP = {
-    golden: "At 40-40 the next point wins the game. The receiving team chooses who receives.",
+    golden: "At 40-40 the next point wins the game. The receiving side chooses who receives.",
     star: "Up to two advantages are played. At the third deuce, the next point wins the game.",
-    adv: "Classic scoring: a team must win two points in a row from deuce.",
+    adv: "Classic scoring: win two points in a row from deuce.",
   };
+  const radio = (name) => (document.querySelector(`input[name="${name}"]:checked`) || {}).value;
+
   function renderServerChoices(sel) {
+    const one = radio("mode") === "singles";
     const names = [[$("p00").value || "Player 1", $("p01").value || "Player 2"], [$("p10").value || "Player 1", $("p11").value || "Player 2"]];
     const team = [$("t0").value || "Team 1", $("t1").value || "Team 2"];
     let html = "";
-    for (const t of [0, 1]) for (const i of [0, 1]) {
+    for (const t of [0, 1]) for (const i of one ? [0] : [0, 1]) {
       const v = `${t}-${i}`;
-      html += `<label><input type="radio" name="server" id="srv-${v}" value="${v}" ${v === sel ? "checked" : ""}><span>${esc(names[t][i])} <small>(${esc(team[t])})</small></span></label>`;
+      const label = one ? esc(names[t][0]) : `${esc(names[t][i])} <small>${esc(team[t])}</small>`;
+      html += `<label><input type="radio" name="server" id="srv-${v}" value="${v}" ${v === sel ? "checked" : ""}><span>${label}</span></label>`;
     }
     $("first-server").innerHTML = html;
+    if (!radio("server")) document.querySelector('input[name="server"]').checked = true;
   }
-  const radio = (name) => (document.querySelector(`input[name="${name}"]:checked`) || {}).value;
 
-  function syncSetupHints() {
+  function syncSetup() {
+    const one = radio("mode") === "singles";
+    document.querySelectorAll("#setup-form .dbl").forEach((x) => (x.hidden = one));
+    $("side1-lbl").textContent = one ? "Player 1" : "Team 1";
+    $("side2-lbl").textContent = one ? "Player 2" : "Team 2";
+    $("p00").placeholder = $("p10").placeholder = one ? "Name" : "Player 1";
     $("scoring-help").textContent = HELP[radio("scoring")] || "";
     $("decider-field").hidden = radio("sets") === "1";
   }
 
   function openSetup() {
     const c = m.demo
-      ? { teams: ["", ""], players: [["", ""], ["", ""]], scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0] }
+      ? { mode: "doubles", teams: ["", ""], players: [["", ""], ["", ""]], scoring: "golden", sets: 3, decider: "super", serveTeam: 0, servePlayer: [0, 0] }
       : m.cfg;
-    $("t0").value = c.teams[0]; $("t1").value = c.teams[1];
-    $("p00").value = c.players[0][0]; $("p01").value = c.players[0][1];
-    $("p10").value = c.players[1][0]; $("p11").value = c.players[1][1];
+    $("t0").value = isSingles(c) ? "" : c.teams[0];
+    $("t1").value = isSingles(c) ? "" : c.teams[1];
+    $("p00").value = c.players[0][0]; $("p01").value = c.players[0][1] || "";
+    $("p10").value = c.players[1][0]; $("p11").value = c.players[1][1] || "";
+    $(`mode-${c.mode}`).checked = true;
     $(`sc-${c.scoring}`).checked = true;
     $(`sets-${c.sets}`).checked = true;
     $(`dec-${c.decider}`).checked = true;
-    renderServerChoices(`${c.serveTeam}-${c.servePlayer[c.serveTeam]}`);
-    syncSetupHints();
+    syncSetup();
+    renderServerChoices(`${c.serveTeam}-${isSingles(c) ? 0 : c.servePlayer[c.serveTeam]}`);
     const h = load(HKEY, []);
     $("history-field").hidden = h.length === 0;
     $("history").innerHTML = h.map((x) =>
       `<li><span>${esc(x.line)}</span><span class="help">${esc(new Date(x.date).toLocaleDateString())}</span></li>`).join("");
     $("sheet-setup").hidden = false;
-    $("t0").focus();
   }
   $("setup-form").addEventListener("input", (e) => {
-    if (e.target.type === "text") renderServerChoices(radio("server"));
-    syncSetupHints();
+    syncSetup();
+    if (e.target.type === "text" || e.target.name === "mode") renderServerChoices(radio("server"));
   });
   $("setup-cancel").addEventListener("click", () => { $("sheet-setup").hidden = true; });
   $("setup-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    const one = radio("mode") === "singles";
     const [st, sp] = (radio("server") || "0-0").split("-").map(Number);
     const servePlayer = [0, 0];
     servePlayer[st] = sp;
-    const cfg = {
-      teams: [$("t0").value.trim() || "Team 1", $("t1").value.trim() || "Team 2"],
-      players: [[$("p00").value.trim(), $("p01").value.trim()], [$("p10").value.trim(), $("p11").value.trim()]],
+    const p = [[$("p00").value.trim(), $("p01").value.trim()], [$("p10").value.trim(), $("p11").value.trim()]];
+    const teams = one
+      ? [p[0][0] || "Player 1", p[1][0] || "Player 2"]
+      : [$("t0").value.trim() || "Team 1", $("t1").value.trim() || "Team 2"];
+    startMatch({
+      mode: one ? "singles" : "doubles",
+      teams,
+      players: one ? [[teams[0], ""], [teams[1], ""]] : p,
       scoring: radio("scoring") || "golden",
       sets: Number(radio("sets") || 3),
       decider: radio("decider") || "super",
       serveTeam: st,
       servePlayer,
-    };
-    startMatch(cfg);
+    });
     $("sheet-setup").hidden = true;
   });
 
   function startMatch(cfg) {
     archive();
-    m = { id: Date.now(), cfg, log: [], flip: false, demo: false, endSeen: -1 };
+    m = { id: Date.now(), cfg, log: [], tags: {}, flip: false, demo: false, endSeen: -1, coachTeam: m.coachTeam || 0 };
+    coachFeed = [];
+    renderFeed();
     save();
     [$("sheet-end"), $("sheet-stats")].forEach((x) => (x.hidden = true));
     render();
   }
 
-  // ---------- Stats sheet ----------
-  function pct(a, b) { return b ? Math.round((100 * a) / b) + "%" : "–"; }
+  // ---------- Stats ----------
+  const pct = (a, b) => (b ? Math.round((100 * a) / b) + "%" : "–");
+  function tagCounts() {
+    const c = [{}, {}];
+    Object.entries(m.tags).forEach(([i, tag]) => {
+      const w = m.log[Number(i)];
+      if (w === 0 || w === 1) c[w][tag] = (c[w][tag] || 0) + 1;
+    });
+    return c;
+  }
   function openStats() {
     const st = s.st;
+    const tc = tagCounts();
     const row = (label, f) => `<tr><td>${label}</td><td class="v">${f(0)}</td><td class="v">${f(1)}</td></tr>`;
-    const sets = s.sets.length
-      ? s.sets.map((x, i) => `<tr><td>${x.tb && x.tb.super ? "Super tiebreak" : "Set " + (i + 1)}</td>` +
-          `<td class="v">${x.tb && x.tb.super ? x.tb.pts[0] : x.g[0]}</td><td class="v">${x.tb && x.tb.super ? x.tb.pts[1] : x.g[1]}</td></tr>`).join("")
-      : "";
+    const sets = s.sets.map((x, i) => {
+      const stb = x.tb && x.tb.super;
+      return `<tr><td>${stb ? "Super tiebreak" : "Set " + (i + 1)}</td><td class="v">${stb ? x.tb.pts[0] : x.g[0]}</td><td class="v">${stb ? x.tb.pts[1] : x.g[1]}</td></tr>`;
+    }).join("");
+    const tagged = TAGS.filter((t) => tc[0][t] || tc[1][t]);
     $("stats-body").innerHTML =
       `<div style="overflow-x:auto"><table class="stats"><thead><tr><th></th>` +
-      `<th><span class="sw a"></span> ${esc(tn(0))}</th>` +
-      `<th><span class="sw b"></span> ${esc(tn(1))}</th></tr></thead><tbody>` +
+      `<th><span class="sw a"></span> ${esc(tn(0))}</th><th><span class="sw b"></span> ${esc(tn(1))}</th></tr></thead><tbody>` +
       sets +
       row("Points won", (t) => st.pts[t]) +
       row("Games won", (t) => st.games[t]) +
       row("Points won on serve", (t) => `${st.srvWon[t]}/${st.srvPlayed[t]} <small>${pct(st.srvWon[t], st.srvPlayed[t])}</small>`) +
       row("Break points won", (t) => `${st.bpWon[t]}/${st.bpChances[t]}`) +
       row("Longest point run", (t) => st.best[t]) +
+      (tagged.length ? `<tr class="sec"><td colspan="3">Points won with</td></tr>` + tagged.map((tag) => row(esc(tag), (t) => tc[t][tag] || 0)).join("") : "") +
       `</tbody></table></div>` +
-      `<p class="help">${esc(resultLine(s, m))}. ${m.log.length} points played.</p>`;
+      `<p class="help">${esc(resultLine(s, m))}. ${m.log.length} points played${tagged.length ? "" : ". Tag points under the court to see how they were won"}.</p>`;
     $("copy-fallback").hidden = true;
     $("sheet-stats").hidden = false;
   }
@@ -757,14 +862,201 @@
     const text = resultLine(s, m);
     const fallback = () => { const ta = $("copy-fallback"); ta.value = text; ta.hidden = false; ta.select(); };
     try {
-      navigator.clipboard.writeText(text).then(() => { $("copy-result").textContent = "Copied"; setTimeout(() => ($("copy-result").textContent = "Copy result"), 1500); }, fallback);
+      navigator.clipboard.writeText(text).then(() => {
+        $("copy-result").textContent = "Copied";
+        setTimeout(() => ($("copy-result").textContent = "Copy result"), 1500);
+      }, fallback);
     } catch { fallback(); }
   });
 
-  // ---------- Match over sheet ----------
+  // ---------- AI coach ----------
+  // Uses the viewer's Claude through the artifact "sample" capability; hidden where unavailable.
+  let sample = null, sampleState = "pending", coachCtl = null, coachFeed = [];
+  (async () => {
+    try { sample = window.claude && window.claude.use ? await window.claude.use("sample") : null; } catch { sample = null; }
+    sampleState = sample ? "ready" : "off";
+    syncCoachAvail();
+  })();
+
+  const QUICK = [
+    "They keep lobbing us. What do we do?",
+    "We keep losing our serve",
+    "How do we play the golden point?",
+    "We are tired and losing focus",
+  ];
+  $("coach-quick").innerHTML = QUICK.map((q) => `<button type="button" class="tag" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+
+  function syncCoachAvail() {
+    const off = sampleState === "off";
+    $("coach-on").hidden = off;
+    $("coach-off").hidden = !off && sampleState !== "pending";
+    $("coach-off").textContent = sampleState === "pending"
+      ? "Connecting to the coach..."
+      : "The AI coach runs on Claude. Open this page in Claude (web or app) to use it. Scoring works everywhere.";
+    if (sampleState === "pending") $("coach-off").hidden = false;
+  }
+
+  function renderCoachTeam() {
+    $("coach-team").innerHTML = [0, 1].map((t) =>
+      `<label><input type="radio" name="coachteam" id="ct-${t}" value="${t}" ${m.coachTeam === t ? "checked" : ""}><span>${esc(tn(t))}</span></label>`).join("");
+  }
+  $("coach-team").addEventListener("change", () => { m.coachTeam = Number(radio("coachteam")); save(); });
+
+  function openCoach() {
+    renderCoachTeam();
+    syncCoachAvail();
+    renderFeed();
+    $("sheet-coach").hidden = false;
+  }
+
+  const SCORING_NAME = { golden: "golden point", star: "star point (2 advantages, then deciding point)", adv: "advantage" };
+  function matchContext() {
+    const me = m.coachTeam, o = 1 - me, st = s.st, c = m.cfg, sv = server(s);
+    const L = [];
+    L.push(`Format: ${isSingles(c) ? "singles" : "doubles"}, ${c.sets === 1 ? "1 set" : "best of " + c.sets}, at 40-40: ${SCORING_NAME[c.scoring]}` +
+      (c.sets > 1 ? `, deciding set: ${c.decider === "super" ? "super tiebreak to 10" : "full set"}` : "") + ".");
+    L.push(`Coaching: ${tn(me)}${isSingles(c) ? "" : ` (${playersOf(me)})`}. Opponent: ${tn(o)}${isSingles(c) ? "" : ` (${playersOf(o)})`}.`);
+    const sets = s.sets.map((x) => setText(x, me)).join(", ") || "none finished";
+    if (s.winner !== null) {
+      L.push(`Match finished. Winner: ${tn(s.winner)}. Sets (${tn(me)} first): ${sets}.`);
+    } else {
+      L.push(`Finished sets (${tn(me)} first): ${sets}. Sets won: ${s.setsWon[me]}-${s.setsWon[o]}.`);
+      L.push(s.tb
+        ? `Now in ${s.tb.super ? "super tiebreak" : "tiebreak"} to ${s.tb.target}: ${s.pts[me]}-${s.pts[o]}.`
+        : `Current set games: ${s.games[me]}-${s.games[o]}. Current game points: ${pointLabel(s, me)}-${pointLabel(s, o)}${isDecidingPoint(s) ? " (deciding point)" : ""}.`);
+      L.push(`Serving now: ${pn(sv.team, sv.player) || tn(sv.team)} (${sv.team === me ? "us" : "opponent"}).`);
+      const press = [];
+      for (const t of [me, o]) {
+        if (winsMatch(s, t)) press.push(`${tn(t)} has match point`);
+        else if (winsSet(s, t)) press.push(`${tn(t)} has set point`);
+        else if (!s.tb && sv.team !== t && winsGame(s, t)) press.push(`${tn(t)} has break point`);
+      }
+      if (press.length) L.push(`Pressure: ${press.join("; ")}.`);
+      if (s.changeEnds) L.push("Players are changing ends now.");
+    }
+    const line = (t) => `${tn(t)}: points ${st.pts[t]}, points won on serve ${st.srvWon[t]}/${st.srvPlayed[t]}, break points won ${st.bpWon[t]}/${st.bpChances[t]}, longest run ${st.best[t]}`;
+    L.push(`Stats. ${line(me)}. ${line(o)}.`);
+    if (st.cur >= 0) L.push(`Current run: ${tn(st.cur)} won the last ${st.run} point(s).`);
+    const tc = tagCounts();
+    const tagTxt = (t) => TAGS.filter((x) => tc[t][x]).map((x) => `${x} ${tc[t][x]}`).join(", ") || "not tagged";
+    L.push(`How points were won. ${tn(me)}: ${tagTxt(me)}. ${tn(o)}: ${tagTxt(o)}.`);
+    const start = Math.max(0, m.log.length - 16);
+    const recent = m.log.slice(start).map((w, j) => {
+      const tag = m.tags[start + j];
+      return (w === me ? "won" : "lost") + (tag ? ` (${tag})` : "");
+    });
+    if (recent.length) L.push(`Last ${recent.length} points for ${tn(me)}, oldest first: ${recent.join(", ")}.`);
+    return L.join("\n");
+  }
+
+  const STYLE = {
+    tip: "Give a tip for the very next points. First line: the single most important action. Then at most 3 short lines starting with \"- \". Under 80 words.",
+    review: "Give a short match review: what is working, what is not, and 3 concrete adjustments. Short lines starting with \"- \" under three plain labels: Working, Not working, Change now. Under 170 words.",
+    ask: "Answer the player's question directly for this match situation. Short lines, under 120 words.",
+  };
+
+  function coachPrompt(kind, question) {
+    const me = tn(m.coachTeam);
+    const prior = coachFeed.filter((x) => x.done && x.q).slice(0, 3).reverse()
+      .map((x) => `Q: ${x.q}\nA: ${x.a}`).join("\n\n");
+    return [
+      `You are an experienced padel coach standing courtside during a live match, coaching ${me}.`,
+      "Give practical padel advice the players can use right away: court position (net vs back), lobs, bandeja, víbora, smash choices, chiquita, serve and return targets, using the glass, partner communication, and handling pressure points like the golden point and break points.",
+      "Base claims only on the match data below. If the data is thin, say what to watch for. Plain text only: no markdown, no bold, no headings with #.",
+      STYLE[kind],
+      "",
+      "LIVE MATCH DATA",
+      matchContext(),
+      prior ? `\nEARLIER IN THIS CHAT\n${prior}` : "",
+      question ? `\nPLAYER QUESTION: ${question}` : "",
+    ].join("\n");
+  }
+
+  const COACH_ERR = {
+    rate_limited: "Too many requests right now. Wait a moment, then try again.",
+    session_expired: "Sign in to Claude again, then try again.",
+    refused: "The coach could not answer that. Try asking it differently.",
+    empty_completion: "The coach had nothing to say. Try a more specific question.",
+    prompt_too_large: "Too much match data to send. Start a new match or ask something shorter.",
+  };
+  const HIDE_CODES = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+
+  function renderFeed() {
+    $("coach-feed").innerHTML = coachFeed.map((x, i) =>
+      `<div class="msg"><div class="q">${esc(x.label)}</div><div class="a ${x.a ? "" : "wait"}" id="ans-${i}">${esc(x.a || "Thinking...")}</div>` +
+      (x.note ? `<div class="note">${esc(x.note)}</div>` : "") + `</div>`).join("");
+  }
+  const clean = (t) => t.replace(/\*\*/g, "").replace(/^#+\s*/gm, "");
+
+  function setBusy(busy) {
+    ["coach-tip", "coach-review", "coach-send"].forEach((id) => ($(id).disabled = busy));
+    document.querySelectorAll("#coach-quick .tag").forEach((b) => (b.disabled = busy));
+    $("coach-stop").hidden = !busy;
+  }
+
+  async function askCoach(kind, question) {
+    if (!sample || coachCtl) return;
+    const labels = { tip: "Tip for the next point", review: "Match review" };
+    const entry = { label: kind === "ask" ? question : labels[kind], q: question || labels[kind], a: "", note: "", done: false };
+    coachFeed.unshift(entry);
+    coachFeed = coachFeed.slice(0, 12);
+    renderFeed();
+    setBusy(true);
+    const ctl = (coachCtl = new AbortController());
+    const opts = {
+      signal: ctl.signal,
+      modelTier: kind === "tip" ? "quick" : "default",
+      onText: ({ text }) => {
+        entry.a = clean(text);
+        const el = $("ans-" + coachFeed.indexOf(entry));
+        if (el) { el.textContent = entry.a; el.classList.remove("wait"); }
+      },
+    };
+    if (kind === "ask") opts.cache = false;
+    try {
+      const r = await sample(coachPrompt(kind, question), opts);
+      entry.a = clean(r.text);
+      entry.done = true;
+      if (r.truncated) entry.note = "The answer was cut short.";
+    } catch (e) {
+      const code = e && e.code;
+      entry.a = e && e.text ? clean(e.text) : "";
+      if (code === "cancelled") {
+        entry.note = entry.a ? "Stopped." : "";
+        if (!entry.a) coachFeed.splice(coachFeed.indexOf(entry), 1);
+      } else if (HIDE_CODES.includes(code)) {
+        coachFeed.splice(coachFeed.indexOf(entry), 1);
+        sampleState = "off";
+        syncCoachAvail();
+      } else {
+        if (code === "refused") entry.a = "";
+        entry.note = COACH_ERR[code] || "Connection problem. Tap again to retry.";
+        if (!entry.a) entry.a = " ";
+      }
+    } finally {
+      coachCtl = null;
+      setBusy(false);
+      renderFeed();
+    }
+  }
+
+  $("coach-tip").addEventListener("click", () => askCoach("tip"));
+  $("coach-review").addEventListener("click", () => askCoach("review"));
+  $("coach-quick").addEventListener("click", (e) => { const b = e.target.closest("[data-q]"); if (b) askCoach("ask", b.dataset.q); });
+  $("coach-ask").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("coach-q").value.trim();
+    if (!q) return;
+    $("coach-q").value = "";
+    askCoach("ask", q);
+  });
+  $("coach-stop").addEventListener("click", () => coachCtl && coachCtl.abort());
+  $("coach-close").addEventListener("click", () => { $("sheet-coach").hidden = true; });
+
+  // ---------- Match over ----------
   function openEnd() {
     const w = s.winner;
-    $("end-title").textContent = `${tn(w)} win`;
+    $("end-title").textContent = `${tn(w)} win${isSingles(m.cfg) ? "s" : ""}`;
     $("end-score").textContent = s.sets.map((x) => setText(x, w)).join("  ");
     $("end-players").textContent = `${playersOf(w) || tn(w)} beat ${playersOf(1 - w) || tn(1 - w)}.`;
     $("sheet-end").hidden = false;
@@ -772,6 +1064,7 @@
   const closeEnd = () => { m.endSeen = m.log.length; save(); $("sheet-end").hidden = true; };
   $("end-close").addEventListener("click", closeEnd);
   $("end-stats").addEventListener("click", () => { closeEnd(); openStats(); });
+  $("end-coach").addEventListener("click", () => { closeEnd(); openCoach(); askCoach("review"); });
   $("end-rematch").addEventListener("click", () => startMatch({ ...m.cfg }));
   $("end-new").addEventListener("click", () => { closeEnd(); openSetup(); });
 
