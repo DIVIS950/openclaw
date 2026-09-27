@@ -98,7 +98,7 @@ export function applyAssistantChanges(l: Listing, c: AssistantChanges) {
 }
 
 /** Adds a sentence at the end of the text, but above a closing line of #hashtags (Vinted style). */
-function addSentence(text: string, sentence: string) {
+export function addSentence(text: string, sentence: string) {
   const lines = text.trimEnd().split("\n");
   const tags = lines.length > 1 && /^\s*#\S+/.test(lines.at(-1)!) ? lines.pop()! : null;
   const body = lines.join("\n").trimEnd();

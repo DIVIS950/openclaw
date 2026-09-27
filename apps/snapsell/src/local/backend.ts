@@ -11,6 +11,7 @@ import { demoAnalysis } from "../../server/ai/demo.ts";
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
 import { geminiAnalyze, geminiAssistant, geminiPhotoPlan } from "../../shared/gemini.ts";
 import { normalizePhotoPlan, photoPlanPrompt } from "../../shared/photoPlan.ts";
+import { effectiveSize, finalizeAnalysis, noteWithCondition, sellerCondition } from "../../shared/pricing.ts";
 import {
   DEFAULT_SETTINGS,
   PLATFORMS,
@@ -103,7 +104,7 @@ async function sendToExtension(l: Listing, p: "facebook" | "vinted") {
     condition: effectiveCondition(l),
     category: a.item.category,
     brand: a.item.brand,
-    size: a.item.size,
+    size: effectiveSize(l),
     photos: [],
     autoPublish: settings.autoPublish,
     vintedDomain: settings.vintedDomain,
@@ -129,7 +130,8 @@ function platformStatuses(): PlatformStatus[] {
 
 function analyzeStream(form: FormData) {
   const files = form.getAll("photos").filter((f): f is File => f instanceof File);
-  const note = (form.get("note") as string | null)?.trim() || undefined;
+  const condition = sellerCondition(form);
+  const note = noteWithCondition((form.get("note") as string | null)?.trim() || undefined, condition);
   const now = new Date().toISOString();
   const l: Listing = { id: id8(), owner: ME.email, createdAt: now, updatedAt: now, status: "analyzing", note, photos: [], enhanced: [], edits: {}, publish: {} };
   const enc = new TextEncoder();
@@ -153,6 +155,7 @@ function analyzeStream(form: FormData) {
               send,
             )
           : await demoAnalysis(l.photos.length, settings, send);
+        l.analysis = finalizeAnalysis(l.analysis, condition);
         l.status = "draft";
         send({ type: "stage", stage: "done" });
         send({ type: "listing", listing: l });

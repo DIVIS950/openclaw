@@ -3,6 +3,7 @@
  * Answers the app's /api, /photos and /auth requests inside the page, so the real UI runs
  * as a static web page: sample listings, demo AI analysis, simulated posting.
  */
+import { finalizeAnalysis, sellerCondition } from "../../shared/pricing.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import {
   DEFAULT_SETTINGS,
@@ -314,7 +315,7 @@ function analyzeStream(form: FormData) {
       send({ type: "listing", listing: l });
       const a = await demoAnalysis(l.photos.length, settings, send);
       a.identificationNotes = "Web preview: these are sample AI results. In the real app Claude analyzes your own photos.";
-      l.analysis = a;
+      l.analysis = finalizeAnalysis(a, sellerCondition(form));
       l.status = "draft";
       send({ type: "stage", stage: "done" });
       send({ type: "listing", listing: l });

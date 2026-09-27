@@ -1,3 +1,4 @@
+import { effectiveSize } from "../../shared/pricing.ts";
 import { effectiveCondition, effectiveCopy, effectivePrice, type Listing, type Settings } from "../../shared/types.ts";
 import { photoUrl } from "./api.ts";
 
@@ -27,7 +28,7 @@ export async function vintedBotLink(l: Listing, s: Settings) {
     condition: effectiveCondition(l),
     category: a.item.category,
     brand: a.item.brand,
-    size: a.item.size,
+    size: effectiveSize(l),
     autoPublish: true,
     photos: await Promise.all(l.photos.slice(0, 8).map((_, i) => photoForLink(photoUrl(l, i)))),
   };

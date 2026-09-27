@@ -1,3 +1,4 @@
+import { effectiveSize } from "../../shared/pricing.ts";
 import {
   CONDITION_LABEL,
   PLATFORM_META,
@@ -30,7 +31,7 @@ export function agentInstruction(l: Listing, p: Platform, s: Settings) {
   const details = [
     a.item.brand && `Brand: ${a.item.brand}`,
     a.item.model && `Model: ${a.item.model}`,
-    a.item.size && `Size: ${a.item.size}`,
+    effectiveSize(l) && `Size: ${effectiveSize(l)}`,
     a.item.color && `Color: ${a.item.color}`,
   ].filter(Boolean);
 

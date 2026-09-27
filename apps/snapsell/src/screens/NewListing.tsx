@@ -1,7 +1,7 @@
 import { Check, ImagePlus, Loader2, PenLine, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import type { Listing } from "../../shared/types.ts";
+import type { Condition, Listing } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { Button, Sheet, cx } from "../components/ui.tsx";
 import { api, formatPrice, pendingPhotos } from "../lib/api.ts";
@@ -22,6 +22,8 @@ export function NewListing() {
   // When the AI can't see photos in this app, the seller describes the item and we try again.
   const [described, setDescribed] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [condition, setCondition] = useState<Condition | null>(null);
   const { go } = useApp();
 
   if (running) {
@@ -31,13 +33,63 @@ export function NewListing() {
         shots={shots}
         note={described ? [described, note].filter(Boolean).join(". ") : note}
         textOnly={described !== null}
+        condition={condition}
         onDescribe={setDescribed}
         onDone={(id) => go(`/l/${id}`, true)}
         onCancel={() => setRunning(false)}
       />
     );
   }
-  return <CameraScreen shots={shots} setShots={setShots} note={note} setNote={setNote} onDone={() => setRunning(true)} />;
+  return (
+    <>
+      <CameraScreen shots={shots} setShots={setShots} note={note} setNote={setNote} onDone={() => setAsking(true)} />
+      <ConditionSheet
+        open={asking}
+        onClose={() => setAsking(false)}
+        onPick={(c) => {
+          setCondition(c);
+          setAsking(false);
+          setRunning(true);
+        }}
+      />
+    </>
+  );
+}
+
+const CONDITION_CHOICES: { id: Condition | null; emoji: string; label: string; hint: string }[] = [
+  { id: "new", emoji: "🏷️", label: "New with tags", hint: "Never used, tags or box" },
+  { id: "like_new", emoji: "✨", label: "Like new", hint: "Used a few times, no marks" },
+  { id: "good", emoji: "👍", label: "Good", hint: "Normal signs of use" },
+  { id: "fair", emoji: "🩹", label: "Worn", hint: "Visible wear or small faults" },
+  { id: "poor", emoji: "🔧", label: "Damaged", hint: "Broken or for parts" },
+  { id: null, emoji: "🤖", label: "Not sure", hint: "Let the AI judge from the photos" },
+];
+
+/** Asked once before the analysis: the seller knows the condition better than a photo shows. */
+function ConditionSheet({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (c: Condition | null) => void }) {
+  return (
+    <Sheet open={open} onClose={onClose} title="What condition is it in?" subtitle="The price depends on it. Worse shape, lower price.">
+      <div className="grid grid-cols-2 gap-2.5">
+        {CONDITION_CHOICES.map((c, i) => (
+          <motion.button
+            key={c.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onPick(c.id)}
+            className={cx("rounded-[20px] border-[1.5px] bg-card p-3.5 text-left", c.id ? "border-line" : "border-dashed border-line-strong")}
+          >
+            <span className="text-2xl" aria-hidden="true">
+              {c.emoji}
+            </span>
+            <span className="mt-1 block text-[15px] font-bold">{c.label}</span>
+            <span className="block text-[12px] leading-snug text-muted">{c.hint}</span>
+          </motion.button>
+        ))}
+      </div>
+    </Sheet>
+  );
 }
 
 // ---------------------------------------------------------------- camera (design artboard 3)
@@ -228,6 +280,7 @@ function Analyzing({
   shots,
   note,
   textOnly,
+  condition,
   onDescribe,
   onDone,
   onCancel,
@@ -235,6 +288,7 @@ function Analyzing({
   shots: Shot[];
   note: string;
   textOnly: boolean;
+  condition: Condition | null;
   onDescribe: (text: string) => void;
   onDone: (id: string) => void;
   onCancel: () => void;
@@ -262,7 +316,7 @@ function Analyzing({
       try {
         const files = await Promise.all(shots.map((s) => prepareForUpload(s.file)));
         let listing: Listing | null = null;
-        for await (const e of api.analyze(files, note, textOnly)) {
+        for await (const e of api.analyze(files, note, textOnly, condition)) {
           if (e.type === "stage" && e.stage !== "done") setStage(e.stage);
           else if (e.type === "lens") setLens({ matches: e.matches, bestGuess: e.bestGuess });
           else if (e.type === "price") setPrices((p) => [...p, { value: e.value, currency: e.currency }]);
@@ -294,7 +348,7 @@ function Analyzing({
         setError(err instanceof Error ? err.message : String(err));
       }
     })();
-  }, [shots, note, textOnly, onDone]);
+  }, [shots, note, textOnly, condition, onDone]);
 
   const lensOn = Boolean(health?.lens.vision || health?.lens.serpapi) || (lens?.matches ?? 0) > 0;
   const steps = [

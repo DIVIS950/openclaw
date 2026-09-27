@@ -14,6 +14,8 @@ import {
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { GeminiApp } from "../components/GeminiApp.tsx";
+import { CONDITION_FACTOR, conditionRatio, effectiveSize, nicePrice } from "../../shared/pricing.ts";
+import { SizeCard } from "../components/SizeCard.tsx";
 import { CountUp } from "../components/CountUp.tsx";
 import { PublishSheet } from "../components/PublishSheet.tsx";
 import { VoiceAssistant } from "../components/VoiceAssistant.tsx";
@@ -126,12 +128,14 @@ export function ListingScreen({ id }: { id: string }) {
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-accent-ink">{a.item.category}</div>
             <h1 className="mt-1 font-display text-[26px] font-extrabold leading-[1.08]">{a.item.name}</h1>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {[a.item.brand, a.item.color, a.item.size, a.item.era].filter(Boolean).map((x) => (
+              {[a.item.brand, a.item.color, effectiveSize(listing), a.item.era].filter(Boolean).map((x) => (
                 <Pill key={x}>{x}</Pill>
               ))}
               <Pill tone={a.confidence >= 0.75 ? "ok" : "soft"}>{Math.round(Math.min(1, Math.max(0, a.confidence)) * 100)}% match</Pill>
             </div>
           </div>
+
+          <SizeCard listing={listing} onEdit={edit} />
 
           <motion.button
             whileTap={{ scale: 0.97 }}
@@ -160,10 +164,22 @@ export function ListingScreen({ id }: { id: string }) {
             <Segmented
               label="Condition"
               value={effectiveCondition(listing)}
-              onChange={(v) => edit((e) => ({ ...e, condition: v }))}
-              options={CONDITIONS.filter((c) => c !== "poor").map((c) => ({ id: c, label: CONDITION_SHORT[c] }))}
+              onChange={(v) =>
+                edit((e) => {
+                  const was = e.condition ?? a.condition;
+                  // A price the seller set moves by the same step as the condition (worse shape, lower price).
+                  const price = e.price !== undefined ? nicePrice((e.price * CONDITION_FACTOR[v]) / CONDITION_FACTOR[was]) : undefined;
+                  return { ...e, condition: v, ...(price !== undefined ? { price } : {}) };
+                })
+              }
+              options={CONDITIONS.map((c) => ({ id: c, label: CONDITION_SHORT[c] }))}
             />
             <p className="mt-2.5 text-sm leading-relaxed text-muted">AI noticed: {a.conditionNotes}</p>
+            {effectiveCondition(listing) !== a.condition && (
+              <p className="mt-1.5 text-sm font-semibold text-accent-ink">
+                Price adjusted for {CONDITION_SHORT[effectiveCondition(listing)].toLowerCase()} condition
+              </p>
+            )}
           </Card>
 
           <CopyEditor listing={listing} onEdit={edit} />
@@ -455,7 +471,10 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
 // ---------------------------------------------------------------- price (artboard 5)
 
 function PriceCard({ listing, price, onPrice }: { listing: Listing; price: number; onPrice: (v: number) => void }) {
-  const p = listing.analysis!.price;
+  // The AI priced its own reading of the condition; the range follows the seller's condition.
+  const raw = listing.analysis!.price;
+  const r = conditionRatio(listing);
+  const p = { ...raw, low: nicePrice(raw.low * r), high: nicePrice(raw.high * r), suggested: nicePrice(raw.suggested * r), quickSale: nicePrice(raw.quickSale * r) };
   const comps = listing.analysis!.comparables;
   const [showComps, setShowComps] = useState(false);
   const [editing, setEditing] = useState(false);

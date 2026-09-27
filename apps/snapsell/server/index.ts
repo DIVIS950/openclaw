@@ -8,6 +8,7 @@ import { applyAssistantChanges, assistantPrompt, parseAssistantReply, type Assis
 import { aiConfigured, analyzeItem, assistantTurn, claudeConfigured, MODEL, type Photo } from "./ai/analyze.ts";
 import { geminiPhotoPlan } from "../shared/gemini.ts";
 import { normalizePhotoPlan, photoPlanPrompt } from "../shared/photoPlan.ts";
+import { finalizeAnalysis, noteWithCondition, sellerCondition } from "../shared/pricing.ts";
 import { GEMINI_MODEL, geminiConfigured } from "./ai/gemini.ts";
 import { storageCheck, supabaseConfigured } from "./storage.ts";
 import { lensSearch, publicPhoto, serpEnabled, visionEnabled } from "./ai/lens.ts";
@@ -232,7 +233,8 @@ api.post("/api/analyze", async (c) => {
   const user = c.var.user;
   const form = await c.req.formData();
   const files = form.getAll("photos").filter((f): f is File => f instanceof File);
-  const note = (form.get("note") as string | null)?.trim() || undefined;
+  const condition = sellerCondition(form);
+  const note = noteWithCondition((form.get("note") as string | null)?.trim() || undefined, condition);
   if (!files.length) return c.json({ error: "Add at least one photo" }, 400);
 
   const listing = await createListing(user.email, note);
@@ -263,7 +265,7 @@ api.post("/api/analyze", async (c) => {
       });
       const analysis = await analyzeItem(photos, user.settings, note, emit, visual || undefined);
       const done = await updateListing(listing.id, user.email, (l) => {
-        l.analysis = analysis;
+        l.analysis = finalizeAnalysis(analysis, condition);
         l.status = "draft";
       });
       await send({ type: "stage", stage: "done" });

@@ -1,6 +1,7 @@
 import { GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
 import { assistantJsonSchema } from "./assistant.ts";
+import { PRICING_RULES } from "./pricing.ts";
 import { photoPlanJsonSchema } from "./photoPlan.ts";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "./types.ts";
 
@@ -19,7 +20,8 @@ export type GeminiOptions = { apiKey: string; model?: string };
 const RESEARCH = `You are an expert resale appraiser helping someone sell a used item on eBay, Facebook Marketplace and Vinted.
 Identify the exact item in the photos (brand, model, variant, size, generation) and judge its condition honestly from what is visible.
 Use Google Search to find current second-hand prices, preferring SOLD listings in the seller's country; note asking prices separately.
-Finish with a concise report: identification and confidence, condition, comparable listings (title, price, currency, site, URL, sold or asking) and a price recommendation (low / high / suggested / quick sale) with reasoning.`;
+Finish with a concise report: identification and confidence, condition, comparable listings (title, price, currency, site, URL, sold or asking) and a price recommendation (low / high / suggested / quick sale) with reasoning.
+${PRICING_RULES}`;
 
 const COMPOSE = `Turn the appraiser's report and the photos into a ready-to-post listing as JSON.
 Be accurate and honest: mention visible flaws, never invent accessories, specs or authenticity.

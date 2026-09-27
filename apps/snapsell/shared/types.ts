@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { conditionRatio, nicePrice } from "./pricing.ts";
 
 export const PLATFORMS = ["ebay", "facebook", "vinted"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -120,6 +121,8 @@ export type Listing = {
     title?: string;
     price?: number;
     condition?: Condition;
+    /** Size the seller confirmed (clothes, shoes) */
+    size?: string;
     platforms?: Partial<Record<Platform, { title?: string; description?: string }>>;
   };
   publish: Partial<Record<Platform, PublishState>>;
@@ -220,8 +223,14 @@ export function effectiveCopy(listing: Listing, platform: Platform) {
   };
 }
 
+/**
+ * The seller's own price if they set one; otherwise the AI's suggestion, moved up or down when the
+ * seller changed the condition (worse shape, lower price).
+ */
 export function effectivePrice(listing: Listing) {
-  return listing.edits.price ?? listing.analysis?.price.suggested ?? 0;
+  if (listing.edits.price !== undefined) return listing.edits.price;
+  const suggested = listing.analysis?.price.suggested ?? 0;
+  return nicePrice(suggested * conditionRatio(listing));
 }
 
 export function effectiveCondition(listing: Listing): Condition {

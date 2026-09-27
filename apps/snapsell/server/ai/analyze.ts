@@ -6,6 +6,7 @@ import type {
   BetaMessageParam,
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "../../shared/types.ts";
+import { PRICING_RULES } from "../../shared/pricing.ts";
 import { demoAnalysis } from "./demo.ts";
 import { geminiAssistant } from "../../shared/gemini.ts";
 import { GEMINI_MODEL, analyzeWithGemini, geminiConfigured } from "./gemini.ts";
@@ -70,7 +71,8 @@ function context(settings: Settings, note?: string, visual?: string) {
 const RESEARCH_SYSTEM = `You are an expert resale appraiser who helps people sell used items on eBay, Facebook Marketplace and Vinted.
 Look carefully at the photos: identify the exact item (brand, model, variant, size, generation), and judge its condition honestly from what is visible.
 Then research the current second-hand market with web search: prefer SOLD / completed prices (eBay sold listings, Vinted, Facebook Marketplace, local classifieds) in the seller's country, and note active asking prices separately.
-Finish with a concise research report: identification and confidence, condition findings, a list of comparable listings (title, price, currency, site, URL, sold or asking), and your price recommendation (low / high / suggested / quick-sale) with reasoning.`;
+Finish with a concise research report: identification and confidence, condition findings, a list of comparable listings (title, price, currency, site, URL, sold or asking), and your price recommendation (low / high / suggested / quick-sale) with reasoning.
+${PRICING_RULES}`;
 
 const COMPOSE_SYSTEM = `You turn an appraiser's research report and item photos into a ready-to-post marketplace listing.
 Rules:

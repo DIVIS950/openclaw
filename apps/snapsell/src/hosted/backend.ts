@@ -7,6 +7,7 @@
  */
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
 import { normalizePhotoPlan, photoPlanJsonSchema, photoPlanPrompt } from "../../shared/photoPlan.ts";
+import { PRICING_RULES, finalizeAnalysis, noteWithCondition, sellerCondition } from "../../shared/pricing.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import {
   AnalysisSchema,
@@ -127,6 +128,7 @@ Google Shopping prices are mostly NEW retail prices: a used item usually sells f
 3. Write the listings. eBay: title max 80 chars, keyword-dense, description with short sections and bullets. Facebook: short friendly title, 3-6 conversational lines, mention pickup or shipping. Vinted: title max 60 chars, casual text ending with 3-6 hashtags. Never invent accessories or flaws you can't see.
 4. crops: for every photo (0-based) a tight bounding box around the item, normalized 0-1.
 Prices are plain numbers in ${s.currency}, rounded like real prices.
+${PRICING_RULES}
 
 Reply with only one JSON object of this shape:
 ${SHAPE}`;
@@ -262,7 +264,8 @@ Identify the exact product. Reply with only JSON: {"name": "full product name", 
 
 function analyzeStream(form: FormData) {
   const files = form.getAll("photos").filter((f): f is File => f instanceof File).slice(0, 12);
-  const note = (form.get("note") as string | null)?.trim() || undefined;
+  const condition = sellerCondition(form);
+  const note = noteWithCondition((form.get("note") as string | null)?.trim() || undefined, condition);
   const textOnly = form.get("textOnly") === "1";
   const now = new Date().toISOString();
   const l: Listing = { id: id8(), owner: ME.email, createdAt: now, updatedAt: now, status: "analyzing", note, photos: [], enhanced: [], edits: {}, publish: {} };
@@ -275,7 +278,7 @@ function analyzeStream(form: FormData) {
       try {
         const analysis = sample ? await analyzeWithClaude(files, settings, note, send, textOnly) : await demoAnalysis(files.length, settings, send);
         l.photos = await uploads;
-        l.analysis = analysis;
+        l.analysis = finalizeAnalysis(analysis, condition);
         l.status = "draft";
         await saveListing(l);
         send({ type: "stage", stage: "done" });
