@@ -19,7 +19,7 @@ const COPY: Record<Mode, { title: string; help: string[]; paste: string; action:
     help: [
       "Open Google Classroom and go to To-do (the list of assigned work).",
       "Take a screenshot, or select the list and copy it.",
-      "Add the screenshot or paste the text here.",
+      "Add the screenshot, paste it here (Ctrl+V), or paste the text.",
     ],
     paste: "Or paste your to-do list here…",
     action: "Find my homework",
@@ -61,7 +61,10 @@ export function ImportSheet({
     }
     try {
       const picked = await Promise.all(
-        [...files].slice(0, 4 - images.length).map(photoToImageInput),
+        [...files]
+          .filter((f) => f.type.startsWith("image/"))
+          .slice(0, 4 - images.length)
+          .map(photoToImageInput),
       );
       setImages((prev) => [...prev, ...picked].slice(0, 4));
     } catch (err) {
@@ -130,6 +133,14 @@ export function ImportSheet({
         role="dialog"
         aria-label={copy.title}
         onClick={(e) => e.stopPropagation()}
+        onPaste={(e) => {
+          // A copied screenshot pastes straight in (Ctrl+V / long-press Paste).
+          const files = e.clipboardData.files;
+          if ([...files].some((f) => f.type.startsWith("image/"))) {
+            e.preventDefault();
+            void add(files);
+          }
+        }}
       >
         <div className="between">
           <h2 className="h1" style={{ fontSize: 24 }}>
