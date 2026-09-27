@@ -9,6 +9,8 @@ import { REGIONS } from "../lib/regions.ts";
 /** One-time "where do you sell?" step after sign-in: sets currency, language and Vinted site. */
 export function Setup({ settings, onDone, local }: { settings: Settings; onDone: (s: Settings) => void; local?: boolean }) {
   const [key, setKey] = useState(settings.geminiApiKey ?? "");
+  // Opened with the private link: the AI key came built in, nothing to type.
+  const builtIn = Boolean(settings.geminiApiKey);
   const [region, setRegion] = useState(REGIONS.find((r) => r.country === settings.country) ?? REGIONS[2]);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +46,13 @@ export function Setup({ settings, onDone, local }: { settings: Settings; onDone:
       <p className="mt-3 text-sm text-muted">
         Prices in {region.currency}, listings in {region.language}, Vinted: {region.vintedDomain.replace("www.", "")}
       </p>
-      {local && (
+      {local && builtIn && (
+        <div className="mt-8 flex items-center gap-3 rounded-2xl bg-ok-soft px-4 py-3 text-ok">
+          <Check className="size-5 shrink-0" strokeWidth={3} />
+          <span className="text-[15px] font-semibold">AI is ready. It came with your link.</span>
+        </div>
+      )}
+      {local && !builtIn && (
         <div className="mt-8">
           <h2 className="font-display text-xl font-extrabold">Your free AI key</h2>
           <div className="mt-2">

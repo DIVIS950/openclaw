@@ -2,6 +2,7 @@ import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { PLATFORM_META, type ExtensionStatus, type PlatformStatus } from "../../shared/types.ts";
 import { hashParams, useApp } from "../App.tsx";
+import { ShareCard } from "../components/ShareCard.tsx";
 import { Avatar, Button, Card, Label, PlatformLogo, Toggle, TopBar, cx } from "../components/ui.tsx";
 import { GeminiKeyField } from "../components/GeminiKey.tsx";
 import { api, copyText } from "../lib/api.ts";
@@ -161,6 +162,8 @@ export function Connections() {
             </a>
           )}
         </Card>
+
+        {local && <ShareCard />}
 
         <div className="px-1 pt-3">
           <Label>Selling</Label>

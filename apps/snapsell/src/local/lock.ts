@@ -45,6 +45,8 @@ async function open(password: string | null) {
   const saved = (await idb.get<Settings>("settings").catch(() => undefined)) ?? {};
   await idb.set("settings", { ...saved, geminiApiKey: apiKey, aiProvider: "gemini" }).catch(() => {});
   await idb.set("unlocked", true).catch(() => {});
+  // Kept on this phone only, so "Share SnapSell" can send the same private link to family.
+  await idb.set("shareCode", password!.trim().toLowerCase()).catch(() => {});
   return true;
 }
 
