@@ -44,7 +44,7 @@ export function SetupChecklist({ onBack }: { onBack?: () => void }) {
           </Button>
         )}
       </div>
-      <h1 className="mt-7 font-display text-[34px] font-bold leading-tight">Finish setting up</h1>
+      <h1 className="mt-7 font-display text-[34px] font-extrabold leading-tight">Finish setting up</h1>
       <p className="mt-2 text-muted">
         {doneCount} of 3 done. Each step is a free account. Paste the values into <b className="text-ink">{env}</b>
         {s.cloud ? "; Render restarts SnapSell by itself in about a minute." : ", then restart SnapSell."}
@@ -145,7 +145,7 @@ function Step({ n, title, note, done, optional, children }: { n?: number; title:
   return (
     <li className={cx("rounded-3xl border bg-card", done ? "border-line" : "border-line-strong")}>
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left">
-        <span className={cx("grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold", done ? "bg-ok-soft text-ok" : optional ? "bg-soft text-muted" : "bg-accent text-white")}>
+        <span className={cx("grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold", done ? "bg-ok-soft text-ok" : optional ? "bg-soft text-muted" : "bg-accent text-ink")}>
           {done ? <Check className="size-4" strokeWidth={3} /> : (n ?? "+")}
         </span>
         <span className="min-w-0 flex-1">
@@ -189,7 +189,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="mt-2.5">
       <div className="text-xs font-semibold text-muted">{label}</div>
-      <div className="mt-1 flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-paper px-3 py-2">
+      <div className="mt-1 flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3 py-2">
         <code className="min-w-0 flex-1 select-all break-all text-[13px]">{value}</code>
         <button
           onClick={async () => {

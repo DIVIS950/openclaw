@@ -135,11 +135,11 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
   const nav = [
     { id: "home", label: "Listings", icon: LayoutGrid, path: "/" },
     { id: "new", label: "New listing", icon: Plus, path: "/new" },
-    { id: "connections", label: "Settings", icon: Plug, path: "/connections" },
+    { id: "connections", label: "Connections", icon: Plug, path: "/connections" },
   ];
   return (
     <div className="lg:flex lg:min-h-dvh">
-      <nav className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col gap-1 border-r border-line bg-card/60 px-4 py-7 lg:flex" aria-label="Main">
+      <nav className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col gap-1 border-r border-line px-4 py-7 lg:flex" aria-label="Main">
         <div className="px-2 pb-5">
           <Logo size={34} />
         </div>
@@ -149,7 +149,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
             href={`#${n.path}`}
             className={cx(
               "flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-semibold",
-              route.name === n.id || (n.id === "home" && route.name === "listing") ? "bg-accent-soft text-accent" : "hover:bg-soft",
+              route.name === n.id || (n.id === "home" && route.name === "listing") ? "bg-ink text-white" : "hover:bg-soft",
             )}
           >
             <n.icon className="size-[18px]" /> {n.label}
@@ -157,7 +157,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
         ))}
         <div className="flex-1" />
         {ext && (
-          <button onClick={() => go("/connections")} className="rounded-[14px] bg-card p-3 text-left">
+          <button onClick={() => go("/connections")} className="rounded-2xl border border-line bg-card p-3 text-left">
             <div className="flex items-center gap-1.5 text-[13px] font-bold">
               <span className={cx("size-2 rounded-full", ext.online ? "bg-ok" : "bg-faint")} />
               Chrome extension {ext.paired ? (ext.online ? "online" : "offline") : "not set up"}

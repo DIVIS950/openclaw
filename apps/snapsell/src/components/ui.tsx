@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2, type LucideIcon } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Platform } from "../../shared/types.ts";
@@ -21,13 +21,13 @@ export function Button({ variant = "ink", loading, size = "md", className, child
       disabled={disabled || loading}
       className={cx(
         "inline-flex items-center justify-center gap-2 font-semibold transition-colors disabled:opacity-45",
-        size === "lg" && "h-[52px] rounded-[14px] px-6 text-[17px]",
-        size === "md" && "h-11 rounded-xl px-5 text-[16px]",
-        size === "sm" && "h-8 rounded-full px-3.5 text-[14px]",
-        variant === "ink" && "bg-accent text-white hover:brightness-110",
-        variant === "accent" && "bg-cta text-white shadow-[0_10px_24px_-10px_rgba(94,92,230,0.7)] hover:brightness-110",
-        variant === "outline" && "bg-card text-accent ring-1 ring-line hover:bg-soft",
-        variant === "soft" && "bg-accent-soft text-accent hover:brightness-95",
+        size === "lg" && "h-[60px] rounded-[18px] px-6 text-[17px]",
+        size === "md" && "h-12 rounded-2xl px-5 text-[15px]",
+        size === "sm" && "h-9 rounded-full px-3.5 text-[13px]",
+        variant === "ink" && "bg-ink text-white hover:bg-ink-2",
+        variant === "accent" && "shine bg-accent text-ink shadow-[0_14px_30px_-12px_rgba(194,65,12,0.65)] hover:brightness-105",
+        variant === "outline" && "border-[1.5px] border-line-strong bg-transparent text-ink hover:bg-soft",
+        variant === "soft" && "bg-soft text-ink hover:bg-line",
         variant === "danger" && "bg-bad-soft text-bad hover:brightness-95",
         className,
       )}
@@ -42,30 +42,29 @@ export function Button({ variant = "ink", loading, size = "md", className, child
 export function Logo({ size = 36, withName = true }: { size?: number; withName?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="grid place-items-center bg-gradient-to-b from-[#3a9bff] to-[#0062e0]" style={{ width: size, height: size, borderRadius: size * 0.23 }}>
-        <svg width={size * 0.53} height={size * 0.53} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <div className="grid place-items-center bg-ink" style={{ width: size, height: size, borderRadius: size * 0.3 }}>
+        <svg width={size * 0.53} height={size * 0.53} viewBox="0 0 24 24" fill="none" stroke="#FF5B24" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" />
           <circle cx="7.5" cy="7.5" r="1.5" />
         </svg>
       </div>
-      {withName && <span className="font-display text-[21px] font-bold">SnapSell</span>}
+      {withName && <span className="font-display text-[21px] font-extrabold">SnapSell</span>}
     </div>
   );
 }
 
 export function TopBar({ title, onBack, right }: { title?: ReactNode; onBack?: () => void; right?: ReactNode }) {
   return (
-    <header className="glass sticky top-0 z-30 box-content grid h-11 grid-cols-[1fr_auto_1fr] items-center border-b border-line/80 px-2 pt-[env(safe-area-inset-top)] lg:static lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
-      <div className="flex min-w-0 items-center">
-        {onBack && (
-          <button onClick={onBack} className="flex h-11 items-center pr-2 text-[17px] text-accent" aria-label="Back">
-            <ChevronLeft className="-mr-0.5 size-7" strokeWidth={2.2} />
-            Back
-          </button>
-        )}
-      </div>
-      <div className="min-w-0 max-w-[55vw] truncate text-center text-[17px] font-semibold">{title}</div>
-      <div className="flex min-w-0 items-center justify-end">{right}</div>
+    <header className="sticky top-0 z-30 box-content flex h-14 items-center gap-1 bg-paper/85 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
+      {onBack ? (
+        <button onClick={onBack} className="grid size-11 place-items-center rounded-full hover:bg-soft" aria-label="Back">
+          <ChevronLeft className="size-6" />
+        </button>
+      ) : (
+        <div className="w-2" />
+      )}
+      <div className="min-w-0 flex-1 truncate">{title}</div>
+      {right}
     </header>
   );
 }
@@ -76,7 +75,7 @@ export function Sheet({ open, onClose, children, title, subtitle }: { open: bool
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/40"
+            className="fixed inset-0 z-40 bg-[#17150f]/55"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -86,16 +85,16 @@ export function Sheet({ open, onClose, children, title, subtitle }: { open: bool
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92dvh] max-w-lg overflow-y-auto rounded-t-[22px] bg-paper safe-bottom shadow-2xl lg:bottom-auto lg:top-1/2 lg:max-h-[86dvh] lg:-translate-y-1/2 lg:rounded-[22px]"
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92dvh] max-w-lg overflow-y-auto rounded-t-[28px] bg-paper safe-bottom lg:bottom-auto lg:top-1/2 lg:max-h-[86dvh] lg:-translate-y-1/2 lg:rounded-[28px]"
             initial={{ y: "100%", opacity: 0.6 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.6 }}
             transition={{ type: "spring", damping: 32, stiffness: 320 }}
           >
-            <div className="mx-auto mt-2 h-[5px] w-9 rounded-full bg-[#c7c7cc] lg:hidden" />
+            <div className="mx-auto mt-3 h-[5px] w-10 rounded-full bg-line-strong lg:hidden" />
             <div className="px-5 pt-4">
-              {title && <h2 className="font-display text-[22px] font-bold">{title}</h2>}
-              {subtitle && <div className="mt-0.5 text-[15px] text-muted">{subtitle}</div>}
+              {title && <h2 className="font-display text-[26px] font-extrabold">{title}</h2>}
+              {subtitle && <div className="mt-0.5 text-sm text-muted">{subtitle}</div>}
             </div>
             <div className="p-5 pt-4">{children}</div>
           </motion.div>
@@ -117,7 +116,7 @@ export function Segmented<T extends string>({
   label?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-[9px] bg-[#767680]/12 p-0.5">
+    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-[14px] bg-soft p-1">
       {options.map((o) => (
         <button
           key={o.id}
@@ -125,11 +124,11 @@ export function Segmented<T extends string>({
           aria-checked={value === o.id}
           onClick={() => onChange(o.id)}
           className={cx(
-            "relative h-8 flex-1 whitespace-nowrap rounded-[7px] px-2 text-[13px] font-semibold transition-colors",
-            value === o.id ? "text-ink" : "text-ink/80",
+            "relative h-[38px] flex-1 whitespace-nowrap rounded-[11px] px-2 text-sm font-semibold transition-colors",
+            value === o.id ? "text-white" : "text-muted hover:text-ink",
           )}
         >
-          {value === o.id && <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-[7px] bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)]" />}
+          {value === o.id && <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-[11px] bg-ink" />}
           <span className="relative">{o.label}</span>
         </button>
       ))}
@@ -144,56 +143,28 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={cx("relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors", on ? "bg-[#34c759]" : "bg-[#e9e9eb]")}
+      className={cx("relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors", on ? "bg-ink" : "bg-line-strong")}
     >
       <motion.span
         layout
         transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={cx("absolute top-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.15),0_3px_1px_rgba(0,0,0,0.06)]", on ? "right-[2px]" : "left-[2px]")}
+        className={cx("absolute top-[3px] size-6 rounded-full bg-white shadow", on ? "right-[3px]" : "left-[3px]")}
       />
     </button>
   );
 }
 
-/** iOS Settings-style coloured icon square. */
-export const TONES = {
-  blue: "from-[#40a0ff] to-[#0a6cff]",
-  green: "from-[#4cd964] to-[#28b048]",
-  orange: "from-[#ffb340] to-[#ff8a00]",
-  red: "from-[#ff6b6b] to-[#ff2d55]",
-  purple: "from-[#c57bff] to-[#8e44f5]",
-  pink: "from-[#ff7ab8] to-[#ff2d8a]",
-  teal: "from-[#5ce1e6] to-[#20a4c8]",
-  indigo: "from-[#7d7aff] to-[#5046e5]",
-  yellow: "from-[#ffd60a] to-[#ffb300]",
-} as const;
-export type Tone = keyof typeof TONES;
-
-export function IconBadge({ icon: Icon, tone, size = 28 }: { icon: LucideIcon; tone: Tone; size?: number }) {
+export function Label({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <span
-      className={cx("grid shrink-0 place-items-center bg-gradient-to-b text-white shadow-sm", TONES[tone])}
-      style={{ width: size, height: size, borderRadius: size * 0.26 }}
-    >
-      <Icon style={{ width: size * 0.58, height: size * 0.58 }} strokeWidth={2.2} />
-    </span>
-  );
-}
-
-export function Label({ children, right, icon, tone = "blue" }: { children: ReactNode; right?: ReactNode; icon?: LucideIcon; tone?: Tone }) {
-  return (
-    <div className="mb-2.5 flex items-center justify-between gap-2">
-      <span className="flex items-center gap-2 text-[15px] font-semibold">
-        {icon && <IconBadge icon={icon} tone={tone} size={26} />}
-        {children}
-      </span>
+    <div className="mb-2.5 flex items-center justify-between">
+      <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted">{children}</span>
       {right}
     </div>
   );
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cx("rounded-[14px] bg-card p-4", className)}>{children}</section>;
+  return <section className={cx("rounded-3xl border border-line bg-card p-4", className)}>{children}</section>;
 }
 
 export function Pill({ children, tone = "soft", className }: { children: ReactNode; tone?: "soft" | "ok" | "ink" | "paper" | "accent"; className?: string }) {
@@ -202,10 +173,10 @@ export function Pill({ children, tone = "soft", className }: { children: ReactNo
       className={cx(
         "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold",
         tone === "soft" && "bg-soft",
-        tone === "ok" && "bg-ok-soft text-ok",
+        tone === "ok" && "bg-ok-soft font-bold text-ok",
         tone === "ink" && "bg-ink text-white",
         tone === "paper" && "bg-paper",
-        tone === "accent" && "bg-accent-soft text-accent",
+        tone === "accent" && "bg-accent text-ink",
         className,
       )}
     >
@@ -214,16 +185,17 @@ export function Pill({ children, tone = "soft", className }: { children: ReactNo
   );
 }
 
-/** The price, large and calm, on a soft blue capsule. */
+/** Price shown as an orange price tag, the SnapSell signature element. */
 export function PriceTag({ children, size = "md" }: { children: ReactNode; size?: "md" | "lg" }) {
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-[12px] bg-gradient-to-r from-[#e3efff] to-[#f3e8ff] font-display font-bold tabular-nums",
-        size === "lg" ? "h-[52px] px-4 text-[32px]" : "h-10 px-3.5 text-xl",
+        "inline-flex items-center rounded-[14px] bg-accent font-display font-extrabold text-ink",
+        size === "lg" ? "h-[54px] gap-2.5 pl-3 pr-4 text-[32px]" : "h-11 gap-2 pl-3 pr-4 text-xl",
       )}
     >
-      <span className="text-gradient">{children}</span>
+      <span className="size-2.5 rounded-full bg-white" aria-hidden="true" />
+      {children}
     </span>
   );
 }
@@ -232,7 +204,7 @@ export function PlatformLogo({ platform, size = 40 }: { platform: Platform; size
   const s = { width: size, height: size, borderRadius: size * 0.3 };
   if (platform === "ebay")
     return (
-      <div style={s} className="grid shrink-0 place-items-center bg-white font-bold tracking-tighter ring-1 ring-line" aria-label="eBay">
+      <div style={s} className="grid shrink-0 place-items-center border border-line bg-white font-extrabold tracking-tighter" aria-label="eBay">
         <span style={{ fontSize: size * 0.34 }}>
           <span className="text-[#e53238]">e</span>
           <span className="text-[#0064d2]">b</span>
@@ -243,12 +215,12 @@ export function PlatformLogo({ platform, size = 40 }: { platform: Platform; size
     );
   if (platform === "facebook")
     return (
-      <div style={{ ...s, fontSize: size * 0.5 }} className="grid shrink-0 place-items-center bg-[#0866ff] font-bold text-white" aria-label="Facebook Marketplace">
+      <div style={{ ...s, fontSize: size * 0.5 }} className="grid shrink-0 place-items-center bg-[#0866ff] font-extrabold text-white" aria-label="Facebook Marketplace">
         f
       </div>
     );
   return (
-    <div style={{ ...s, fontSize: size * 0.45 }} className="grid shrink-0 place-items-center bg-[#007f86] font-bold text-white" aria-label="Vinted">
+    <div style={{ ...s, fontSize: size * 0.45 }} className="grid shrink-0 place-items-center bg-[#007f86] font-extrabold text-white" aria-label="Vinted">
       V
     </div>
   );
@@ -258,7 +230,7 @@ export function Avatar({ name, picture, size = 44 }: { name: string; picture?: s
   return picture ? (
     <img src={picture} alt="" referrerPolicy="no-referrer" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
-    <span className="grid shrink-0 place-items-center rounded-full bg-gradient-to-b from-[#a1a1a6] to-[#838388] font-semibold text-white" style={{ width: size, height: size, fontSize: size * 0.38 }}>
+    <span className="grid shrink-0 place-items-center rounded-full bg-[#e4c9a8] font-bold" style={{ width: size, height: size, fontSize: size * 0.38 }}>
       {name.slice(0, 1).toUpperCase()}
     </span>
   );

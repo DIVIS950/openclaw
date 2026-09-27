@@ -22,7 +22,7 @@ export function Setup({ settings, onDone, local }: { settings: Settings; onDone:
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-6 pb-8 pt-[max(48px,env(safe-area-inset-top))]">
       <Logo size={36} />
-      <h1 className="mt-8 font-display text-[34px] font-bold leading-tight">Where do you sell?</h1>
+      <h1 className="mt-8 font-display text-[34px] font-extrabold leading-tight">Where do you sell?</h1>
       <p className="mt-2 text-muted">SnapSell prices items in your currency, writes listings in your language and uses your local Vinted.</p>
       <div className="mt-6 grid grid-cols-2 gap-2">
         {REGIONS.map((r) => (
@@ -46,7 +46,7 @@ export function Setup({ settings, onDone, local }: { settings: Settings; onDone:
       </p>
       {local && (
         <div className="mt-8">
-          <h2 className="font-display text-xl font-bold">Your free AI key</h2>
+          <h2 className="font-display text-xl font-extrabold">Your free AI key</h2>
           <div className="mt-2">
             <KeyInput value={key} onChange={setKey} onSave={start} />
           </div>

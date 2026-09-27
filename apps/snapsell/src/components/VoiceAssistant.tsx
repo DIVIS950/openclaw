@@ -76,7 +76,7 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
       <div className="flex min-h-[46dvh] flex-col">
         <div className="flex-1 space-y-2.5">
           {msgs.length === 0 && (
-            <div className="rounded-[14px] bg-card p-4 text-[15px] leading-relaxed text-muted">
+            <div className="rounded-3xl border border-line bg-card p-4 text-[15px] leading-relaxed text-muted">
               Klepněte na mikrofon a mluvte česky. Například: <span className="text-ink">„Dej cenu na 3 500“</span>,{" "}
               <span className="text-ink">„Přidej do popisu, že je tam i nabíječka“</span> nebo <span className="text-ink">„Za kolik se to prodá?“</span>
             </div>
@@ -92,7 +92,7 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
                 <div
                   className={cx(
                     "max-w-[82%] rounded-[20px] px-3.5 py-2 text-[16px] leading-snug",
-                    m.role === "user" ? "rounded-br-[6px] bg-accent text-white" : m.error ? "rounded-bl-[6px] bg-bad-soft text-bad" : "rounded-bl-[6px] bg-card",
+                    m.role === "user" ? "rounded-br-[6px] bg-ink text-paper" : m.error ? "rounded-bl-[6px] bg-bad-soft text-bad" : "rounded-bl-[6px] border border-line bg-card",
                   )}
                 >
                   {m.text}
@@ -105,7 +105,7 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
           </AnimatePresence>
           {heard && (
             <div className="flex justify-end">
-              <div className="max-w-[82%] rounded-[20px] rounded-br-[6px] bg-accent/60 px-3.5 py-2 text-[16px] text-white">{heard}…</div>
+              <div className="max-w-[82%] rounded-[20px] rounded-br-[6px] bg-ink/60 px-3.5 py-2 text-[16px] text-paper">{heard}…</div>
             </div>
           )}
           {thinking && (
@@ -128,7 +128,7 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
         {msgs.length === 0 && (
           <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar">
             {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => (unlockSpeech(), void ask(s))} className="h-9 shrink-0 rounded-full bg-card px-3.5 text-[14px] text-accent">
+              <button key={s} onClick={() => (unlockSpeech(), void ask(s))} className="h-9 shrink-0 rounded-full border-[1.5px] border-line-strong bg-card px-3.5 text-[14px] font-semibold">
                 {s}
               </button>
             ))}
@@ -143,12 +143,12 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
               disabled={thinking}
               aria-label={listening ? "Zastavit" : "Mluvit"}
               className={cx(
-                "relative grid size-[72px] place-items-center rounded-full text-white shadow-[0_10px_30px_-8px_rgba(0,98,224,0.6)] disabled:opacity-50",
-                listening ? "bg-[#ff3b30]" : "bg-accent",
+                "relative grid size-[72px] place-items-center rounded-full shadow-[0_14px_30px_-12px_rgba(194,65,12,0.65)] disabled:opacity-50",
+                listening ? "bg-ink text-paper" : "bg-accent text-ink",
               )}
             >
-              {listening && <motion.span className="absolute inset-0 rounded-full bg-[#ff3b30]" animate={{ scale: [1, 1.35], opacity: [0.5, 0] }} transition={{ duration: 1.2, repeat: Infinity }} />}
-              {listening ? <Square className="relative size-6 fill-white" /> : <Mic className="relative size-8" />}
+              {listening && <motion.span className="absolute inset-0 rounded-full bg-ink" animate={{ scale: [1, 1.35], opacity: [0.5, 0] }} transition={{ duration: 1.2, repeat: Infinity }} />}
+              {listening ? <Square className="relative size-6 fill-paper" /> : <Mic className="relative size-8" />}
             </motion.button>
           )}
           <div className="mt-2 text-[13px] text-muted">{listening ? "Poslouchám…" : canListen ? "Klepněte a mluvte" : "Napište dotaz (nebo použijte diktování na klávesnici)"}</div>
@@ -158,11 +158,11 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
           <button
             onClick={() => (voiceOn ? (stopSpeaking(), setVoiceOn(false)) : setVoiceOn(true))}
             aria-label={voiceOn ? "Vypnout hlas" : "Zapnout hlas"}
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-card text-accent"
+            className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-card"
           >
             {voiceOn ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
           </button>
-          <div className="flex h-10 flex-1 items-center rounded-full bg-card pl-4 pr-1 ring-1 ring-line">
+          <div className="flex h-11 flex-1 items-center rounded-full border-[1.5px] border-line bg-card pl-4 pr-1">
             <input
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
@@ -171,7 +171,7 @@ export function VoiceAssistant({ open, onClose, listing, onChange }: { open: boo
               aria-label="Zpráva pro asistenta"
               className="min-w-0 flex-1 bg-transparent outline-none"
             />
-            <button onClick={send} disabled={!typed.trim() || thinking} aria-label="Odeslat" className="grid size-8 place-items-center rounded-full bg-accent text-white disabled:bg-line-strong">
+            <button onClick={send} disabled={!typed.trim() || thinking} aria-label="Odeslat" className="grid size-9 place-items-center rounded-full bg-accent text-ink disabled:bg-line-strong">
               <ArrowUp className="size-5" />
             </button>
           </div>

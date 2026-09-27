@@ -1,4 +1,4 @@
-import { Check, ChevronRight, ChevronsLeftRight, Copy, ExternalLink, Lightbulb, ListChecks, Loader2, Mic, MoreHorizontal, PenLine, Sparkles, Tag, Trash2, Wand2 } from "lucide-react";
+import { Check, ChevronRight, ChevronsLeftRight, Copy, ExternalLink, Lightbulb, Loader2, Mic, MoreHorizontal, Trash2, Wand2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,10 +14,10 @@ import {
 } from "../../shared/types.ts";
 import { useApp } from "../App.tsx";
 import { GeminiApp } from "../components/GeminiApp.tsx";
+import { CountUp } from "../components/CountUp.tsx";
 import { PublishSheet } from "../components/PublishSheet.tsx";
 import { VoiceAssistant } from "../components/VoiceAssistant.tsx";
-import { CountUp } from "../components/CountUp.tsx";
-import { Button, Card, IconBadge, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
+import { Button, Card, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
 import { api, copyText, formatPrice, photoResolver, photoUrl } from "../lib/api.ts";
 import { PRESETS, enhancePhoto, type Preset } from "../lib/image.ts";
 
@@ -79,7 +79,7 @@ export function ListingScreen({ id }: { id: string }) {
         <div className="px-5 pt-10 text-center">
           {listing.status === "failed" ? (
             <>
-              <h1 className="font-display text-2xl font-bold">Analysis failed</h1>
+              <h1 className="font-display text-2xl font-extrabold">Analysis failed</h1>
               <p className="mt-2 text-muted">{listing.error}</p>
               <div className="mt-6 flex justify-center gap-2">
                 <Button onClick={() => go("/new", true)}>Try again</Button>
@@ -122,8 +122,8 @@ export function ListingScreen({ id }: { id: string }) {
         <div className="rise space-y-3 px-4 lg:px-0">
           {/* Identity */}
           <div className="px-1 pt-4 lg:pt-0">
-            <div className="text-[13px] font-semibold uppercase tracking-[0.02em] text-accent">{a.item.category}</div>
-            <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.08]">{a.item.name}</h1>
+            <div className="text-xs font-bold uppercase tracking-[0.08em] text-accent-ink">{a.item.category}</div>
+            <h1 className="mt-1 font-display text-[26px] font-extrabold leading-[1.08]">{a.item.name}</h1>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {[a.item.brand, a.item.color, a.item.size, a.item.era].filter(Boolean).map((x) => (
                 <Pill key={x}>{x}</Pill>
@@ -132,22 +132,30 @@ export function ListingScreen({ id }: { id: string }) {
             </div>
           </div>
 
-          <button onClick={() => setVoice(true)} className="flex w-full items-center gap-3 rounded-[14px] bg-card p-3 text-left active:bg-soft">
-            <span className="bg-assistant relative grid size-11 shrink-0 place-items-center rounded-full text-white shadow-[0_8px_20px_-8px_rgba(255,55,95,0.7)]">
-              <motion.span className="absolute inset-0 rounded-full bg-[#ff375f]/40" animate={{ scale: [1, 1.45], opacity: [0.6, 0] }} transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2 }} />
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setVoice(true)}
+            className="flex w-full items-center gap-3 rounded-3xl bg-ink p-3.5 text-left text-paper"
+          >
+            <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-accent text-ink">
+              <motion.span
+                className="absolute inset-0 rounded-full bg-accent"
+                animate={{ scale: [1, 1.5], opacity: [0.55, 0] }}
+                transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2 }}
+              />
               <Mic className="relative size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[16px] font-semibold">Asistent</span>
-              <span className="block truncate text-[13px] text-muted">Řekněte česky, co změnit nebo na co se zeptat</span>
+              <span className="block font-display text-[17px] font-extrabold">Asistent</span>
+              <span className="block truncate text-[13px] text-[#b9b2a2]">Řekněte česky, co změnit nebo na co se zeptat</span>
             </span>
-            <ChevronRight className="size-5 text-faint" />
-          </button>
+            <ChevronRight className="size-5 text-[#b9b2a2]" />
+          </motion.button>
 
           <PriceCard listing={listing} price={price} onPrice={(v) => edit((e) => ({ ...e, price: v }))} />
 
           <Card>
-            <Label icon={Sparkles} tone="orange">Condition</Label>
+            <Label>Condition</Label>
             <Segmented
               label="Condition"
               value={effectiveCondition(listing)}
@@ -160,10 +168,10 @@ export function ListingScreen({ id }: { id: string }) {
           <CopyEditor listing={listing} onEdit={edit} />
 
           <Card>
-            <Label icon={ListChecks} tone="purple">Item specifics</Label>
+            <Label>Item specifics</Label>
             <div className="grid grid-cols-2 gap-2">
               {a.attributes.map((at) => (
-                <div key={at.name} className="min-w-0 rounded-xl bg-paper px-2.5 py-2">
+                <div key={at.name} className="min-w-0 rounded-xl bg-[#faf8f3] px-2.5 py-2">
                   <div className="text-[11px] text-muted">{at.name}</div>
                   <div className="truncate text-sm font-semibold">{at.value}</div>
                 </div>
@@ -175,9 +183,9 @@ export function ListingScreen({ id }: { id: string }) {
           </Card>
 
           {a.photoTips.length > 0 && (
-            <Card className="bg-warn-soft">
+            <Card className="bg-[#fdf6e7]">
               <div className="flex items-center gap-2 text-sm font-bold">
-                <IconBadge icon={Lightbulb} tone="yellow" size={24} /> Photo tips to sell faster
+                <Lightbulb className="size-4 text-accent-ink" /> Photo tips to sell faster
               </div>
               <ul className="mt-2 space-y-1 text-sm text-muted">
                 {a.photoTips.map((t) => (
@@ -188,7 +196,7 @@ export function ListingScreen({ id }: { id: string }) {
           )}
 
           <div className="hidden lg:block">
-            <Button size="lg" variant="accent" className="w-full" onClick={() => setPublishing(true)}>
+            <Button size="lg" className="w-full" onClick={() => setPublishing(true)}>
               {liveCount ? `Live on ${liveCount} · Manage` : "Sell on 3 marketplaces"}
             </Button>
           </div>
@@ -196,7 +204,7 @@ export function ListingScreen({ id }: { id: string }) {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg bg-gradient-to-b from-paper/0 via-paper/90 to-paper px-4 pt-8 safe-bottom lg:hidden">
-        <Button size="lg" variant="accent" className="w-full" onClick={() => setPublishing(true)}>
+        <Button size="lg" className="w-full" onClick={() => setPublishing(true)}>
           {liveCount ? `Live on ${liveCount} · Manage` : "Sell on 3 marketplaces"}
         </Button>
       </div>
@@ -265,7 +273,7 @@ function Photos({ listing, onChange }: { listing: Listing; onChange: (l: Listing
     <div className="relative px-4 lg:px-0">
       <div
         onScroll={(e) => setIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
-        className="flex snap-x snap-mandatory overflow-x-auto rounded-[18px] bg-card no-scrollbar"
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-[28px] border border-line bg-card no-scrollbar"
       >
         {listing.photos.map((_, i) => (
           <div key={i} className="relative aspect-square w-full shrink-0 snap-center">
@@ -294,14 +302,14 @@ function Photos({ listing, onChange }: { listing: Listing; onChange: (l: Listing
         ) : (
           <span />
         )}
-        <button onClick={() => setStudio(true)} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-bold text-white">
+        <button onClick={() => setStudio(true)} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-accent px-3 text-[13px] font-bold text-ink">
           <Wand2 className="size-3.5" /> Studio
         </button>
       </div>
       {listing.photos.length > 1 && (
         <div className="mt-3 flex justify-center gap-[5px]" aria-hidden="true">
           {listing.photos.map((_, i) => (
-            <div key={i} className={cx("h-1.5 rounded-full transition-all", i === index ? "w-1.5 bg-ink" : "w-1.5 bg-line-strong")} />
+            <div key={i} className={cx("h-1.5 rounded-full transition-all", i === index ? "w-[18px] bg-ink" : "w-1.5 bg-line-strong")} />
           ))}
         </div>
       )}
@@ -367,7 +375,7 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
           </div>
         )}
         <div className="pointer-events-none absolute inset-y-0 w-[3px] -translate-x-1/2 bg-accent" style={{ left: `${split}%` }}>
-          <div className="absolute left-1/2 top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-accent text-white">
+          <div className="absolute left-1/2 top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-accent text-ink">
             <ChevronsLeftRight className="size-5" />
           </div>
         </div>
@@ -380,7 +388,7 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
           aria-label="Compare before and after"
           className="absolute inset-0 size-full cursor-ew-resize opacity-0"
         />
-        <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-xs font-bold text-white">Before</span>
+        <span className="absolute left-3 top-3 rounded-full bg-[#0e0d0a]/70 px-2.5 py-1 text-xs font-bold text-white">Before</span>
         <span className="absolute right-3 top-3 rounded-full bg-ink px-2.5 py-1 text-xs font-bold text-white">After</span>
       </div>
 
@@ -392,13 +400,13 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
             aria-checked={preset === p.id}
             disabled={!!busy}
             onClick={() => choose(p.id)}
-            className={cx("rounded-2xl bg-card p-2 text-left", preset === p.id ? "ring-2 ring-accent" : "ring-1 ring-line")}
+            className={cx("rounded-2xl bg-card p-2 text-left", preset === p.id ? "border-2 border-ink" : "border-[1.5px] border-line")}
           >
             <span
               className={cx(
                 "block h-[58px] rounded-[10px]",
-                p.id === "auto" && "bg-gradient-to-br from-[#e5e9f0] to-[#aeb8c8]",
-                p.id === "vivid" && "bg-gradient-to-br from-[#ffb340] to-[#ff375f]",
+                p.id === "auto" && "bg-[#b9a68e]",
+                p.id === "vivid" && "bg-[#d98a4b]",
                 p.id === "studio" && "border border-line bg-white",
               )}
             />
@@ -432,7 +440,7 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[15px] font-semibold"><IconBadge icon={Tag} tone="green" size={26} />Your price</span>
+        <span className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Your price</span>
         <Pill tone={p.demand === "high" ? "ok" : "soft"} className="h-[26px] text-xs">
           {demand}
         </Pill>
@@ -450,11 +458,13 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
               setEditing(false);
             }}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-            className="h-[54px] w-40 rounded-[14px] bg-card px-3 font-display text-[28px] font-bold ring-2 ring-accent focus:outline-none"
+            className="h-[54px] w-40 rounded-[14px] border-2 border-ink bg-card px-3 font-display text-[28px] font-extrabold focus:outline-none"
           />
         ) : (
           <button onClick={() => setEditing(true)} aria-label={`Price ${formatPrice(price, p.currency)}, tap to edit`}>
-            <PriceTag size="lg"><CountUp value={price} format={(v) => formatPrice(v, p.currency)} /></PriceTag>
+            <PriceTag size="lg">
+              <CountUp value={price} format={(v) => formatPrice(v, p.currency)} />
+            </PriceTag>
           </button>
         )}
         <span className="text-[13px] leading-snug text-muted">
@@ -467,7 +477,7 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
       <div className="relative mt-4 h-2 rounded bg-soft" aria-hidden="true">
         <div className="absolute inset-y-0 rounded bg-accent-soft" style={{ left: pos(p.low), right: `calc(100% - ${pos(p.high)})` }} />
         <motion.div
-          className="absolute -top-1.5 size-5 -translate-x-1/2 rounded-full border-[3px] border-white bg-accent shadow"
+          className="absolute -top-1.5 size-5 -translate-x-1/2 rounded-full border-[3px] border-white bg-ink"
           animate={{ left: pos(price) }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         />
@@ -488,7 +498,7 @@ function PriceCard({ listing, price, onPrice }: { listing: Listing; price: numbe
             key={o.label}
             onClick={() => onPrice(o.value)}
             aria-pressed={price === o.value}
-            className={cx("h-[54px] rounded-[14px] bg-card text-[15px] font-bold leading-tight", price === o.value ? "ring-2 ring-accent" : "ring-1 ring-line")}
+            className={cx("h-[54px] rounded-[14px] bg-card text-[15px] font-bold leading-tight", price === o.value ? "border-2 border-ink" : "border-[1.5px] border-line")}
           >
             {formatPrice(o.value, p.currency)}
             <span className="block text-[11px] font-medium text-muted">{o.label}</span>
@@ -554,8 +564,6 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? "Copied" : "Copy"}
           </button>
         }
-        icon={PenLine}
-        tone="blue"
       >
         Written for each site
       </Label>
@@ -566,7 +574,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
             role="tab"
             aria-selected={tab === p}
             onClick={() => setTab(p)}
-            className={cx("flex h-11 items-center justify-center gap-2 rounded-xl bg-card text-sm font-semibold", tab === p ? "ring-2 ring-accent" : "ring-1 ring-line")}
+            className={cx("flex h-11 items-center justify-center gap-2 rounded-xl bg-card text-sm font-semibold", tab === p ? "border-2 border-ink" : "border-[1.5px] border-line")}
           >
             <PlatformLogo platform={p} size={20} />
             {p === "ebay" ? "eBay" : PLATFORM_META[p].name.split(" ")[0]}
@@ -580,7 +588,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
         id="copy-title"
         value={copy.title}
         onChange={(e) => set("title", e.target.value)}
-        className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 text-[15px] font-semibold focus:border-accent focus:outline-none"
+        className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3 text-[15px] font-semibold focus:border-ink focus:outline-none"
       />
       <label className="mt-3 block text-[13px] font-semibold text-muted" htmlFor="copy-desc">
         Description
@@ -590,7 +598,7 @@ function CopyEditor({ listing, onEdit }: { listing: Listing; onEdit: (fn: (e: Li
         value={copy.description}
         onChange={(e) => set("description", e.target.value)}
         rows={9}
-        className="mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-line bg-paper p-3 text-sm leading-relaxed focus:border-accent focus:outline-none"
+        className="mt-1.5 w-full resize-y rounded-xl border-[1.5px] border-line bg-[#faf8f3] p-3 text-sm leading-relaxed focus:border-ink focus:outline-none"
       />
     </Card>
   );

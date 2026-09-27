@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, Search, SlidersHorizontal, Sparkles, Store } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { PLATFORM_META, type ExtensionStatus, type PlatformStatus } from "../../shared/types.ts";
 import { hashParams, useApp } from "../App.tsx";
@@ -37,8 +37,7 @@ export function Connections() {
 
   return (
     <div className="pb-16 lg:mx-auto lg:max-w-2xl lg:px-4">
-      <TopBar onBack={back} title="Settings" />
-      <h1 className="px-5 pb-1 pt-3 font-display text-[34px] font-bold lg:hidden">Settings</h1>
+      <TopBar onBack={back} title={<h1 className="font-display text-[28px] font-extrabold">Connections</h1>} />
       <div className="space-y-2.5 px-4">
         {banner && <p className={cx("rounded-2xl px-4 py-3 text-sm font-semibold", banner.ok ? "bg-ok-soft text-ok" : "bg-bad-soft text-bad")}>{banner.text}</p>}
 
@@ -56,7 +55,7 @@ export function Connections() {
         </Card>
 
         <div className="px-1 pt-3">
-          <Label icon={Store} tone="blue">Marketplaces</Label>
+          <Label>Marketplaces</Label>
         </div>
         <Card className="divide-y divide-soft p-0">
           <EbayRow status={st("ebay")} onChange={refresh} />
@@ -69,13 +68,13 @@ export function Connections() {
                     href={p === "vinted" ? `https://${settings.vintedDomain}/` : "https://www.facebook.com/marketplace"}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-9 items-center rounded-full bg-accent px-3.5 text-[14px] font-semibold text-white"
+                    className="flex h-9 items-center rounded-full bg-ink px-3.5 text-[13px] font-bold text-white"
                   >
                     Log in
                   </a>
                 )}
                 {s?.action === "install_extension" && (
-                  <a href="#extension" className="flex h-9 items-center rounded-full bg-accent px-3.5 text-[14px] font-semibold text-white">
+                  <a href="#extension" className="flex h-9 items-center rounded-full bg-ink px-3.5 text-[13px] font-bold text-white">
                     Set up
                   </a>
                 )}
@@ -87,7 +86,7 @@ export function Connections() {
         {!hosted && <ExtensionCard ext={ext} onPaired={refresh} local={local} />}
 
         <div className="px-1 pt-3">
-          <Label icon={Search} tone="green">Price research</Label>
+          <Label>Price research</Label>
         </div>
         <Card className="divide-y divide-soft p-0">
           {!local && !hosted && (
@@ -108,7 +107,7 @@ export function Connections() {
         </Card>
 
         <div className="px-1 pt-3">
-          <Label icon={Sparkles} tone="purple">AI</Label>
+          <Label>AI</Label>
         </div>
         <Card className="space-y-3">
           {hosted ? (
@@ -131,7 +130,7 @@ export function Connections() {
                     role="radio"
                     aria-checked={on}
                     onClick={() => void save({ aiProvider: o.id })}
-                    className={cx("rounded-2xl bg-card p-3 text-left", on ? "ring-2 ring-accent" : "ring-1 ring-line")}
+                    className={cx("rounded-2xl bg-card p-3 text-left", on ? "border-2 border-ink" : "border-[1.5px] border-line")}
                   >
                     <span className="block font-bold">{o.name}</span>
                     <span className="block text-[13px] text-muted">{o.note}</span>
@@ -164,7 +163,7 @@ export function Connections() {
         </Card>
 
         <div className="px-1 pt-3">
-          <Label icon={SlidersHorizontal} tone="orange">Selling</Label>
+          <Label>Selling</Label>
         </div>
         <Card className="space-y-3">
           <label className="block">
@@ -175,7 +174,7 @@ export function Connections() {
                 const r = REGIONS.find((x) => x.country === e.target.value)!;
                 void save({ country: r.country, currency: r.currency, language: r.language, vintedDomain: r.vintedDomain });
               }}
-              className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 font-semibold"
+              className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3 font-semibold"
             >
               {REGIONS.map((r) => (
                 <option key={r.country} value={r.country}>
@@ -189,7 +188,7 @@ export function Connections() {
             <select
               value={settings.language}
               onChange={(e) => void save({ language: e.target.value })}
-              className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-paper px-3 font-semibold"
+              className="mt-1.5 h-12 w-full rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3 font-semibold"
             >
               {LANGUAGES.map((l) => (
                 <option key={l}>{l}</option>
@@ -248,7 +247,7 @@ function EbayRow({ status, onChange }: { status?: PlatformStatus; onChange: () =
     <div>
       <Row logo={<PlatformLogo platform="ebay" size={40} />} title="eBay" detail={status?.detail} ok={status?.connected}>
         {status?.action === "ebay_login" && (
-          <a href="/auth/ebay" className="flex h-9 items-center rounded-full bg-accent px-3.5 text-[14px] font-semibold text-white">
+          <a href="/auth/ebay" className="flex h-9 items-center rounded-full bg-ink px-3.5 text-[13px] font-bold text-white">
             Log in with eBay
           </a>
         )}
@@ -274,7 +273,7 @@ function EbayRow({ status, onChange }: { status?: PlatformStatus; onChange: () =
                 onChange={(e) => setPostal(e.target.value)}
                 placeholder="Postal code you ship from"
                 aria-label="Postal code you ship from"
-                className="h-11 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-paper px-3"
+                className="h-11 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3"
               />
               <Button size="md" className="h-11" loading={busy} onClick={() => run(() => api.ebayLocation(postal, code))}>
                 Save
@@ -302,12 +301,12 @@ function ExtensionCard({ ext, onPaired, local }: { ext: (ExtensionStatus & { pai
   };
 
   return (
-    <section id="extension" className="scroll-mt-20 rounded-[14px] bg-card p-4">
+    <section id="extension" className="scroll-mt-20 rounded-[20px] bg-ink p-4 text-paper">
       <div className="flex items-center gap-3">
         <ChromeMark />
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-bold">SnapSell for Chrome</div>
-          <div className="text-[13px] text-muted">
+          <div className="text-[13px] text-[#b9b2a2]">
             {local
               ? ext?.online
                 ? ext.paired
@@ -321,20 +320,20 @@ function ExtensionCard({ ext, onPaired, local }: { ext: (ExtensionStatus & { pai
                 : "Offline · open Chrome on your computer"}
           </div>
         </div>
-        {ext?.paired && <span className={cx("size-2.5 rounded-full", ext.online ? "bg-[#34c759]" : "bg-faint")} aria-label={ext.online ? "Online" : "Offline"} />}
+        {ext?.paired && <span className={cx("size-2.5 rounded-full", ext.online ? "bg-[#7bd88f]" : "bg-faint")} aria-label={ext.online ? "Online" : "Offline"} />}
       </div>
 
       {!ext?.paired && (
-        <ol className="mt-4 list-inside list-decimal space-y-1.5 text-sm text-ink">
+        <ol className="mt-4 list-inside list-decimal space-y-1.5 text-sm text-[#d9d3c4]">
           <li>
             On your computer,{" "}
-            <a href="./snapsell-extension.zip" download className="font-bold text-accent underline">
+            <a href="./snapsell-extension.zip" download className="font-bold text-paper underline">
               download SnapSell for Chrome
             </a>{" "}
             and unzip it.
           </li>
           <li>
-            In Chrome open <b className="text-accent">chrome://extensions</b>, turn on Developer mode, click <b className="text-accent">Load unpacked</b>{" "}
+            In Chrome open <b className="text-paper">chrome://extensions</b>, turn on Developer mode, click <b className="text-paper">Load unpacked</b>{" "}
             and choose the unzipped folder.
           </li>
           {local ? (
@@ -352,8 +351,8 @@ function ExtensionCard({ ext, onPaired, local }: { ext: (ExtensionStatus & { pai
             ["Pairing code", pair.token],
           ].map(([label, value]) => (
             <div key={label}>
-              <div className="text-xs font-semibold text-muted">{label}</div>
-              <div className="mt-1 flex items-center gap-2 rounded-xl bg-paper px-3 py-2.5">
+              <div className="text-xs font-semibold text-[#b9b2a2]">{label}</div>
+              <div className="mt-1 flex items-center gap-2 rounded-xl bg-ink-2 px-3 py-2.5">
                 <code className="min-w-0 flex-1 truncate text-sm">{value}</code>
                 <button onClick={() => copy(value, label)} className="flex items-center gap-1 text-xs font-bold" aria-label={`Copy ${label}`}>
                   {copied === label ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -362,7 +361,7 @@ function ExtensionCard({ ext, onPaired, local }: { ext: (ExtensionStatus & { pai
               </div>
             </div>
           ))}
-          <p className="text-xs text-muted">Anyone with this code can post as you. It replaces any earlier code.</p>
+          <p className="text-xs text-[#b9b2a2]">Anyone with this code can post as you. It replaces any earlier code.</p>
         </div>
       ) : (
         <button

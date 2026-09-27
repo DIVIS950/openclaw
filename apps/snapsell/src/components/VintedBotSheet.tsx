@@ -12,7 +12,7 @@ import { Sheet, cx } from "./ui.tsx";
 const SETUP_APP = [
   <>
     Install the free{" "}
-    <a className="font-semibold text-accent" href="https://apps.apple.com/app/id1463298887" target="_blank" rel="noreferrer">
+    <a className="font-bold underline" href="https://apps.apple.com/app/id1463298887" target="_blank" rel="noreferrer">
       Userscripts
     </a>{" "}
     app, open it once and tap <b>Set Userscripts Directory</b>.
@@ -22,7 +22,7 @@ const SETUP_APP = [
   </>,
   <>
     Open{" "}
-    <a className="font-semibold text-accent" href={BOT_SCRIPT_URL} target="_blank" rel="noreferrer">
+    <a className="font-bold underline" href={BOT_SCRIPT_URL} target="_blank" rel="noreferrer">
       the SnapSell bot
     </a>{" "}
     in Safari, tap <b>aA → Userscripts → Install</b>.
@@ -60,8 +60,8 @@ export function VintedBotSheet({ open, listing, onClose }: { open: boolean; list
         aria-disabled={!link}
         onClick={() => celebrate(60)}
         className={cx(
-          "flex h-14 w-full items-center justify-center gap-2 rounded-full text-[17px] font-bold",
-          link ? "bg-cta text-white shadow-[0_14px_30px_-12px_rgba(94,92,230,0.8)]" : "pointer-events-none bg-soft text-muted",
+          "flex h-14 w-full items-center justify-center gap-2 rounded-[18px] text-[17px] font-bold",
+          link ? "shine bg-accent text-ink shadow-[0_14px_30px_-12px_rgba(194,65,12,0.65)]" : "pointer-events-none bg-soft text-muted",
         )}
       >
         {link ? <Bot className="size-5" /> : <Loader2 className="size-5 animate-spin" />}
@@ -85,7 +85,7 @@ export function VintedBotSheet({ open, listing, onClose }: { open: boolean; list
             key={id}
             onClick={() => setSetup((v) => (v === id ? null : id))}
             aria-expanded={setup === id}
-            className={cx("rounded-2xl bg-card px-3 py-2.5 text-left", setup === id ? "ring-2 ring-accent" : "ring-1 ring-line")}
+            className={cx("rounded-2xl bg-card px-3 py-2.5 text-left", setup === id ? "border-2 border-ink" : "border-[1.5px] border-line")}
           >
             <span className="flex items-center justify-between text-[15px] font-semibold">
               {label}
@@ -101,7 +101,7 @@ export function VintedBotSheet({ open, listing, onClose }: { open: boolean; list
           <Step n={1}>
             <button
               onClick={async () => setCopied(await copyText(bookmarklet))}
-              className="rounded-full bg-accent px-3.5 py-1.5 text-[14px] font-semibold text-white"
+              className="rounded-full bg-accent px-3.5 py-1.5 text-[14px] font-bold text-ink"
             >
               {copied ? "Copied" : "Copy the bot"}
             </button>
@@ -136,7 +136,7 @@ export function VintedBotSheet({ open, listing, onClose }: { open: boolean; list
 
 function Step({ n, children }: { n: number; children: ReactNode }) {
   return (
-    <li className="flex items-center gap-3 rounded-2xl bg-card px-3.5 py-3 text-[14px] ring-1 ring-line">
+    <li className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 text-[14px]">
       <span className="grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[12px] font-semibold text-white">{n}</span>
       <span>{children}</span>
     </li>

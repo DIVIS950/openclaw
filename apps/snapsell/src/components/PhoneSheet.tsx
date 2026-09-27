@@ -120,7 +120,7 @@ export function PhoneSheet({ platform, listing, onClose }: { platform: Platform 
               href={sellPageUrl(platform, settings)}
               target="_blank"
               rel="noreferrer"
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent font-bold text-white"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent font-bold text-ink"
             >
               <ExternalLink className="size-4" />
               Open {site}

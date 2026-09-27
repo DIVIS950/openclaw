@@ -42,7 +42,7 @@ export function KeyInput({ value, onChange, onSave, saved }: { value: string; on
           placeholder="Paste your Gemini key"
           autoComplete="off"
           spellCheck={false}
-          className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-paper px-3 font-mono text-sm focus:border-ink focus:outline-none"
+          className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-[#faf8f3] px-3 font-mono text-sm focus:border-ink focus:outline-none"
         />
         <Button className="h-12" onClick={onSave} disabled={!value.trim()}>
           {saved ? <Check className="size-4" /> : "Save"}

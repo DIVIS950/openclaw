@@ -1,4 +1,4 @@
-const COLORS = ["#0a84ff", "#bf5af2", "#ff375f", "#ffd60a", "#30d158", "#ff9f0a", "#64d2ff"];
+const COLORS = ["#ff5b24", "#17150f", "#ffc3a9", "#1e6b45", "#7bd88f", "#f3efe6", "#c2410c"];
 
 /** A short burst of confetti from the top of the screen (Web Animations, no library). */
 export function celebrate(count = 90) {
