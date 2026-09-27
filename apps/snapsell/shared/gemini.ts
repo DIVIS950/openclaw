@@ -1,6 +1,7 @@
 import { GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
 import { assistantJsonSchema } from "./assistant.ts";
+import { photoPlanJsonSchema } from "./photoPlan.ts";
 import { AnalysisSchema, type Analysis, type AnalyzeEvent, type Settings } from "./types.ts";
 
 /**
@@ -175,6 +176,31 @@ export async function geminiAssistant(opts: GeminiOptions, prompt: string): Prom
           model: m,
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           config: { responseMimeType: "application/json", responseJsonSchema: assistantJsonSchema },
+        });
+        return JSON.parse(res.text ?? "{}");
+      } catch (e) {
+        last = e;
+        const f = failure(e);
+        if (!busy(f) && !overQuota(f)) throw e;
+      }
+    }
+    throw last;
+  } catch (e) {
+    throw friendly(e);
+  }
+}
+
+/** "AI Magic": Gemini looks at one photo and returns the edit to apply (see shared/photoPlan.ts). */
+export async function geminiPhotoPlan(opts: GeminiOptions, photo: GeminiPhoto, prompt: string): Promise<unknown> {
+  try {
+    const ai = new GoogleGenAI({ apiKey: opts.apiKey });
+    let last: unknown;
+    for (const m of [...new Set([opts.model || DEFAULT_GEMINI_MODEL, ...FALLBACK_MODELS])]) {
+      try {
+        const res = await ai.models.generateContent({
+          model: m,
+          contents: [{ role: "user", parts: [{ inlineData: { mimeType: photo.mediaType, data: photo.base64 } }, { text: prompt }] }],
+          config: { responseMimeType: "application/json", responseJsonSchema: photoPlanJsonSchema },
         });
         return JSON.parse(res.text ?? "{}");
       } catch (e) {

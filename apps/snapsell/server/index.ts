@@ -6,6 +6,8 @@ import { streamSSE } from "hono/streaming";
 import { PLATFORMS, type Listing, type Platform, type Settings } from "../shared/types.ts";
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply, type AssistantTurn } from "../shared/assistant.ts";
 import { aiConfigured, analyzeItem, assistantTurn, claudeConfigured, MODEL, type Photo } from "./ai/analyze.ts";
+import { geminiPhotoPlan } from "../shared/gemini.ts";
+import { normalizePhotoPlan, photoPlanPrompt } from "../shared/photoPlan.ts";
 import { GEMINI_MODEL, geminiConfigured } from "./ai/gemini.ts";
 import { storageCheck, supabaseConfigured } from "./storage.ts";
 import { lensSearch, publicPhoto, serpEnabled, visionEnabled } from "./ai/lens.ts";
@@ -178,6 +180,26 @@ api.patch("/api/listings/:id", async (c) => {
     }
   });
   return c.json(l);
+});
+
+api.post("/api/listings/:id/photo-plan", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { photo?: number };
+  const user = c.var.user;
+  const l = await getListing(c.req.param("id"), user.email);
+  const name = l?.photos[Number(body.photo ?? 0)] ?? l?.photos[0];
+  const data = l && name ? await loadPhoto(l.id, name) : null;
+  if (!data) return c.json({ error: "Photo not found" }, 404);
+  if (!geminiConfigured()) return c.json({ error: "AI Magic needs GEMINI_API_KEY on the server." }, 400);
+  try {
+    const raw = await geminiPhotoPlan(
+      { apiKey: process.env.GEMINI_API_KEY!, model: GEMINI_MODEL },
+      { mediaType: "image/jpeg", base64: data.toString("base64") },
+      photoPlanPrompt(user.settings.language),
+    );
+    return c.json(normalizePhotoPlan(raw));
+  } catch (e) {
+    return c.json({ error: errorText(e) }, 502);
+  }
 });
 
 api.post("/api/listings/:id/assistant", async (c) => {

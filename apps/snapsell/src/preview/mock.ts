@@ -372,6 +372,11 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
       }
       return json(l);
     }
+    if (sub === "photo-plan" && method === "POST") {
+      // Sample plan for the web preview.
+      await new Promise((r) => setTimeout(r, 900));
+      return json({ rotate: 0, crop: { x: 0.05, y: 0.05, w: 0.9, h: 0.9 }, exposure: 0.3, contrast: 0.2, warmth: -0.1, saturation: 0.1, shadows: 0.4, highlights: 0.2, background: "white", reason: "Brighter, a touch cooler, clean white backdrop." });
+    }
     if (sub === "assistant" && method === "POST") {
       // Sample answers for the web preview: a number sets the price, anything else gets advice.
       await new Promise((r) => setTimeout(r, 700));

@@ -6,6 +6,7 @@
  * and posting is copy & open.
  */
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
+import { normalizePhotoPlan, photoPlanJsonSchema, photoPlanPrompt } from "../../shared/photoPlan.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import {
   AnalysisSchema,
@@ -17,6 +18,7 @@ import {
   type PlatformStatus,
   type Settings,
 } from "../../shared/types.ts";
+import { prepareForUpload } from "../lib/image.ts";
 import { photoResolver } from "../lib/api.ts";
 import { REGIONS } from "../lib/regions.ts";
 
@@ -345,6 +347,22 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
       }
       await saveListing(l);
       return json(l);
+    }
+    if (sub === "photo-plan" && method === "POST") {
+      if (!sample) return json({ error: "Claude isn't available on this page right now." }, 400);
+      const limits = await sample.limits().catch(() => ({}) as { images?: { maxCount: number } });
+      if (!limits.images) return json({ error: "Photos can't be sent to Claude in this view. Try Auto or White." }, 400);
+      const name = l.photos[Number(body?.photo ?? 0)] ?? l.photos[0];
+      const blob = await photoBlob(name);
+      if (!blob) return json({ error: "Photo not found" }, 404);
+      try {
+        const small = new File([await prepareForUpload(blob, 1024)], "photo.jpg", { type: "image/jpeg" });
+        const shape = JSON.stringify(photoPlanJsonSchema);
+        const raw = await sample.json(`${photoPlanPrompt(settings.language)}\nJSON shape (JSON Schema): ${shape}`, { images: [small], modelTier: "quick", cache: false });
+        return json(normalizePhotoPlan(raw));
+      } catch (e) {
+        return json({ error: (e as { message?: string })?.message ?? String(e) }, 502);
+      }
     }
     if (sub === "assistant" && method === "POST") {
       if (!sample || !l.analysis) return json({ error: "Claude isn't available on this page right now." }, 400);

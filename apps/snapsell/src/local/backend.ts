@@ -9,7 +9,8 @@
 import { extractGeminiKey } from "../lib/geminiKey.ts";
 import { demoAnalysis } from "../../server/ai/demo.ts";
 import { applyAssistantChanges, assistantPrompt, parseAssistantReply } from "../../shared/assistant.ts";
-import { geminiAnalyze, geminiAssistant } from "../../shared/gemini.ts";
+import { geminiAnalyze, geminiAssistant, geminiPhotoPlan } from "../../shared/gemini.ts";
+import { normalizePhotoPlan, photoPlanPrompt } from "../../shared/photoPlan.ts";
 import {
   DEFAULT_SETTINGS,
   PLATFORMS,
@@ -24,6 +25,7 @@ import {
   type Settings,
 } from "../../shared/types.ts";
 import { photoResolver } from "../lib/api.ts";
+import { prepareForUpload } from "../lib/image.ts";
 import { idb } from "./idb.ts";
 
 const ME = { email: "you@this-device", name: "You", authEnabled: false };
@@ -222,6 +224,19 @@ async function handle(path: string, method: string, init?: RequestInit): Promise
       l.updatedAt = new Date().toISOString();
       await saveListings();
       return json(l);
+    }
+    if (sub === "photo-plan" && method === "POST") {
+      if (!settings.geminiApiKey) return json({ error: "AI Magic needs your Gemini key (Settings)." }, 400);
+      const name = l.photos[Number(body?.photo ?? 0)] ?? l.photos[0];
+      const blob = photos.get(`${l.id}/${name}`);
+      if (!blob) return json({ error: "Photo not found" }, 404);
+      try {
+        const small = await prepareForUpload(blob, 1024);
+        const raw = await geminiPhotoPlan({ apiKey: settings.geminiApiKey }, { mediaType: "image/jpeg", base64: await toBase64(small) }, photoPlanPrompt(settings.language));
+        return json(normalizePhotoPlan(raw));
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : String(e) }, 502);
+      }
     }
     if (sub === "assistant" && method === "POST") {
       if (!settings.geminiApiKey || !l.analysis) return json({ error: "The voice assistant needs your Gemini key (Connections)." }, 400);

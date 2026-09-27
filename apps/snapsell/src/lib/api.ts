@@ -1,4 +1,5 @@
 import type { AssistantTurn } from "../../shared/assistant.ts";
+import type { PhotoPlan } from "../../shared/photoPlan.ts";
 import type {
   AnalyzeEvent,
   ExtensionStatus,
@@ -78,6 +79,7 @@ export const api = {
     send(`/api/listings/${id}`, patch, "PATCH").then((r) => json<Listing>(r)),
   remove: (id: string) => fetch(`/api/listings/${id}`, { method: "DELETE" }).then((r) => json(r)),
   publish: (id: string, platforms: Platform[]) => send(`/api/listings/${id}/publish`, { platforms }).then((r) => json<Listing>(r)),
+  photoPlan: (id: string, photo: number) => send(`/api/listings/${id}/photo-plan`, { photo }).then((r) => json<PhotoPlan>(r)),
   assistant: (id: string, text: string, history: AssistantTurn[], language = "cs") =>
     send(`/api/listings/${id}/assistant`, { text, history, language }).then((r) =>
       json<{ reply: string; changes: Record<string, unknown>; listing: Listing }>(r),

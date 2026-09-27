@@ -19,6 +19,7 @@ import { PublishSheet } from "../components/PublishSheet.tsx";
 import { VoiceAssistant } from "../components/VoiceAssistant.tsx";
 import { Button, Card, Label, Pill, PlatformLogo, PriceTag, Segmented, Sheet, TopBar, cx } from "../components/ui.tsx";
 import { api, copyText, formatPrice, photoResolver, photoUrl } from "../lib/api.ts";
+import type { PhotoPlan } from "../../shared/photoPlan.ts";
 import { PRESETS, enhancePhoto, type Preset } from "../lib/image.ts";
 
 const TITLE_LIMIT: Record<Platform, number> = { ebay: 80, facebook: 100, vinted: 60 };
@@ -324,15 +325,29 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
   const [busy, setBusy] = useState<"preview" | "apply" | null>(null);
   const [split, setSplit] = useState(50);
   const [error, setError] = useState<string | null>(null);
+  // AI Magic: the AI's edit for each photo, asked once per photo and reused for preview and apply.
+  const plans = useRef(new Map<number, Promise<PhotoPlan>>());
+  const [reason, setReason] = useState<string | null>(null);
   const crop = (i: number) => listing.analysis?.crops.find((c) => c.photo === i);
   const original = photoResolver.resolve(`/photos/${listing.id}/${listing.photos[0]}`);
+  const planFor = (i: number) => {
+    if (!plans.current.has(i)) {
+      const p = api.photoPlan(listing.id, i);
+      p.catch(() => plans.current.delete(i));
+      plans.current.set(i, p);
+    }
+    return plans.current.get(i)!;
+  };
 
   const choose = async (p: Preset) => {
     setPreset(p);
     setBusy("preview");
     setError(null);
+    setReason(null);
     try {
-      const blob = await enhancePhoto(original, p, crop(0));
+      const plan = p === "magic" ? await planFor(0) : undefined;
+      if (plan?.reason) setReason(plan.reason);
+      const blob = await enhancePhoto(original, p, crop(0), plan);
       setPreview(URL.createObjectURL(blob));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -351,7 +366,9 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
     setBusy("apply");
     setError(null);
     try {
-      const blobs = await Promise.all(listing.photos.map((p, i) => enhancePhoto(`/photos/${listing.id}/${p}`, preset, crop(i))));
+      const blobs = await Promise.all(
+        listing.photos.map(async (p, i) => enhancePhoto(`/photos/${listing.id}/${p}`, preset, crop(i), preset === "magic" ? await planFor(i) : undefined)),
+      );
       onChange(await api.uploadEnhanced(listing.id, blobs));
       onClose();
     } catch (e) {
@@ -392,7 +409,7 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
         <span className="absolute right-3 top-3 rounded-full bg-ink px-2.5 py-1 text-xs font-bold text-white">After</span>
       </div>
 
-      <div className="mt-3.5 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Style">
+      <div className="mt-3.5 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Style">
         {PRESETS.map((p) => (
           <button
             key={p.id}
@@ -404,17 +421,27 @@ function Studio({ open, onClose, listing, onChange }: { open: boolean; onClose: 
           >
             <span
               className={cx(
-                "block h-[58px] rounded-[10px]",
+                "grid h-[58px] place-items-center rounded-[10px]",
+                p.id === "magic" && "bg-ink text-accent",
                 p.id === "auto" && "bg-[#b9a68e]",
                 p.id === "vivid" && "bg-[#d98a4b]",
                 p.id === "studio" && "border border-line bg-white",
               )}
-            />
-            <span className="mt-1.5 block text-sm font-bold">{p.label}</span>
+            >
+              {p.id === "magic" && <Wand2 className="size-6" />}
+            </span>
+            <span className="mt-1.5 block truncate text-sm font-bold">{p.label}</span>
             <span className="block text-xs text-muted">{p.hint}</span>
           </button>
         ))}
       </div>
+      {preset === "magic" && busy === "preview" && <p className="mt-3 text-xs text-muted">The AI is looking at your photo…</p>}
+      {preset === "magic" && reason && !busy && (
+        <p className="mt-3 flex gap-2 rounded-2xl bg-ink px-3.5 py-2.5 text-sm text-paper">
+          <Wand2 className="mt-0.5 size-4 shrink-0 text-accent" />
+          {reason}
+        </p>
+      )}
       {preset === "studio" && busy && <p className="mt-3 text-xs text-muted">The first White photo can take a few seconds. It all runs on this device, free and private.</p>}
       {error && <p className="mt-3 text-sm text-bad">{error}</p>}
       <Button size="lg" className="mt-4 w-full" onClick={apply} loading={busy === "apply"} disabled={!!busy}>
