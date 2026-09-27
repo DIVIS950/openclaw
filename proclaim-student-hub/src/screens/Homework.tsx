@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
+import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
@@ -11,6 +12,7 @@ export function HomeworkScreen() {
   const { data, homework, reloadHomework } = useApp();
   const [filter, setFilter] = useState<Filter>("All");
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const list = (homework ?? []).filter((h) => !h.done && (filter === "All" || h.source === filter));
   const sources = new Set((homework ?? []).map((h) => h.source));
@@ -46,6 +48,24 @@ export function HomeworkScreen() {
           <Icon name="sync" size={14} />
         </button>
       </div>
+
+      {!data.hasClassroom && (
+        <button
+          className="btn block rise"
+          style={{
+            justifyContent: "flex-start",
+            background: "#e3f1e6",
+            borderColor: "#cfe6d5",
+            color: "#1f6b3a",
+          }}
+          onClick={() => setImporting(true)}
+        >
+          <Icon name="classroom" size={18} />
+          <span style={{ flex: 1, textAlign: "left" }}>Import from Classroom (screenshot)</span>
+          <Icon name="sparkle" size={16} />
+        </button>
+      )}
+      {importing && <ImportSheet mode="homework" onClose={() => setImporting(false)} />}
 
       <EmailScan />
 

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon } from "../components/Icon.tsx";
+import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
-import { planEvening, type PlanStep } from "../lib/aiFeatures.ts";
+import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
+import { timetable } from "../lib/store.ts";
 import type { CalEvent } from "../lib/types.ts";
 
 const BRIEF_KEY = "psh.brief";
@@ -15,6 +17,9 @@ export function Today() {
   const [brief, setBrief] = useState<string | null>(null);
   const [briefFailed, setBriefFailed] = useState(false);
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>(timetable.get);
+  const [importing, setImporting] = useState(false);
+  const upcoming = upcomingLessons(lessons);
 
   const makePlan = async () => {
     if (!ai) {
@@ -91,7 +96,13 @@ export function Today() {
             .filter((e) => e.unread)
             .slice(0, 8)
             .map((e) => ({ from: e.from, subject: e.subject })),
-          events: events.map((e) => ({ title: e.title, start: e.start })),
+          events: [
+            ...events.map((e) => ({ title: e.title, start: e.start })),
+            ...upcoming.lessons.map((l) => ({
+              title: l.subject,
+              start: `${upcoming.label} ${l.start}`,
+            })),
+          ],
         });
         if (!cancelled) {
           setBrief(text);
@@ -216,6 +227,62 @@ export function Today() {
             </div>
           ))}
         </section>
+      )}
+
+      {events && events.length === 0 && upcoming.lessons.length > 0 && (
+        <section className="stack rise" style={{ animationDelay: "0.16s" }}>
+          <div className="between">
+            <h2 className="h2">Next lessons · {upcoming.label}</h2>
+            <button
+              className="link-btn"
+              style={{ minHeight: 32 }}
+              onClick={() => setImporting(true)}
+            >
+              Update
+            </button>
+          </div>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}
+          >
+            {upcoming.lessons.slice(0, 3).map((l, i) => (
+              <div key={i} className="card" style={{ padding: 12 }}>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {l.start}
+                </div>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {l.subject}
+                </div>
+                {l.room && (
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {l.room}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {events && events.length === 0 && lessons.length === 0 && !data.demo && (
+        <button
+          className="btn block rise"
+          style={{ justifyContent: "flex-start", animationDelay: "0.16s" }}
+          onClick={() => setImporting(true)}
+        >
+          <Icon name="calendar" size={18} />
+          <span style={{ flex: 1, textAlign: "left" }}>Add your timetable from a photo</span>›
+        </button>
+      )}
+
+      {importing && (
+        <ImportSheet mode="timetable" onClose={() => setImporting(false)} onLessons={setLessons} />
       )}
 
       {events && events.length > 0 && (

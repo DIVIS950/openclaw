@@ -1,4 +1,5 @@
 import { normalizePack, type RevisionPack } from "../../shared/pack.ts";
+import type { Lesson } from "./aiFeatures.ts";
 
 // Small things kept on this device only: XP, streak and the latest revision pack.
 
@@ -76,4 +77,9 @@ export interface SavedSchedule {
 export const schedule = {
   get: (): SavedSchedule => read<SavedSchedule>("psh.schedule", { tests: [], days: [], done: [] }),
   save: (value: SavedSchedule) => write("psh.schedule", value),
+};
+
+export const timetable = {
+  get: (): Lesson[] => read<Lesson[]>("psh.timetable", []),
+  save: (value: Lesson[]) => write("psh.timetable", value),
 };

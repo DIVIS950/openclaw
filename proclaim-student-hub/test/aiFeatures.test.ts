@@ -9,8 +9,11 @@ import {
   planEvening,
   readFeedback,
   readFoundTasks,
+  readImportedTasks,
   readPlan,
   readSchedule,
+  readTimetable,
+  upcomingLessons,
 } from "../src/lib/aiFeatures.ts";
 import type { Email, Homework } from "../src/lib/types.ts";
 
@@ -179,5 +182,59 @@ describe("more questions", () => {
     expect(next.quiz.length).toBe(SAMPLE_PACK.quiz.length + 1);
     expect(next.trueFalse[0].statement).toBe("New fact");
     expect(next.match).toEqual(SAMPLE_PACK.match);
+  });
+});
+
+describe("homework from a screenshot", () => {
+  it("dedupes, skips known work and defaults the app to Classroom", () => {
+    const tasks = readImportedTasks(
+      {
+        tasks: [
+          { title: "Macbeth essay", subject: "English", due: "2026-10-01" },
+          { title: "macbeth essay", subject: "English" },
+          { title: "Task 12", source: "Dr Frost" },
+          { title: "Worksheet", source: "Nope", due: "next week" },
+          { title: "" },
+        ],
+      },
+      [hw("Task 12")],
+    );
+    expect(tasks).toEqual([
+      { title: "Macbeth essay", subject: "English", source: "Classroom", due: "2026-10-01" },
+      { title: "Worksheet", subject: "", source: "Classroom", due: "" },
+    ]);
+  });
+});
+
+describe("timetable", () => {
+  const lessons = readTimetable({
+    lessons: [
+      { day: "Tuesday", start: "9.50", end: "10:50", subject: "English", room: "E4" },
+      { day: "Mon", start: "08:50", end: "09:50", subject: "Maths" },
+      { day: "Mon", start: "13:30", end: "14:30", subject: "Science" },
+      { day: "Funday", start: "08:50", subject: "Nope" },
+      { day: "Wed", start: "25:00", subject: "Bad time" },
+    ],
+  });
+
+  it("normalises days and times and sorts the week", () => {
+    expect(lessons.map((l) => `${l.day} ${l.start} ${l.subject}`)).toEqual([
+      "Mon 08:50 Maths",
+      "Mon 13:30 Science",
+      "Tue 09:50 English",
+    ]);
+  });
+
+  it("shows the rest of today, then the next school day", () => {
+    // Monday 28 Sep 2026
+    expect(
+      upcomingLessons(lessons, new Date(2026, 8, 28, 10, 0)).lessons.map((l) => l.subject),
+    ).toEqual(["Science"]);
+    const after = upcomingLessons(lessons, new Date(2026, 8, 28, 15, 0));
+    expect(after.label).toBe("Tomorrow");
+    expect(after.lessons.map((l) => l.subject)).toEqual(["English"]);
+    // Friday → next Monday
+    const weekend = upcomingLessons(lessons, new Date(2026, 9, 2, 16, 0));
+    expect(weekend.label).toBe("Mon");
   });
 });
