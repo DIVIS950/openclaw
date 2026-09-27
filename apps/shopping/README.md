@@ -34,6 +34,15 @@ npm run dev          # http://localhost:3000
 With no keys set, Orbit runs in **demo mode** with sample shops, prices and
 parcels, so every screen works right away.
 
+### One-file web demo
+
+```bash
+node static/build.mjs   # -> static/dist/orbit.html (no server needed)
+```
+
+This bundles the whole demo, including the map data and the demo AI, into one
+HTML page that can be hosted anywhere.
+
 ## Turn on the real services
 
 Copy `.env.example` to `.env.local` and fill in the keys you want. Each one

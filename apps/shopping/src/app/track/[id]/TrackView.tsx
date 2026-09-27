@@ -29,6 +29,7 @@ export function TrackView({ id }: { id: string }) {
   useEffect(() => {
     if (!parcel) return;
     setEta({ ...heuristicEta(parcel), source: "heuristic" });
+    if (process.env.NEXT_PUBLIC_ORBIT_STATIC === "1") return;
     fetch("/api/ai/eta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parcel }) })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: Eta | null) => d && setEta(d))

@@ -12,17 +12,20 @@ import type { Parcel } from "@/lib/parcels";
 const W = 800;
 const H = 520;
 
+// Country shapes ship with the bundle (lazy chunks in Next, inlined in the static build).
 const cache = new Map<string, Promise<FeatureCollection>>();
-function loadCountries(url: string) {
-  if (!cache.has(url)) {
+function loadCountries(detail: "110m" | "50m") {
+  if (!cache.has(detail)) {
+    const mod = detail === "110m" ? import("world-atlas/countries-110m.json") : import("world-atlas/countries-50m.json");
     cache.set(
-      url,
-      fetch(url)
-        .then((r) => r.json())
-        .then((topo: Topology) => feature(topo, topo.objects.countries) as unknown as FeatureCollection),
+      detail,
+      mod.then((m) => {
+        const topo = (m.default ?? m) as unknown as Topology;
+        return feature(topo, topo.objects.countries) as unknown as FeatureCollection;
+      }),
     );
   }
-  return cache.get(url)!;
+  return cache.get(detail)!;
 }
 
 /** Deterministic "road" between two points: a straight line with gentle bends. */
@@ -77,7 +80,7 @@ export function WorldMap({ parcel, progress }: { parcel: Parcel; progress: numbe
 
   useEffect(() => {
     let alive = true;
-    loadCountries(air ? "/countries-110m.json" : "/countries-50m.json").then((fc) => alive && setCountries(fc.features));
+    loadCountries(air ? "110m" : "50m").then((fc) => alive && setCountries(fc.features));
     return () => {
       alive = false;
     };

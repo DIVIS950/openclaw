@@ -4,6 +4,7 @@ import { ArrowUp, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { demoAnswer } from "@/lib/demo-ai";
 import { useAppState } from "@/lib/store";
 import { Markdown } from "./Markdown";
 import { useEnv } from "./Providers";
@@ -11,6 +12,15 @@ import { useEnv } from "./Providers";
 type Msg = { role: "user" | "assistant"; content: string };
 
 export async function streamChat(messages: Msg[], opts: { city?: string; productId?: string }, onText: (t: string) => void) {
+  // Static web demo has no server: answer locally with the same demo logic, streamed for feel.
+  if (process.env.NEXT_PUBLIC_ORBIT_STATIC === "1") {
+    const text = demoAnswer(messages[messages.length - 1].content, opts.city, opts.productId);
+    for (let i = 6; i < text.length + 6; i += 6) {
+      await new Promise((r) => setTimeout(r, 12));
+      onText(text.slice(0, i));
+    }
+    return text;
+  }
   const res = await fetch("/api/ai/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
