@@ -46,7 +46,14 @@
     history.replaceState(null, "", location.pathname + location.search);
   }
   const raw = window.__snapsellJob || sessionStorage.getItem(KEY);
-  if (!raw) return;
+  // Started from the SnapSell bookmark instead of the Userscripts app: say something when there's nothing to do.
+  const fromBookmark = window.__snapsellBookmark === true;
+  if (!raw) {
+    if (fromBookmark) alert("SnapSell: no listing here. In SnapSell tap \u201cPost on Vinted\u201d first, then tap this bookmark on the Vinted page.");
+    return;
+  }
+  if (window.__snapsellBotRunning) return;
+  window.__snapsellBotRunning = true;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const pause = (min = 300, max = 800) => sleep(min + Math.random() * (max - min));
