@@ -108,7 +108,7 @@ export function Apps() {
       </section>
 
       <div className="card row rise" style={{ gap: 12, animationDelay: "0.6s" }}>
-        <span style={{ color: "var(--accent)" }}>
+        <span style={{ color: "var(--ink)" }}>
           <Icon name="link" size={22} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>

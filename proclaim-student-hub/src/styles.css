@@ -2,27 +2,30 @@
    small colour dots and stripes, light and dark mode, subtle motion only. */
 
 :root {
-  --bg: #f6f6f8;
+  --bg: #ffffff;
   --card: #ffffff;
-  --card-2: #f1f1f5;
-  --line: #e6e6ec;
-  --line-soft: #efeff3;
-  --ink: #14141b;
-  --muted: #6a6a78;
-  --accent: #5b3df5;
-  --accent-ink: #4327d6;
-  --on-accent: #ffffff;
-  --warm: #c2410c;
-  --good: #15803d;
-  --accent-soft: color-mix(in srgb, var(--accent) 10%, var(--card));
-  --warm-soft: color-mix(in srgb, var(--warm) 10%, var(--card));
-  --good-soft: color-mix(in srgb, var(--good) 11%, var(--card));
+  --card-2: #f2f2f2;
+  --line: #e6e6e6;
+  --line-soft: #efefef;
+  --ink: #000000;
+  --muted: #6b6b6b;
+  /* Snapchat yellow: fills only. Text that needs the accent uses --accent-ink. */
+  --accent: #fffc00;
+  --accent-ink: #000000;
+  --on-accent: #000000;
+  --link: #0a84d6;
+  --warm: #e0282e;
+  --good: #0f9d58;
+  --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--card));
+  --warm-soft: color-mix(in srgb, var(--warm) 9%, var(--card));
+  --good-soft: color-mix(in srgb, var(--good) 10%, var(--card));
   --chip: var(--card-2);
-  --shadow: 0 1px 2px rgba(20, 20, 30, 0.04), 0 4px 14px rgba(20, 20, 30, 0.05);
-  --shadow-lg: 0 12px 32px rgba(20, 20, 30, 0.14);
-  --hero: linear-gradient(135deg, #1d1745 0%, #3a2a8f 100%);
-  --glass: rgba(255, 255, 255, 0.8);
-  --overlay: rgba(10, 10, 20, 0.45);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
+  --hero: #0d0d0d;
+  --hero-ink: #ffffff;
+  --glass: rgba(255, 255, 255, 0.82);
+  --overlay: rgba(0, 0, 0, 0.5);
   --serif: "Inter", system-ui, -apple-system, sans-serif;
   --sans: "Inter", system-ui, -apple-system, sans-serif;
   --radius: 18px;
@@ -31,26 +34,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d0d11;
-    --card: #16161c;
-    --card-2: #1f1f27;
-    --line: #2a2a34;
-    --line-soft: #22222b;
-    --ink: #ececf2;
-    --muted: #9898a8;
-    --accent: #8b74ff;
-    --accent-ink: #b5a7ff;
-    --on-accent: #ffffff;
-    --warm: #fb8b4d;
-    --good: #4ade80;
-    --accent-soft: color-mix(in srgb, var(--accent) 18%, var(--card));
+    --bg: #000000;
+    --card: #121212;
+    --card-2: #1c1c1e;
+    --line: #2a2a2a;
+    --line-soft: #1f1f1f;
+    --ink: #ffffff;
+    --muted: #9a9a9a;
+    --accent: #fffc00;
+    --accent-ink: #fffc00;
+    --on-accent: #000000;
+    --link: #3fb6ff;
+    --warm: #ff5a5f;
+    --good: #34d17a;
+    --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--card));
     --warm-soft: color-mix(in srgb, var(--warm) 16%, var(--card));
     --good-soft: color-mix(in srgb, var(--good) 14%, var(--card));
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-    --hero: linear-gradient(135deg, #221b4d 0%, #3b2b93 100%);
-    --glass: rgba(22, 22, 28, 0.82);
-    --overlay: rgba(0, 0, 0, 0.6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --hero: #1c1c1e;
+    --glass: rgba(18, 18, 18, 0.85);
+    --overlay: rgba(0, 0, 0, 0.65);
     color-scheme: dark;
   }
 }
@@ -84,7 +88,7 @@ select {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: none;
 }
 
@@ -113,7 +117,7 @@ button:disabled {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--link);
   outline-offset: 2px;
 }
 
@@ -180,7 +184,7 @@ button:disabled {
 }
 
 .nav-item[aria-current="page"] {
-  color: var(--accent);
+  color: var(--ink);
 }
 
 .nav-ai {
@@ -195,10 +199,12 @@ button:disabled {
   justify-content: center;
   border: 4px solid var(--bg);
   box-shadow: var(--shadow-lg);
+  border: 4px solid var(--bg);
 }
 
 .nav-item[aria-current="page"] .nav-ai {
-  background: var(--accent-ink);
+  background: var(--ink);
+  color: var(--accent);
 }
 
 /* ---------- Type ---------- */
@@ -270,7 +276,7 @@ button:disabled {
 
 .card-dark {
   background: var(--hero);
-  color: #f4f2ff;
+  color: var(--hero-ink, #fff);
   border-radius: 22px;
   padding: 20px;
   box-shadow: var(--shadow-lg);
@@ -379,7 +385,7 @@ button:disabled {
   padding: 0;
   min-height: 44px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--link);
   font-size: 14px;
 }
 
@@ -441,7 +447,7 @@ button:disabled {
 }
 
 .field:focus {
-  border-color: var(--accent);
+  border-color: var(--link);
   background: var(--card);
   outline: none;
 }
@@ -752,8 +758,8 @@ textarea.field {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 /* ---------- AI ---------- */
@@ -768,7 +774,7 @@ textarea.field {
   border-radius: 22px;
   border: 1px solid var(--line);
   background: var(--card);
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
   font-size: 14px;
   display: inline-flex;
@@ -779,7 +785,7 @@ textarea.field {
 
 .ai-card {
   background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card));
   border-radius: var(--radius);
   padding: 14px 16px;
   display: flex;
@@ -821,7 +827,7 @@ textarea.field {
 
 .game-btn.selected {
   background: var(--accent-soft);
-  border-color: var(--accent);
+  border-color: var(--ink);
   color: var(--accent-ink);
 }
 
@@ -864,7 +870,7 @@ textarea.field {
 .bar > div {
   height: 100%;
   border-radius: 3px;
-  background: var(--accent);
+  background: var(--ink);
   transition: width 0.4s ease;
 }
 
@@ -874,7 +880,7 @@ textarea.field {
   top: -4px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-ink);
   animation: floatUp 1.2s ease forwards;
   pointer-events: none;
 }
@@ -898,7 +904,7 @@ textarea.field {
 .flashcard.back {
   background: var(--hero);
   border-color: transparent;
-  color: #f4f2ff;
+  color: #fff;
 }
 
 .flashcard-text {
@@ -973,7 +979,7 @@ textarea.field {
   width: 10px;
   height: 10px;
   border-radius: 5px;
-  background: var(--accent);
+  background: #e8c800;
 }
 
 .dot.flagged {
@@ -997,7 +1003,7 @@ textarea.field {
 
 .feedback.almost {
   background: var(--accent-soft);
-  border-color: var(--accent);
+  border-color: #d4b800;
   color: var(--accent-ink);
 }
 
@@ -1057,8 +1063,8 @@ textarea.field {
 .gap-slot {
   display: inline-block;
   min-width: 80px;
-  border-bottom: 2px solid var(--accent);
-  color: var(--accent-ink);
+  border-bottom: 2px solid var(--ink);
+  color: var(--ink);
   font-weight: 650;
 }
 
@@ -1068,7 +1074,7 @@ textarea.field {
 }
 
 .gap-slot.almost {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .gap-slot.wrong {
@@ -1103,9 +1109,9 @@ textarea.field {
   height: 28px;
   padding: 0 8px;
   border-radius: 14px;
-  border: 2px solid #fff;
+  border: 2px solid #000;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -1199,7 +1205,7 @@ textarea.field {
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
-  color: var(--accent);
+  color: var(--ink);
 }
 
 /* ---------- Timetable ---------- */
@@ -1210,7 +1216,7 @@ textarea.field {
   gap: 12px;
   padding: 18px;
   border-radius: 22px;
-  color: #f4f2ff;
+  color: #fff;
   background: var(--hero);
   box-shadow: var(--shadow-lg);
 }
@@ -1269,7 +1275,7 @@ textarea.field {
   height: 4px;
   margin-left: -2px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--ink);
 }
 
 .day-tabs button[aria-selected="true"] {
@@ -1393,8 +1399,8 @@ textarea.field {
   height: 44px;
   flex-shrink: 0;
   border-radius: 14px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 /* ---------- Motion (subtle) ---------- */
@@ -1567,4 +1573,84 @@ textarea.field {
 
 .sheet .composer {
   margin-bottom: 0;
+}
+
+/* Snapchat-style touches */
+
+.card-dark .btn:not(.primary),
+.now-card .btn:not(.primary) {
+  color: var(--ink);
+}
+
+.card-dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.08)
+  );
+  background-size: 200% 100%;
+}
+
+.card-dark::before,
+.now-card::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  margin-bottom: 2px;
+}
+
+.class-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+}
+
+.class-name {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--card-2);
+  color: var(--ink);
+}
+
+.post-icon.assignment {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.voice-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+
+.voice-cta .lab-cta-icon {
+  background: #000;
+  color: var(--accent);
 }

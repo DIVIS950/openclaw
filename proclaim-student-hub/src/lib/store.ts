@@ -79,6 +79,27 @@ export const schedule = {
   save: (value: SavedSchedule) => write("psh.schedule", value),
 };
 
+/** One post in a Classroom class stream. */
+export interface CoursePost {
+  kind: "assignment" | "material" | "announcement";
+  title: string;
+  /** YYYY-MM-DD it was posted, or "" when unknown. */
+  date: string;
+  text: string;
+}
+
+export interface Course {
+  name: string;
+  subject: string;
+  posts: CoursePost[];
+}
+
+/** The student's Classroom classes as they imported them (Classroom itself is blocked). */
+export const courses = {
+  get: (): Course[] => read<Course[]>("psh.courses", []),
+  save: (value: Course[]) => write("psh.courses", value),
+};
+
 export const timetable = {
   get: (): Lesson[] => read<Lesson[]>("psh.timetable", []),
   save: (value: Lesson[]) => write("psh.timetable", value),

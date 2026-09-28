@@ -163,7 +163,7 @@ function Message({
           flexShrink: 0,
           marginTop: 6,
           borderRadius: 4,
-          background: email.unread ? "var(--accent)" : "transparent",
+          background: email.unread ? "var(--link)" : "transparent",
         }}
       />
       <div style={{ flex: 1, minWidth: 0 }} className="stack">

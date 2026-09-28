@@ -22,14 +22,20 @@ const read = (ext) =>
 const js = read(".js").replace(/<\/script/gi, "<\\/script");
 const css = read(".css");
 
+// Optional private starter data (timetable, classes, homework). It lives in the
+// gitignored private/ folder and only ever ends up in this private page.
+const seedFile = "private/seed.json";
+const seed = fs.existsSync(seedFile)
+  ? `<script>window.__PSH_SEED__ = ${JSON.stringify(JSON.parse(fs.readFileSync(seedFile, "utf8"))).replace(/</g, "\\u003c")};</script>\n`
+  : "";
+
 const html = `<title>Proclaim Student Hub</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 ${css}
-html, body { background: #e9e4d8; }
 </style>
 <div id="root"></div>
-<script type="module">
+${seed}<script type="module">
 ${js}
 </script>
 `;

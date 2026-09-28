@@ -4,14 +4,15 @@ import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
-import { progress } from "../lib/store.ts";
+import { courses, progress } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 
 type Filter = "All" | Source;
 
 export function HomeworkScreen() {
-  const { data, homework, reloadHomework } = useApp();
+  const { data, homework, reloadHomework, go } = useApp();
+  const [classCount] = useState(() => courses.get().length);
   const [filter, setFilter] = useState<Filter>("All");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -50,6 +51,16 @@ export function HomeworkScreen() {
           <Icon name="sync" size={14} />
         </button>
       </div>
+
+      <button
+        className="btn block rise"
+        style={{ justifyContent: "flex-start" }}
+        onClick={() => go("classes")}
+      >
+        <Icon name="classroom" size={18} />
+        <span style={{ flex: 1, textAlign: "left" }}>Your classes</span>
+        <span className="muted">{classCount ? `${classCount} ›` : "›"}</span>
+      </button>
 
       {!data.hasClassroom && (
         <section className="card stack rise">

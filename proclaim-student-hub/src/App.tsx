@@ -11,9 +11,11 @@ import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
+import { applyHomeworkSeed } from "./lib/seed.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
+import { Classes } from "./screens/Classes.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { Inbox } from "./screens/Inbox.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -195,7 +197,18 @@ function Shell({
     data.homework().then(
       (list) => {
         setHomework(list);
-        syncClassroom(list);
+        // Starter homework first, so the email sync sees it and doesn't add it twice.
+        applyHomeworkSeed(data, list)
+          .catch((err: unknown) => {
+            console.warn("Couldn't add starter homework", err);
+            return [];
+          })
+          .then((added) => {
+            if (added.length > 0) {
+              setHomework((l) => [...(l ?? []), ...added]);
+            }
+            syncClassroom([...list, ...added]);
+          });
       },
       (err: unknown) => {
         setHomework((h) => h ?? []);
@@ -323,6 +336,7 @@ function Shell({
         {current === "inbox" && <Inbox />}
         {current === "apps" && <Apps />}
         {current === "timetable" && <Timetable />}
+        {current === "classes" && <Classes />}
         {current !== "tutor" && (
           <button
             className="ask-fab pop"
@@ -370,7 +384,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
       </button>
       <button
         className="nav-item"
-        aria-current={active(["homework", "assignment"])}
+        aria-current={active(["homework", "assignment", "classes"])}
         onClick={() => go("homework")}
       >
         <Icon name="homework" />
