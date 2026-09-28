@@ -63,7 +63,13 @@ export interface UserCap {
   me(): Promise<{ name: string; email: string | null }>;
 }
 
+export interface Downloads {
+  /** Asks the viewer to save a file; rejects (e.g. "declined") if they don't. */
+  save(file: { filename: string; data: string | Blob }): Promise<unknown>;
+}
+
 interface CapabilityMap {
+  downloads: Downloads;
   sample: Sample;
   mcp: Mcp;
   db: Db;

@@ -3,6 +3,7 @@ import type { AppConfig, TutorMode } from "../shared/api.ts";
 import { AskAi } from "./components/AskAi.tsx";
 import { Icon } from "./components/Icon.tsx";
 import { Ctx, SCREENS, type AppContext, type Screen, type TutorSeed } from "./context.ts";
+import { Lab } from "./lab/Lab.tsx";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
 import { ClaudeData } from "./lib/claudeData.ts";
 import { useCapability } from "./lib/claudeRuntime.ts";
@@ -12,10 +13,8 @@ import { GoogleData } from "./lib/googleData.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
-import { Games } from "./screens/Games.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { Inbox } from "./screens/Inbox.tsx";
-import { Revise } from "./screens/Revise.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
@@ -291,8 +290,7 @@ function Shell({
           <Assignment key={assignment.id} hw={assignment} />
         )}
         {current === "tutor" && <Tutor />}
-        {current === "revise" && <Revise />}
-        {current === "games" && <Games />}
+        {(current === "revise" || current === "games") && <Lab />}
         {current === "inbox" && <Inbox />}
         {current === "apps" && <Apps />}
         {current !== "tutor" && (

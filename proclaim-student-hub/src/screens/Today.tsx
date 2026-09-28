@@ -360,7 +360,10 @@ export function Today() {
         onClick={() => go("revise")}
       >
         <Icon name="camera" size={22} />
-        <span style={{ flex: 1, textAlign: "left" }}>Post your notes → revision + games</span>›
+        <span style={{ flex: 1, textAlign: "left" }}>
+          Revision Lab: scan a test or notes → games
+        </span>
+        ›
       </button>
     </main>
   );
