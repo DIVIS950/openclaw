@@ -18,8 +18,6 @@ export interface Seed {
   tests: { topic: string; date: string }[];
   homework: SeedHomework[];
   courses: Course[];
-  /** Link to the student's ElevenLabs voice study buddy, if they set one up. */
-  voiceUrl: string;
 }
 
 type Obj = Record<string, unknown>;
@@ -62,12 +60,8 @@ export function readSeed(value: unknown): Seed | null {
           .toSorted((a, b) => b.date.localeCompare(a.date)),
       }))
       .filter((c) => c.name),
-    voiceUrl: str(value.voiceUrl).startsWith("https://elevenlabs.io/") ? str(value.voiceUrl) : "",
   };
 }
-
-/** The voice study buddy link baked into this page, or "". */
-export const voiceUrl = (): string => pageSeed()?.voiceUrl ?? "";
 
 function pageSeed(): Seed | null {
   return readSeed((window as unknown as { __PSH_SEED__?: unknown }).__PSH_SEED__);

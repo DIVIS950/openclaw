@@ -3,7 +3,6 @@ import type { ChatTurn, ImageInput, TutorMode } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
-import { voiceUrl } from "../lib/seed.ts";
 import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/voice.ts";
 
 const MODES: { id: TutorMode; label: string }[] = [
@@ -159,17 +158,15 @@ export function Tutor() {
             </p>
           </div>
           <div className="row">
-            {voiceUrl() && (
-              <a
+            {app.ai && (
+              <button
                 className="btn small primary"
-                href={voiceUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Talk to your study buddy by voice"
+                onClick={() => app.go("call")}
+                aria-label="Voice call with your study buddy"
               >
                 <Icon name="mic" size={14} />
                 Talk
-              </a>
+              </button>
             )}
             <button className="btn small" onClick={() => app.go("revise")}>
               <Icon name="camera" size={14} />

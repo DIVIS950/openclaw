@@ -4,7 +4,6 @@ import { Icon, type IconName } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
-import { voiceUrl } from "../lib/seed.ts";
 import { progress, timetable } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
@@ -27,7 +26,6 @@ export function Today() {
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
-  const voice = voiceUrl();
   const upcoming = upcomingLessons(lessons);
 
   const makePlan = async () => {
@@ -213,13 +211,11 @@ export function Today() {
         </div>
       </section>
 
-      {voice && (
-        <a
+      {ai && (
+        <button
           className="voice-cta rise"
           style={{ animationDelay: "0.12s" }}
-          href={voice}
-          target="_blank"
-          rel="noopener noreferrer"
+          onClick={() => go("call")}
         >
           <span className="lab-cta-icon" aria-hidden="true">
             <Icon name="mic" size={22} />
@@ -233,7 +229,7 @@ export function Today() {
           <span aria-hidden="true" style={{ fontSize: 20 }}>
             ›
           </span>
-        </a>
+        </button>
       )}
 
       {Array.isArray(plan) && (

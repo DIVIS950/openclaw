@@ -31,7 +31,6 @@ describe("readSeed", () => {
         },
         { name: "" },
       ],
-      voiceUrl: "https://evil.example/talk",
     });
     expect(seed?.timetable).toEqual([
       { day: "Mon", start: "08:15", end: "09:00", subject: "Maths", room: "R1" },
@@ -47,7 +46,6 @@ describe("readSeed", () => {
       ["material", "Old"],
       ["material", "Unknown kind"],
     ]);
-    expect(seed?.voiceUrl).toBe("");
   });
 
   it("rejects seeds without a version", () => {

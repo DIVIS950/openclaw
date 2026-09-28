@@ -30,7 +30,10 @@ export const canListen = (): boolean => recognitionCtor() !== null;
 export const canSpeak = (): boolean => typeof window !== "undefined" && "speechSynthesis" in window;
 
 /** Listens once and resolves with what was said. */
-export function listen(onPartial?: (text: string) => void): {
+export function listen(
+  onPartial?: (text: string) => void,
+  lang = "en-GB",
+): {
   done: Promise<string>;
   stop: () => void;
 } {
@@ -42,7 +45,7 @@ export function listen(onPartial?: (text: string) => void): {
     };
   }
   const rec = new Ctor();
-  rec.lang = "en-GB";
+  rec.lang = lang;
   rec.interimResults = true;
   let heard = "";
   const done = new Promise<string>((resolve, reject) => {
@@ -85,4 +88,26 @@ export function stopSpeaking() {
   if (canSpeak()) {
     window.speechSynthesis.cancel();
   }
+}
+
+/** Speaks and resolves when finished (or straight away where speech isn't available). */
+export function say(text: string, lang = "en-GB"): Promise<void> {
+  if (!canSpeak()) {
+    return Promise.resolve();
+  }
+  window.speechSynthesis.cancel();
+  return new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
+    u.lang = lang;
+    // Some browsers never fire "end" on long speech, so don't wait forever.
+    const words = text.split(/\s+/).length;
+    const fallback = window.setTimeout(resolve, 4000 + words * 600);
+    const finish = () => {
+      window.clearTimeout(fallback);
+      resolve();
+    };
+    u.addEventListener("end", finish);
+    u.addEventListener("error", finish);
+    window.speechSynthesis.speak(u);
+  });
 }

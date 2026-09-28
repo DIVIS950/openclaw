@@ -15,6 +15,7 @@ import { applyHomeworkSeed } from "./lib/seed.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
+import { Call } from "./screens/Call.tsx";
 import { Classes } from "./screens/Classes.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { Inbox } from "./screens/Inbox.tsx";
@@ -337,7 +338,8 @@ function Shell({
         {current === "apps" && <Apps />}
         {current === "timetable" && <Timetable />}
         {current === "classes" && <Classes />}
-        {current !== "tutor" && (
+        {current === "call" && <Call />}
+        {current !== "tutor" && current !== "call" && (
           <button
             className="ask-fab pop"
             aria-label="Ask AI about this screen"
@@ -392,7 +394,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
       </button>
       <button
         className="nav-item"
-        aria-current={active(["tutor", "revise", "games"])}
+        aria-current={active(["tutor", "revise", "games", "call"])}
         onClick={() => go("tutor")}
       >
         <span className="nav-ai">
