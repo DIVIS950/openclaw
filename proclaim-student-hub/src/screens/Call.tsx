@@ -226,18 +226,35 @@ export function Call() {
       </header>
 
       <section className="call-stage">
-        <button
-          className={`call-orb ${status}`}
-          onClick={tapOrb}
-          disabled={!ai}
-          aria-label={live.current ? "End call" : "Start talking"}
-        >
-          <Icon
-            name={status === "thinking" ? "loader" : "mic"}
-            size={44}
-            className={status === "thinking" ? "spin" : undefined}
-          />
-        </button>
+        {dictation && ai ? (
+          // A label, not a button: tapping it focuses the text box natively,
+          // which is the only way iPhones open the keyboard inside claude.ai.
+          <label
+            htmlFor="call-input"
+            className={`call-orb ${status}`}
+            onClick={tapOrb}
+            aria-label="Open the keyboard to talk"
+          >
+            <Icon
+              name={status === "thinking" ? "loader" : "mic"}
+              size={44}
+              className={status === "thinking" ? "spin" : undefined}
+            />
+          </label>
+        ) : (
+          <button
+            className={`call-orb ${status}`}
+            onClick={tapOrb}
+            disabled={!ai}
+            aria-label={live.current ? "End call" : "Start talking"}
+          >
+            <Icon
+              name={status === "thinking" ? "loader" : "mic"}
+              size={44}
+              className={status === "thinking" ? "spin" : undefined}
+            />
+          </button>
+        )}
         <strong style={{ fontSize: 18 }}>
           {live.current || status !== "idle"
             ? STATUS_TEXT[status]
@@ -250,7 +267,7 @@ export function Call() {
             (!ai
               ? "The AI isn't connected here."
               : dictation
-                ? "Safari doesn't let pages inside claude.ai use the microphone, so talk through your keyboard's 🎤 dictation. I'll answer out loud."
+                ? "Tap the yellow circle or the box below, then the 🎤 on your keyboard (bottom right) and talk. I answer out loud. No 🎤? Settings › General › Keyboard › Enable Dictation."
                 : "Ask anything: explain, quiz me, practise Spanish or Czech.")}
         </span>
         {live.current && (
@@ -311,12 +328,13 @@ export function Call() {
         >
           <input
             ref={input}
-            className="field"
+            id="call-input"
+            className={`field${dictation ? " call-input-hot" : ""}`}
             enterKeyHint="send"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             placeholder={
-              dictation ? "Tap 🎤 on the keyboard and talk…" : "Or type (answers are read out loud)"
+              dictation ? "Tap here, then 🎤 and talk" : "Or type (answers are read out loud)"
             }
             aria-label="Message"
           />

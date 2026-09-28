@@ -1684,6 +1684,17 @@ textarea.field {
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
+label.call-orb {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.call-input-hot {
+  border: 2px solid var(--accent);
+  font-size: 17px;
+  min-height: 52px;
+}
+
 .call-orb.listening {
   animation: ring 1.4s ease-out infinite;
 }

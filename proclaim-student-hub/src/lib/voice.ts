@@ -11,7 +11,7 @@ interface Recognition {
     fn: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void,
   ): void;
   addEventListener(type: "error", fn: (e: { error: string }) => void): void;
-  addEventListener(type: "end", fn: () => void): void;
+  addEventListener(type: "end" | "start" | "audiostart", fn: () => void): void;
   start(): void;
   stop(): void;
 }
@@ -73,7 +73,28 @@ export function listen(
         ),
       );
     });
-    rec.addEventListener("end", () => resolve(heard.trim()));
+    // Inside some embedded pages the microphone never starts and no error
+    // comes either; treat that silence as a blocked microphone.
+    let started = false;
+    const markStarted = () => {
+      started = true;
+    };
+    rec.addEventListener("start", markStarted);
+    rec.addEventListener("audiostart", markStarted);
+    const watchdog = window.setTimeout(() => {
+      if (!started) {
+        reject(new MicBlockedError("The microphone didn't start here."));
+        try {
+          rec.stop();
+        } catch {
+          // Already stopped.
+        }
+      }
+    }, 4000);
+    rec.addEventListener("end", () => {
+      window.clearTimeout(watchdog);
+      resolve(heard.trim());
+    });
   });
   try {
     rec.start();
