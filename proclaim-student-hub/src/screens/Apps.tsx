@@ -74,7 +74,7 @@ function Tiles({ apps, start }: { apps: AppTile[]; start: number }) {
           rel="noopener noreferrer"
           style={{ animationDelay: `${start + i * 0.05}s` }}
         >
-          <span className="tile-icon" style={{ background: a.bg, color: a.ink }}>
+          <span className="tile-icon" style={{ "--tile": a.ink } as React.CSSProperties}>
             <Icon name={a.icon} size={26} />
           </span>
           {a.name}
@@ -89,7 +89,7 @@ export function Apps() {
   return (
     <main className="screen" style={{ gap: 18 }}>
       <header className="stack rise" style={{ gap: 4 }}>
-        <h1 className="h1">Your apps 🧩</h1>
+        <h1 className="h1">Your apps</h1>
         <p className="sub">One tap into every school app.</p>
       </header>
 

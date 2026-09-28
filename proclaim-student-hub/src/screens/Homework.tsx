@@ -5,7 +5,7 @@ import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
 import { progress } from "../lib/store.ts";
-import { subjectLook, subjectVars } from "../lib/subjects.ts";
+import { subjectVars } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 
 type Filter = "All" | Source;
@@ -32,7 +32,7 @@ export function HomeworkScreen() {
     <main className="screen">
       <header className="between rise">
         <div className="stack" style={{ gap: 4 }}>
-          <h1 className="h1">Homework 📝</h1>
+          <h1 className="h1">Homework</h1>
           <p className="sub">{data.labels.homeworkSub}</p>
         </div>
         <button className="round dark" aria-label="Add homework" onClick={() => setAdding(true)}>
@@ -54,8 +54,12 @@ export function HomeworkScreen() {
       {!data.hasClassroom && (
         <section className="card stack rise">
           <div className="row" style={{ gap: 10 }}>
-            <span className="subject-dot" style={{ background: "#dcf7e6" }} aria-hidden="true">
-              🏫
+            <span
+              className="tile-icon"
+              style={{ "--tile": "#15803d", width: 40, height: 40 } as React.CSSProperties}
+              aria-hidden="true"
+            >
+              <Icon name="classroom" size={20} />
             </span>
             <div className="stack" style={{ gap: 2, flex: 1 }}>
               <strong>Classroom auto-sync {data.demo ? "(off in demo)" : "is on"}</strong>
@@ -107,16 +111,14 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
     >
       <div className="between">
         <span className="row" style={{ gap: 8, minWidth: 0 }}>
-          <span className="subject-dot" aria-hidden="true">
-            {subjectLook(hw.course).emoji}
-          </span>
-          <span className="muted" style={{ fontSize: 12, fontWeight: 800 }}>
+          <span className="subject-dot" aria-hidden="true" />
+          <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
             {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
           </span>
         </span>
         <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
       </div>
-      <div style={{ fontSize: 17, fontWeight: 900, lineHeight: 1.3 }}>{hw.title}</div>
+      <div style={{ fontSize: 16, fontWeight: 650, lineHeight: 1.3 }}>{hw.title}</div>
       <div className="row" style={{ flexWrap: "wrap" }}>
         <button
           className="btn small dark"
@@ -146,7 +148,7 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
                 try {
                   await data.setDone(hw, true);
                   progress.add(5);
-                  toast(`🎉 ${data.labels.ticked} +5 XP`);
+                  toast(`${data.labels.ticked} +5 XP`);
                 } catch (err) {
                   replaceHomework(hw);
                   handleError(err);

@@ -151,7 +151,7 @@ export function Tutor() {
         <div className="between">
           <div>
             <h1 className="h1" style={{ fontSize: 28 }}>
-              Study buddy 🤖
+              Study buddy
             </h1>
             <p className="sub" style={{ fontSize: 13 }}>
               Helps you understand, not just copy.
@@ -159,7 +159,8 @@ export function Tutor() {
           </div>
           <div className="row">
             <button className="btn small" onClick={() => app.go("revise")}>
-              🧪 Lab
+              <Icon name="camera" size={14} />
+              Revision Lab
             </button>
             {turns.length > 0 && (
               <button

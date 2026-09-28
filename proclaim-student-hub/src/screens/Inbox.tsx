@@ -75,7 +75,7 @@ export function Inbox() {
     <main className="screen">
       <header className="between rise">
         <div className="stack" style={{ gap: 4 }}>
-          <h1 className="h1">Inbox 📬</h1>
+          <h1 className="h1">Inbox</h1>
           <p className="sub">Gmail and Classroom posts, with an AI one-liner on each.</p>
         </div>
         <button className="round" aria-label="All apps" onClick={() => app.go("apps")}>
@@ -199,7 +199,7 @@ function Message({
                 fontSize: 13,
                 lineHeight: 1.4,
                 color: "var(--accent-ink)",
-                background: "#eef1fc",
+                background: "var(--accent-soft)",
                 borderRadius: 8,
                 padding: "6px 8px",
               }}

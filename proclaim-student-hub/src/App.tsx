@@ -182,7 +182,7 @@ function Shell({
         (added) => {
           if (added.length > 0) {
             setHomework((list) => [...(list ?? []), ...added]);
-            toast(`🎉 ${added.length} new from Classroom: ${added.map((h) => h.title).join(", ")}`);
+            toast(`${added.length} new from Classroom: ${added.map((h) => h.title).join(", ")}`);
           }
         },
         (err: unknown) => console.warn("Classroom email sync failed", err),

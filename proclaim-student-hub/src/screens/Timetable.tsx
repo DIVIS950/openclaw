@@ -4,7 +4,7 @@ import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson, type Weekday } from "../lib/aiFeatures.ts";
 import { timetable } from "../lib/store.ts";
-import { subjectLook, subjectVars } from "../lib/subjects.ts";
+import { subjectVars } from "../lib/subjects.ts";
 import { lessonProgress, lessonsOn, nowAndNext, schoolDays, weekdayOf } from "../lib/timetable.ts";
 import type { Homework } from "../lib/types.ts";
 
@@ -72,7 +72,7 @@ export function Timetable() {
           >
             ‹ Today
           </button>
-          <h1 className="h1">Timetable 🗓️</h1>
+          <h1 className="h1">Timetable</h1>
         </div>
         <button
           className="round dark"
@@ -90,8 +90,8 @@ export function Timetable() {
 
       {lessons.length === 0 ? (
         <section className="card stack empty-fun pop">
-          <span style={{ fontSize: 48 }} aria-hidden="true">
-            📸
+          <span className="empty-icon" aria-hidden="true">
+            <Icon name="calendar" size={26} />
           </span>
           <strong style={{ fontSize: 18 }}>Add your timetable</strong>
           <span className="muted">
@@ -117,9 +117,10 @@ export function Timetable() {
             >
               {current ? (
                 <>
-                  <span className="now-label">🔴 Now</span>
+                  <span className="now-label">
+                    <span className="subject-dot" /> Now
+                  </span>
                   <div className="row" style={{ gap: 12 }}>
-                    <span className="lesson-emoji big">{subjectLook(current.subject).emoji}</span>
                     <div className="stack" style={{ gap: 2, minWidth: 0 }}>
                       <strong style={{ fontSize: 22 }}>{current.subject}</strong>
                       <span>
@@ -132,7 +133,7 @@ export function Timetable() {
                   </div>
                   {next && (
                     <span style={{ opacity: 0.85 }}>
-                      Next: {subjectLook(next.subject).emoji} {next.subject} at {next.start}
+                      Next: {next.subject} at {next.start}
                       {next.room ? ` · ${next.room}` : ""}
                     </span>
                   )}
@@ -140,9 +141,8 @@ export function Timetable() {
               ) : (
                 next && (
                   <>
-                    <span className="now-label">⏭️ Next up · in {inMinutes(until ?? 0)}</span>
+                    <span className="now-label">Next up · in {inMinutes(until ?? 0)}</span>
                     <div className="row" style={{ gap: 12 }}>
-                      <span className="lesson-emoji big">{subjectLook(next.subject).emoji}</span>
                       <div className="stack" style={{ gap: 2 }}>
                         <strong style={{ fontSize: 22 }}>{next.subject}</strong>
                         <span>
@@ -172,11 +172,10 @@ export function Timetable() {
           </div>
 
           {list.length === 0 ? (
-            <div className="card empty">No lessons on {DAY_NAMES[day]}. 🎉</div>
+            <div className="card empty">No lessons on {DAY_NAMES[day]}.</div>
           ) : (
             <div className="stack" style={{ gap: 10 }}>
               {list.map((l, i) => {
-                const look = subjectLook(l.subject);
                 const isNow = day === today && current === l;
                 const hw = homeworkFor(l, homework ?? []);
                 return (
@@ -191,13 +190,12 @@ export function Timetable() {
                       <strong>{l.start}</strong>
                       <span>{l.end}</span>
                     </span>
-                    <span className="lesson-emoji">{look.emoji}</span>
                     <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
                       <strong className="lesson-name">{l.subject}</strong>
                       <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                        {l.room && <span className="lesson-room">📍 {l.room}</span>}
+                        {l.room && <span className="lesson-room">Room {l.room}</span>}
                         {hw.length > 0 && (
-                          <span className="lesson-room">📝 {hw.length} homework</span>
+                          <span className="lesson-room">· {hw.length} homework</span>
                         )}
                       </span>
                     </span>
@@ -274,9 +272,7 @@ function LessonEditor({
         }}
       >
         <h2 className="h1" style={{ fontSize: 24 }}>
-          {isNew
-            ? "Add a lesson"
-            : `${subjectLook(draft.subject).emoji} ${draft.subject || "Lesson"}`}
+          {isNew ? "Add a lesson" : draft.subject || "Lesson"}
         </h2>
         <label className="stack" style={{ gap: 6 }}>
           <span className="h2">Subject</span>

@@ -240,7 +240,7 @@ export function Assignment({ hw }: { hw: Homework }) {
             </div>
           )}
           {feedback.next && (
-            <div style={{ background: "#fff", borderRadius: 12, padding: 12, fontSize: 14 }}>
+            <div style={{ background: "var(--card)", borderRadius: 12, padding: 12, fontSize: 14 }}>
               <strong>Next step:</strong> {feedback.next}
             </div>
           )}

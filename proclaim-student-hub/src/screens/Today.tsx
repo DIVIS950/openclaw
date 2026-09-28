@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
-import { Icon } from "../components/Icon.tsx";
+import { Icon, type IconName } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import { progress, timetable } from "../lib/store.ts";
-import { subjectLook, subjectVars } from "../lib/subjects.ts";
+import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
 
 const BRIEF_KEY = "psh.brief";
 
-const QUICK_APPS = [
-  { name: "Classroom", url: "https://classroom.google.com", emoji: "🏫", bg: "#dcf7e6" },
-  { name: "Gmail", url: "https://mail.google.com", emoji: "✉️", bg: "#ffe3ec" },
-  { name: "Dr Frost", url: "https://www.drfrost.org", emoji: "🧮", bg: "#dcf3fa" },
-  { name: "Desmos", url: "https://student.desmos.com", emoji: "📈", bg: "#fdf1d3" },
+const QUICK_APPS: { name: string; url: string; icon: IconName; tile: string }[] = [
+  { name: "Classroom", url: "https://classroom.google.com", icon: "classroom", tile: "#15803d" },
+  { name: "Gmail", url: "https://mail.google.com", icon: "mail", tile: "#c2410c" },
+  { name: "Dr Frost", url: "https://www.drfrost.org", icon: "frost", tile: "#0e7490" },
+  { name: "Desmos", url: "https://student.desmos.com", icon: "graph", tile: "#2f6b22" },
 ];
 
 export function Today() {
@@ -139,13 +139,14 @@ export function Today() {
           </div>
           <h1 className="h1">
             {greeting()}
-            {profile?.name ? `, ${profile.name}` : ""} <span className="wave">👋</span>
+            {profile?.name ? `, ${profile.name}` : ""}
           </h1>
         </div>
         <div className="row">
           {stats.streak > 0 && (
             <span className="chip warm" aria-label={`${stats.streak} day streak`}>
-              🔥 {stats.streak}
+              <Icon name="flame" size={14} />
+              {stats.streak}
             </span>
           )}
           <button className="round" aria-label="Apps and account" onClick={() => go("apps")}>
@@ -157,7 +158,7 @@ export function Today() {
       <section className="card-dark stack rise" style={{ gap: 12, animationDelay: "0.08s" }}>
         <div
           className="between"
-          style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.88)" }}
+          style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}
         >
           <span className="row" style={{ gap: 6 }}>
             <Icon name="sparkle" size={16} className="wiggle" />
@@ -242,7 +243,7 @@ export function Today() {
       {upcoming.lessons.length > 0 ? (
         <section className="stack rise" style={{ animationDelay: "0.16s" }}>
           <div className="between">
-            <h2 className="h2">🗓️ Next lessons · {upcoming.label}</h2>
+            <h2 className="h2">Next lessons · {upcoming.label}</h2>
             <button className="link-btn" onClick={() => go("timetable")}>
               Timetable ›
             </button>
@@ -255,9 +256,6 @@ export function Today() {
                 style={{ ...subjectVars(l.subject), animationDelay: `${0.2 + i * 0.05}s` }}
                 onClick={() => go("timetable")}
               >
-                <span style={{ fontSize: 22 }} aria-hidden="true">
-                  {subjectLook(l.subject).emoji}
-                </span>
                 <strong>{l.subject}</strong>
                 <span>
                   {l.start}
@@ -274,9 +272,7 @@ export function Today() {
             style={{ justifyContent: "flex-start", animationDelay: "0.16s" }}
             onClick={() => go("timetable")}
           >
-            <span style={{ fontSize: 22 }} aria-hidden="true">
-              🗓️
-            </span>
+            <Icon name="calendar" size={18} />
             <span style={{ flex: 1, textAlign: "left" }}>Add your timetable</span>›
           </button>
         )
@@ -350,19 +346,21 @@ export function Today() {
         style={{ animationDelay: "0.3s" }}
         onClick={() => go("revise")}
       >
-        <span className="lab-cta-emoji" aria-hidden="true">
-          🧪
+        <span className="lab-cta-icon" aria-hidden="true">
+          <Icon name="camera" size={22} />
         </span>
         <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
-          <strong style={{ fontSize: 18 }}>Revision Lab</strong>
-          <span>Scan a test or notes → flashcards, quizzes and games</span>
+          <strong style={{ fontSize: 16 }}>Revision Lab</strong>
+          <span className="muted">Scan a test or notes into flashcards, quizzes and games</span>
         </span>
-        <span style={{ fontSize: 22 }}>›</span>
+        <span className="muted" style={{ fontSize: 20 }}>
+          ›
+        </span>
       </button>
 
       <section className="stack rise" style={{ animationDelay: "0.36s" }}>
         <div className="between">
-          <h2 className="h2">🚀 Quick apps</h2>
+          <h2 className="h2">Quick apps</h2>
           <button className="link-btn" onClick={() => go("apps")}>
             All apps ›
           </button>
@@ -376,8 +374,12 @@ export function Today() {
               rel="noopener noreferrer"
               className="quick-app"
             >
-              <span className="quick-app-icon" style={{ background: a.bg }} aria-hidden="true">
-                {a.emoji}
+              <span
+                className="tile-icon"
+                style={{ "--tile": a.tile } as React.CSSProperties}
+                aria-hidden="true"
+              >
+                <Icon name={a.icon} size={24} />
               </span>
               {a.name}
             </a>
