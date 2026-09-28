@@ -111,9 +111,11 @@ export function SearchView() {
   );
 }
 
+const STATIC = process.env.NEXT_PUBLIC_ORBIT_STATIC === "1";
+
+/** The built-in sample catalog is only used by the web preview. */
 function catalogFor(q: string) {
-  const hits = searchProducts(q);
-  return hits.length ? hits : [];
+  return STATIC ? searchProducts(q) : [];
 }
 
 function StatusBar({ state, step, city, onStop }: { state: State; step: number; city: string; onStop: () => void }) {
@@ -142,7 +144,9 @@ function StatusBar({ state, step, city, onStop }: { state: State; step: number; 
       ? { icon: <Globe size={14} />, text: "Live prices from the web", cls: "bg-ok-soft text-ok" }
       : state.source === "estimate"
         ? { icon: <Sparkles size={14} />, text: "AI price estimates — confirm on the shop's site", cls: "bg-warn-soft text-warn" }
-        : { icon: <Sparkles size={14} />, text: "Sample catalog — AI search isn't available here", cls: "bg-surface-2 text-muted" };
+        : STATIC
+          ? { icon: <Sparkles size={14} />, text: "Sample catalog — AI search isn't available here", cls: "bg-surface-2 text-muted" }
+          : { icon: <Sparkles size={14} />, text: "Search isn't switched on yet (the owner needs to add the AI key)", cls: "bg-warn-soft text-warn" };
   return <div className={`mt-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${label.cls}`}>{label.icon}{label.text}</div>;
 }
 
@@ -223,12 +227,16 @@ function Browse({ onPick }: { onPick: (t: string) => void }) {
           </button>
         ))}
       </div>
-      <h2 className="mb-4 mt-10 font-serif text-2xl font-semibold">Editor’s picks</h2>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
-        {PRODUCTS.map((p, i) => (
-          <ProductCard key={p.id} product={p} index={i} />
-        ))}
-      </div>
+      {STATIC && (
+        <>
+          <h2 className="mb-4 mt-10 font-serif text-2xl font-semibold">Editor’s picks</h2>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
+            {PRODUCTS.map((p, i) => (
+              <ProductCard key={p.id} product={p} index={i} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

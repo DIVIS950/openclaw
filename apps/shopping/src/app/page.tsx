@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Plane, Search, ShieldCheck, Sparkles, Truck, Zap } from "lucide-react";
+import { ArrowRight, Bike, Bot, Coffee, CookingPot, Footprints, Laptop, Smartphone, Tv, type LucideIcon, Plane, Search, ShieldCheck, Sparkles, Truck, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -128,13 +128,44 @@ export default function Home() {
       )}
 
       <SectionTitle action={<Link href="/search" className="flex items-center gap-1 text-sm text-accent-ink">See all <ArrowRight size={14} /></Link>}>
-        Trending now
+        Popular right now
       </SectionTitle>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
-        {PRODUCTS.map((p, i) => (
-          <ProductCard key={p.id} product={p} index={i} />
-        ))}
-      </div>
+      {process.env.NEXT_PUBLIC_ORBIT_STATIC === "1" ? (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
+          {PRODUCTS.map((p, i) => (
+            <ProductCard key={p.id} product={p} index={i} />
+          ))}
+        </div>
+      ) : (
+        <PopularGrid />
+      )}
+    </div>
+  );
+}
+
+const TILES: { q: string; icon: LucideIcon; tint: string }[] = [
+  { q: "Running shoes", icon: Footprints, tint: "bg-[#e8ecff] text-[#3150f0]" },
+  { q: "iPhone 17 Pro", icon: Smartphone, tint: "bg-[#dff6ec] text-[#0f7a55]" },
+  { q: "Robot vacuum", icon: Bot, tint: "bg-[#fde9e4] text-[#c2412d]" },
+  { q: "Espresso machine", icon: Coffee, tint: "bg-[#f4ecdf] text-[#8a5a14]" },
+  { q: "Gaming laptop", icon: Laptop, tint: "bg-[#ede8fb] text-[#5b3fc4]" },
+  { q: "Kids bike", icon: Bike, tint: "bg-[#e3f2fb] text-[#1c6a93]" },
+  { q: "Air fryer", icon: CookingPot, tint: "bg-[#fbeee2] text-[#a4521a]" },
+  { q: "4K TV 55 inch", icon: Tv, tint: "bg-[#eceef3] text-[#3d4252]" },
+];
+
+/** Popular searches as tiles; every one runs a live search. */
+function PopularGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {TILES.map((t) => (
+        <Link key={t.q} href={`/search?q=${encodeURIComponent(t.q)}`} className="card group flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-14px_rgba(20,19,28,0.35)]">
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${t.tint}`}>
+            <t.icon size={21} />
+          </span>
+          <span className="font-medium leading-tight">{t.q}</span>
+        </Link>
+      ))}
     </div>
   );
 }

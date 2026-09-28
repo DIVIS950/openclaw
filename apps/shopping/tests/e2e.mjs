@@ -91,6 +91,9 @@ await session("phone", { viewport: phone }, async (p, { shot, noOverflow }) => {
   await p.getByRole("link", { name: "View deal" }).click();
   await p.waitForSelector("text=Delivered price");
   check((await p.getByText("Likely scam").count()) === 1, "scam offer is labelled on the product page");
+  await p.waitForSelector("text=AI opinion · Should you buy it?");
+  await p.waitForSelector("text=/^(Buy now|Wait|Skip it)$/");
+  check(true, "product page gives a buy / wait / skip opinion");
   await p.getByRole("button", { name: "Save for later" }).click();
   check((await p.getByRole("button", { name: "Remove from saved" }).count()) === 1, "save button toggles");
   await p.getByRole("button", { name: /Zalando, .* delivered/ }).click();
@@ -98,37 +101,30 @@ await session("phone", { viewport: phone }, async (p, { shot, noOverflow }) => {
   await noOverflow("product");
   await shot("product");
 
-  // Checkout -> pay -> tracking
+  // Checkout: the preview explains that buying needs the full app
   await p.getByRole("link", { name: "Buy now" }).click();
-  await p.getByPlaceholder("Full name").fill("Jana Novak");
-  await p.getByPlaceholder("Street and number").fill("Vodickova 12");
-  await p.getByPlaceholder("Postcode").fill("11000");
-  await p.getByPlaceholder("1234 1234 1234 1234").fill("4242 4242 4242 4241");
-  await p.getByPlaceholder("MM/YY").fill("12/30");
-  await p.getByPlaceholder("CVC").fill("123");
-  await p.getByRole("button", { name: /^Pay/ }).click();
-  check((await p.getByText("That card number doesn't look right.").count()) === 1, "checkout rejects an invalid card");
-  await p.getByPlaceholder("1234 1234 1234 1234").fill("4242 4242 4242 4242");
+  await p.getByLabel("Full name").fill("Jana Novak");
+  await p.getByLabel("Street and number").fill("Vodickova 12");
+  await p.getByLabel("Postcode").fill("11000");
+  check((await p.getByText("This preview can't take payments.").count()) === 1, "preview checkout explains payments need the full app");
+  check((await p.getByText("Reserved now").count()) === 1, "checkout shows the amount that will be reserved");
   await noOverflow("checkout");
   await shot("checkout");
-  await p.getByRole("button", { name: /^Pay/ }).click();
-  await p.waitForSelector("text=Journey", { timeout: 10000 });
-  check((await p.getByText("Pegasus 41").count()) > 0, "tracking opens for the new order");
-  await p.getByRole("button", { name: "Watch full trip" }).click();
-  await p.waitForTimeout(3600);
-  check((await p.getByText("Preview of the full trip").count()) === 1, "full-trip preview plays");
-  await noOverflow("tracking");
-  await shot("tracking");
 
   // Parcels from Gmail (demo)
   const tab = (name) => p.locator("nav").last().getByRole("link", { name });
   await tab("Parcels").click();
   await p.getByRole("button", { name: "Connect" }).click();
   await p.waitForSelector("text=Mechanical keyboard");
-  check((await p.locator('a[href^="/track/"]').count()) === 4, "Gmail import adds 3 parcels next to the order");
+  check((await p.locator('a[href^="/track/"]').count()) === 3, "example Gmail import adds 3 parcels");
   await p.getByText("Mechanical keyboard").click();
   await p.waitForSelector("text=Orbit Air · Boarding pass");
   check(true, "air parcel shows a boarding pass");
+  await p.getByRole("button", { name: "Watch full trip" }).click();
+  await p.waitForTimeout(3600);
+  check((await p.getByText("Preview of the full trip").count()) === 1, "full-trip preview plays");
+  await noOverflow("tracking");
+  await shot("tracking");
   await tab("Parcels").click();
   await p.getByText("Running shoes").click();
   await p.waitForSelector("text=On the road");
@@ -165,7 +161,7 @@ await session("desktop-dark", { viewport: desktop, scheme: "dark" }, async (p, {
   await p.waitForSelector("text=Cheapest safe option");
   await p.getByRole("link", { name: "View deal" }).click();
   await p.getByRole("link", { name: "Buy now" }).click();
-  check((await p.getByText("Vodickova 12, ").count()) === 1, "checkout prefills the saved address");
+  check((await p.getByLabel("Street and number").inputValue()) === "Vodickova 12", "checkout prefills the saved address");
   await noOverflow("checkout");
   await shot("checkout");
 });

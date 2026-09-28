@@ -1,37 +1,71 @@
-# Put Orbit online (Vercel, free plan)
+# Put Orbit online
 
-## 1. Get a Claude API key (for live prices)
+Orbit works as a personal shopper. A customer pays in Orbit (Apple Pay, Google
+Pay or card), and the money is only **reserved**. You buy the item at the shop
+with the customer's address, then press one button in the admin page: the
+customer is charged and gets tracking updates. If you can't buy it, cancel and
+the reservation is released.
 
-1. Go to https://console.anthropic.com and sign up.
-2. **Billing**: add a payment method and buy credits ($5 is plenty to start;
-   one search costs roughly 1–5 cents).
-3. **API Keys**: click **Create Key**, name it `orbit`, and copy it.
-   It starts with `sk-ant-`. Keep it secret: don't paste it in chats or code.
+You need four free accounts: **Vercel** (hosting), **Stripe** (payments),
+**Anthropic** (AI) and **Upstash** (order storage, added inside Vercel).
+Never paste secret keys into chats or code; only into Vercel's settings.
 
-## 2. Deploy
+## 1. Anthropic (AI)
+1. https://console.anthropic.com: sign up, then **Billing** (add about $5 credit).
+2. **API Keys → Create Key**, and copy it (starts with `sk-ant-`).
 
-1. Go to https://vercel.com/signup and **Continue with GitHub**.
-2. Click **Add New… → Project** and import **openclaw** (allow Vercel access to
-   the repo if asked).
-3. Configure:
-   - **Root Directory**: `apps/shopping` (click *Edit* next to it)
-   - **Framework**: Next.js (detected automatically)
-   - **Environment Variables**:
-     - `ANTHROPIC_API_KEY` = your key from step 1
-     - `AUTH_SECRET` = any long random text (e.g. from https://generate-secret.vercel.app/32)
-4. Click **Deploy**. After about 2 minutes you get a link like
-   `https://orbit-xxxx.vercel.app`. That's your app, with live prices.
+## 2. Stripe (payments)
+1. https://dashboard.stripe.com/register: sign up. Test mode works right away.
+2. **Developers → API keys**: copy the **Publishable key** (`pk_test_…`) and the
+   **Secret key** (`sk_test_…`).
+3. To take real money later: **Activate account** (your details and a bank account),
+   then use the live keys (`pk_live_…`, `sk_live_…`).
 
-Vercel builds from the repo's default branch. To deploy the
-`claude/ai-shopping-app-hkstdh` branch, either merge it first, or open
-**Settings → Git** and set the Production Branch to that branch.
+## 3. Vercel (hosting)
+1. https://vercel.com/signup: **Continue with GitHub**.
+2. **Add New → Project** → import **openclaw**.
+3. **Root Directory**: `apps/shopping`.
+4. **Environment Variables**: add
+   - `ANTHROPIC_API_KEY`
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` and `STRIPE_SECRET_KEY`
+   - `AUTH_SECRET` (any long random text)
+   - `ADMIN_PASSWORD` (your admin password)
+5. **Deploy**. Vercel builds the default branch; to use the
+   `claude/ai-shopping-app-hkstdh` branch, merge it or set it under
+   **Settings → Git → Production Branch**.
 
-## 3. Optional: Google sign-in + Gmail parcels
+## 4. Order storage (inside Vercel)
+1. In your Vercel project: **Storage → Create → Upstash for Redis** (free plan),
+   and connect it to the project. It adds the keys by itself.
+2. **Deployments → … → Redeploy**, so the app picks up the new settings.
 
-1. https://console.cloud.google.com → create a project → **APIs & Services**.
-2. **OAuth consent screen**: External, add your email as a test user.
-   For Gmail, add the scope `gmail.readonly` and enable the **Gmail API**.
-3. **Credentials → Create credentials → OAuth client ID** (Web application).
-   Authorized redirect URI: `https://YOUR-APP.vercel.app/api/auth/callback/google`
-4. In Vercel, add the environment variables `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`
-   and `ORBIT_GMAIL=1`, then **Redeploy**.
+## 5. Stripe webhook and Apple Pay
+1. Stripe: **Developers → Webhooks → Add endpoint**
+   `https://YOUR-APP.vercel.app/api/stripe/webhook`, events
+   `payment_intent.amount_capturable_updated` and `payment_intent.canceled`.
+   Copy the signing secret (`whsec_…`) into Vercel as `STRIPE_WEBHOOK_SECRET`.
+2. Stripe: **Settings → Payment methods → Payment method domains** → add
+   `YOUR-APP.vercel.app`. That turns on Apple Pay (Google Pay works automatically).
+3. Redeploy.
+
+## 6. Try it
+1. Open your app, search for something and buy it.
+   - With test keys, pay with card `4242 4242 4242 4242`, any future date and any CVC.
+   - Apple Pay test mode needs a real card in Apple Wallet; Stripe doesn't charge it.
+2. Open `https://YOUR-APP.vercel.app/admin` and sign in with `ADMIN_PASSWORD`.
+3. Under **Needs you**: open the product at the shop, buy it with the customer's
+   address (**Copy address**), enter the shop's order number and the final price,
+   then press **Placed at shop · charge customer**.
+4. When the shop ships: add the carrier and tracking number.
+
+Card reservations expire after about 7 days, so place or cancel orders quickly.
+Customers can return online purchases within 14 days in the EU; refunds are made
+in the Stripe dashboard.
+
+## Optional: Google sign-in + Gmail parcels
+1. https://console.cloud.google.com: create a project, then **APIs & Services**.
+2. **OAuth consent screen**: External, and add yourself as a test user. For Gmail,
+   enable the **Gmail API** and add the `gmail.readonly` scope.
+3. **Credentials → OAuth client ID** (Web). Redirect URI:
+   `https://YOUR-APP.vercel.app/api/auth/callback/google`
+4. In Vercel, add `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` and `ORBIT_GMAIL=1`, then redeploy.

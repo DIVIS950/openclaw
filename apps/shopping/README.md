@@ -6,22 +6,20 @@ inside the app, and watch your parcel travel on an animated map.
 
 ## Features
 
-- **One search, every shop.** Prices are compared with delivery to your city included.
-- **Scam shield.** Each store gets a 0–100 trust score based on domain age,
-  HTTPS, review volume, return policy and prices that are far below market.
-  Orbit won't let you pay a shop it flags as a likely scam.
-- **Delivery by speed.** Economy, standard, express, and same-day for local
-  shops. The faster options cost more.
-- **In-app checkout.** Your address and saved card are filled in for you, with
-  no redirect. Only the card brand and last 4 digits are ever stored.
-- **Orbit AI (Claude).** A chat assistant that uses live web search to check
-  prices and unfamiliar shops.
-- **Parcel tracking.**
-  - Import parcels from Gmail (read-only).
-  - Air parcels fly across a 3D globe and come with a boarding pass.
-  - Road parcels drive along a map in an animated delivery van.
-  - Claude estimates the arrival time and says how confident it is.
-- **Google sign-in**, installable on your phone (PWA), and light and dark themes.
+- **Search any product across every shop.** Claude searches the web, and results
+  stream in with prices including delivery to your city.
+- **Scam shield.** Each shop gets a 0–100 trust score. Orbit won't buy from shops
+  flagged as likely scams.
+- **"Should you buy it?"** An AI opinion (Buy now / Wait / Skip) with three reasons.
+- **Coupon finder.** Published discount codes for the chosen shop. Orbit tries the
+  code when ordering and charges less only if it works.
+- **Orbit buys it for you.** Pay in the app with Apple Pay, Google Pay or card.
+  The money is only reserved. The owner buys the item at the shop from the admin
+  page, and only then is the customer charged. Cancelling releases the money.
+- **Order tracking.** A status timeline and the carrier's tracking link, plus an
+  animated map, boarding pass or delivery van once the order ships.
+- **Gmail parcels** (read-only), **Google sign-in**, installable on phones (PWA),
+  and light and dark themes.
 
 ## Run it
 
@@ -31,8 +29,8 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-With no keys set, Orbit runs in **demo mode** with sample shops, prices and
-parcels, so every screen works right away.
+Without keys, the app runs but search, AI and payments stay switched off, and
+each screen says what's missing. See [DEPLOY.md](DEPLOY.md) to switch them on.
 
 ### One-file web demo
 
@@ -47,7 +45,8 @@ HTML page that can be hosted anywhere.
 
 ```bash
 npm test          # logic: scam scoring, delivery, cards, search parsing, parcels
-npm run test:e2e  # clicks through the whole web build on phone + desktop (light/dark)
+npm run test:e2e     # clicks through the web preview on phone + desktop (light/dark)
+npm run test:orders  # full order flow against a fake Stripe: reserve, charge, ship, cancel
 ```
 
 The end-to-end run replaces Claude with a scripted stand-in, so it's free and
@@ -73,20 +72,22 @@ with web search for live prices, and results stream in as they're found. In the
 one-file web demo, Claude answers from what it knows, so prices are labeled as
 estimates. With neither, the built-in sample catalog is used.
 
-## Roadmap for going fully live
+## Next steps
 
-1. **Payments:** replace the simulated payment in `CheckoutView.tsx` with a
-   Stripe PaymentIntent and the Payment Element.
-2. **Live catalog:** load shops and prices from a product search API such as
-   Google Shopping or SerpAPI, in place of the data in `src/lib/data.ts`.
-3. **Carrier tracking:** look up the tracking numbers found in Gmail with a
-   tracking API such as AfterShip or 17TRACK to get real scan events.
-4. **Mobile app:** wrap the app with Capacitor, or port the screens to Expo,
-   for the App Store and Google Play.
+1. **Automatic ordering** for shops with an ordering API (for example Shopify
+   stores), so the admin step becomes a button.
+2. **Carrier tracking API** (AfterShip or 17TRACK) for real scan events on the map.
+3. **Emails** to customers when the status changes (for example with Resend).
+4. **Phone app** for the App Store and Google Play (Capacitor or Expo).
 
 ## Security
 
 - Security headers on every response: strict CSP, HSTS, `nosniff`, and no framing.
+- Card details go straight to Stripe; Orbit never sees them. Payments are
+  reserve-only until an order is placed, and the admin can't charge more than
+  the customer approved.
+- Customers read their order with a secret token kept on their device. The
+  admin page uses a password and a signed, httpOnly cookie.
 - The Google access token is kept only in the encrypted server-side session
   cookie. It is never sent to the browser.
 - API input is validated with zod.

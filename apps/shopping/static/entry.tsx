@@ -51,7 +51,7 @@ function Missing() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <Providers value={{ user: null, googleEnabled: false, gmailEnabled: false, aiEnabled: false }}>
+  <Providers value={{ user: null, googleEnabled: false, gmailEnabled: false, aiEnabled: false, paymentsEnabled: false, feePercent: 3 }}>
     <AppShell>
       <Routes />
     </AppShell>

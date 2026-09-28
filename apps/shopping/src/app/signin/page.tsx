@@ -27,6 +27,8 @@ export default function SignInPage() {
             <GoogleG /> Continue with Google
           </button>
         </form>
+      ) : process.env.NEXT_PUBLIC_ORBIT_STATIC !== "1" ? (
+        <p className="mt-8 rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">Sign-in isn&apos;t switched on yet. You can still shop and check out as a guest.</p>
       ) : (
         <div className="mt-8 space-y-2 text-left">
           <button disabled className="btn h-12 w-full border border-line bg-surface text-muted opacity-60">

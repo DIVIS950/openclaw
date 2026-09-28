@@ -1,14 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Source_Serif_4 } from "next/font/google";
+import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { gmailEnabled, googleEnabled } from "@/auth";
 import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
 import { aiEnabled } from "@/lib/ai";
+import { dbConfigured } from "@/lib/server/orders-db";
+import { stripeConfigured } from "@/lib/server/stripe";
 import { getSessionUser } from "@/lib/session";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter" });
-const serif = Source_Serif_4({ subsets: ["latin", "latin-ext"], variable: "--font-serif-display", axes: ["opsz"] });
+const body = DM_Sans({ subsets: ["latin", "latin-ext"], variable: "--font-body" });
+const display = Bricolage_Grotesque({ subsets: ["latin", "latin-ext"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: "Orbit — shop everything, safely",
@@ -23,17 +25,17 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#1b1a17" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f6fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#111218" },
   ],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
   return (
-    <html lang="en" className={`${inter.variable} ${serif.variable}`}>
+    <html lang="en" className={`${body.variable} ${display.variable}`}>
       <body>
-        <Providers value={{ user, googleEnabled, gmailEnabled, aiEnabled: aiEnabled() }}>
+        <Providers value={{ user, googleEnabled, gmailEnabled, aiEnabled: aiEnabled(), paymentsEnabled: stripeConfigured && dbConfigured, feePercent: Number(process.env.ORBIT_FEE_PERCENT ?? 3) }}>
           <AppShell>{children}</AppShell>
         </Providers>
       </body>

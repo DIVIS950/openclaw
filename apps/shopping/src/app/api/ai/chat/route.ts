@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { aiEnabled, claude, MODEL, SHOPPING_SYSTEM } from "@/lib/ai";
-import { demoAnswer } from "@/lib/demo-ai";
 
 const Body = z.object({
   messages: z
@@ -20,18 +19,9 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
 
   if (!aiEnabled()) {
-    const text = demoAnswer(messages[messages.length - 1].content, city, productId);
-    // Stream the canned answer in small chunks so the UI behaves like the real thing.
-    const body = new ReadableStream({
-      async start(controller) {
-        for (const chunk of text.match(/.{1,6}/gs) ?? []) {
-          controller.enqueue(encoder.encode(chunk));
-          await new Promise((r) => setTimeout(r, 12));
-        }
-        controller.close();
-      },
+    return new Response("The AI assistant isn't switched on yet. The owner needs to add the Anthropic API key.", {
+      headers: { "Content-Type": "text/plain; charset=utf-8", "X-Orbit-Mode": "off" },
     });
-    return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8", "X-Orbit-Mode": "demo" } });
   }
 
   const context = [city && `The user lives in ${city}.`, productId && `They are looking at product id "${productId}".`]

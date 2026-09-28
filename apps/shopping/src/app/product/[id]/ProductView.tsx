@@ -6,12 +6,15 @@ import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { askAI } from "@/components/Assistant";
 import { PriceRange } from "@/components/PriceRange";
+import { CouponRow, VerdictCard } from "@/components/Insights";
+import { useEnv } from "@/components/Providers";
 import { SaveButton } from "@/components/SaveButton";
 import { ProductArt, ScoreRing, TrustBadge } from "@/components/ui";
 import { getProduct, getStaticProduct, getStore, offersFor, type Product } from "@/lib/data";
 import { quoteDelivery, type DeliverySpeed } from "@/lib/delivery";
 import { arrivalWindow, cn, daysRange, money } from "@/lib/format";
 import { findPlace, PLACES } from "@/lib/geo";
+import { round2, serviceFee } from "@/lib/order-types";
 import { assessStore } from "@/lib/safety";
 import { setAppState, useAppState } from "@/lib/store";
 
@@ -61,7 +64,9 @@ function ProductDetail({ product }: { product: Product }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const current = rows.find((r) => r.offer.id === selected)!;
   const quote = current.quotes.find((q) => q.speed === speed) ?? current.quotes[0];
-  const total = current.offer.price + quote.price;
+  const { feePercent } = useEnv();
+  // What the customer will see reserved at checkout (item + delivery + Orbit's fee).
+  const total = round2(current.offer.price + quote.price + serviceFee(current.offer.price + quote.price, feePercent));
   const scams = rows.filter((r) => r.safety.level === "danger");
   const saving = Math.max(...rows.filter((r) => r.safety.level !== "danger").map((r) => r.cheapestTotal)) - rows[0].cheapestTotal;
 
@@ -110,6 +115,19 @@ function ProductDetail({ product }: { product: Product }) {
               Ask a follow-up →
             </button>
           </div>
+        </div>
+
+        <div className="mt-3">
+          <VerdictCard
+            input={{
+              title: product.title,
+              brand: product.brand,
+              typicalPrice: product.typicalPrice,
+              city: to.city,
+              offers: rows.slice(0, 8).map((r) => ({ store: r.store.name, domain: r.store.domain, price: r.offer.price, trust: r.safety.score })),
+            }}
+            followUp={`Should I buy the ${product.brand} ${product.title} now or wait?`}
+          />
         </div>
 
         <div className="mt-5 flex items-center justify-between">
@@ -196,6 +214,7 @@ function ProductDetail({ product }: { product: Product }) {
                                 </span>
                               ))}
                             </div>
+                            <CouponRow offerId={r.offer.id} store={r.store.name} domain={r.store.domain} product={`${product.brand} ${product.title}`} />
                             {r.offer.url && (
                               <a href={r.offer.url} target="_blank" rel="noopener noreferrer nofollow" className="mb-2 inline-block text-xs font-semibold text-accent-ink underline underline-offset-2">
                                 Open on {r.store.domain} ↗
@@ -240,7 +259,9 @@ function ProductDetail({ product }: { product: Product }) {
             <div className="truncate text-sm text-muted">
               {current.store.name} · {quote.label} · {arrivalWindow(quote.minDays, quote.maxDays)}
             </div>
-            <div className="text-lg font-semibold">{money(total)}</div>
+            <div className="text-lg font-semibold">
+              {money(total)} <span className="text-xs font-normal text-muted">all-in</span>
+            </div>
           </div>
           <Link href={`/checkout?offer=${encodeURIComponent(current.offer.id)}&speed=${quote.speed}`} className="btn btn-primary h-12 px-7">
             Buy now

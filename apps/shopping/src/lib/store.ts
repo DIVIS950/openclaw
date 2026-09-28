@@ -15,6 +15,10 @@ export type AppState = {
   demoUser: { name: string; email: string } | null;
   recent: string[];
   saved: string[];
+  /** Orders placed through Orbit; the token lets this device read the order. */
+  myOrders: { id: string; token: string; title: string; createdAt: number }[];
+  /** Coupon picked on the product page, carried into checkout. */
+  pendingCoupon: { offerId: string; code: string; description: string } | null;
 };
 
 const KEY = "orbit.v1";
@@ -27,6 +31,8 @@ const DEFAULT: AppState = {
   demoUser: null,
   recent: [],
   saved: [],
+  myOrders: [],
+  pendingCoupon: null,
 };
 
 let state: AppState = DEFAULT;

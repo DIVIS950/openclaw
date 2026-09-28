@@ -6,3 +6,4 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 static/dist/
+.data/

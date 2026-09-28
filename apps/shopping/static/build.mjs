@@ -49,8 +49,8 @@ const html = `<title>Orbit</title>
 <meta name="description" content="Shop everything, safely: compare shops, dodge scams, track parcels.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap">
-<style>:root{--font-inter:"Inter";--font-serif-display:"Source Serif 4"}${css}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap">
+<style>:root{--font-body:"DM Sans";--font-display:"Bricolage Grotesque"}${css}</style>
 <div id="root"></div>
 <script>${js}</script>
 `;

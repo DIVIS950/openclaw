@@ -1,52 +1,43 @@
 "use client";
 
-import { Check, CreditCard, Lock, MapPin, Pencil, Plane, ShieldCheck, Truck } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { BadgePercent, Info, MapPin, Plane, ShieldCheck, Truck, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useUser } from "@/components/Providers";
+import { useEnv, useUser } from "@/components/Providers";
+import { StripePay, type CreatedOrder } from "@/components/StripePay";
 import { ProductArt } from "@/components/ui";
-import { cardBrand, expiryValid, formatCardNumber, formatExpiry, luhnValid } from "@/lib/card";
 import { getOffer, getProduct, getStore } from "@/lib/data";
-import { quoteDelivery } from "@/lib/delivery";
-import { arrivalWindow, cn, money } from "@/lib/format";
-import { findPlace, PLACES } from "@/lib/geo";
-import { makeParcel } from "@/lib/parcels";
+import { arrivalWindow, money } from "@/lib/format";
+import { PLACES } from "@/lib/geo";
+import { OrderInput, priceOrder } from "@/lib/order-pricing";
 import { assessStore } from "@/lib/safety";
 import { setAppState, useAppState, type Address } from "@/lib/store";
 
-type Stage = "form" | "paying" | "done";
+type Speed = "economy" | "standard" | "express" | "sameday";
 
 export function CheckoutView() {
   const params = useSearchParams();
   const router = useRouter();
   const offer = getOffer(params.get("offer") ?? "");
   const user = useUser();
-  const { address, card } = useAppState();
-
+  const env = useEnv();
+  const { address, pendingCoupon } = useAppState();
   const [addr, setAddr] = useState<Address>(address);
-  const [editAddr, setEditAddr] = useState(false);
-  const [cardNum, setCardNum] = useState("");
-  const [exp, setExp] = useState("");
-  const [cvc, setCvc] = useState("");
-  const [useSaved, setUseSaved] = useState(Boolean(card));
-  const [stage, setStage] = useState<Stage>("form");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
 
-  // Prefill from the stored profile / Google account once it is available.
+  // Prefill from the saved profile and the Google account.
   useEffect(() => {
     setAddr((a) => ({ ...address, name: address.name || a.name || user?.name || "" }));
-    setEditAddr(!address.line1);
-    setUseSaved(Boolean(card));
-  }, [address, card, user?.name]);
+    setEmail((e) => e || user?.email || "");
+  }, [address, user?.name, user?.email]);
 
   if (!offer) {
     return (
       <div className="py-20 text-center">
         <p className="text-muted">That offer is no longer available.</p>
-        <Link href="/" className="btn btn-primary mt-4 px-5 py-2">
-          Back to shopping
+        <Link href="/search" className="btn btn-primary mt-4 px-5 py-2">
+          Search again
         </Link>
       </div>
     );
@@ -55,159 +46,164 @@ export function CheckoutView() {
   const product = getProduct(offer.productId)!;
   const store = getStore(offer.storeId)!;
   const safety = assessStore(store, offer.price, product.typicalPrice);
-  const to = findPlace(addr.city) ?? findPlace("Prague")!;
-  const quotes = quoteDelivery(store.warehouse, to);
-  const quote = quotes.find((q) => q.speed === params.get("speed")) ?? quotes[0];
-  const total = offer.price + quote.price;
+  const coupon = pendingCoupon?.offerId === offer.id ? { code: pendingCoupon.code, description: pendingCoupon.description } : undefined;
 
-  async function pay() {
-    setError("");
-    if (!addr.name.trim() || !addr.line1.trim() || !addr.zip.trim()) {
-      setEditAddr(true);
-      return setError("Please complete your delivery address.");
+  const input = {
+    customer: { name: addr.name, email, phone: addr.phone },
+    address: { line1: addr.line1, city: addr.city, zip: addr.zip, country: addr.country || "Czechia" },
+    item: {
+      productId: product.id,
+      offerId: offer.id,
+      title: product.title,
+      brand: product.brand,
+      store: store.name,
+      domain: store.domain,
+      url: offer.url,
+      price: offer.price,
+      fromCity: store.warehouse.city,
+    },
+    speed: (params.get("speed") ?? "standard") as Speed,
+    coupon,
+  };
+  // The same pricing code the server runs, so the amount shown is the amount reserved.
+  const priced = priceOrder({ ...input, speed: input.speed } as OrderInput, env.feePercent);
+
+  async function createOrder(): Promise<CreatedOrder | string> {
+    const check = OrderInput.safeParse(input);
+    if (!check.success) {
+      const field = check.error.issues[0]?.path.slice(-1)[0];
+      return `Please check your ${field === "line1" ? "street" : String(field ?? "details")}.`;
     }
-    if (!useSaved) {
-      if (!luhnValid(cardNum)) return setError("That card number doesn't look right.");
-      if (!expiryValid(exp)) return setError("Check the expiry date (MM/YY).");
-      if (!/^\d{3,4}$/.test(cvc)) return setError("Enter the 3–4 digit security code.");
-    }
-    if (safety.level === "danger") return setError("Orbit blocks payments to shops that look like scams.");
-
-    setStage("paying");
-    // Demo: simulate a tokenised payment. Live mode would confirm a Stripe PaymentIntent here.
-    await new Promise((r) => setTimeout(r, 1800));
-
-    const parcel = makeParcel({ title: `${product.brand} ${product.title}`, store: store.name, carrier: quote.carrier, from: store.warehouse, to, mode: quote.mode, maxDays: quote.maxDays });
-    setAppState((s) => ({
-      address: addr,
-      // Only brand + last 4 digits are ever stored; the full number and CVC are discarded.
-      card: useSaved ? s.card : { brand: cardBrand(cardNum), last4: cardNum.replace(/\D/g, "").slice(-4), exp, holder: addr.name },
-      orders: [parcel, ...s.orders],
-    }));
-    setStage("done");
-    setTimeout(() => router.push(`/track/${parcel.id}`), 1400);
+    if (safety.level === "danger") return "Orbit doesn't buy from shops that look like scams.";
+    setAppState({ address: addr });
+    const res = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(check.data) });
+    const data = (await res.json().catch(() => ({}))) as Partial<CreatedOrder> & { error?: string };
+    if (!res.ok || !data.id || !data.token || !data.clientSecret) return data.error ?? "Couldn't start the order. Try again.";
+    // Keep the order's key on this device before paying, so redirects can find it.
+    setAppState((s) => ({ myOrders: [{ id: data.id!, token: data.token!, title: `${product.brand} ${product.title}`, createdAt: Date.now() }, ...s.myOrders], pendingCoupon: null }));
+    return data as CreatedOrder;
   }
 
-  return (
-    <div className="mx-auto max-w-xl pb-10">
-      <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Checkout</h1>
-      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-        <Lock size={13} /> Pay inside Orbit — no redirects, details already filled in.
-      </p>
+  const set = (k: keyof Address) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setAddr({ ...addr, [k]: e.target.value });
 
-      <div className="card mt-5 flex gap-3 p-3">
-        <ProductArt product={product} small className="h-20 w-20 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">
-            {product.brand} {product.title}
+  return (
+    <div className="mx-auto grid max-w-5xl gap-6 pb-10 lg:grid-cols-[1fr_380px]">
+      <div className="min-w-0">
+        <h1 className="mt-2 font-serif text-3xl font-bold tracking-tight">Checkout</h1>
+        <p className="mt-1 text-sm text-muted">Orbit buys it from {store.name} for you and has it delivered to your door.</p>
+
+        <section className="card mt-5 p-5">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <User size={17} className="text-accent" /> Contact
+          </h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Field id="co-name" label="Full name" value={addr.name} onChange={set("name")} autoComplete="name" />
+            <Field id="co-email" label="Email for updates" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" type="email" />
+            <Field id="co-phone" label="Phone for the courier" value={addr.phone} onChange={set("phone")} autoComplete="tel" type="tel" />
           </div>
-          <div className="text-sm text-muted">
-            Sold by {store.name} · <span className={safety.level === "safe" ? "text-ok" : "text-warn"}>trust {safety.score}/100</span>
+        </section>
+
+        <section className="card mt-3 p-5">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <MapPin size={17} className="text-accent" /> Delivery address
+          </h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Field id="co-street" label="Street and number" value={addr.line1} onChange={set("line1")} autoComplete="address-line1" />
+            </div>
+            <div>
+              <label htmlFor="co-city" className="mb-1 block text-xs font-medium text-muted">
+                City
+              </label>
+              <select id="co-city" className="field" value={addr.city} onChange={set("city")}>
+                {PLACES.map((p) => (
+                  <option key={p.city}>{p.city}</option>
+                ))}
+              </select>
+            </div>
+            <Field id="co-zip" label="Postcode" value={addr.zip} onChange={set("zip")} autoComplete="postal-code" />
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-sm">
-            {quote.mode === "air" ? <Plane size={14} /> : <Truck size={14} />}
-            {quote.label} · arrives {arrivalWindow(quote.minDays, quote.maxDays)}
-          </div>
-        </div>
+        </section>
+
+        <section className="card mt-3 p-5">
+          <h2 className="font-semibold">Payment</h2>
+          {"error" in priced ? (
+            <p className="mt-3 text-sm text-bad">{priced.error}</p>
+          ) : process.env.NEXT_PUBLIC_ORBIT_STATIC === "1" ? (
+            <Notice>Buying works in the Orbit app once it's online. This preview can't take payments.</Notice>
+          ) : !env.paymentsEnabled ? (
+            <Notice>Payments aren't switched on yet. The owner needs to add the Stripe keys (see DEPLOY.md).</Notice>
+          ) : (
+            <div className="mt-4">
+              <StripePay amount={priced.authorized} createOrder={createOrder} onPaid={(o) => router.push(`/order/${o.id}`)} />
+            </div>
+          )}
+        </section>
       </div>
 
-      <section className="card mt-3 p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <MapPin size={17} className="text-accent" /> Deliver to
-          </h2>
-          {!editAddr && (
-            <button onClick={() => setEditAddr(true)} className="flex items-center gap-1 text-sm text-accent-ink">
-              <Pencil size={13} /> Edit
-            </button>
+      <aside className="lg:sticky lg:top-20 lg:self-start">
+        <div className="card mt-2 p-5 lg:mt-14">
+          <div className="flex gap-3">
+            <ProductArt product={product} small className="h-16 w-16 shrink-0" />
+            <div className="min-w-0">
+              <div className="truncate font-semibold">
+                {product.brand} {product.title}
+              </div>
+              <div className="text-sm text-muted">
+                from {store.name} · <span className={safety.level === "safe" ? "text-ok" : "text-warn"}>trust {safety.score}</span>
+              </div>
+            </div>
+          </div>
+
+          {"error" in priced ? null : (
+            <>
+              <div className="mt-4 flex items-center gap-1.5 text-sm">
+                {priced.delivery.mode === "air" ? <Plane size={14} /> : <Truck size={14} />}
+                {priced.delivery.label} · arrives about {arrivalWindow(priced.delivery.minDays + 1, priced.delivery.maxDays + 1)}
+              </div>
+              <div className="mt-4 space-y-1.5 text-[15px]">
+                <Row label="Item" value={money(priced.item.price)} />
+                <Row label="Delivery" value={money(priced.delivery.price)} />
+                <Row label="Orbit service" value={money(priced.fee)} />
+                <div className="my-2 border-t border-line" />
+                <Row label={<b className="text-ink">Reserved now</b>} value={<b className="text-lg tabular-nums">{money(priced.authorized)}</b>} />
+              </div>
+              {coupon && (
+                <div className="mt-3 flex gap-2 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
+                  <BadgePercent size={16} className="mt-0.5 shrink-0" />
+                  <span>
+                    We&apos;ll try coupon <b className="font-mono">{coupon.code}</b>. If it works, you pay less.
+                  </span>
+                </div>
+              )}
+              <div className="mt-3 flex gap-2 rounded-xl bg-surface-2 px-3 py-2 text-sm text-muted">
+                <Info size={16} className="mt-0.5 shrink-0" />
+                <span>Your card is only charged once we&apos;ve placed the order at the shop. If we can&apos;t, the reservation is released and you pay nothing.</span>
+              </div>
+            </>
           )}
+          <p className="mt-4 flex items-center gap-1.5 text-xs text-muted">
+            <ShieldCheck size={13} /> Payments by Stripe · card details never touch Orbit
+          </p>
         </div>
-        {editAddr ? (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <input className="field col-span-2" placeholder="Full name" autoComplete="name" value={addr.name} onChange={(e) => setAddr({ ...addr, name: e.target.value })} />
-            <input className="field col-span-2" placeholder="Street and number" autoComplete="address-line1" value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} />
-            <select className="field" value={to.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} aria-label="City">
-              {PLACES.map((p) => (
-                <option key={p.city}>{p.city}</option>
-              ))}
-            </select>
-            <input className="field" placeholder="Postcode" autoComplete="postal-code" value={addr.zip} onChange={(e) => setAddr({ ...addr, zip: e.target.value })} />
-            <input className="field col-span-2" placeholder="Phone (for the courier)" autoComplete="tel" value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} />
-          </div>
-        ) : (
-          <div className="mt-2 text-[15px] leading-snug">
-            <div className="font-medium">{addr.name}</div>
-            <div className="text-muted">
-              {addr.line1}, {addr.zip} {to.city}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="card mt-3 p-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <CreditCard size={17} className="text-accent" /> Payment
-        </h2>
-        {card && (
-          <button onClick={() => setUseSaved(true)} className={cn("mt-3 flex w-full items-center gap-3 rounded-2xl border p-3 text-left", useSaved ? "border-accent bg-accent-soft/40" : "border-line")}>
-            <span className="grid h-8 w-12 place-items-center rounded-md bg-ink text-[10px] font-bold text-bg">{card.brand.toUpperCase()}</span>
-            <span className="flex-1">
-              •••• {card.last4} <span className="text-sm text-muted">· exp {card.exp}</span>
-            </span>
-            {useSaved && <Check size={18} className="text-accent" />}
-          </button>
-        )}
-        {card && !useSaved ? null : card ? (
-          <button onClick={() => setUseSaved(false)} className="mt-2 text-sm text-accent-ink">
-            Use a different card
-          </button>
-        ) : null}
-        {!useSaved && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <input className="field col-span-2 font-mono tracking-wider" inputMode="numeric" autoComplete="cc-number" placeholder="1234 1234 1234 1234" value={cardNum} onChange={(e) => setCardNum(formatCardNumber(e.target.value))} />
-            <input className="field font-mono" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/YY" value={exp} onChange={(e) => setExp(formatExpiry(e.target.value))} />
-            <input className="field font-mono" inputMode="numeric" autoComplete="cc-csc" placeholder="CVC" maxLength={4} value={cvc} onChange={(e) => setCvc(e.target.value.replace(/\D/g, ""))} />
-            <p className="col-span-2 text-xs text-muted">Demo: use 4242 4242 4242 4242. Only the last 4 digits are saved.</p>
-          </div>
-        )}
-      </section>
-
-      <section className="card mt-3 space-y-1.5 p-4 text-[15px]">
-        <Row label="Item" value={money(offer.price)} />
-        <Row label={`Delivery · ${quote.label}`} value={money(quote.price)} />
-        <div className="my-2 border-t border-line" />
-        <Row label={<b>Total</b>} value={<b className="text-lg">{money(total)}</b>} />
-      </section>
-
-      {error && <p className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
-
-      <button onClick={pay} disabled={stage !== "form"} className="btn btn-accent mt-4 h-14 w-full text-base shadow-[0_12px_30px_-10px_var(--accent)]">
-        <Lock size={17} /> Pay {money(total)}
-      </button>
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted">
-        <ShieldCheck size={13} /> Encrypted · buyer protection · scam-checked shop
-      </p>
-      <p className="mt-1 text-center text-xs text-muted">Demo payment: no money is charged yet.</p>
-
-      <AnimatePresence>
-        {stage !== "form" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 grid place-items-center bg-bg/90 backdrop-blur-md">
-            <div className="text-center">
-              <motion.div
-                className={cn("mx-auto grid h-24 w-24 place-items-center rounded-full", stage === "done" ? "bg-ok text-white" : "border-4 border-line border-t-accent")}
-                animate={stage === "paying" ? { rotate: 360 } : { scale: [0.6, 1.1, 1] }}
-                transition={stage === "paying" ? { repeat: Infinity, duration: 0.9, ease: "linear" } : { duration: 0.5 }}
-              >
-                {stage === "done" && <Check size={44} strokeWidth={3} />}
-              </motion.div>
-              <p className="mt-5 font-serif text-2xl font-semibold">{stage === "paying" ? "Securing payment…" : "Order placed!"}</p>
-              <p className="mt-1 text-muted">{stage === "paying" ? "Talking to your bank" : "Opening live tracking"}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </aside>
     </div>
   );
+}
+
+function Field({ id, label, ...rest }: { id: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted">
+        {label}
+      </label>
+      <input id={id} className="field" {...rest} />
+    </div>
+  );
+}
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return <p className="mt-3 rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">{children}</p>;
 }
 
 function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
