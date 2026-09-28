@@ -4,3 +4,4 @@ dist/
 dist-demo/
 # Your own school data (timetable, classes); baked into the private web page only.
 private/
+dist-pages

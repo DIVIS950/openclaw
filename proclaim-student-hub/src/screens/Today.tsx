@@ -8,6 +8,8 @@ import { progress, timetable } from "../lib/store.ts";
 import { dayOf, prepPlan, prepTests, todos } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
+import { NoKeyError } from "../pages/gemini.ts";
+import { PAGES } from "../pages/runtime.ts";
 
 const BRIEF_KEY = "psh.brief";
 
@@ -23,7 +25,7 @@ export function Today() {
   const { data, homework, profile, ai, go } = app;
   const [events, setEvents] = useState<CalEvent[] | null>(null);
   const [brief, setBrief] = useState<string | null>(null);
-  const [briefFailed, setBriefFailed] = useState(false);
+  const [briefFailed, setBriefFailed] = useState<false | "error" | "nokey">(false);
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
@@ -126,9 +128,9 @@ export function Today() {
           setBrief(text);
           sessionStorage.setItem(BRIEF_KEY, JSON.stringify({ key: cacheKey, text }));
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setBriefFailed(true);
+          setBriefFailed(err instanceof NoKeyError ? "nokey" : "error");
         }
       }
     })();
@@ -186,6 +188,17 @@ export function Today() {
           <p className="pop" style={{ margin: 0, fontSize: 19, fontWeight: 800, lineHeight: 1.4 }}>
             {brief}
           </p>
+        ) : briefFailed === "nokey" ? (
+          <p style={{ margin: 0, fontSize: 15 }}>
+            The AI isn't set up on this phone yet.{" "}
+            <button
+              className="link-btn"
+              style={{ color: "var(--accent)" }}
+              onClick={() => go("apps")}
+            >
+              Set it up ›
+            </button>
+          </p>
         ) : briefFailed ? (
           <p style={{ margin: 0, fontSize: 15 }}>
             Couldn't write your summary right now. Your homework is below.
@@ -215,9 +228,9 @@ export function Today() {
               borderColor: "rgba(255,255,255,0.45)",
               boxShadow: "none",
             }}
-            onClick={() => go("inbox")}
+            onClick={() => go(PAGES ? "todo" : "inbox")}
           >
-            Read emails
+            {PAGES ? "My to-do" : "Read emails"}
           </button>
         </div>
       </section>

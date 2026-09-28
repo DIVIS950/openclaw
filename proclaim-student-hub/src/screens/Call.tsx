@@ -14,6 +14,7 @@ import {
   stopSpeaking,
   unlockSpeech,
 } from "../lib/voice.ts";
+import { CLAUDE_PAGE, SendToWeb } from "../pages/WebVersion.tsx";
 
 // A voice call with the study buddy, inside the app: you talk, Claude answers
 // out loud, then it listens again. Uses the phone's own speech features.
@@ -276,6 +277,7 @@ export function Call() {
             End call
           </button>
         )}
+        {dictation && CLAUDE_PAGE && status === "idle" && <SendToWeb compact />}
         {dictation && voiceOk && status === "idle" && (
           <button
             className="link-btn"

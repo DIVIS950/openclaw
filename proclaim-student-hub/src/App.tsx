@@ -13,6 +13,7 @@ import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
 import { applyHomeworkSeed } from "./lib/seed.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
+import { pagesImport } from "./pages/runtime.ts";
 import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
 import { Call } from "./screens/Call.tsx";
@@ -173,6 +174,19 @@ function Shell({
     },
     [toast],
   );
+
+  // Data just brought over from the claude.ai link (GitHub Pages version).
+  useEffect(() => {
+    const added = pagesImport.added;
+    if (added !== null) {
+      pagesImport.added = null;
+      toast(
+        added > 0
+          ? `Brought over from claude.ai: ${added} new homework, plus your timetable, notes and to-dos.`
+          : "Up to date with claude.ai: timetable, notes and to-dos brought over.",
+      );
+    }
+  }, [toast]);
 
   // New Classroom emails become homework; at most once a minute, one at a time.
   const lastSync = useRef(0);

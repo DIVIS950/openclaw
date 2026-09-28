@@ -1,5 +1,7 @@
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
+import { PAGES } from "../pages/runtime.ts";
+import { CLAUDE_PAGE, PagesSettings, SendToWeb } from "../pages/WebVersion.tsx";
 
 interface AppTile {
   name: string;
@@ -107,27 +109,34 @@ export function Apps() {
         <Tiles apps={OTHERS} start={0.35} />
       </section>
 
+      {PAGES && <PagesSettings />}
+      {CLAUDE_PAGE && !data.demo && <SendToWeb />}
+
       <div className="card row rise" style={{ gap: 12, animationDelay: "0.6s" }}>
         <span style={{ color: "var(--ink)" }}>
           <Icon name="link" size={22} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>
-            {data.demo
-              ? "Demo mode"
-              : data.hasClassroom
-                ? "Google account connected"
-                : "Connected through Claude"}
+            {PAGES
+              ? "Web version"
+              : data.demo
+                ? "Demo mode"
+                : data.hasClassroom
+                  ? "Google account connected"
+                  : "Connected through Claude"}
           </div>
           <div
             className="muted"
             style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis" }}
           >
-            {data.demo
-              ? "Sample data. Sign in to see your own."
-              : data.hasClassroom
-                ? profile?.email
-                : "Gmail and the AI study buddy use your Claude account."}
+            {PAGES
+              ? "Saved on this phone. AI by Google Gemini."
+              : data.demo
+                ? "Sample data. Sign in to see your own."
+                : data.hasClassroom
+                  ? profile?.email
+                  : "Gmail and the AI study buddy use your Claude account."}
           </div>
         </div>
         {signOut && (

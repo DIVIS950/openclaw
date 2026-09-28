@@ -53,10 +53,18 @@ export function findDesignLink(value: unknown): string | null {
 
 const text = (v: unknown) => (typeof v === "string" ? v : "");
 
+/** A Canva template search for a visual idea; works without any connector. */
+export function canvaSearchLink(brief: string, format: string): string {
+  const words = `${format} ${brief}`.replace(/\s+/g, " ").trim().split(" ").slice(0, 8).join(" ");
+  return `https://www.canva.com/search/templates?q=${encodeURIComponent(words)}`;
+}
+
 export async function makeCanvaDesign(brief: string, format: string): Promise<string> {
   const mcp = await useCapability("mcp");
   if (!mcp) {
-    throw new Error("Canva works when this app is open on claude.ai with the Canva connector on.");
+    // No Canva connector here (the web version): open Canva's own template
+    // search for the idea instead, so the student can start from there.
+    return canvaSearchLink(brief, format);
   }
   const intent = "Student making a visual for their homework";
   let payload: unknown;
