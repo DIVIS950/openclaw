@@ -142,13 +142,18 @@ export class ClaudeData implements DataSource {
       .toSorted((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"));
   }
 
-  async addHomework(input: { title: string; source: Source; due?: string }): Promise<Homework> {
+  async addHomework(input: {
+    title: string;
+    source: Source;
+    due?: string;
+    course?: string;
+  }): Promise<Homework> {
     const ref = this.store().collection("homework").doc();
     const due = input.due ? new Date(`${input.due}T16:00:00`).toISOString() : undefined;
     await ref.set({
       title: input.title,
       source: input.source,
-      course: input.source,
+      course: input.course || input.source,
       ...(due ? { due } : {}),
       done: false,
       createdAt: new Date().toISOString(),
@@ -158,7 +163,7 @@ export class ClaudeData implements DataSource {
       id,
       source: input.source,
       title: input.title,
-      course: input.source,
+      course: input.course || input.source,
       description: "",
       due,
       link: SOURCE_LINKS[input.source],
@@ -206,15 +211,16 @@ export class ClaudeData implements DataSource {
   // ---------- Gmail ----------
 
   async inbox(): Promise<Email[]> {
+    return this.searchEmails("in:inbox category:primary", 12);
+  }
+
+  async searchEmails(query: string, pageSize = 20): Promise<Email[]> {
     if (!this.mcp) {
       return [];
     }
     let payload: unknown;
     try {
-      ({ payload } = await this.mcp.callTool(GMAIL, "search_threads", {
-        query: "in:inbox category:primary",
-        pageSize: 12,
-      }));
+      ({ payload } = await this.mcp.callTool(GMAIL, "search_threads", { query, pageSize }));
     } catch (err) {
       throw gmailError(err);
     }

@@ -4,6 +4,8 @@ import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
+import { progress } from "../lib/store.ts";
+import { subjectLook, subjectVars } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 
 type Filter = "All" | Source;
@@ -30,7 +32,7 @@ export function HomeworkScreen() {
     <main className="screen">
       <header className="between rise">
         <div className="stack" style={{ gap: 4 }}>
-          <h1 className="h1">Homework</h1>
+          <h1 className="h1">Homework 📝</h1>
           <p className="sub">{data.labels.homeworkSub}</p>
         </div>
         <button className="round dark" aria-label="Add homework" onClick={() => setAdding(true)}>
@@ -50,22 +52,23 @@ export function HomeworkScreen() {
       </div>
 
       {!data.hasClassroom && (
-        <button
-          className="btn block rise"
-          style={{
-            justifyContent: "flex-start",
-            background: "#e3f1e6",
-            borderColor: "#cfe6d5",
-            color: "#1f6b3a",
-          }}
-          onClick={() => setImporting(true)}
-        >
-          <Icon name="classroom" size={18} />
-          <span style={{ flex: 1, textAlign: "left" }}>
-            Import from Classroom (video or screenshot)
-          </span>
-          <Icon name="sparkle" size={16} />
-        </button>
+        <section className="card stack rise">
+          <div className="row" style={{ gap: 10 }}>
+            <span className="subject-dot" style={{ background: "#dcf7e6" }} aria-hidden="true">
+              🏫
+            </span>
+            <div className="stack" style={{ gap: 2, flex: 1 }}>
+              <strong>Classroom auto-sync {data.demo ? "(off in demo)" : "is on"}</strong>
+              <span className="muted">
+                New Classroom emails in your Gmail are added here by themselves.
+              </span>
+            </div>
+          </div>
+          <button className="btn small" onClick={() => setImporting(true)}>
+            <Icon name="camera" size={14} />
+            Or import a screenshot / video
+          </button>
+        </section>
       )}
       {importing && <ImportSheet mode="homework" onClose={() => setImporting(false)} />}
 
@@ -98,14 +101,22 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
   const inApp = hw.source === "Classroom";
 
   return (
-    <article className="card stack rise" style={{ animationDelay: `${delay}s` }}>
+    <article
+      className="card stack rise subject-card"
+      style={{ ...subjectVars(hw.course), animationDelay: `${delay}s` }}
+    >
       <div className="between">
-        <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-          {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
+        <span className="row" style={{ gap: 8, minWidth: 0 }}>
+          <span className="subject-dot" aria-hidden="true">
+            {subjectLook(hw.course).emoji}
+          </span>
+          <span className="muted" style={{ fontSize: 12, fontWeight: 800 }}>
+            {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
+          </span>
         </span>
         <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
       </div>
-      <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>{hw.title}</div>
+      <div style={{ fontSize: 17, fontWeight: 900, lineHeight: 1.3 }}>{hw.title}</div>
       <div className="row" style={{ flexWrap: "wrap" }}>
         <button
           className="btn small dark"
@@ -134,7 +145,8 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
                 replaceHomework({ ...hw, done: true });
                 try {
                   await data.setDone(hw, true);
-                  toast(data.labels.ticked);
+                  progress.add(5);
+                  toast(`🎉 ${data.labels.ticked} +5 XP`);
                 } catch (err) {
                   replaceHomework(hw);
                   handleError(err);
@@ -278,12 +290,7 @@ function EmailScan() {
     return (
       <button
         className="btn block rise"
-        style={{
-          justifyContent: "flex-start",
-          background: "#eef1fc",
-          borderColor: "#d6ddf7",
-          color: "var(--accent-ink)",
-        }}
+        style={{ justifyContent: "flex-start", color: "var(--accent-ink)" }}
         onClick={() => void scan()}
       >
         <Icon name="mail" size={18} />

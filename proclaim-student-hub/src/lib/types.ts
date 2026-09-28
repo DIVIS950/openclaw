@@ -91,9 +91,17 @@ export interface DataSource {
   profile(): Promise<Profile>;
   homework(): Promise<Homework[]>;
   inbox(): Promise<Email[]>;
+  /** Emails matching a Gmail search, where Gmail is connected. */
+  searchEmails?(query: string): Promise<Email[]>;
   events(): Promise<CalEvent[]>;
   setDone(hw: Homework, done: boolean): Promise<void>;
-  addHomework(input: { title: string; source: Source; due?: string }): Promise<Homework>;
+  addHomework(input: {
+    title: string;
+    source: Source;
+    due?: string;
+    /** The class, when known (e.g. "9A Maths"); defaults to the source. */
+    course?: string;
+  }): Promise<Homework>;
   loadDraft(hw: Homework): Promise<Draft>;
   saveDraft(hw: Homework, text: string, fileId: string | null): Promise<Draft>;
   handIn(hw: Homework, fileId: string | null): Promise<HandInResult>;

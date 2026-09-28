@@ -246,7 +246,12 @@ export class GoogleData implements DataSource {
     });
   }
 
-  async addHomework(input: { title: string; source: Source; due?: string }): Promise<Homework> {
+  async addHomework(input: {
+    title: string;
+    source: Source;
+    due?: string;
+    course?: string;
+  }): Promise<Homework> {
     const task = await this.request<GTask>(TASKS, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -261,7 +266,7 @@ export class GoogleData implements DataSource {
       id: task.id,
       source: input.source,
       title: task.title,
-      course: input.source,
+      course: input.course || input.source,
       description: "",
       due: task.due,
       link: SOURCE_LINKS[input.source],
@@ -441,9 +446,13 @@ export class GoogleData implements DataSource {
     return [...mail, ...posts].toSorted((a, b) => b.date.localeCompare(a.date));
   }
 
-  private async gmail(): Promise<Email[]> {
+  async searchEmails(query: string): Promise<Email[]> {
+    return this.gmail(query, 20);
+  }
+
+  private async gmail(query = "in:inbox category:primary", max = 10): Promise<Email[]> {
     const list = await this.request<{ messages?: { id: string }[] }>(
-      `${GMAIL}/messages?maxResults=10&q=${encodeURIComponent("in:inbox category:primary")}`,
+      `${GMAIL}/messages?maxResults=${max}&q=${encodeURIComponent(query)}`,
     );
     const headers = ["From", "Subject", "Date", "Message-ID"]
       .map((h) => `metadataHeaders=${h}`)

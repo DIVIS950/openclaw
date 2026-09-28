@@ -89,7 +89,7 @@ export function Apps() {
   return (
     <main className="screen" style={{ gap: 18 }}>
       <header className="stack rise" style={{ gap: 4 }}>
-        <h1 className="h1">Your apps</h1>
+        <h1 className="h1">Your apps 🧩</h1>
         <p className="sub">One tap into every school app.</p>
       </header>
 

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useConfetti } from "../components/Confetti.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
+import { subjectLook } from "../lib/subjects.ts";
 import { canSpeak, speak } from "../lib/voice.ts";
 import {
   dayString,
@@ -82,7 +84,9 @@ export function PackHome({
         <button className="link-btn" style={{ alignSelf: "flex-start" }} onClick={onBack}>
           ‹ Back
         </button>
-        <span className="eyebrow">{pack.subject}</span>
+        <span className="eyebrow">
+          {subjectLook(pack.subject).emoji} {pack.subject}
+        </span>
         <h1 className="h1">{pack.topic}</h1>
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           <span className="chip accent">{mastery(pack.items)}% mastered</span>
@@ -249,6 +253,12 @@ export function Results({
     ...new Set(outcome.answers.filter((a) => a.verdict !== "correct").map((a) => a.label)),
   ];
   const title = MODES.find((m) => m.id === outcome.mode)?.title ?? "Practice";
+  const [confetti, celebrate] = useConfetti();
+  useEffect(() => {
+    if (percent >= 80) {
+      celebrate();
+    }
+  }, [percent, celebrate]);
   useAiContext(
     `Results of ${title}${pack ? ` on "${pack.topic}"` : ""}: ${percent}%. Missed: ${missed.join("; ") || "nothing"}.`,
   );
@@ -256,6 +266,7 @@ export function Results({
   return (
     <main className="screen">
       <header className="stack rise" style={{ gap: 4, textAlign: "center", alignItems: "center" }}>
+        {confetti}
         <span className="eyebrow">{title}</span>
         <div className="big-score pop">{percent}%</div>
         <p className="sub">

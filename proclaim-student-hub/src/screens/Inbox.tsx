@@ -73,9 +73,14 @@ export function Inbox() {
 
   return (
     <main className="screen">
-      <header className="stack rise" style={{ gap: 4 }}>
-        <h1 className="h1">Inbox</h1>
-        <p className="sub">Gmail and Classroom posts, with an AI one-liner on each.</p>
+      <header className="between rise">
+        <div className="stack" style={{ gap: 4 }}>
+          <h1 className="h1">Inbox 📬</h1>
+          <p className="sub">Gmail and Classroom posts, with an AI one-liner on each.</p>
+        </div>
+        <button className="round" aria-label="All apps" onClick={() => app.go("apps")}>
+          <Icon name="apps" size={20} />
+        </button>
       </header>
 
       <div className="pills" role="group" aria-label="Filter">

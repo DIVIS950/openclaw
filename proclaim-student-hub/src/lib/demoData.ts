@@ -168,12 +168,17 @@ export class DemoData implements DataSource {
     }
   }
 
-  async addHomework(input: { title: string; source: Source; due?: string }): Promise<Homework> {
+  async addHomework(input: {
+    title: string;
+    source: Source;
+    due?: string;
+    course?: string;
+  }): Promise<Homework> {
     const hw: Homework = {
       id: `d${Date.now()}`,
       source: input.source,
       title: input.title,
-      course: input.source,
+      course: input.course || input.source,
       description: "",
       due: input.due ? new Date(`${input.due}T16:00:00`).toISOString() : undefined,
       link: SOURCE_LINKS[input.source],

@@ -5,6 +5,7 @@ import { Icon } from "./components/Icon.tsx";
 import { Ctx, SCREENS, type AppContext, type Screen, type TutorSeed } from "./context.ts";
 import { Lab } from "./lab/Lab.tsx";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
+import { syncClassroomEmails } from "./lib/classroomSync.ts";
 import { ClaudeData } from "./lib/claudeData.ts";
 import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
@@ -16,6 +17,7 @@ import { Assignment } from "./screens/Assignment.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { Inbox } from "./screens/Inbox.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
+import { Timetable } from "./screens/Timetable.tsx";
 import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
 
@@ -168,12 +170,39 @@ function Shell({
     [toast],
   );
 
+  // New Classroom emails become homework; at most once a minute, one at a time.
+  const lastSync = useRef(0);
+  const syncClassroom = useCallback(
+    (known: Homework[]) => {
+      if (Date.now() - lastSync.current < 60_000) {
+        return;
+      }
+      lastSync.current = Date.now();
+      syncClassroomEmails(data, known).then(
+        (added) => {
+          if (added.length > 0) {
+            setHomework((list) => [...(list ?? []), ...added]);
+            toast(`🎉 ${added.length} new from Classroom: ${added.map((h) => h.title).join(", ")}`);
+          }
+        },
+        (err: unknown) => console.warn("Classroom email sync failed", err),
+      );
+    },
+    [data, toast],
+  );
+
   const reloadHomework = useCallback(() => {
-    data.homework().then(setHomework, (err: unknown) => {
-      setHomework((h) => h ?? []);
-      handleError(err);
-    });
-  }, [data, handleError]);
+    data.homework().then(
+      (list) => {
+        setHomework(list);
+        syncClassroom(list);
+      },
+      (err: unknown) => {
+        setHomework((h) => h ?? []);
+        handleError(err);
+      },
+    );
+  }, [data, handleError, syncClassroom]);
 
   useEffect(() => {
     reloadHomework();
@@ -293,6 +322,7 @@ function Shell({
         {(current === "revise" || current === "games") && <Lab />}
         {current === "inbox" && <Inbox />}
         {current === "apps" && <Apps />}
+        {current === "timetable" && <Timetable />}
         {current !== "tutor" && (
           <button
             className="ask-fab pop"
@@ -356,13 +386,21 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         </span>
         AI help
       </button>
-      <button className="nav-item" aria-current={active(["inbox"])} onClick={() => go("inbox")}>
+      <button
+        className="nav-item"
+        aria-current={active(["timetable"])}
+        onClick={() => go("timetable")}
+      >
+        <Icon name="calendar" />
+        Timetable
+      </button>
+      <button
+        className="nav-item"
+        aria-current={active(["inbox", "apps"])}
+        onClick={() => go("inbox")}
+      >
         <Icon name="mail" />
         Inbox
-      </button>
-      <button className="nav-item" aria-current={active(["apps"])} onClick={() => go("apps")}>
-        <Icon name="apps" />
-        Apps
       </button>
     </nav>
   );

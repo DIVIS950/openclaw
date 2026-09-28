@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useApp } from "../context.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
+import { progress } from "../lib/store.ts";
+import { subjectLook, subjectVars } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
+import { useConfetti } from "./Confetti.tsx";
 
 /** One homework line with a tick box that marks it done in Google too. */
 const titleStyle: React.CSSProperties = {
@@ -17,10 +20,15 @@ const titleStyle: React.CSSProperties = {
 export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProperties }) {
   const { data, replaceHomework, handleError, openAssignment } = useApp();
   const [busy, setBusy] = useState(false);
+  const [confetti, celebrate] = useConfetti();
 
   const toggle = async () => {
     const next = { ...hw, done: !hw.done };
     replaceHomework(next);
+    if (next.done) {
+      celebrate();
+      progress.add(5);
+    }
     setBusy(true);
     try {
       await data.setDone(hw, next.done);
@@ -50,6 +58,9 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
         onChange={toggle}
         aria-label={`Mark ${hw.title} done`}
       />
+      <span className="subject-dot" style={subjectVars(hw.course)} aria-hidden="true">
+        {subjectLook(hw.course).emoji}
+      </span>
       {hw.source === "Classroom" ? (
         <button onClick={() => openAssignment(hw)} style={titleStyle}>
           {label}
@@ -61,6 +72,7 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
         </a>
       )}
       <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
+      {confetti}
     </div>
   );
 }

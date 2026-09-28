@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
 import { progress, schedule } from "../lib/store.ts";
+import { subjectLook, subjectVars } from "../lib/subjects.ts";
 import { GapFill, LabelDiagram, Match, OrderSteps } from "./Games.tsx";
 import {
   dayString,
@@ -378,7 +379,7 @@ function LabHome({
     <main className="screen">
       <header className="between rise">
         <div className="stack" style={{ gap: 4 }}>
-          <span className="eyebrow">Revision Lab</span>
+          <span className="eyebrow">🧪 Revision Lab</span>
           <h1 className="h1">Level {lvl.level}</h1>
         </div>
         <div className="row">
@@ -530,9 +531,15 @@ function PackCard({ pack, today, onOpen }: { pack: LabPack; today: string; onOpe
   const due = pack.items.filter((i) => isDue(i, today)).length;
   const weak = pack.items.filter(isWeak).length;
   return (
-    <button className="card stack pack-card rise" onClick={onOpen}>
+    <button
+      className="card stack pack-card subject-card rise"
+      style={subjectVars(pack.subject)}
+      onClick={onOpen}
+    >
       <div className="between">
-        <span className="eyebrow">{pack.subject}</span>
+        <span className="eyebrow">
+          {subjectLook(pack.subject).emoji} {pack.subject}
+        </span>
         <span className="muted" style={{ fontSize: 12 }}>
           {mastery(pack.items)}%
         </span>

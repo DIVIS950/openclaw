@@ -1,14 +1,21 @@
 import { useEffect, useState } from "react";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon } from "../components/Icon.tsx";
-import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
-import { timetable } from "../lib/store.ts";
+import { progress, timetable } from "../lib/store.ts";
+import { subjectLook, subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
 
 const BRIEF_KEY = "psh.brief";
+
+const QUICK_APPS = [
+  { name: "Classroom", url: "https://classroom.google.com", emoji: "🏫", bg: "#dcf7e6" },
+  { name: "Gmail", url: "https://mail.google.com", emoji: "✉️", bg: "#ffe3ec" },
+  { name: "Dr Frost", url: "https://www.drfrost.org", emoji: "🧮", bg: "#dcf3fa" },
+  { name: "Desmos", url: "https://student.desmos.com", emoji: "📈", bg: "#fdf1d3" },
+];
 
 export function Today() {
   const app = useApp();
@@ -17,8 +24,8 @@ export function Today() {
   const [brief, setBrief] = useState<string | null>(null);
   const [briefFailed, setBriefFailed] = useState(false);
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>(timetable.get);
-  const [importing, setImporting] = useState(false);
+  const [lessons] = useState<Lesson[]>(timetable.get);
+  const [stats] = useState(progress.get);
   const upcoming = upcomingLessons(lessons);
 
   const makePlan = async () => {
@@ -132,37 +139,39 @@ export function Today() {
           </div>
           <h1 className="h1">
             {greeting()}
-            {profile?.name ? `, ${profile.name}` : ""}
+            {profile?.name ? `, ${profile.name}` : ""} <span className="wave">👋</span>
           </h1>
         </div>
-        <button
-          className="round"
-          aria-label="Apps and account"
-          onClick={() => go("apps")}
-          style={{ fontWeight: 600 }}
-        >
-          {(profile?.name || "P").slice(0, 1).toUpperCase()}
-        </button>
+        <div className="row">
+          {stats.streak > 0 && (
+            <span className="chip warm" aria-label={`${stats.streak} day streak`}>
+              🔥 {stats.streak}
+            </span>
+          )}
+          <button className="round" aria-label="Apps and account" onClick={() => go("apps")}>
+            {(profile?.name || "P").slice(0, 1).toUpperCase()}
+          </button>
+        </div>
       </header>
 
       <section className="card-dark stack rise" style={{ gap: 12, animationDelay: "0.08s" }}>
-        <div className="between" style={{ fontSize: 13, fontWeight: 600, color: "#c9d1f7" }}>
+        <div
+          className="between"
+          style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.88)" }}
+        >
           <span className="row" style={{ gap: 6 }}>
             <Icon name="sparkle" size={16} className="wiggle" />
             Your day, summarised
           </span>
           {!data.demo && (
-            <span className="row" style={{ gap: 4, color: "#a9e2b8" }}>
+            <span className="row" style={{ gap: 4, color: "#fff" }}>
               <Icon name="sync" size={13} className="spin-slow" />
               Synced
             </span>
           )}
         </div>
         {brief ? (
-          <p
-            className="pop"
-            style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 19, lineHeight: 1.4 }}
-          >
+          <p className="pop" style={{ margin: 0, fontSize: 19, fontWeight: 800, lineHeight: 1.4 }}>
             {brief}
           </p>
         ) : briefFailed ? (
@@ -189,9 +198,10 @@ export function Today() {
             className="btn block"
             style={{
               flex: 1,
-              background: "transparent",
-              color: "var(--bg)",
-              borderColor: "#5c584f",
+              background: "rgba(255,255,255,0.18)",
+              color: "#fff",
+              borderColor: "rgba(255,255,255,0.45)",
+              boxShadow: "none",
             }}
             onClick={() => go("inbox")}
           >
@@ -229,60 +239,47 @@ export function Today() {
         </section>
       )}
 
-      {events && events.length === 0 && upcoming.lessons.length > 0 && (
+      {upcoming.lessons.length > 0 ? (
         <section className="stack rise" style={{ animationDelay: "0.16s" }}>
           <div className="between">
-            <h2 className="h2">Next lessons · {upcoming.label}</h2>
-            <button
-              className="link-btn"
-              style={{ minHeight: 32 }}
-              onClick={() => setImporting(true)}
-            >
-              Update
+            <h2 className="h2">🗓️ Next lessons · {upcoming.label}</h2>
+            <button className="link-btn" onClick={() => go("timetable")}>
+              Timetable ›
             </button>
           </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}
-          >
-            {upcoming.lessons.slice(0, 3).map((l, i) => (
-              <div key={i} className="card" style={{ padding: 12 }}>
-                <div className="muted" style={{ fontSize: 12 }}>
+          <div className="lesson-strip">
+            {upcoming.lessons.slice(0, 6).map((l, i) => (
+              <button
+                key={i}
+                className="lesson-chip pop"
+                style={{ ...subjectVars(l.subject), animationDelay: `${0.2 + i * 0.05}s` }}
+                onClick={() => go("timetable")}
+              >
+                <span style={{ fontSize: 22 }} aria-hidden="true">
+                  {subjectLook(l.subject).emoji}
+                </span>
+                <strong>{l.subject}</strong>
+                <span>
                   {l.start}
-                </div>
-                <div
-                  style={{
-                    fontWeight: 600,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {l.subject}
-                </div>
-                {l.room && (
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {l.room}
-                  </div>
-                )}
-              </div>
+                  {l.room ? ` · ${l.room}` : ""}
+                </span>
+              </button>
             ))}
           </div>
         </section>
-      )}
-
-      {events && events.length === 0 && lessons.length === 0 && !data.demo && (
-        <button
-          className="btn block rise"
-          style={{ justifyContent: "flex-start", animationDelay: "0.16s" }}
-          onClick={() => setImporting(true)}
-        >
-          <Icon name="calendar" size={18} />
-          <span style={{ flex: 1, textAlign: "left" }}>Add your timetable from a photo</span>›
-        </button>
-      )}
-
-      {importing && (
-        <ImportSheet mode="timetable" onClose={() => setImporting(false)} onLessons={setLessons} />
+      ) : (
+        lessons.length === 0 && (
+          <button
+            className="btn big block rise"
+            style={{ justifyContent: "flex-start", animationDelay: "0.16s" }}
+            onClick={() => go("timetable")}
+          >
+            <span style={{ fontSize: 22 }} aria-hidden="true">
+              🗓️
+            </span>
+            <span style={{ flex: 1, textAlign: "left" }}>Add your timetable</span>›
+          </button>
+        )
       )}
 
       {events && events.length > 0 && (
@@ -349,22 +346,44 @@ export function Today() {
       </section>
 
       <button
-        className="btn big block pop"
-        style={{
-          justifyContent: "flex-start",
-          background: "var(--accent-soft)",
-          color: "var(--accent-ink)",
-          border: "none",
-          animationDelay: "0.3s",
-        }}
+        className="lab-cta pop"
+        style={{ animationDelay: "0.3s" }}
         onClick={() => go("revise")}
       >
-        <Icon name="camera" size={22} />
-        <span style={{ flex: 1, textAlign: "left" }}>
-          Revision Lab: scan a test or notes → games
+        <span className="lab-cta-emoji" aria-hidden="true">
+          🧪
         </span>
-        ›
+        <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
+          <strong style={{ fontSize: 18 }}>Revision Lab</strong>
+          <span>Scan a test or notes → flashcards, quizzes and games</span>
+        </span>
+        <span style={{ fontSize: 22 }}>›</span>
       </button>
+
+      <section className="stack rise" style={{ animationDelay: "0.36s" }}>
+        <div className="between">
+          <h2 className="h2">🚀 Quick apps</h2>
+          <button className="link-btn" onClick={() => go("apps")}>
+            All apps ›
+          </button>
+        </div>
+        <div className="quick-apps">
+          {QUICK_APPS.map((a) => (
+            <a
+              key={a.name}
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="quick-app"
+            >
+              <span className="quick-app-icon" style={{ background: a.bg }} aria-hidden="true">
+                {a.emoji}
+              </span>
+              {a.name}
+            </a>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
