@@ -452,17 +452,16 @@ export const labHandoff = {
   },
 };
 
-/** Which Study tab to open on arrival (set by other screens before going there). */
-export type StudyTab = "todo" | "tests" | "notes" | "tutoring";
-let nextTab: StudyTab | null = null;
-export const studyTab = {
-  set: (tab: StudyTab) => {
-    nextTab = tab;
+/** A note to open when the Notes screen appears (set by other screens before going there). */
+let nextNote: string | null = null;
+export const noteHandoff = {
+  set: (id: string) => {
+    nextNote = id;
   },
-  take: (): StudyTab | null => {
-    const tab = nextTab;
-    nextTab = null;
-    return tab;
+  take: (): string | null => {
+    const id = nextNote;
+    nextNote = null;
+    return id;
   },
 };
 

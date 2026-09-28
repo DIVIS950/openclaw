@@ -2,54 +2,94 @@ import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { progress } from "../lib/store.ts";
-import {
-  dayOf,
-  groupTodos,
-  newId,
-  studyTab,
-  todos,
-  type StudyTab,
-  type Todo,
-} from "../lib/study.ts";
+import { dayOf, groupTodos, newId, noteHandoff, todos, type Todo } from "../lib/study.ts";
 import { Notes } from "./Notes.tsx";
 import { Tests } from "./Tests.tsx";
 import { Tutoring } from "./Tutoring.tsx";
 
-// The Study hub: To-do, Tests (day-by-day prep), Notes and Tutoring. Each is
-// its own tab, and they hand work to each other and to the Revision Lab.
+// The four study screens: To-do, Tests (day-by-day prep) and Notes sit in the
+// taskbar; Tutoring opens from Today. They hand work to each other (a note
+// opened from a test or a tutor goes through noteHandoff) and to the Revision Lab.
 
-const TABS: { id: StudyTab; label: string }[] = [
-  { id: "todo", label: "To-do" },
-  { id: "tests", label: "Tests" },
-  { id: "notes", label: "Notes" },
-  { id: "tutoring", label: "Tutoring" },
-];
+function ScreenHead({ title, sub, back }: { title: string; sub: string; back?: boolean }) {
+  const { go } = useApp();
+  return (
+    <header className="stack rise" style={{ gap: 4 }}>
+      {back && (
+        <button
+          className="link-btn"
+          style={{ alignSelf: "flex-start" }}
+          onClick={() => go("today")}
+        >
+          ‹ Today
+        </button>
+      )}
+      <h1 className="h1">{title}</h1>
+      <p className="muted" style={{ margin: 0 }}>
+        {sub}
+      </p>
+    </header>
+  );
+}
 
-export function Study() {
-  const [tab, setTab] = useState<StudyTab>(() => studyTab.take() ?? "todo");
-  const [noteId, setNoteId] = useState<string | null>(null);
-  const openNote = (id: string) => {
-    setNoteId(id);
-    setTab("notes");
+/** Opens a note on the Notes screen from anywhere. */
+function useOpenNote() {
+  const { go } = useApp();
+  return (id: string) => {
+    noteHandoff.set(id);
+    go("notes");
   };
+}
+
+export function TodoScreen() {
   return (
     <main className="screen">
-      <header className="stack rise" style={{ gap: 12 }}>
-        <h1 className="h1">Study</h1>
-        <div className="segmented" style={{ gridTemplateColumns: "repeat(4, 1fr)" }} role="tablist">
-          {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </header>
-      {tab === "todo" && <TodoList />}
-      {tab === "tests" && <Tests onOpenNote={openNote} />}
-      {tab === "notes" && (
-        <Notes key={noteId ?? "list"} openId={noteId} onClose={() => setNoteId(null)} />
-      )}
-      {tab === "tutoring" && <Tutoring onOpenNote={openNote} />}
+      <ScreenHead title="To-do" sub="Everything you need to get done, by when it's due." />
+      <TodoList />
+    </main>
+  );
+}
+
+export function TestsScreen() {
+  const openNote = useOpenNote();
+  return (
+    <main className="screen">
+      <Tests
+        onOpenNote={openNote}
+        header={<ScreenHead title="Tests" sub="A little preparation every day until the test." />}
+      />
+    </main>
+  );
+}
+
+export function NotesScreen() {
+  const [noteId, setNoteId] = useState<string | null>(() => noteHandoff.take());
+  return (
+    <main className="screen">
+      <Notes
+        key={noteId ?? "list"}
+        openId={noteId}
+        onClose={() => setNoteId(null)}
+        header={<ScreenHead title="Notes" sub="Your notes, vocab lists and class material." />}
+      />
+    </main>
+  );
+}
+
+export function TutoringScreen() {
+  const openNote = useOpenNote();
+  return (
+    <main className="screen">
+      <Tutoring
+        onOpenNote={openNote}
+        header={
+          <ScreenHead
+            back
+            title="Tutoring"
+            sub="Your tutors, their material and lesson homework."
+          />
+        }
+      />
     </main>
   );
 }

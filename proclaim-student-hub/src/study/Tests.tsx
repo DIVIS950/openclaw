@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { dayString } from "../lab/model.ts";
@@ -39,7 +39,14 @@ const countdown = (date: string, today: string) => {
   return n === 0 ? "Today!" : n === 1 ? "Tomorrow" : n < 0 ? "Done" : `In ${n} days`;
 };
 
-export function Tests({ onOpenNote }: { onOpenNote: (id: string) => void }) {
+export function Tests({
+  onOpenNote,
+  header,
+}: {
+  onOpenNote: (id: string) => void;
+  /** Shown above the list, but not over an open test. */
+  header?: ReactNode;
+}) {
   const { homework } = useApp();
   const today = dayOf(new Date());
   const [list, setList] = useState<PrepTest[]>(prepTests.all);
@@ -81,6 +88,7 @@ export function Tests({ onOpenNote }: { onOpenNote: (id: string) => void }) {
 
   return (
     <>
+      {header}
       {suggestions.length > 0 && (
         <section className="ai-card rise">
           <h3>

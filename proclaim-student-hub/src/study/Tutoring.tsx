@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -23,7 +23,14 @@ import { subjectVars } from "../lib/subjects.ts";
 // the tutor sends (usually on WhatsApp). Materials come in as photos,
 // screenshots or pasted text; the AI turns them into notes and revision.
 
-export function Tutoring({ onOpenNote }: { onOpenNote: (id: string) => void }) {
+export function Tutoring({
+  onOpenNote,
+  header,
+}: {
+  onOpenNote: (id: string) => void;
+  /** Shown above the list, but not over an open tutor. */
+  header?: ReactNode;
+}) {
   const [tutors, setTutors] = useState<Tutor[]>(tutoring.tutors);
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<Tutor | null>(null);
@@ -72,6 +79,7 @@ export function Tutoring({ onOpenNote }: { onOpenNote: (id: string) => void }) {
 
   return (
     <>
+      {header}
       {tutors.length === 0 ? (
         <section className="card stack empty-fun">
           <span className="empty-icon" aria-hidden="true">

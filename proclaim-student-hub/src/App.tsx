@@ -23,7 +23,7 @@ import { SignIn } from "./screens/SignIn.tsx";
 import { Timetable } from "./screens/Timetable.tsx";
 import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
-import { Study } from "./study/Study.tsx";
+import { NotesScreen, TestsScreen, TodoScreen, TutoringScreen } from "./study/Study.tsx";
 
 type Mode = "loading" | "signin" | "google" | "demo" | "web";
 
@@ -340,7 +340,10 @@ function Shell({
         {current === "timetable" && <Timetable />}
         {current === "classes" && <Classes />}
         {current === "call" && <Call />}
-        {current === "study" && <Study />}
+        {current === "todo" && <TodoScreen />}
+        {current === "tests" && <TestsScreen />}
+        {current === "notes" && <NotesScreen />}
+        {current === "tutoring" && <TutoringScreen />}
         {current !== "tutor" && current !== "call" && (
           <button
             className="ask-fab pop"
@@ -394,6 +397,10 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         <Icon name="homework" />
         Homework
       </button>
+      <button className="nav-item" aria-current={active(["todo"])} onClick={() => go("todo")}>
+        <Icon name="todo" />
+        To-do
+      </button>
       <button
         className="nav-item"
         aria-current={active(["tutor", "revise", "games", "call"])}
@@ -404,17 +411,13 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         </span>
         AI help
       </button>
-      <button className="nav-item" aria-current={active(["study"])} onClick={() => go("study")}>
-        <Icon name="book" />
-        Study
+      <button className="nav-item" aria-current={active(["tests"])} onClick={() => go("tests")}>
+        <Icon name="flag" />
+        Tests
       </button>
-      <button
-        className="nav-item"
-        aria-current={active(["timetable"])}
-        onClick={() => go("timetable")}
-      >
-        <Icon name="calendar" />
-        Timetable
+      <button className="nav-item" aria-current={active(["notes"])} onClick={() => go("notes")}>
+        <Icon name="note" />
+        Notes
       </button>
     </nav>
   );

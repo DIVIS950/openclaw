@@ -3,7 +3,7 @@ import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
 import { progress, schedule } from "../lib/store.ts";
-import { labHandoff, labSubject, notes, packToNote, prepTests, studyTab } from "../lib/study.ts";
+import { labHandoff, labSubject, notes, packToNote, prepTests } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { GapFill, LabelDiagram, Match, OrderSteps } from "./Games.tsx";
 import {
@@ -511,8 +511,7 @@ function LabHome({
             <button
               className="card stack lab-tile rise"
               onClick={() => {
-                studyTab.set("tests");
-                appGo("study");
+                appGo("tests");
               }}
             >
               <Icon name="calendar" size={20} />

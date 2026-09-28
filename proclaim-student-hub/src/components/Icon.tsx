@@ -149,6 +149,24 @@ const PATHS: Record<string, ReactNode> = {
       <circle cx="18" cy="6" r="1.5" />
     </>
   ),
+  todo: (
+    <>
+      <path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17" />
+      <path d="M11 6h9M11 12h9M11 18h9" />
+    </>
+  ),
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2 4 2 4H5" />
+    </>
+  ),
+  note: (
+    <>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M14 3v5h5M9 13h7M9 17h5" />
+    </>
+  ),
   book: (
     <>
       <path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3z" />

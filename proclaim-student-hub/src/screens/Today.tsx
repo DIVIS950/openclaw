@@ -5,7 +5,7 @@ import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import { progress, timetable } from "../lib/store.ts";
-import { dayOf, prepPlan, prepTests, studyTab, todos } from "../lib/study.ts";
+import { dayOf, prepPlan, prepTests, todos } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
 
@@ -247,13 +247,7 @@ export function Today() {
         <section className="card stack rise" style={{ animationDelay: "0.14s" }}>
           <div className="between">
             <h2 className="h2">Today's study</h2>
-            <button
-              className="link-btn"
-              onClick={() => {
-                studyTab.set(prepToday.length ? "tests" : "todo");
-                go("study");
-              }}
-            >
+            <button className="link-btn" onClick={() => go(prepToday.length ? "tests" : "todo")}>
               Open ›
             </button>
           </div>
@@ -262,10 +256,7 @@ export function Today() {
               key={p.test.id}
               className="between study-row"
               style={subjectVars(p.test.subject)}
-              onClick={() => {
-                studyTab.set("tests");
-                go("study");
-              }}
+              onClick={() => go("tests")}
             >
               <span className="row" style={{ gap: 8, minWidth: 0 }}>
                 <span className="subject-dot" />
@@ -281,13 +272,7 @@ export function Today() {
             </button>
           ))}
           {todosToday > 0 && (
-            <button
-              className="between study-row"
-              onClick={() => {
-                studyTab.set("todo");
-                go("study");
-              }}
-            >
+            <button className="between study-row" onClick={() => go("todo")}>
               <span>
                 <strong>{todosToday}</strong> to-do{todosToday === 1 ? "" : "s"} for today
               </span>
@@ -438,6 +423,23 @@ export function Today() {
         <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
           <strong style={{ fontSize: 16 }}>Revision Lab</strong>
           <span className="muted">Scan a test or notes into flashcards, quizzes and games</span>
+        </span>
+        <span className="muted" style={{ fontSize: 20 }}>
+          ›
+        </span>
+      </button>
+
+      <button
+        className="lab-cta pop"
+        style={{ animationDelay: "0.33s" }}
+        onClick={() => go("tutoring")}
+      >
+        <span className="lab-cta-icon" aria-hidden="true">
+          <Icon name="book" size={22} />
+        </span>
+        <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
+          <strong style={{ fontSize: 16 }}>Tutoring</strong>
+          <span className="muted">Your tutors, Meet and WhatsApp, their material and homework</span>
         </span>
         <span className="muted" style={{ fontSize: 20 }}>
           ›

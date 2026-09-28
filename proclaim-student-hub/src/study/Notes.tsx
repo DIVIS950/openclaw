@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -10,7 +10,16 @@ import { subjectVars } from "../lib/subjects.ts";
 // Notes: typed, or read from a photo by the AI. Any note can become a revision
 // pack, and every revision pack writes its own note with the vocab list.
 
-export function Notes({ openId, onClose }: { openId: string | null; onClose: () => void }) {
+export function Notes({
+  openId,
+  onClose,
+  header,
+}: {
+  openId: string | null;
+  onClose: () => void;
+  /** Shown above the list, but not over an open note. */
+  header?: ReactNode;
+}) {
   const { ai, handleError, toast } = useApp();
   const [list, setList] = useState<Note[]>(notes.all);
   const [query, setQuery] = useState("");
@@ -80,6 +89,7 @@ export function Notes({ openId, onClose }: { openId: string | null; onClose: () 
 
   return (
     <>
+      {header}
       <div className="row">
         <button
           className="btn primary"
