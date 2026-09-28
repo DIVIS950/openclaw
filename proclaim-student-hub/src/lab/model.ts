@@ -10,6 +10,9 @@ export const SUBJECTS = [
   "Geography",
   "Czech",
   "Art History",
+  "Computer Science",
+  "Music",
+  "Other",
 ] as const;
 export type Subject = (typeof SUBJECTS)[number];
 

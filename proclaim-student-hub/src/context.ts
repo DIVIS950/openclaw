@@ -14,7 +14,8 @@ export type Screen =
   | "apps"
   | "timetable"
   | "classes"
-  | "call";
+  | "call"
+  | "study";
 
 export const SCREENS: Screen[] = [
   "today",
@@ -28,6 +29,7 @@ export const SCREENS: Screen[] = [
   "timetable",
   "classes",
   "call",
+  "study",
 ];
 
 export interface TutorSeed {

@@ -5,6 +5,7 @@ import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import { progress, timetable } from "../lib/store.ts";
+import { dayOf, prepPlan, prepTests, studyTab, todos } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
 
@@ -26,6 +27,16 @@ export function Today() {
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
+  const todayKey = dayOf(new Date());
+  const [prepToday] = useState(() =>
+    prepTests.all().flatMap((test) => {
+      const day = prepPlan(test, todayKey).find((d) => d.date === todayKey);
+      return day && !test.done.includes(todayKey) ? [{ test, day }] : [];
+    }),
+  );
+  const [todosToday] = useState(
+    () => todos.all().filter((t) => !t.done && t.due && t.due <= todayKey).length,
+  );
   const upcoming = upcomingLessons(lessons);
 
   const makePlan = async () => {
@@ -230,6 +241,60 @@ export function Today() {
             ›
           </span>
         </button>
+      )}
+
+      {(prepToday.length > 0 || todosToday > 0) && (
+        <section className="card stack rise" style={{ animationDelay: "0.14s" }}>
+          <div className="between">
+            <h2 className="h2">Today's study</h2>
+            <button
+              className="link-btn"
+              onClick={() => {
+                studyTab.set(prepToday.length ? "tests" : "todo");
+                go("study");
+              }}
+            >
+              Open ›
+            </button>
+          </div>
+          {prepToday.map((p) => (
+            <button
+              key={p.test.id}
+              className="between study-row"
+              style={subjectVars(p.test.subject)}
+              onClick={() => {
+                studyTab.set("tests");
+                go("study");
+              }}
+            >
+              <span className="row" style={{ gap: 8, minWidth: 0 }}>
+                <span className="subject-dot" />
+                <span style={{ minWidth: 0 }}>
+                  <strong>{p.day.title}</strong>
+                  <span className="muted" style={{ display: "block" }}>
+                    {p.test.subject} test {p.day.left === 0 ? "today" : `in ${p.day.left} days`} ·{" "}
+                    {p.day.minutes} min
+                  </span>
+                </span>
+              </span>
+              <span className="muted">›</span>
+            </button>
+          ))}
+          {todosToday > 0 && (
+            <button
+              className="between study-row"
+              onClick={() => {
+                studyTab.set("todo");
+                go("study");
+              }}
+            >
+              <span>
+                <strong>{todosToday}</strong> to-do{todosToday === 1 ? "" : "s"} for today
+              </span>
+              <span className="muted">›</span>
+            </button>
+          )}
+        </section>
       )}
 
       {Array.isArray(plan) && (

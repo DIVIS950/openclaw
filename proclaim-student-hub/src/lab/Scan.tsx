@@ -36,22 +36,33 @@ const STEPS = [
 ];
 
 /** Photos (up to 4 pages) or typed notes in, a reviewed pack out. */
+/** Turns a stored photo (data URL) back into an image the AI can read. */
+function fromDataUrl(url: string): ImageInput | null {
+  const m = url.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,(.+)$/);
+  return m ? { mediaType: m[1] as ImageInput["mediaType"], data: m[2] } : null;
+}
+
 export function Scan({
   prefs,
   online,
   onBack,
   onSave,
+  initial,
 }: {
   prefs: LabSettings;
   online: boolean;
   onBack: () => void;
   onSave: (pack: LabPack) => void;
+  /** Filled in when another screen (a test, a note, tutoring) sent the material here. */
+  initial?: { subject: Subject; topic: string; text: string; photos: string[] };
 }) {
   const { ai, handleError } = useApp();
-  const [images, setImages] = useState<ImageInput[]>([]);
-  const [text, setText] = useState("");
+  const [images, setImages] = useState<ImageInput[]>(() =>
+    (initial?.photos ?? []).flatMap((p) => fromDataUrl(p) ?? []).slice(0, MAX_PAGES),
+  );
+  const [text, setText] = useState(initial?.text ?? "");
   const [docType, setDocType] = useState<DocType>("auto");
-  const [subject, setSubject] = useState<Subject | "">("");
+  const [subject, setSubject] = useState<Subject | "">(initial?.subject ?? "");
   const [step, setStep] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -104,7 +115,7 @@ export function Scan({
           "Couldn't find anything to learn in that. Try a clearer photo, or type the notes.",
         );
       }
-      setResult(found);
+      setResult(initial?.topic ? { ...found, topic: initial.topic.slice(0, 80) } : found);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't read that. Try again.");
     } finally {
@@ -172,6 +183,7 @@ export function Scan({
           ‹ Revision Lab
         </button>
         <h1 className="h1">Scan</h1>
+        {initial?.topic && <p className="sub">For: {initial.topic}</p>}
         <p className="sub">
           Photograph a marked test, notes, a worksheet or a diagram (up to {MAX_PAGES} pages). The
           AI reads handwriting and your teacher's marks.

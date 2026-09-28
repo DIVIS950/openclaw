@@ -23,6 +23,7 @@ import { SignIn } from "./screens/SignIn.tsx";
 import { Timetable } from "./screens/Timetable.tsx";
 import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
+import { Study } from "./study/Study.tsx";
 
 type Mode = "loading" | "signin" | "google" | "demo" | "web";
 
@@ -339,6 +340,7 @@ function Shell({
         {current === "timetable" && <Timetable />}
         {current === "classes" && <Classes />}
         {current === "call" && <Call />}
+        {current === "study" && <Study />}
         {current !== "tutor" && current !== "call" && (
           <button
             className="ask-fab pop"
@@ -402,6 +404,10 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         </span>
         AI help
       </button>
+      <button className="nav-item" aria-current={active(["study"])} onClick={() => go("study")}>
+        <Icon name="book" />
+        Study
+      </button>
       <button
         className="nav-item"
         aria-current={active(["timetable"])}
@@ -409,14 +415,6 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
       >
         <Icon name="calendar" />
         Timetable
-      </button>
-      <button
-        className="nav-item"
-        aria-current={active(["inbox", "apps"])}
-        onClick={() => go("inbox")}
-      >
-        <Icon name="mail" />
-        Inbox
       </button>
     </nav>
   );

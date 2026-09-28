@@ -1752,3 +1752,77 @@ textarea.field {
   background: var(--accent-soft);
   font-weight: 600;
 }
+
+/* Study hub */
+
+.warm-text {
+  color: var(--warm);
+}
+
+.test-card,
+.note-card {
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+}
+
+.note-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.prep-day {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.prep-day input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: var(--ink);
+  flex-shrink: 0;
+}
+
+.prep-day.today {
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.prep-day.done {
+  opacity: 0.55;
+}
+
+.prep-day.done strong {
+  text-decoration: line-through;
+}
+
+.study-row {
+  width: 100%;
+  padding: 8px 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.study-row + .study-row {
+  border-top: 1px solid var(--line-soft);
+}
+
+.material-photo {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}

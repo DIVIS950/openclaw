@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
 import { progress, schedule } from "../lib/store.ts";
+import { labHandoff, labSubject, notes, packToNote, prepTests, studyTab } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { GapFill, LabelDiagram, Match, OrderSteps } from "./Games.tsx";
 import {
@@ -95,7 +96,16 @@ export function Lab() {
   const app = useApp();
   const [packs, setPacks] = useState<LabPack[]>(labPacks.all);
   const [prefs, setPrefs] = useState<LabSettings>(settings.get);
-  const [view, setView] = useState<View>({ name: "home" });
+  // Another screen (a test's prep plan, a note, tutoring) may have sent us here with a job.
+  const [request] = useState(() => labHandoff.take());
+  const scanRequest = request?.kind === "scan" ? request : null;
+  const [view, setView] = useState<View>(() =>
+    scanRequest
+      ? { name: "scan" }
+      : request?.kind === "open" && packs.some((p) => p.id === request.packId)
+        ? { name: "pack", id: request.packId }
+        : { name: "home" },
+  );
   const online = useOnline();
   const today = dayString(new Date());
   const show = useCallback((next: View) => {
@@ -126,6 +136,24 @@ export function Lab() {
     }
     show({ name: "play", mode, entries, packId, key: Date.now() });
   };
+
+  // Opened from a prep day: go straight into that day's practice.
+  useEffect(() => {
+    if (request?.kind !== "open" || !request.action || request.action === "material") {
+      return;
+    }
+    const pack = packs.find((p) => p.id === request.packId);
+    if (!pack) {
+      return;
+    }
+    if (request.action === "weak") {
+      const weak = pack.items.filter(isWeak);
+      play("flashcards", [{ ...pack, items: weak.length ? weak : pack.items }], pack.id);
+    } else {
+      play(request.action, [pack], pack.id);
+    }
+    // Runs once, for the request this screen was opened with.
+  }, [request]);
 
   const finish = (outcome: Outcome, replay: Play) => {
     // Only the first answer to each item moves it between boxes (speed rounds repeat items).
@@ -168,8 +196,27 @@ export function Lab() {
           prefs={prefs}
           online={online}
           onBack={back}
+          initial={
+            scanRequest
+              ? {
+                  subject: labSubject(scanRequest.subject),
+                  topic: scanRequest.topic,
+                  text: scanRequest.text,
+                  photos: scanRequest.photos,
+                }
+              : undefined
+          }
           onSave={(pack) => {
             save([...packs, pack]);
+            // Every pack also becomes a note (with its vocab list), and a test's pack is linked to the test.
+            notes.upsert(packToNote(pack));
+            if (scanRequest?.testId) {
+              prepTests.save(
+                prepTests
+                  .all()
+                  .map((t) => (t.id === scanRequest.testId ? { ...t, packId: pack.id } : t)),
+              );
+            }
             progress.add(10);
             app.toast("Pack saved. +10 XP");
             show({ name: "pack", id: pack.id });
@@ -356,6 +403,7 @@ function LabHome({
   onPlay: (mode: ModeId, from: LabPack[], packId: string | null) => void;
   onSample: () => void;
 }) {
+  const { go: appGo } = useApp();
   const stats = progress.get();
   const lvl = levelFor(stats.xp);
   const due = packs.reduce((n, p) => n + p.items.filter((i) => isDue(i, today)).length, 0);
@@ -460,7 +508,13 @@ function LabHome({
           </section>
 
           <div className="tiles-2">
-            <button className="card stack lab-tile rise" onClick={() => go({ name: "plan" })}>
+            <button
+              className="card stack lab-tile rise"
+              onClick={() => {
+                studyTab.set("tests");
+                appGo("study");
+              }}
+            >
               <Icon name="calendar" size={20} />
               {nextTest ? (
                 <>
