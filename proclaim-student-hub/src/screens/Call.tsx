@@ -6,7 +6,14 @@ import { useApp } from "../context.ts";
 import { courses, schedule, timetable } from "../lib/store.ts";
 import { lessonsOn, weekdayOf } from "../lib/timetable.ts";
 import type { Homework } from "../lib/types.ts";
-import { canListen, listen, say, stopSpeaking } from "../lib/voice.ts";
+import {
+  canListen,
+  listen,
+  MicBlockedError,
+  say,
+  stopSpeaking,
+  unlockSpeech,
+} from "../lib/voice.ts";
 
 // A voice call with the study buddy, inside the app: you talk, Claude answers
 // out loud, then it listens again. Uses the phone's own speech features.
@@ -19,6 +26,17 @@ const LANGS = [
   { id: "es-ES", label: "Español" },
 ] as const;
 type Lang = (typeof LANGS)[number]["id"];
+
+// Remembered once the browser has refused the microphone, so the call starts
+// straight in keyboard-dictation mode next time.
+const MIC_BLOCKED_KEY = "psh.mic.blocked";
+const micWasBlocked = () => {
+  try {
+    return localStorage.getItem(MIC_BLOCKED_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
 
 const STATUS_TEXT: Record<Status, string> = {
   idle: "Tap to talk",
@@ -71,6 +89,10 @@ export function Call() {
   const abort = useRef<AbortController | null>(null);
   const history = useRef<ChatTurn[]>([]);
   const voiceOk = canListen();
+  // Dictation mode: the page can't use the mic, so the student talks through
+  // the keyboard's own dictation button and answers are still spoken aloud.
+  const [dictation, setDictation] = useState(() => !voiceOk || micWasBlocked());
+  const input = useRef<HTMLInputElement>(null);
 
   const end = () => {
     live.current = false;
@@ -104,6 +126,9 @@ export function Call() {
       }
       setStatus("speaking");
       await say(reply, lang);
+      if (dictation) {
+        input.current?.focus();
+      }
     } catch (err) {
       if (live.current) {
         setError(err instanceof Error ? err.message : "The AI couldn't answer. Try again.");
@@ -123,8 +148,18 @@ export function Call() {
       try {
         text = await heard.done;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Voice didn't work.");
         live.current = false;
+        if (err instanceof MicBlockedError) {
+          try {
+            localStorage.setItem(MIC_BLOCKED_KEY, "1");
+          } catch {
+            // Just not remembered.
+          }
+          setDictation(true);
+          input.current?.focus();
+        } else {
+          setError(err instanceof Error ? err.message : "Voice didn't work.");
+        }
         break;
       }
       setPartial("");
@@ -143,6 +178,12 @@ export function Call() {
 
   const tapOrb = () => {
     setError(null);
+    unlockSpeech();
+    if (dictation && status !== "speaking") {
+      // Opens the keyboard: its 🎤 button does the listening.
+      input.current?.focus();
+      return;
+    }
     if (status === "speaking") {
       // Interrupt: stop talking and listen straight away.
       stopSpeaking();
@@ -188,7 +229,7 @@ export function Call() {
         <button
           className={`call-orb ${status}`}
           onClick={tapOrb}
-          disabled={!ai || (!voiceOk && status === "idle")}
+          disabled={!ai}
           aria-label={live.current ? "End call" : "Start talking"}
         >
           <Icon
@@ -198,20 +239,39 @@ export function Call() {
           />
         </button>
         <strong style={{ fontSize: 18 }}>
-          {live.current || status !== "idle" ? STATUS_TEXT[status] : "Tap to talk"}
+          {live.current || status !== "idle"
+            ? STATUS_TEXT[status]
+            : dictation
+              ? "Tap, then 🎤 on your keyboard"
+              : "Tap to talk"}
         </strong>
         <span className="muted" style={{ textAlign: "center", minHeight: 20 }}>
           {partial ||
             (!ai
               ? "The AI isn't connected here."
-              : !voiceOk
-                ? "Voice input isn't available in this browser. Type below and I'll answer out loud."
+              : dictation
+                ? "Safari doesn't let pages inside claude.ai use the microphone, so talk through your keyboard's 🎤 dictation. I'll answer out loud."
                 : "Ask anything: explain, quiz me, practise Spanish or Czech.")}
         </span>
         {live.current && (
           <button className="btn small" onClick={end}>
             <Icon name="close" size={14} />
             End call
+          </button>
+        )}
+        {dictation && voiceOk && status === "idle" && (
+          <button
+            className="link-btn"
+            onClick={() => {
+              try {
+                localStorage.removeItem(MIC_BLOCKED_KEY);
+              } catch {
+                // Nothing to forget.
+              }
+              setDictation(false);
+            }}
+          >
+            Try the microphone again
           </button>
         )}
         {error && (
@@ -239,6 +299,7 @@ export function Call() {
             e.preventDefault();
             const text = typed.trim();
             if (text && status === "idle") {
+              unlockSpeech();
               setTyped("");
               live.current = true;
               void answer(text).finally(() => {
@@ -249,10 +310,14 @@ export function Call() {
           }}
         >
           <input
+            ref={input}
             className="field"
+            enterKeyHint="send"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder="Or type (answers are read out loud)"
+            placeholder={
+              dictation ? "Tap 🎤 on the keyboard and talk…" : "Or type (answers are read out loud)"
+            }
             aria-label="Message"
           />
           <button

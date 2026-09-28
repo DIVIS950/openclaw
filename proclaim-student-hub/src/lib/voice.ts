@@ -27,6 +27,9 @@ function recognitionCtor(): RecognitionCtor | null {
 }
 
 export const canListen = (): boolean => recognitionCtor() !== null;
+
+/** The page isn't allowed to use the microphone (e.g. Safari, inside claude.ai). */
+export class MicBlockedError extends Error {}
 export const canSpeak = (): boolean => typeof window !== "undefined" && "speechSynthesis" in window;
 
 /** Listens once and resolves with what was said. */
@@ -54,13 +57,19 @@ export function listen(
       onPartial?.(heard);
     });
     rec.addEventListener("error", (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        reject(
+          new MicBlockedError(
+            "The microphone is blocked here. Tap the text box and use the 🎤 on your keyboard instead.",
+          ),
+        );
+        return;
+      }
       reject(
         new Error(
-          e.error === "not-allowed" || e.error === "service-not-allowed"
-            ? "The microphone isn't allowed here. Type instead, or use the full app."
-            : e.error === "no-speech"
-              ? "I didn't hear anything. Try again."
-              : "Voice didn't work. Try again or type instead.",
+          e.error === "no-speech"
+            ? "I didn't hear anything. Try again."
+            : "Voice didn't work. Try again or type instead.",
         ),
       );
     });
@@ -110,4 +119,17 @@ export function say(text: string, lang = "en-GB"): Promise<void> {
     u.addEventListener("error", finish);
     window.speechSynthesis.speak(u);
   });
+}
+
+/**
+ * iPhones only let a page speak if speech first starts from a tap. Call this
+ * inside the tap handler; later answers (after the AI replies) can then speak.
+ */
+export function unlockSpeech() {
+  if (!canSpeak()) {
+    return;
+  }
+  const u = new SpeechSynthesisUtterance(" ");
+  u.volume = 0;
+  window.speechSynthesis.speak(u);
 }
