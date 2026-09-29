@@ -5,8 +5,12 @@ import type { DataSource, Email, Homework } from "./types.ts";
 // Gmail directly or through a phone automation that forwards them, and this
 // turns them into homework, once each.
 
+// Direct Classroom emails, the phone automation's forwards, and ordinary
+// forwards from the school account (their body names classroom.google.com).
+// Anything that isn't a work notification is skipped by the subject check below.
 export const CLASSROOM_QUERY =
-  'newer_than:30d ("Forwarded from Google Classroom" OR from:classroom.google.com)';
+  'newer_than:30d ("Forwarded from Google Classroom" OR from:classroom.google.com OR ' +
+  '"Google Classroom" OR classroom.google.com OR from:parklane-is.com)';
 
 const SEEN_KEY = "psh.classroom.seen";
 const MAX_SEEN = 400;
