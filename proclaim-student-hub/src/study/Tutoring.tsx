@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -8,6 +8,7 @@ import {
   labHandoff,
   newId,
   notes,
+  prepTests,
   safeLink,
   todos,
   tutoring,
@@ -18,10 +19,61 @@ import {
 } from "../lib/study.ts";
 import { readMaterial } from "../lib/studyAi.ts";
 import { subjectVars } from "../lib/subjects.ts";
+import { lessonPrep, lessonRecap, tutorContext, type LessonPrep } from "../lib/tutorAi.ts";
+import { lessonLabel, nextLesson, parseWhen, upcomingTutoring } from "../lib/tutorSchedule.ts";
 
-// Tutoring: the student's tutors, their lessons (Google Meet) and the materials
-// the tutor sends (usually on WhatsApp). Materials come in as photos,
-// screenshots or pasted text; the AI turns them into notes and revision.
+// Tutoring: the student's tutors, when the next lesson is (with one tap to
+// join the Meet), the AI getting them ready for it and writing it up after,
+// and the materials the tutor sends (usually on WhatsApp).
+
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Re-renders every 30 s so countdowns stay right. */
+function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(t);
+  }, []);
+  return now;
+}
+
+function Avatar({ tutor, size = 44 }: { tutor: Tutor; size?: number }) {
+  return (
+    <span
+      className="tutor-avatar"
+      style={{ ...subjectVars(tutor.subject), width: size, height: size, fontSize: size * 0.42 }}
+      aria-hidden="true"
+    >
+      {(tutor.name.trim()[0] ?? "?").toUpperCase()}
+    </span>
+  );
+}
+
+function JoinButtons({ tutor, onDark = false }: { tutor: Tutor; onDark?: boolean }) {
+  const meet = safeLink(tutor.meet);
+  const wa = whatsappLink(tutor.whatsapp);
+  return (
+    <>
+      {meet && (
+        <a className="btn small primary" href={meet} target="_blank" rel="noopener noreferrer">
+          <Icon name="link" size={14} />
+          Join Meet
+        </a>
+      )}
+      {wa && (
+        <a
+          className={`btn small${onDark ? " ghost-on-dark" : ""}`}
+          href={wa}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          WhatsApp
+        </a>
+      )}
+    </>
+  );
+}
 
 export function Tutoring({
   onOpenNote,
@@ -32,10 +84,16 @@ export function Tutoring({
   header?: ReactNode;
 }) {
   const [tutors, setTutors] = useState<Tutor[]>(tutoring.tutors);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ id: string; prep: boolean } | null>(null);
   const [editing, setEditing] = useState<Tutor | null>(null);
+  const now = useNow();
+  const upcoming = upcomingTutoring(tutors, now);
+  const soon = upcoming.find((u) => u.start.getTime() - now.getTime() < 24 * 3600_000);
   useAiContext(
-    `Tutors: ${tutors.map((t) => `${t.name} (${t.subject}, ${t.when})`).join("; ") || "none yet"}.`,
+    `Tutors: ${tutors.map((t) => `${t.name} (${t.subject}, ${t.when})`).join("; ") || "none yet"}.` +
+      (upcoming[0]
+        ? ` Next lesson: ${upcoming[0].tutor.name} ${lessonLabel(upcoming[0].start, now)}.`
+        : ""),
   );
 
   const saveTutor = (t: Tutor) => {
@@ -46,12 +104,14 @@ export function Tutoring({
     tutoring.saveTutors(next);
   };
 
-  const current = tutors.find((t) => t.id === open);
+  const current = tutors.find((t) => t.id === open?.id);
   if (current) {
     return (
       <>
         <TutorPage
+          key={current.id}
           tutor={current}
+          autoPrep={open?.prep ?? false}
           onBack={() => setOpen(null)}
           onEdit={() => setEditing(current)}
           onOpenNote={onOpenNote}
@@ -80,6 +140,42 @@ export function Tutoring({
   return (
     <>
       {header}
+      {soon && (
+        <section className="card-dark stack pop" style={{ gap: 10 }} aria-label="Next lesson">
+          <div
+            className="between"
+            style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}
+          >
+            <span className="row" style={{ gap: 6 }}>
+              {lessonLabel(soon.start, now) === "on now" && <span className="live-dot" />}
+              Next up
+            </span>
+            <span>{lessonLabel(soon.start, now)}</span>
+          </div>
+          <div className="row" style={{ gap: 12 }}>
+            <Avatar tutor={soon.tutor} size={48} />
+            <div className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+              <strong style={{ fontSize: 19 }}>
+                {soon.tutor.subject || "Lesson"} with {soon.tutor.name}
+              </strong>
+              <span style={{ opacity: 0.75, fontSize: 13 }}>
+                {DAY_SHORT[soon.start.getDay()]}{" "}
+                {soon.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+          </div>
+          <div className="row" style={{ flexWrap: "wrap" }}>
+            <JoinButtons tutor={soon.tutor} onDark />
+            <button
+              className="btn small ghost-on-dark"
+              onClick={() => setOpen({ id: soon.tutor.id, prep: true })}
+            >
+              <Icon name="sparkle" size={14} />
+              Prep me
+            </button>
+          </div>
+        </section>
+      )}
       {tutors.length === 0 ? (
         <section className="card stack empty-fun">
           <span className="empty-icon" aria-hidden="true">
@@ -87,46 +183,47 @@ export function Tutoring({
           </span>
           <strong>Your tutoring, in one place</strong>
           <span className="muted">
-            Add your tutor to keep their Google Meet link, lesson notes and the materials they send
-            you on WhatsApp. The AI turns materials into notes, flashcards and quizzes.
+            Add your tutor with the day and time of lessons. You'll see a countdown, join the Meet
+            in one tap, get the AI to prep you before each lesson and write it up after.
           </span>
         </section>
       ) : (
         <div className="stack">
-          {tutors.map((t) => {
-            const meet = safeLink(t.meet);
-            const wa = whatsappLink(t.whatsapp);
+          {tutors.map((t, i) => {
+            const start = nextLesson(t, now);
+            const sessions = tutoring.sessions().filter((x) => x.tutorId === t.id).length;
             return (
-              <div key={t.id} className="card stack subject-card" style={subjectVars(t.subject)}>
-                <button className="review-text" onClick={() => setOpen(t.id)}>
-                  <strong style={{ fontSize: 16 }}>{t.name}</strong>
-                  <span className="muted">
-                    {t.subject}
-                    {t.when ? ` · ${t.when}` : ""}
+              <article
+                key={t.id}
+                className="card stack tutor-card rise"
+                style={{ ...subjectVars(t.subject), animationDelay: `${i * 0.05}s` }}
+              >
+                <button className="tutor-head" onClick={() => setOpen({ id: t.id, prep: false })}>
+                  <Avatar tutor={t} />
+                  <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                    <strong style={{ fontSize: 16 }}>{t.name}</strong>
+                    <span className="muted" style={{ fontSize: 13 }}>
+                      {[
+                        t.subject,
+                        sessions ? `${sessions} lesson${sessions === 1 ? "" : "s"} logged` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                  <span
+                    className={`chip${start && lessonLabel(start, now) === "on now" ? " warm" : ""}`}
+                  >
+                    {start ? lessonLabel(start, now) : t.when || "No time set"}
                   </span>
                 </button>
                 <div className="row" style={{ flexWrap: "wrap" }}>
-                  {meet && (
-                    <a
-                      className="btn small primary"
-                      href={meet}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Icon name="link" size={14} />
-                      Join Meet
-                    </a>
-                  )}
-                  {wa && (
-                    <a className="btn small" href={wa} target="_blank" rel="noopener noreferrer">
-                      WhatsApp
-                    </a>
-                  )}
-                  <button className="btn small" onClick={() => setOpen(t.id)}>
-                    Materials & lessons ›
+                  <JoinButtons tutor={t} />
+                  <button className="btn small" onClick={() => setOpen({ id: t.id, prep: false })}>
+                    Open ›
                   </button>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -166,6 +263,8 @@ function TutorForm({
   onDelete?: () => void;
 }) {
   const [draft, setDraft] = useState(tutor);
+  const parsed = parseWhen(draft.when);
+  const next = parsed ? nextLesson(draft) : null;
   const field = (key: keyof Tutor, label: string, placeholder: string, type = "text") => (
     <label className="stack" style={{ gap: 6 }}>
       <span className="h2">{label}</span>
@@ -197,7 +296,14 @@ function TutorForm({
         </h2>
         {field("name", "Name", "e.g. Anna")}
         {field("subject", "Subject", "e.g. Maths")}
-        {field("when", "When are lessons?", "e.g. Tuesdays 17:00")}
+        {field("when", "When are lessons?", "e.g. Tuesdays 17:00, or Mon & Thu 16:30")}
+        {draft.when.trim() && (
+          <span className={parsed ? "muted" : "warm-text"} style={{ fontSize: 13, marginTop: -6 }}>
+            {parsed && next
+              ? `✓ Every ${parsed.days.map((d) => DAY_SHORT[d]).join(" & ")} at ${parsed.time}. Next: ${lessonLabel(next)}`
+              : "I can't read that time. Try e.g. “Tuesdays 17:00” or “po a čt 16:30”."}
+          </span>
+        )}
         {field("meet", "Google Meet link", "https://meet.google.com/…", "url")}
         {field("whatsapp", "WhatsApp number (optional)", "+420 …", "tel")}
         <span className="muted">Saved only on this device.</span>
@@ -222,28 +328,156 @@ function TutorForm({
   );
 }
 
+function PrepCard({
+  tutor,
+  sessions,
+  materials,
+  auto,
+}: {
+  tutor: Tutor;
+  sessions: TutorSession[];
+  materials: TutorMaterial[];
+  auto: boolean;
+}) {
+  const { ai, homework, handleError, toast } = useApp();
+  const [prep, setPrep] = useState<LessonPrep | "loading" | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const run = async () => {
+    if (!ai) {
+      return;
+    }
+    setPrep("loading");
+    try {
+      const subject = tutor.subject.toLowerCase().slice(0, 5);
+      const school = [
+        ...(homework ?? [])
+          .filter((h) => !h.done && subject && h.course.toLowerCase().includes(subject))
+          .map((h) => `Homework: ${h.title}${h.due ? ` (due ${h.due.slice(0, 10)})` : ""}`),
+        ...prepTests
+          .all()
+          .filter(
+            (t) =>
+              subject && t.subject.toLowerCase().includes(subject) && t.date >= dayOf(new Date()),
+          )
+          .map((t) => `Test: ${t.topic} on ${t.date}`),
+      ];
+      setPrep(
+        await lessonPrep(
+          ai,
+          tutorContext({ tutor, sessions, materials, todos: todos.all(), schoolWork: school }),
+        ),
+      );
+    } catch (err) {
+      setPrep(null);
+      handleError(err);
+    }
+  };
+
+  useEffect(() => {
+    if (auto) {
+      void run();
+    }
+  }, []);
+
+  if (!ai) {
+    return null;
+  }
+  if (prep === null || prep === "loading") {
+    return (
+      <button className="lab-cta rise" disabled={prep === "loading"} onClick={() => void run()}>
+        <span className="lab-cta-icon" aria-hidden="true">
+          <Icon
+            name={prep === "loading" ? "loader" : "sparkle"}
+            size={22}
+            className={prep === "loading" ? "spin" : undefined}
+          />
+        </span>
+        <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
+          <strong style={{ fontSize: 16 }}>
+            {prep === "loading" ? "Getting you ready…" : "Prep me for the lesson"}
+          </strong>
+          <span className="muted">What to ask, what to look over, what to have ready</span>
+        </span>
+      </button>
+    );
+  }
+  const block = (title: string, items: string[]) =>
+    items.length > 0 && (
+      <div>
+        <strong style={{ fontSize: 13 }}>{title}</strong>
+        <ul className="ai-list">
+          {items.map((x, i) => (
+            <li key={i}>{x}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  return (
+    <section className="ai-card pop" aria-label="Lesson prep">
+      <div className="between">
+        <h3>
+          <Icon name="sparkle" size={16} />
+          Ready for {tutor.name}
+        </h3>
+        <button className="link-btn" style={{ minHeight: 32 }} onClick={() => setPrep(null)}>
+          Hide
+        </button>
+      </div>
+      {prep.focus && <p style={{ margin: 0, fontWeight: 600 }}>{prep.focus}</p>}
+      {block("Ask your tutor", prep.ask)}
+      {block("Look over (5 min)", prep.review)}
+      {block("Have ready", prep.bring)}
+      {prep.ask.length > 0 && (
+        <button
+          className="btn small"
+          disabled={saved}
+          onClick={() => {
+            notes.upsert({
+              id: newId("n"),
+              title: `Questions for ${tutor.name} (${dayOf(new Date())})`,
+              subject: tutor.subject,
+              body: prep.ask.map((q) => `• ${q}`).join("\n"),
+              updatedAt: new Date().toISOString(),
+              packId: "",
+            });
+            setSaved(true);
+            toast("Questions saved in Notes.");
+          }}
+        >
+          <Icon name="note" size={14} />
+          {saved ? "Saved in Notes" : "Save questions to Notes"}
+        </button>
+      )}
+    </section>
+  );
+}
+
 function TutorPage({
   tutor,
+  autoPrep,
   onBack,
   onEdit,
   onOpenNote,
 }: {
   tutor: Tutor;
+  autoPrep: boolean;
   onBack: () => void;
   onEdit: () => void;
   onOpenNote: (id: string) => void;
 }) {
   const { ai, go, openAi, handleError, toast } = useApp();
+  const now = useNow();
   const [materials, setMaterials] = useState<TutorMaterial[]>(() =>
     tutoring.materials().filter((m) => m.tutorId === tutor.id),
   );
   const [sessions, setSessions] = useState<TutorSession[]>(() =>
     tutoring.sessions().filter((s) => s.tutorId === tutor.id),
   );
+  const [tab, setTab] = useState<"lessons" | "materials">("lessons");
   const [adding, setAdding] = useState<"material" | "session" | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const meet = safeLink(tutor.meet);
-  const wa = whatsappLink(tutor.whatsapp);
+  const start = nextLesson(tutor, now);
   useAiContext(
     `Tutor ${tutor.name} (${tutor.subject}). Lessons: ` +
       sessions.map((s) => `${s.date}: ${s.topic}`).join("; ") +
@@ -265,149 +499,176 @@ function TutorPage({
 
   return (
     <>
-      <header className="stack rise" style={{ gap: 4, ...subjectVars(tutor.subject) }}>
-        <div className="between">
-          <button className="link-btn" onClick={onBack}>
-            ‹ Tutoring
-          </button>
-          <button className="link-btn" onClick={onEdit}>
-            Edit
-          </button>
+      <div className="between rise">
+        <button className="link-btn" onClick={onBack}>
+          ‹ Tutoring
+        </button>
+        <button className="link-btn" onClick={onEdit}>
+          Edit
+        </button>
+      </div>
+      <header
+        className="card stack rise tutor-card"
+        style={{ gap: 10, ...subjectVars(tutor.subject) }}
+      >
+        <div className="row" style={{ gap: 12 }}>
+          <Avatar tutor={tutor} size={56} />
+          <div className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+            <h2 className="h1" style={{ fontSize: 24 }}>
+              {tutor.name}
+            </h2>
+            <span className="muted">{tutor.subject}</span>
+          </div>
         </div>
-        <span className="eyebrow row" style={{ gap: 6 }}>
-          <span className="subject-dot" /> {tutor.subject}
-          {tutor.when ? ` · ${tutor.when}` : ""}
-        </span>
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          {tutor.name}
-        </h2>
         <div className="row" style={{ flexWrap: "wrap" }}>
-          {meet && (
-            <a className="btn small primary" href={meet} target="_blank" rel="noopener noreferrer">
-              <Icon name="link" size={14} />
-              Join Meet
-            </a>
-          )}
-          {wa && (
-            <a className="btn small" href={wa} target="_blank" rel="noopener noreferrer">
-              Open WhatsApp chat
-            </a>
-          )}
+          <span className={`chip${start && lessonLabel(start, now) === "on now" ? " warm" : ""}`}>
+            <Icon name="calendar" size={12} />
+            {start ? `Next lesson ${lessonLabel(start, now)}` : tutor.when || "No lesson time set"}
+          </span>
+        </div>
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          <JoinButtons tutor={tutor} />
         </div>
       </header>
 
-      <section className="stack" style={{ gap: 8 }}>
-        <div className="between">
-          <h3 className="h2">Materials</h3>
-          <button className="btn small" onClick={() => setAdding("material")}>
-            <Icon name="plus" size={14} />
-            Add
-          </button>
-        </div>
-        {materials.length === 0 && (
-          <div className="card muted" style={{ fontSize: 14 }}>
-            When your tutor sends something on WhatsApp: screenshot it (or save the photo), then tap
-            Add. You can also copy a message and paste it.
-          </div>
-        )}
-        {materials
-          .toSorted((a, b) => b.date.localeCompare(a.date))
-          .map((m) => (
-            <article key={m.id} className="card stack" style={{ gap: 8 }}>
-              <button
-                className="review-text"
-                onClick={() => setExpanded(expanded === m.id ? null : m.id)}
-              >
-                <strong>{m.title}</strong>
-                <span className="muted">{m.date}</span>
-              </button>
-              {expanded === m.id && (
-                <>
-                  {m.photo && <img src={m.photo} alt={m.title} className="material-photo" />}
-                  <p style={{ margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{m.text}</p>
-                </>
-              )}
-              <div className="row" style={{ flexWrap: "wrap" }}>
-                <button
-                  className="btn small primary"
-                  onClick={() => {
-                    labHandoff.set({
-                      kind: "scan",
-                      subject: tutor.subject,
-                      topic: m.title,
-                      text: m.text,
-                      photos: m.photo ? [m.photo] : [],
-                      testId: "",
-                    });
-                    go("revise");
-                  }}
-                >
-                  <Icon name="game" size={14} />
-                  Make revision
-                </button>
-                <button
-                  className="btn small"
-                  onClick={() => {
-                    const id = newId("n");
-                    notes.upsert({
-                      id,
-                      title: m.title,
-                      subject: tutor.subject,
-                      body: m.text,
-                      updatedAt: new Date().toISOString(),
-                      packId: "",
-                    });
-                    onOpenNote(id);
-                  }}
-                >
-                  <Icon name="keep" size={14} />
-                  Save as note
-                </button>
-                <button
-                  className="btn small"
-                  onClick={() =>
-                    openAi({
-                      context: `Material from my ${tutor.subject} tutor: "${m.title}". ${m.text.slice(0, 4000)}`,
-                      question: `Help me understand "${m.title}".`,
-                    })
-                  }
-                >
-                  <Icon name="sparkle" size={14} />
-                  Ask AI
-                </button>
-                <button
-                  className="btn small ghost"
-                  aria-label={`Delete ${m.title}`}
-                  onClick={() => saveMaterials(materials.filter((x) => x.id !== m.id))}
-                >
-                  <Icon name="close" size={14} />
-                </button>
-              </div>
-            </article>
-          ))}
-      </section>
+      <PrepCard tutor={tutor} sessions={sessions} materials={materials} auto={autoPrep} />
 
-      <section className="stack" style={{ gap: 8 }}>
-        <div className="between">
-          <h3 className="h2">Lessons</h3>
-          <button className="btn small" onClick={() => setAdding("session")}>
-            <Icon name="plus" size={14} />
+      <div className="segmented" style={{ gridTemplateColumns: "1fr 1fr" }} role="tablist">
+        <button role="tab" aria-selected={tab === "lessons"} onClick={() => setTab("lessons")}>
+          Lessons · {sessions.length}
+        </button>
+        <button role="tab" aria-selected={tab === "materials"} onClick={() => setTab("materials")}>
+          Materials · {materials.length}
+        </button>
+      </div>
+
+      {tab === "lessons" ? (
+        <section className="stack" style={{ gap: 8 }}>
+          <button className="btn block primary" onClick={() => setAdding("session")}>
+            <Icon name="plus" size={16} />
             Log a lesson
           </button>
-        </div>
-        {sessions.length === 0 && <div className="card muted">No lessons logged yet.</div>}
-        {sessions
-          .toSorted((a, b) => b.date.localeCompare(a.date))
-          .map((s) => (
-            <div key={s.id} className="card stack" style={{ gap: 4 }}>
-              <div className="between">
-                <strong>{s.topic || "Lesson"}</strong>
-                <span className="muted">{s.date}</span>
-              </div>
-              {s.notes && <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{s.notes}</p>}
+          {sessions.length === 0 && (
+            <div className="card muted" style={{ fontSize: 14 }}>
+              After each lesson, type a few rough notes. The AI tidies them up and puts the homework
+              in your to-do list.
             </div>
-          ))}
-      </section>
+          )}
+          <div className="timeline">
+            {sessions
+              .toSorted((a, b) => b.date.localeCompare(a.date))
+              .map((s) => (
+                <div key={s.id} className="timeline-item card stack" style={{ gap: 4 }}>
+                  <div className="between">
+                    <strong>{s.topic || "Lesson"}</strong>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {new Date(`${s.date}T12:00:00`).toLocaleDateString("en-GB", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </span>
+                  </div>
+                  {s.notes && (
+                    <p
+                      style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.45 }}
+                    >
+                      {s.notes}
+                    </p>
+                  )}
+                </div>
+              ))}
+          </div>
+        </section>
+      ) : (
+        <section className="stack" style={{ gap: 8 }}>
+          <button className="btn block primary" onClick={() => setAdding("material")}>
+            <Icon name="plus" size={16} />
+            Add material
+          </button>
+          {materials.length === 0 && (
+            <div className="card muted" style={{ fontSize: 14 }}>
+              When your tutor sends something on WhatsApp: screenshot it (or save the photo), then
+              tap Add material. You can also copy a message and paste it.
+            </div>
+          )}
+          {materials
+            .toSorted((a, b) => b.date.localeCompare(a.date))
+            .map((m) => (
+              <article key={m.id} className="card stack" style={{ gap: 8 }}>
+                <button
+                  className="review-text"
+                  onClick={() => setExpanded(expanded === m.id ? null : m.id)}
+                >
+                  <strong>{m.title}</strong>
+                  <span className="muted">{m.date}</span>
+                </button>
+                {expanded === m.id && (
+                  <>
+                    {m.photo && <img src={m.photo} alt={m.title} className="material-photo" />}
+                    <p style={{ margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{m.text}</p>
+                  </>
+                )}
+                <div className="row" style={{ flexWrap: "wrap" }}>
+                  <button
+                    className="btn small primary"
+                    onClick={() => {
+                      labHandoff.set({
+                        kind: "scan",
+                        subject: tutor.subject,
+                        topic: m.title,
+                        text: m.text,
+                        photos: m.photo ? [m.photo] : [],
+                        testId: "",
+                      });
+                      go("revise");
+                    }}
+                  >
+                    <Icon name="game" size={14} />
+                    Make revision
+                  </button>
+                  <button
+                    className="btn small"
+                    onClick={() => {
+                      const id = newId("n");
+                      notes.upsert({
+                        id,
+                        title: m.title,
+                        subject: tutor.subject,
+                        body: m.text,
+                        updatedAt: new Date().toISOString(),
+                        packId: "",
+                      });
+                      onOpenNote(id);
+                    }}
+                  >
+                    <Icon name="keep" size={14} />
+                    Save as note
+                  </button>
+                  <button
+                    className="btn small"
+                    onClick={() =>
+                      openAi({
+                        context: `Material from my ${tutor.subject} tutor: "${m.title}". ${m.text.slice(0, 4000)}`,
+                        question: `Help me understand "${m.title}".`,
+                      })
+                    }
+                  >
+                    <Icon name="sparkle" size={14} />
+                    Ask AI
+                  </button>
+                  <button
+                    className="btn small ghost"
+                    aria-label={`Delete ${m.title}`}
+                    onClick={() => saveMaterials(materials.filter((x) => x.id !== m.id))}
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                </div>
+              </article>
+            ))}
+        </section>
+      )}
 
       {adding === "material" && (
         <AddMaterial
@@ -435,6 +696,7 @@ function TutorPage({
                   date: dayOf(new Date()),
                 },
               ]);
+              setTab("materials");
               setAdding(null);
               toast("Material saved.");
             } catch (err) {
@@ -445,18 +707,24 @@ function TutorPage({
       )}
       {adding === "session" && (
         <LogSession
+          tutor={tutor}
           onClose={() => setAdding(null)}
           onAdd={(s, homework) => {
             saveSessions([...sessions, { ...s, tutorId: tutor.id }]);
-            if (homework.trim()) {
+            setTab("lessons");
+            for (const task of homework) {
               todos.add({
-                text: homework.trim(),
+                text: task,
                 due: "",
                 subject: tutor.subject,
                 from: `Tutoring with ${tutor.name}`,
               });
-              toast("Lesson saved, homework added to your to-do list.");
             }
+            toast(
+              homework.length
+                ? `Lesson saved, ${homework.length} homework task${homework.length === 1 ? "" : "s"} added to your to-do list.`
+                : "Lesson saved.",
+            );
             setAdding(null);
           }}
         />
@@ -550,18 +818,48 @@ function AddMaterial({
 }
 
 function LogSession({
+  tutor,
   onAdd,
   onClose,
 }: {
-  onAdd: (s: TutorSession, homework: string) => void;
+  tutor: Tutor;
+  onAdd: (s: TutorSession, homework: string[]) => void;
   onClose: () => void;
 }) {
+  const { ai, handleError } = useApp();
   const [date, setDate] = useState(dayOf(new Date()));
   const [topic, setTopic] = useState("");
   const [text, setText] = useState("");
   const [homework, setHomework] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const writeUp = async () => {
+    if (!ai || !text.trim()) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const recap = await lessonRecap(
+        ai,
+        tutor,
+        `${topic ? `Topic: ${topic}\n` : ""}${text}\n${homework}`,
+      );
+      if (recap.topic) {
+        setTopic(recap.topic);
+      }
+      if (recap.notes) {
+        setText(recap.notes);
+      }
+      setHomework(recap.homework.join("\n"));
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="backdrop" onClick={onClose}>
+    <div className="backdrop" onClick={busy ? undefined : onClose}>
       <form
         className="sheet"
         role="dialog"
@@ -571,7 +869,10 @@ function LogSession({
           e.preventDefault();
           onAdd(
             { id: newId("s"), tutorId: "", date, topic: topic.trim(), notes: text.trim() },
-            homework,
+            homework
+              .split("\n")
+              .map((h) => h.replace(/^[•\-*\d.)\s]+/, "").trim())
+              .filter(Boolean),
           );
         }}
       >
@@ -594,23 +895,35 @@ function LogSession({
         />
         <textarea
           className="field"
-          rows={4}
+          rows={5}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Notes from the lesson"
+          placeholder="Rough notes are fine: what you did, what was hard, what the tutor set…"
           aria-label="Notes"
         />
-        <input
+        {ai && (
+          <button
+            className="btn"
+            type="button"
+            disabled={busy || !text.trim()}
+            onClick={() => void writeUp()}
+          >
+            <Icon name={busy ? "loader" : "wand"} size={16} className={busy ? "spin" : undefined} />
+            {busy ? "Writing it up…" : "Write it up for me"}
+          </button>
+        )}
+        <textarea
           className="field"
+          rows={2}
           value={homework}
           onChange={(e) => setHomework(e.target.value)}
-          placeholder="Homework from the tutor (goes to your to-do)"
+          placeholder="Homework from the tutor, one per line (goes to your to-do)"
           aria-label="Homework"
         />
-        <button className="btn big primary" type="submit">
+        <button className="btn big primary" type="submit" disabled={busy}>
           Save lesson
         </button>
-        <button className="btn ghost" type="button" onClick={onClose}>
+        <button className="btn ghost" type="button" disabled={busy} onClick={onClose}>
           Cancel
         </button>
       </form>

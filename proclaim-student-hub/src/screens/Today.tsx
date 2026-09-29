@@ -8,7 +8,9 @@ import { useAiContext, useApp, type Screen } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import { level, progress, timetable } from "../lib/store.ts";
+import { tutoring } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
+import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
 import type { CalEvent } from "../lib/types.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
@@ -41,6 +43,7 @@ export function Today() {
   const [stats] = useState(progress.get);
   const upcoming = upcomingLessons(lessons);
   const lvl = level(stats.xp);
+  const [nextTutor] = useState(() => upcomingTutoring(tutoring.tutors())[0]);
 
   const makePlan = async () => {
     if (!ai) {
@@ -206,7 +209,11 @@ export function Today() {
               <Icon name={t.icon} size={22} />
             </span>
             <strong>{t.label}</strong>
-            <span>{t.sub}</span>
+            <span>
+              {t.screen === "tutoring" && nextTutor
+                ? `${nextTutor.tutor.name} ${lessonLabel(nextTutor.start)}`
+                : t.sub}
+            </span>
           </button>
         ))}
       </nav>

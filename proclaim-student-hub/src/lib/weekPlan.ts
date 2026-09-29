@@ -2,7 +2,8 @@ import { STUDENT_CONTEXT } from "../../shared/prompts.ts";
 import type { AgendaEvent } from "./agenda.ts";
 import type { AiProvider } from "./ai.ts";
 import { WEEKDAYS, type Lesson } from "./aiFeatures.ts";
-import { addDays, prepPlan, type PrepTest, type Todo } from "./study.ts";
+import { addDays, prepPlan, type PrepTest, type Todo, type Tutor } from "./study.ts";
+import { tutoringInDays } from "./tutorSchedule.ts";
 import type { Homework } from "./types.ts";
 
 // "Plan my week": the AI spreads homework, test prep and to-dos over the next
@@ -44,17 +45,27 @@ export function weekPrompt(
     todos: Todo[];
     events: AgendaEvent[];
     lessons: Lesson[];
+    tutors?: Tutor[];
   },
   today: string,
 ): string {
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const last = days[6];
+  const tutorLessons = tutoringInDays(input.tutors ?? [], new Date(`${today}T00:00:00`), 7).map(
+    ({ tutor, start }) => ({
+      date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`,
+      text: `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")} ${tutor.subject} tutoring with ${tutor.name}`,
+    }),
+  );
   const context = {
     days: days.map((date) => ({
       date,
       weekday: DAY_NAME[new Date(`${date}T12:00:00`).getDay()],
       schoolEnds: schoolEnds(input.lessons, date),
-      events: input.events.filter((e) => e.date === date).map((e) => `${e.time} ${e.title}`.trim()),
+      events: [
+        ...input.events.filter((e) => e.date === date).map((e) => `${e.time} ${e.title}`.trim()),
+        ...tutorLessons.filter((l) => l.date === date).map((l) => l.text),
+      ],
     })),
     homework: input.homework
       .filter((h) => !h.done)
@@ -79,6 +90,7 @@ export function weekPrompt(
   };
   return (
     `${STUDENT_CONTEXT}\nPlan the student's next 7 days of schoolwork, starting today (${today}). ` +
+    "Tutoring lessons are in the events: plan nothing at those times and put open tutor homework before its lesson. " +
     "Put each homework before its due date (a day early when possible), keep each test-prep task on its " +
     "own date, and fit to-dos in. School days: at most about 90 minutes after school; lighter on days " +
     "with events; weekends at most 2 hours with a free half-day. Split big tasks into 20-40 minute " +

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../context.ts";
 import { agenda } from "../lib/agenda.ts";
 import { timetable } from "../lib/store.ts";
-import { dayOf, prepTests, todos } from "../lib/study.ts";
+import { dayOf, prepTests, todos, tutoring } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { planWeek, type WeekDay } from "../lib/weekPlan.ts";
 import { dateLabel } from "./Agenda.tsx";
@@ -32,6 +32,7 @@ export function WeekPlan({ onClose }: { onClose: () => void }) {
           todos: todos.all(),
           events: agenda.all(),
           lessons: timetable.get(),
+          tutors: tutoring.tutors(),
         },
         today,
       );

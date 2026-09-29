@@ -10,7 +10,7 @@ import type { Email, Homework } from "./types.ts";
 // and tappable), and the AI adds the judgement: a headline, what to do first
 // and why, and one tip.
 
-export type DayKind = "homework" | "test" | "todo" | "event" | "email";
+export type DayKind = "homework" | "test" | "todo" | "event" | "email" | "tutor";
 
 export interface DayItem {
   /** Stable reference the AI answers with, e.g. "homework:abc". */
@@ -60,6 +60,8 @@ export function buildDay(input: {
   events: AgendaEvent[];
   lessons: Lesson[];
   emails: Email[];
+  /** Next tutoring lessons (from upcomingTutoring). */
+  tutoring?: { tutor: { id: string; name: string; subject: string }; start: Date; label: string }[];
 }): Day {
   const { today } = input;
   const nn = nowAndNext(input.lessons, input.now);
@@ -138,6 +140,22 @@ export function buildDay(input: {
     })
     .filter((d) => d.urgency >= 0 && d.urgency <= 7);
 
+  const tutoringItems = (input.tutoring ?? [])
+    .map(
+      ({ tutor, start, label }): DayItem => ({
+        ref: `tutor:${tutor.id}`,
+        kind: "tutor",
+        id: tutor.id,
+        text: `${tutor.subject || "Tutoring"} with ${tutor.name}`,
+        sub: label,
+        urgency: daysUntil(
+          `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`,
+          today,
+        ),
+      }),
+    )
+    .filter((d) => d.urgency >= 0 && d.urgency <= 2);
+
   const emails = input.emails
     .filter((e) => e.unread)
     .slice(0, 3)
@@ -158,7 +176,9 @@ export function buildDay(input: {
     due,
     prep,
     todos,
-    coming: [...tests, ...events].toSorted((a, b) => a.urgency - b.urgency).slice(0, 4),
+    coming: [...tutoringItems, ...tests, ...events]
+      .toSorted((a, b) => a.urgency - b.urgency)
+      .slice(0, 4),
     emails,
   };
 }

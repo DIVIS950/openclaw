@@ -10,7 +10,8 @@ import {
   type DaySummaryAi,
 } from "../lib/daySummary.ts";
 import { timetable } from "../lib/store.ts";
-import { dayOf, prepPlan, prepTests, testHandoff, todos } from "../lib/study.ts";
+import { dayOf, prepPlan, prepTests, testHandoff, todos, tutoring } from "../lib/study.ts";
+import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
 import type { Email } from "../lib/types.ts";
 import { NoKeyError } from "../pages/gemini.ts";
 import { Icon, type IconName } from "./Icon.tsx";
@@ -26,6 +27,7 @@ const ICON: Record<DayItem["kind"], IconName> = {
   todo: "todo",
   event: "calendar",
   email: "mail",
+  tutor: "book",
 };
 
 export function DaySummary() {
@@ -54,6 +56,10 @@ export function DaySummary() {
       events: agenda.all(),
       lessons: timetable.get(),
       emails: emails ?? [],
+      tutoring: upcomingTutoring(tutoring.tutors(), now).map((u) => ({
+        ...u,
+        label: lessonLabel(u.start, now),
+      })),
     });
   }, [homework, emails, now, today]);
 
@@ -128,6 +134,9 @@ export function DaySummary() {
         break;
       case "email":
         go("inbox");
+        break;
+      case "tutor":
+        go("tutoring");
         break;
     }
   };
