@@ -104,19 +104,30 @@ export function listen(
   return { done, stop: () => rec.stop() };
 }
 
+// Speech is a bonus: any browser error here is swallowed so it can never
+// break the screen that asked for it.
+
 export function speak(text: string) {
   if (!canSpeak()) {
     return;
   }
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
-  u.lang = "en-GB";
-  window.speechSynthesis.speak(u);
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
+    u.lang = "en-GB";
+    window.speechSynthesis.speak(u);
+  } catch {
+    // No voice this time.
+  }
 }
 
 export function stopSpeaking() {
   if (canSpeak()) {
-    window.speechSynthesis.cancel();
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // Nothing was playing.
+    }
   }
 }
 
@@ -125,7 +136,7 @@ export function say(text: string, lang = "en-GB"): Promise<void> {
   if (!canSpeak()) {
     return Promise.resolve();
   }
-  window.speechSynthesis.cancel();
+  stopSpeaking();
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
     u.lang = lang;
@@ -138,7 +149,11 @@ export function say(text: string, lang = "en-GB"): Promise<void> {
     };
     u.addEventListener("end", finish);
     u.addEventListener("error", finish);
-    window.speechSynthesis.speak(u);
+    try {
+      window.speechSynthesis.speak(u);
+    } catch {
+      finish();
+    }
   });
 }
 
@@ -150,7 +165,11 @@ export function unlockSpeech() {
   if (!canSpeak()) {
     return;
   }
-  const u = new SpeechSynthesisUtterance(" ");
-  u.volume = 0;
-  window.speechSynthesis.speak(u);
+  try {
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  } catch {
+    // Unlocking is best effort.
+  }
 }

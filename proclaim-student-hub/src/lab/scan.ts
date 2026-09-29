@@ -154,7 +154,6 @@ export async function explainItem(
       `"${item.prompt}" is "${item.answer}" (${pack.subject}, ${pack.topic}). ` +
       (item.studentAnswer ? `They wrote "${item.studentAnswer}"; say what went wrong. ` : "") +
       "End with a memory trick. No Markdown.",
-    { quick: true },
   );
 }
 

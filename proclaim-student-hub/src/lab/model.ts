@@ -299,6 +299,7 @@ export const MODES = [
   { id: "flashcards", title: "Flashcards", blurb: "Flip and rate yourself" },
   { id: "quiz", title: "Quiz", blurb: "Pick from 4 answers" },
   { id: "write", title: "Write it", blurb: "Type the answer" },
+  { id: "listen", title: "Listen & type", blurb: "Hear the word, spell it" },
   { id: "match", title: "Match", blurb: "Pair terms and meanings" },
   { id: "gap", title: "Gap-fill", blurb: "Finish the sentences" },
   { id: "order", title: "Order the steps", blurb: "Put them in sequence" },
@@ -317,6 +318,11 @@ export const matchable = (items: Item[]): Item[] =>
 export function modeBlocked(mode: ModeId, pack: LabPack): string | null {
   const n = pack.items.length;
   switch (mode) {
+    case "listen":
+      return (pack.subject === "Spanish" || pack.subject === "Czech") &&
+        pack.items.some((i) => i.kind === "term")
+        ? null
+        : "Only for Spanish or Czech vocab";
     case "match":
       return matchable(pack.items).length >= 3 ? null : "Needs 3 short items";
     case "gap":

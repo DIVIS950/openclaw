@@ -25,6 +25,7 @@ const MODE_ICONS: Record<ModeId, string> = {
   flashcards: "🃏",
   quiz: "❓",
   write: "✍️",
+  listen: "🎧",
   match: "🔗",
   gap: "🧩",
   order: "🔢",

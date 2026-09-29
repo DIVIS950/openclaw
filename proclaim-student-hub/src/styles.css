@@ -2394,3 +2394,100 @@ label.call-orb {
   background: var(--accent);
   border: 2px solid var(--bg);
 }
+
+/* ---------- Revision Lab ---------- */
+
+.goal-ring,
+.mini-ring {
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.goal-ring {
+  width: 84px;
+  height: 84px;
+  background:
+    radial-gradient(circle, var(--hero) 62%, transparent 63%),
+    conic-gradient(var(--accent) var(--p, 0%), rgba(255, 255, 255, 0.16) 0);
+}
+
+.goal-ring span {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.goal-ring strong {
+  font-size: 24px;
+}
+
+.lab-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mastery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+.mastery-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.mini-ring {
+  width: 54px;
+  height: 54px;
+  font-size: 13px;
+  font-weight: 800;
+  background:
+    radial-gradient(circle, var(--card) 60%, transparent 61%),
+    conic-gradient(var(--subject, var(--accent)) var(--p, 0%), var(--line) 0);
+}
+
+.hear-btn {
+  flex: none;
+  color: var(--ink);
+}
+
+.hear-btn.big {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-lg);
+}
+
+.coach {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.coach svg {
+  flex: none;
+  margin-top: 2px;
+}

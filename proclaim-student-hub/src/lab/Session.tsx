@@ -13,6 +13,7 @@ import {
   type Verdict,
 } from "./model.ts";
 import { explainItem } from "./scan.ts";
+import { canHear, hear, hearable } from "./speech.ts";
 import type { LabSettings } from "./store.ts";
 
 // The practice engine for item-by-item modes (flashcards, quiz, write, speed,
@@ -32,13 +33,33 @@ export interface Answer {
 }
 
 export interface Outcome {
-  mode: ModeId;
+  mode: ModeId | "review";
   answers: Answer[];
   /** A line for the results screen ("You beat the boss!"). */
   note?: string;
 }
 
-type Style = "card" | "quiz" | "write";
+type Style = "card" | "quiz" | "write" | "listen";
+
+/** A round speaker button that reads a foreign word in its own language. */
+export function HearButton({ entry, big = false }: { entry: Entry; big?: boolean }) {
+  if (!hearable(entry.item, entry.pack.subject) || !canHear(entry.pack)) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className={big ? "hear-btn big" : "round hear-btn"}
+      aria-label={`Hear "${big ? "the word" : entry.item.prompt}"`}
+      onClick={(e) => {
+        e.stopPropagation();
+        void hear(entry.item, entry.pack.subject);
+      }}
+    >
+      <Icon name="speaker" size={big ? 34 : 16} />
+    </button>
+  );
+}
 
 const flip = (item: Item): Item => ({ ...item, prompt: item.answer, answer: item.prompt });
 
@@ -143,9 +164,35 @@ export function Feedback({
   prefs: LabSettings;
   onContinue: (override?: Verdict) => void;
 }) {
-  const { ai, handleError } = useApp();
+  const { ai } = useApp();
   const [more, setMore] = useState<string | "loading" | null>(null);
   const explanation = entry?.item.explanation;
+
+  const ask = async () => {
+    if (!ai || !entry) {
+      return;
+    }
+    setMore("loading");
+    try {
+      setMore(
+        await explainItem(
+          ai,
+          { ...entry.item, studentAnswer: given || entry.item.studentAnswer },
+          entry.pack,
+          prefs,
+        ),
+      );
+    } catch {
+      setMore(null);
+    }
+  };
+
+  // Wrong answers get the AI coach straight away: why, plus a memory trick.
+  useEffect(() => {
+    if (verdict === "wrong" && ai && entry) {
+      void ask();
+    }
+  }, []);
 
   return (
     <section className={`feedback ${verdict} pop`} aria-live="polite">
@@ -166,30 +213,34 @@ export function Feedback({
           </span>
         </div>
       )}
+      {entry && verdict !== "correct" && (
+        <div className="row" style={{ gap: 8 }}>
+          <HearButton entry={entry} />
+        </div>
+      )}
       {explanation && verdict !== "correct" && <p style={{ margin: 0 }}>{explanation}</p>}
-      {more && more !== "loading" && <p style={{ margin: 0 }}>{more}</p>}
+      {more === "loading" && (
+        <div className="coach">
+          <Icon name="loader" size={16} className="spin" />
+          <span>AI coach is thinking…</span>
+        </div>
+      )}
+      {more && more !== "loading" && (
+        <div className="coach pop">
+          <Icon name="sparkle" size={16} />
+          <span>{more}</span>
+        </div>
+      )}
       <div className="row" style={{ flexWrap: "wrap" }}>
         <button className="btn primary" autoFocus onClick={() => onContinue()}>
           Continue
         </button>
         {verdict !== "correct" && ai && entry && more === null && (
-          <button
-            className="btn small"
-            onClick={async () => {
-              setMore("loading");
-              try {
-                setMore(await explainItem(ai, entry.item, entry.pack, prefs));
-              } catch (err) {
-                setMore(null);
-                handleError(err);
-              }
-            }}
-          >
+          <button className="btn small" onClick={() => void ask()}>
             <Icon name="sparkle" size={14} />
-            Explain more
+            Why? + memory trick
           </button>
         )}
-        {more === "loading" && <Icon name="loader" size={18} className="spin" />}
         {verdict === "wrong" && given && (
           <button className="btn small ghost" onClick={() => onContinue("correct")}>
             I was right
@@ -232,6 +283,11 @@ function Question({
     null,
   );
   const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (kind === "listen") {
+      void hear(entry.item, entry.pack.subject);
+    }
+  }, []);
 
   const settle = (verdict: Verdict, given: string, note = "") => {
     if (feedback) {
@@ -247,7 +303,12 @@ function Question({
         <span className="chip">{entry.pack.subject}</span>
         {entry.item.markedWrong && <span className="chip warm">Wrong on your test</span>}
       </div>
-      <div className="flashcard-text">{shown.prompt}</div>
+      <div className="row" style={{ gap: 10, alignItems: "center" }}>
+        <div className="flashcard-text" style={{ flex: 1 }}>
+          {shown.prompt}
+        </div>
+        {!backwards && <HearButton entry={entry} />}
+      </div>
     </div>
   );
 
@@ -257,7 +318,7 @@ function Question({
         <div className="card">{prompt}</div>
         <Feedback
           verdict={result.verdict}
-          answer={shown.answer}
+          answer={kind === "listen" ? entry.item.prompt : shown.answer}
           given={result.given}
           note={result.note}
           entry={entry}
@@ -279,7 +340,10 @@ function Question({
         >
           {flipped ? (
             <div className="stack" style={{ gap: 8 }}>
-              <div className="flashcard-text">{shown.answer}</div>
+              <div className="row" style={{ gap: 10, justifyContent: "center" }}>
+                <div className="flashcard-text">{shown.answer}</div>
+                {backwards && <HearButton entry={entry} />}
+              </div>
               {entry.item.explanation && (
                 <div style={{ opacity: 0.8 }}>{entry.item.explanation}</div>
               )}
@@ -305,6 +369,55 @@ function Question({
           </div>
         )}
       </div>
+    );
+  }
+
+  if (kind === "listen") {
+    return (
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (typed.trim()) {
+            const m = markAnswer(typed, entry.item.prompt);
+            settle(m.verdict, typed.trim(), m.note || `It means: ${entry.item.answer}`);
+          }
+        }}
+      >
+        <div className="card stack listen-card" style={{ alignItems: "center", gap: 10 }}>
+          <span className="chip">{entry.pack.subject} · listen</span>
+          <HearButton entry={entry} big />
+          <span className="muted">Tap to hear it again, then type what you heard</span>
+        </div>
+        <label htmlFor="lab-answer" className="sr-only">
+          What you heard
+        </label>
+        <input
+          id="lab-answer"
+          ref={input}
+          className="field"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          placeholder="Type the word you heard"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+        />
+        <AccentKeys subject={entry.pack.subject} input={input} onChange={setTyped} />
+        <div className="row">
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={!typed.trim()}
+            style={{ flex: 1 }}
+          >
+            Check
+          </button>
+          <button className="btn ghost" type="button" onClick={() => settle("wrong", "")}>
+            I don't know
+          </button>
+        </div>
+      </form>
     );
   }
 
@@ -370,7 +483,7 @@ function Question({
 // ---------- Sessions ----------
 
 export function Session(props: {
-  mode: "flashcards" | "quiz" | "write" | "speed" | "boss" | "mock";
+  mode: "flashcards" | "quiz" | "write" | "listen" | "review" | "speed" | "boss" | "mock";
   entries: Entry[];
   prefs: LabSettings;
   onDone: (outcome: Outcome) => void;
@@ -400,7 +513,7 @@ function Straight({
   onDone,
   onQuit,
 }: {
-  mode: "flashcards" | "quiz" | "write" | "mock";
+  mode: "flashcards" | "quiz" | "write" | "listen" | "review" | "mock";
   entries: Entry[];
   prefs: LabSettings;
   onDone: (outcome: Outcome) => void;
@@ -409,6 +522,11 @@ function Straight({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const entry = entries[index];
+  // Daily review mixes the ways of asking, so each card is practised differently.
+  const mixed: Style[] =
+    hearable(entry.item, entry.pack.subject) && canHear(entry.pack)
+      ? ["quiz", "write", "listen", "card"]
+      : ["quiz", "write", "card"];
   const style: Style =
     mode === "flashcards"
       ? "card"
@@ -416,12 +534,23 @@ function Straight({
         ? "quiz"
         : mode === "write"
           ? "write"
-          : index % 2
-            ? "quiz"
-            : "write";
-  const title = { flashcards: "Flashcards", quiz: "Quiz", write: "Write it", mock: "Mock test" }[
-    mode
-  ];
+          : mode === "listen"
+            ? hearable(entry.item, entry.pack.subject)
+              ? "listen"
+              : "write"
+            : mode === "review"
+              ? mixed[index % mixed.length]
+              : index % 2
+                ? "quiz"
+                : "write";
+  const title = {
+    flashcards: "Flashcards",
+    quiz: "Quiz",
+    write: "Write it",
+    listen: "Listen & type",
+    review: "Daily review",
+    mock: "Mock test",
+  }[mode];
 
   const next = (verdict: Verdict) => {
     const all = [...answers, answerFor(entry, verdict)];
@@ -443,7 +572,13 @@ function Straight({
         entry={entry}
         style={style}
         // Language terms are asked both ways; typing the foreign word practises spelling.
-        reverse={mode === "write" || mode === "mock" ? index % 2 === 1 : index % 3 === 2}
+        reverse={
+          mode === "listen" || mode === "review"
+            ? false
+            : mode === "write" || mode === "mock"
+              ? index % 2 === 1
+              : index % 3 === 2
+        }
         feedback={mode !== "mock" && mode !== "flashcards"}
         prefs={prefs}
         onAnswer={next}

@@ -24,6 +24,7 @@ import { LearnList, MasteryDots, PackHome, Results } from "./Pack.tsx";
 import { RevisionPlan } from "./Plan.tsx";
 import { Scan } from "./Scan.tsx";
 import { Session, type Entry, type Outcome } from "./Session.tsx";
+import { canHear, daily, DAILY_GOAL, hearable } from "./speech.ts";
 import {
   exportJson,
   importJson,
@@ -36,13 +37,23 @@ import {
 // Revision Lab: scan school work into packs, then practise them in eleven ways.
 // Everything is stored on this device, so practice works offline.
 
-type ItemMode = "flashcards" | "quiz" | "write" | "speed" | "boss" | "mock";
-const ITEM_MODES = new Set<ModeId>(["flashcards", "quiz", "write", "speed", "boss", "mock"]);
-const isItemMode = (mode: ModeId): mode is ItemMode => ITEM_MODES.has(mode);
+type ItemMode = "flashcards" | "quiz" | "write" | "listen" | "review" | "speed" | "boss" | "mock";
+type PlayMode = ModeId | "review";
+const ITEM_MODES = new Set<PlayMode>([
+  "flashcards",
+  "quiz",
+  "write",
+  "listen",
+  "review",
+  "speed",
+  "boss",
+  "mock",
+]);
+const isItemMode = (mode: PlayMode): mode is ItemMode => ITEM_MODES.has(mode);
 
 interface Play {
   name: "play";
-  mode: ModeId;
+  mode: PlayMode;
   entries: Entry[];
   packId: string | null;
   key: number;
@@ -54,11 +65,18 @@ type View =
   | Play
   | { name: "results"; outcome: Outcome; packId: string | null; replay: Play; xp: number };
 
-const SESSION_SIZE: Partial<Record<ModeId, number>> = { boss: 10, mock: 20, speed: 60 };
+const SESSION_SIZE: Partial<Record<PlayMode, number>> = {
+  boss: 10,
+  mock: 20,
+  speed: 60,
+  review: 20,
+};
 
 /** Weak, marked-wrong and due items first, then the rest, shuffled within each group. */
-function pickEntries(packs: LabPack[], mode: ModeId, today: string): Entry[] {
-  const all = packs.flatMap((pack) => pack.items.map((item) => ({ pack, item })));
+function pickEntries(packs: LabPack[], mode: PlayMode, today: string): Entry[] {
+  const all = packs
+    .flatMap((pack) => pack.items.map((item) => ({ pack, item })))
+    .filter((e) => mode !== "listen" || hearable(e.item, e.pack.subject));
   const rank = (e: Entry) =>
     isWeak(e.item) || e.item.markedWrong ? 0 : isDue(e.item, today) ? 1 : 2;
   return shuffle(all, Date.now() % 10007)
@@ -124,7 +142,7 @@ export function Lab() {
     [app],
   );
 
-  const play = (mode: ModeId, from: LabPack[], packId: string | null) => {
+  const play = (mode: PlayMode, from: LabPack[], packId: string | null) => {
     if (mode === "learn" && packId) {
       show({ name: "learn", id: packId });
       return;
@@ -183,6 +201,7 @@ export function Lab() {
     if (xp > 0) {
       progress.add(xp);
     }
+    daily.add(today, verdicts.size);
     show({ name: "results", outcome, packId: replay.packId, replay, xp });
   };
 
@@ -400,7 +419,7 @@ function LabHome({
   today: string;
   online: boolean;
   go: (view: View) => void;
-  onPlay: (mode: ModeId, from: LabPack[], packId: string | null) => void;
+  onPlay: (mode: PlayMode, from: LabPack[], packId: string | null) => void;
   onSample: () => void;
 }) {
   const { go: appGo } = useApp();
@@ -422,6 +441,14 @@ function LabHome({
       `Subjects: ${subjects.map((s) => `${s.subject} ${s.mastery}%`).join(", ") || "none yet"}.` +
       (nextTest ? ` Next test: ${nextTest.topic} in ${nextTest.days} days.` : ""),
   );
+
+  const done = daily.get(today).count;
+  const goalPct = Math.min(100, Math.round((done / DAILY_GOAL) * 100));
+  const reviewPool = (): LabPack[] => {
+    // Due cards first; if none are due, the weakest ones so there's always something to do.
+    const dueOnly = packs.map((p) => ({ ...p, items: p.items.filter((i) => isDue(i, today)) }));
+    return due > 0 ? dueOnly : packs;
+  };
 
   return (
     <main className="screen">
@@ -457,101 +484,115 @@ function LabHome({
         <div className="banner">Offline: practice works; scanning needs the internet.</div>
       )}
 
-      <button className="btn big primary rise" onClick={() => go({ name: "scan" })}>
-        <Icon name="camera" size={20} />
-        Scan a test or notes
-      </button>
-
       {packs.length === 0 ? (
-        <div className="card stack empty">
-          <strong>No packs yet</strong>
-          <span>
-            Scan a marked test, class notes, a worksheet or a diagram. You'll get flashcards,
-            quizzes and games made from it.
-          </span>
-          <button className="btn" onClick={onSample}>
-            Try a sample pack
+        <>
+          <button className="btn big primary rise" onClick={() => go({ name: "scan" })}>
+            <Icon name="camera" size={20} />
+            Scan a test or notes
           </button>
-        </div>
+          <div className="card stack empty">
+            <strong>No packs yet</strong>
+            <span>
+              Scan a marked test, class notes, a worksheet or a diagram. You'll get flashcards,
+              quizzes and games made from it.
+            </span>
+            <button className="btn" onClick={onSample}>
+              Try a sample pack
+            </button>
+          </div>
+        </>
       ) : (
         <>
-          <section className="card-dark stack rise">
-            <div className="between">
-              <h2 className="h2" style={{ color: "inherit" }}>
-                Revise today
-              </h2>
-              <span className="chip">{due} due</span>
-            </div>
-            {due > 0 ? (
-              <>
-                <span style={{ opacity: 0.8 }}>
-                  Spaced repetition: cards come back just before you'd forget them.
+          <section className="card-dark stack rise daily" style={{ gap: 12 }}>
+            <div className="row" style={{ gap: 16 }}>
+              <div
+                className="goal-ring"
+                style={{ "--p": `${goalPct}%` } as React.CSSProperties}
+                role="img"
+                aria-label={`${done} of ${DAILY_GOAL} cards today`}
+              >
+                <span>
+                  <strong>{done}</strong>/{DAILY_GOAL}
                 </span>
-                <button
-                  className="btn primary"
-                  onClick={() =>
-                    onPlay(
-                      "quiz",
-                      packs.map((p) => ({ ...p, items: p.items.filter((i) => isDue(i, today)) })),
-                      null,
-                    )
-                  }
-                >
-                  Start ({Math.min(due, 15)} cards)
-                </button>
-              </>
-            ) : (
-              <span style={{ opacity: 0.8 }}>
-                All caught up. Come back tomorrow, or play a game below.
-              </span>
-            )}
+              </div>
+              <div className="stack" style={{ gap: 4, flex: 1 }}>
+                <strong style={{ fontSize: 19 }}>
+                  {done >= DAILY_GOAL ? "Daily goal done! 🎉" : "Review today"}
+                </strong>
+                <span style={{ opacity: 0.8, fontSize: 13 }}>
+                  {due > 0
+                    ? `${due} card${due === 1 ? "" : "s"} due. A 5-minute mix of quiz, typing${packs.some((p) => canHear(p)) ? ", listening" : ""} and flashcards.`
+                    : "Nothing due: practise your weakest cards to stay sharp."}
+                </span>
+              </div>
+            </div>
+            <button
+              className="btn primary big"
+              onClick={() => onPlay("review", reviewPool(), null)}
+            >
+              <Icon name="flame" size={18} />
+              {done >= DAILY_GOAL ? "Keep going" : "Start daily review"}
+            </button>
           </section>
 
-          <div className="tiles-2">
+          <div className="lab-actions rise">
             <button
-              className="card stack lab-tile rise"
-              onClick={() => {
-                appGo("tests");
-              }}
+              className="quick-tile"
+              aria-label="Scan a test or notes"
+              onClick={() => go({ name: "scan" })}
             >
-              <Icon name="calendar" size={20} />
-              {nextTest ? (
-                <>
-                  <strong>
-                    {nextTest.days === 0
-                      ? "Today"
-                      : `${nextTest.days} day${nextTest.days === 1 ? "" : "s"}`}
-                  </strong>
-                  <span className="muted">{nextTest.topic} test</span>
-                </>
-              ) : (
-                <>
-                  <strong>Next test</strong>
-                  <span className="muted">Add a date</span>
-                </>
-              )}
+              <span className="quick-tile-icon" aria-hidden="true">
+                <Icon name="camera" size={20} />
+              </span>
+              <strong>Scan</strong>
+              <span>Test or notes</span>
             </button>
-            <button className="card stack lab-tile rise" onClick={() => go({ name: "weak" })}>
-              <Icon name="flame" size={20} />
-              <strong>{weak} weak spots</strong>
-              <span className="muted">Across all packs</span>
+            <button
+              className="quick-tile"
+              aria-label={`${weak} weak spots`}
+              onClick={() => go({ name: "weak" })}
+            >
+              <span className="quick-tile-icon" aria-hidden="true">
+                <Icon name="flame" size={20} />
+              </span>
+              <strong>{weak} weak</strong>
+              <span>Fix them</span>
+            </button>
+            <button
+              className="quick-tile"
+              aria-label={nextTest ? `Next test: ${nextTest.topic}` : "Tests"}
+              onClick={() => appGo("tests")}
+            >
+              <span className="quick-tile-icon" aria-hidden="true">
+                <Icon name="flag" size={20} />
+              </span>
+              <strong>
+                {nextTest
+                  ? nextTest.days === 0
+                    ? "Test today"
+                    : `${nextTest.days} day${nextTest.days === 1 ? "" : "s"}`
+                  : "Tests"}
+              </strong>
+              <span className="clip">{nextTest ? nextTest.topic : "Add a date"}</span>
             </button>
           </div>
 
           {subjects.length > 0 && (
-            <section className="card stack rise">
-              <h2 className="h2">Subject mastery</h2>
-              {subjects.map((s) => (
-                <div key={s.subject} className="stack" style={{ gap: 4 }}>
-                  <div className="between">
+            <section className="stack rise" style={{ gap: 8 }}>
+              <h2 className="h2">Mastery</h2>
+              <div className="mastery-grid">
+                {subjects.map((s) => (
+                  <div key={s.subject} className="mastery-cell" style={subjectVars(s.subject)}>
+                    <div
+                      className="mini-ring"
+                      style={{ "--p": `${s.mastery}%` } as React.CSSProperties}
+                    >
+                      {s.mastery}%
+                    </div>
                     <span>{s.subject}</span>
-                    <span className="muted">{s.mastery}%</span>
                   </div>
-                  <div className="bar">
-                    <div style={{ width: `${s.mastery}%` }} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </section>
           )}
 
@@ -564,7 +605,7 @@ function LabHome({
             </div>
             {packs
               .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
-              .slice(0, 3)
+              .slice(0, 4)
               .map((p) => (
                 <PackCard
                   key={p.id}
