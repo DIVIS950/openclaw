@@ -377,6 +377,7 @@ function Shell({
           />
         )}
         <NavBar screen={current} go={go} />
+        {toastMsg?.includes("XP") && <Burst key={toastMsg} />}
         {toastMsg && (
           <div className="toast" role="status">
             <span style={{ flex: 1 }}>{toastMsg}</span>
@@ -392,6 +393,27 @@ function Shell({
         )}
       </div>
     </Ctx.Provider>
+  );
+}
+
+/** A little confetti pop for earned XP. */
+function Burst() {
+  const bits = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * Math.PI * 2;
+    const r = 90 + (i % 3) * 30;
+    return { dx: `${Math.round(Math.cos(a) * r)}px`, dy: `${Math.round(Math.sin(a) * r - 40)}px` };
+  });
+  return (
+    <div className="burst" aria-hidden="true">
+      {bits.map((b, i) => (
+        <i
+          key={i}
+          style={
+            { "--dx": b.dx, "--dy": b.dy, animationDelay: `${i * 12}ms` } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
   );
 }
 

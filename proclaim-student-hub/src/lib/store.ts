@@ -41,6 +41,12 @@ export function nextProgress(p: Progress, gain: number, today: string): Progress
   return { xp: p.xp + gain, streak, lastDay: today };
 }
 
+/** Levels: 100 XP each, so progress is always visible. */
+export function level(xp: number): { level: number; percent: number; next: number } {
+  const lvl = Math.floor(xp / 100) + 1;
+  return { level: lvl, percent: xp % 100, next: lvl * 100 - xp };
+}
+
 export const progress = {
   get: (): Progress => read<Progress>("psh.progress", { xp: 0, streak: 0, lastDay: "" }),
   add(gain: number): Progress {

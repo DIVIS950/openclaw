@@ -2145,3 +2145,186 @@ label.call-orb {
 .hw-stat.warm strong {
   color: var(--warm);
 }
+
+/* ---------- Today dashboard ---------- */
+
+.level-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 3px 10px 3px 3px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.level-ring {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--on-accent);
+  background:
+    radial-gradient(circle, var(--accent) 60%, transparent 61%),
+    conic-gradient(var(--ink) var(--p, 0%), var(--line) 0);
+}
+
+.hero .hero-btn {
+  min-height: 42px;
+  padding: 0 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ghost-on-dark {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: none !important;
+}
+
+.tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px;
+  min-height: 108px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+
+.quick-tile strong {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.quick-tile > span:last-child {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+.quick-tile-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.clip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Motion: screen changes and taps ---------- */
+
+/* Opacity only: a transform here would turn the screen into a stacking
+   context and trap sheets under the taskbar. Children add the lift. */
+.app > .screen {
+  animation: screenIn 0.24s ease backwards;
+}
+
+@keyframes screenIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.btn,
+.round,
+.quick-tile,
+.lab-cta,
+.voice-cta,
+.day-row,
+.lesson-chip,
+.tile,
+.kind-chip,
+.nav-item,
+.level-pill,
+.test-card,
+.hw-row button {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.btn:active,
+.round:active,
+.quick-tile:active,
+.lab-cta:active,
+.voice-cta:active,
+.day-row:active,
+.lesson-chip:active,
+.tile:active,
+.kind-chip:active,
+.level-pill:active,
+.test-card:active {
+  transform: scale(0.96);
+}
+
+.nav-item:active .nav-ai,
+.nav-item:active svg {
+  transform: scale(0.9);
+}
+
+/* +XP burst, shown over the toast */
+.burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.burst i {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: burst 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.burst i:nth-child(even) {
+  background: var(--ink);
+  border-radius: 50%;
+}
+
+@keyframes burst {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(360deg) scale(0.4);
+  }
+}

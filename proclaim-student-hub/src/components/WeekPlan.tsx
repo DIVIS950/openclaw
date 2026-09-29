@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../context.ts";
 import { agenda } from "../lib/agenda.ts";
 import { timetable } from "../lib/store.ts";
@@ -11,9 +11,9 @@ import { Icon } from "./Icon.tsx";
 // Today's "Plan my week" card: the AI's day-by-day plan, which can go
 // straight into the to-do list with the right dates.
 
-export function WeekPlan() {
+export function WeekPlan({ onClose }: { onClose: () => void }) {
   const { ai, homework, toast, handleError, go } = useApp();
-  const [plan, setPlan] = useState<WeekDay[] | "loading" | null>(null);
+  const [plan, setPlan] = useState<WeekDay[] | "loading" | null>("loading");
   const [saved, setSaved] = useState(false);
   const today = dayOf(new Date());
   if (!ai) {
@@ -38,30 +38,30 @@ export function WeekPlan() {
       setPlan(week.length ? week : null);
       if (!week.length) {
         toast("Nothing to plan yet. Add homework or a test first.");
+        onClose();
       }
     } catch (err) {
       setPlan(null);
       handleError(err);
+      onClose();
     }
   };
 
+  // Planning starts as soon as the card is asked for.
+  useEffect(() => {
+    void make();
+  }, []);
+
   if (plan === null || plan === "loading") {
     return (
-      <button className="lab-cta rise" disabled={plan === "loading"} onClick={() => void make()}>
-        <span className="lab-cta-icon" aria-hidden="true">
-          <Icon
-            name={plan === "loading" ? "loader" : "calendar"}
-            size={22}
-            className={plan === "loading" ? "spin" : undefined}
-          />
-        </span>
-        <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
-          <strong style={{ fontSize: 16 }}>
-            {plan === "loading" ? "Planning your week…" : "Plan my week"}
-          </strong>
-          <span className="muted">Homework, test prep and to-dos spread over the next 7 days</span>
-        </span>
-      </button>
+      <section className="card stack pop" aria-label="Planning your week">
+        <div className="row" style={{ gap: 10 }}>
+          <Icon name="loader" size={18} className="spin" />
+          <strong>Planning your week…</strong>
+        </div>
+        <div className="skeleton light" />
+        <div className="skeleton light" style={{ width: "70%" }} />
+      </section>
     );
   }
 
@@ -70,7 +70,7 @@ export function WeekPlan() {
     <section className="card stack pop week-plan" aria-label="Your week">
       <div className="between">
         <h2 className="h2">Your week · {Math.round(total / 60)} h</h2>
-        <button className="link-btn" onClick={() => setPlan(null)}>
+        <button className="link-btn" onClick={onClose}>
           Hide
         </button>
       </div>

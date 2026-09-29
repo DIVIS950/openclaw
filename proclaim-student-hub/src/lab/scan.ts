@@ -137,7 +137,7 @@ export async function scanPhotos(
       '"insight": "...", "items": [{"prompt": "...", "answer": "...", "kind": "term", "origin": "photo", ' +
       '"markedWrong": false, "studentAnswer": "", "explanation": "..."}], "steps": [], ' +
       '"gaps": [{"before": "...", "answer": "...", "after": "..."}], "labels": [{"text": "...", "x": 50, "y": 50}]}',
-    { images: input.images },
+    { images: input.images, deep: true },
   );
   return readScan(value, { subject: input.subject, docType: input.docType }, today);
 }

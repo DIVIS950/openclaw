@@ -36,12 +36,13 @@ export interface AiProvider {
     prompt: string,
     opts?: { quick?: boolean; deep?: boolean; images?: ImageInput[] },
   ): Promise<unknown>;
-  /** Streams a chat reply under standing instructions. */
+  /** Streams a chat reply under standing instructions; `deep` asks for the strongest model. */
   chat(
     instructions: string,
     history: ChatTurn[],
     onText: (soFar: string) => void,
     signal: AbortSignal,
+    opts?: { deep?: boolean },
   ): Promise<string>;
   /** Streams the tutor's answer; onText receives the full text so far. */
   tutor(
@@ -170,7 +171,7 @@ function wrap(err: unknown): never {
 }
 
 export function sampleAi(sample: Sample): AiProvider {
-  const chat: AiProvider["chat"] = async (instructions, history, onText, signal) => {
+  const chat: AiProvider["chat"] = async (instructions, history, onText, signal, opts) => {
     // No system prompt on this path: standing instructions go in a leading
     // user turn, and only the newest message's photos are sent.
     const last = history[history.length - 1];
@@ -185,6 +186,7 @@ export function sampleAi(sample: Sample): AiProvider {
       const { text } = await sample(turns, {
         signal,
         cache: false,
+        modelTier: opts?.deep ? "complex" : "default",
         images: last?.images?.length ? last.images.map(toBlob) : undefined,
         onText: ({ text: soFar }) => onText(soFar),
       });
@@ -196,8 +198,9 @@ export function sampleAi(sample: Sample): AiProvider {
 
   return {
     chat,
+    // The tutor explains and checks understanding: worth the strongest model.
     tutor: (mode, history, onText, signal) =>
-      chat(tutorInstructions(mode), history, onText, signal),
+      chat(tutorInstructions(mode), history, onText, signal, { deep: true }),
     async text(prompt, opts) {
       try {
         const { text } = await sample(prompt, {

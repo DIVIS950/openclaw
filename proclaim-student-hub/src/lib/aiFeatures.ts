@@ -270,6 +270,7 @@ export async function writingFeedback(
       `Task: ${task.title} (${task.course}). ${task.description}\n<work>${text.slice(0, 20000)}</work>\n` +
       'Reply with only JSON: {"good": ["what works"], "improve": [{"point": "...", "hint": "..."}], ' +
       '"spelling": [{"wrong": "...", "right": "..."}], "next": "the one next step to take"}',
+    { deep: true },
   );
   return readFeedback(value);
 }

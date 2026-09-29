@@ -4,21 +4,31 @@ import { DaySummary } from "../components/DaySummary.tsx";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { WeekPlan } from "../components/WeekPlan.tsx";
-import { useAiContext, useApp } from "../context.ts";
+import { useAiContext, useApp, type Screen } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
-import { progress, timetable } from "../lib/store.ts";
+import { level, progress, timetable } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 
-const QUICK_APPS: { name: string; url: string; icon: IconName; tile: string }[] = [
-  { name: "Classroom", url: "https://classroom.google.com", icon: "classroom", tile: "#15803d" },
-  { name: "Gmail", url: "https://mail.google.com", icon: "mail", tile: "#c2410c" },
-  { name: "Dr Frost", url: "https://www.drfrost.org", icon: "frost", tile: "#0e7490" },
-  { name: "Desmos", url: "https://student.desmos.com", icon: "graph", tile: "#2f6b22" },
+// Today: one glanceable dashboard. The dark hero holds the AI summary and the
+// two AI planners; six yellow tiles open everything else in one tap.
+
+const TILES: { screen: Screen; label: string; sub: string; icon: IconName; needsAi?: boolean }[] = [
+  { screen: "call", label: "Talk", sub: "Voice study buddy", icon: "mic", needsAi: true },
+  { screen: "revise", label: "Revision Lab", sub: "Scan → flashcards", icon: "camera" },
+  { screen: "inbox", label: "Inbox", sub: "School email", icon: "mail" },
+  { screen: "tutoring", label: "Tutoring", sub: "Tutors & lessons", icon: "book" },
+  { screen: "timetable", label: "Timetable", sub: "Lessons & calendar", icon: "calendar" },
+  { screen: "apps", label: "Apps", sub: "Classroom, Dr Frost…", icon: "apps" },
 ];
+
+const TILE_NAMES: Partial<Record<Screen, string>> = {
+  call: "Talk to your study buddy",
+  apps: "All apps",
+};
 
 export function Today() {
   const app = useApp();
@@ -26,9 +36,11 @@ export function Today() {
   const [events, setEvents] = useState<CalEvent[] | null>(null);
   const [summaryVersion, setSummaryVersion] = useState(0);
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
+  const [week, setWeek] = useState(false);
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
   const upcoming = upcomingLessons(lessons);
+  const lvl = level(stats.xp);
 
   const makePlan = async () => {
     if (!ai) {
@@ -66,8 +78,8 @@ export function Today() {
 
   return (
     <main className="screen">
-      <header className="between rise" style={{ alignItems: "flex-start" }}>
-        <div className="stack" style={{ gap: 4 }}>
+      <header className="stack rise" style={{ gap: 2 }}>
+        <div className="between">
           <div className="eyebrow">
             {new Date().toLocaleDateString("en-GB", {
               weekday: "long",
@@ -75,35 +87,44 @@ export function Today() {
               month: "long",
             })}
           </div>
-          <h1 className="h1">
-            {greeting()}
-            {profile?.name ? `, ${profile.name}` : ""}
-          </h1>
+          <div className="row">
+            <AddAnythingButton onSaved={() => setSummaryVersion((v) => v + 1)} />
+            <button
+              className="level-pill"
+              aria-label={`Level ${lvl.level}, ${stats.xp} XP${stats.streak ? `, ${stats.streak} day streak` : ""}`}
+              onClick={() => go("apps")}
+            >
+              <span
+                className="level-ring"
+                style={{ "--p": `${lvl.percent}%` } as React.CSSProperties}
+              >
+                {lvl.level}
+              </span>
+              {stats.streak > 0 && (
+                <span className="row" style={{ gap: 2 }}>
+                  <Icon name="flame" size={13} />
+                  {stats.streak}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-        <div className="row">
-          <AddAnythingButton onSaved={() => setSummaryVersion((v) => v + 1)} />
-          {stats.streak > 0 && (
-            <span className="chip warm" aria-label={`${stats.streak} day streak`}>
-              <Icon name="flame" size={14} />
-              {stats.streak}
-            </span>
-          )}
-          <button className="round" aria-label="Apps and account" onClick={() => go("apps")}>
-            {(profile?.name || "P").slice(0, 1).toUpperCase()}
-          </button>
-        </div>
+        <h1 className="h1">
+          {greeting()}
+          {profile?.name ? `, ${profile.name}` : ""}
+        </h1>
       </header>
 
       <UnlockCard />
 
-      <section className="card-dark stack rise" style={{ gap: 12, animationDelay: "0.08s" }}>
+      <section className="card-dark stack rise hero" style={{ gap: 12, animationDelay: "0.05s" }}>
         <div
           className="between"
           style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}
         >
           <span className="row" style={{ gap: 6 }}>
             <Icon name="sparkle" size={16} className="wiggle" />
-            Your day, summarised
+            Your day
           </span>
           {!data.demo && (
             <span className="row" style={{ gap: 4, color: "#fff" }}>
@@ -113,61 +134,40 @@ export function Today() {
           )}
         </div>
         <DaySummary key={summaryVersion} />
-        <div className="row">
-          <button
-            className="btn block"
-            style={{ flex: 1 }}
-            disabled={plan === "loading"}
-            onClick={() => void makePlan()}
-          >
-            {plan === "loading" ? <Icon name="loader" size={16} className="spin" /> : null}
-            Plan my evening
-          </button>
-          <button
-            className="btn block"
-            style={{
-              flex: 1,
-              background: "rgba(255,255,255,0.18)",
-              color: "#fff",
-              borderColor: "rgba(255,255,255,0.45)",
-              boxShadow: "none",
-            }}
-            onClick={() => go(PAGES ? "todo" : "inbox")}
-          >
-            {PAGES ? "My to-do" : "Read emails"}
-          </button>
-        </div>
+        {ai && (
+          <div className="row">
+            <button
+              className="btn block hero-btn"
+              style={{ flex: 1 }}
+              disabled={plan === "loading"}
+              onClick={() => void makePlan()}
+            >
+              <Icon
+                name={plan === "loading" ? "loader" : "sparkle"}
+                size={15}
+                className={plan === "loading" ? "spin" : undefined}
+              />
+              Plan tonight
+            </button>
+            <button
+              className="btn block hero-btn ghost-on-dark"
+              style={{ flex: 1 }}
+              disabled={week}
+              onClick={() => setWeek(true)}
+            >
+              <Icon name="calendar" size={15} />
+              Plan my week
+            </button>
+          </div>
+        )}
       </section>
-
-      {ai && (
-        <button
-          className="voice-cta rise"
-          style={{ animationDelay: "0.12s" }}
-          onClick={() => go("call")}
-        >
-          <span className="lab-cta-icon" aria-hidden="true">
-            <Icon name="mic" size={22} />
-          </span>
-          <span className="stack" style={{ gap: 2, flex: 1 }}>
-            <strong style={{ fontSize: 16 }}>Talk to your study buddy</strong>
-            <span style={{ fontSize: 13 }}>
-              Voice chat: explain, quiz me, practise Spanish or Czech
-            </span>
-          </span>
-          <span aria-hidden="true" style={{ fontSize: 20 }}>
-            ›
-          </span>
-        </button>
-      )}
-
-      <WeekPlan />
 
       {Array.isArray(plan) && (
         <section className="ai-card pop" aria-label="Your plan for this evening">
           <div className="between">
             <h3>
               <Icon name="sparkle" size={16} />
-              Your plan for tonight · {plan.reduce((n, s) => n + s.minutes, 0)} min
+              Tonight · {plan.reduce((n, s) => n + s.minutes, 0)} min
             </h3>
             <button className="link-btn" style={{ minHeight: 32 }} onClick={() => setPlan(null)}>
               Hide
@@ -191,8 +191,28 @@ export function Today() {
         </section>
       )}
 
+      {week && <WeekPlan onClose={() => setWeek(false)} />}
+
+      <nav className="tiles-grid rise" style={{ animationDelay: "0.1s" }} aria-label="Shortcuts">
+        {TILES.filter((t) => !t.needsAi || ai).map((t, i) => (
+          <button
+            key={t.screen}
+            className="quick-tile pop"
+            style={{ animationDelay: `${0.12 + i * 0.04}s` }}
+            aria-label={TILE_NAMES[t.screen] ?? t.label}
+            onClick={() => go(t.screen === "inbox" && PAGES ? "todo" : t.screen)}
+          >
+            <span className="quick-tile-icon" aria-hidden="true">
+              <Icon name={t.icon} size={22} />
+            </span>
+            <strong>{t.label}</strong>
+            <span>{t.sub}</span>
+          </button>
+        ))}
+      </nav>
+
       {upcoming.lessons.length > 0 ? (
-        <section className="stack rise" style={{ animationDelay: "0.16s" }}>
+        <section className="stack rise" style={{ animationDelay: "0.18s" }}>
           <div className="between">
             <h2 className="h2">Next lessons · {upcoming.label}</h2>
             <button className="link-btn" onClick={() => go("timetable")}>
@@ -220,7 +240,7 @@ export function Today() {
         lessons.length === 0 && (
           <button
             className="btn big block rise"
-            style={{ justifyContent: "flex-start", animationDelay: "0.16s" }}
+            style={{ justifyContent: "flex-start", animationDelay: "0.18s" }}
             onClick={() => go("timetable")}
           >
             <Icon name="calendar" size={18} />
@@ -230,7 +250,7 @@ export function Today() {
       )}
 
       {events && events.length > 0 && (
-        <section className="stack rise" style={{ animationDelay: "0.16s" }}>
+        <section className="stack rise" style={{ animationDelay: "0.2s" }}>
           <h2 className="h2">Coming up</h2>
           <div
             style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}
@@ -240,26 +260,11 @@ export function Today() {
                 <div className="muted" style={{ fontSize: 12 }}>
                   {e.start.length > 10 ? timeLabel(e.start) : "All day"}
                 </div>
-                <div
-                  style={{
-                    fontWeight: 600,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <div className="clip" style={{ fontWeight: 600 }}>
                   {e.title}
                 </div>
                 {e.location && (
-                  <div
-                    className="muted"
-                    style={{
-                      fontSize: 12,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <div className="muted clip" style={{ fontSize: 12 }}>
                     {e.location}
                   </div>
                 )}
@@ -269,11 +274,11 @@ export function Today() {
         </section>
       )}
 
-      <section className="stack rise" style={{ animationDelay: "0.22s" }}>
+      <section className="stack rise" style={{ animationDelay: "0.24s" }}>
         <div className="between">
           <h2 className="h2">Due soon</h2>
           <button className="link-btn" onClick={() => go("homework")}>
-            See all
+            See all ›
           </button>
         </div>
         {homework === null ? (
@@ -290,69 +295,6 @@ export function Today() {
             ))}
           </div>
         )}
-      </section>
-
-      <button
-        className="lab-cta pop"
-        style={{ animationDelay: "0.3s" }}
-        onClick={() => go("revise")}
-      >
-        <span className="lab-cta-icon" aria-hidden="true">
-          <Icon name="camera" size={22} />
-        </span>
-        <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
-          <strong style={{ fontSize: 16 }}>Revision Lab</strong>
-          <span className="muted">Scan a test or notes into flashcards, quizzes and games</span>
-        </span>
-        <span className="muted" style={{ fontSize: 20 }}>
-          ›
-        </span>
-      </button>
-
-      <button
-        className="lab-cta pop"
-        style={{ animationDelay: "0.33s" }}
-        onClick={() => go("tutoring")}
-      >
-        <span className="lab-cta-icon" aria-hidden="true">
-          <Icon name="book" size={22} />
-        </span>
-        <span className="stack" style={{ gap: 2, flex: 1, textAlign: "left" }}>
-          <strong style={{ fontSize: 16 }}>Tutoring</strong>
-          <span className="muted">Your tutors, Meet and WhatsApp, their material and homework</span>
-        </span>
-        <span className="muted" style={{ fontSize: 20 }}>
-          ›
-        </span>
-      </button>
-
-      <section className="stack rise" style={{ animationDelay: "0.36s" }}>
-        <div className="between">
-          <h2 className="h2">Quick apps</h2>
-          <button className="link-btn" onClick={() => go("apps")}>
-            All apps ›
-          </button>
-        </div>
-        <div className="quick-apps">
-          {QUICK_APPS.map((a) => (
-            <a
-              key={a.name}
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="quick-app"
-            >
-              <span
-                className="tile-icon"
-                style={{ "--tile": a.tile } as React.CSSProperties}
-                aria-hidden="true"
-              >
-                <Icon name={a.icon} size={24} />
-              </span>
-              {a.name}
-            </a>
-          ))}
-        </div>
       </section>
     </main>
   );
