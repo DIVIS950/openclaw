@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { collectStore, PAGES_URL, transferLink } from "../lib/transfer.ts";
+import { isClaudeKey } from "./claude.ts";
 import { aiKey, PAGES, studentName } from "./runtime.ts";
 
 // The two versions of the hub and the bridge between them:
 // - claude.ai link: reads Gmail/Classroom; "Open the web version" carries the data over
-// - GitHub Pages (divis950.github.io/openclaw/hub): microphone works, AI via Gemini
+// - GitHub Pages (divis950.github.io/openclaw/hub): microphone works, AI via a Claude (or Gemini) key
 
 /** True on the claude.ai link (not on GitHub Pages or the hosted server version). */
 export const CLAUDE_PAGE = import.meta.env.VITE_WEB_PAGE === "1" && !PAGES;
@@ -67,10 +68,11 @@ export function SendToWeb({ compact = false }: { compact?: boolean }) {
 export function PagesSettings() {
   const { toast } = useApp();
   const [name, setName] = useState(studentName.get);
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [saved, setSaved] = useState<string | null | undefined>(undefined);
+  const hasKey = saved === undefined ? null : Boolean(saved);
   const [key, setKey] = useState("");
   useEffect(() => {
-    void aiKey.get().then((k) => setHasKey(Boolean(k)));
+    void aiKey.get().then(setSaved);
   }, []);
 
   return (
@@ -97,8 +99,8 @@ export function PagesSettings() {
           {hasKey === null
             ? "Checking…"
             : hasKey
-              ? "✅ The AI is set up on this phone."
-              : "No AI key yet. A parent makes a free Gemini key at aistudio.google.com (Google only allows 18+) and pastes it here once."}
+              ? `✅ The AI is set up on this phone (${isClaudeKey(saved ?? "") ? "Claude" : "Gemini"}).`
+              : "No AI key yet. A parent (18+) makes a Claude API key at console.anthropic.com (API keys, with some credit) and pastes it here once."}
         </span>
         <form
           className="row"
@@ -106,7 +108,7 @@ export function PagesSettings() {
             e.preventDefault();
             aiKey.set(key);
             setKey("");
-            setHasKey(Boolean(key.trim()));
+            setSaved(key.trim() || null);
             toast(key.trim() ? "AI key saved on this phone." : "Key removed.");
           }}
         >
@@ -115,8 +117,10 @@ export function PagesSettings() {
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder={hasKey ? "Leave empty and save to remove" : "Paste a Gemini key"}
-            aria-label="Gemini API key"
+            placeholder={
+              hasKey ? "Leave empty and save to remove" : "Paste a Claude key (sk-ant-…)"
+            }
+            aria-label="AI key"
             autoComplete="off"
             style={{ flex: 1 }}
           />

@@ -131,7 +131,7 @@ export function Apps() {
             style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis" }}
           >
             {PAGES
-              ? "Saved on this phone. AI by Google Gemini."
+              ? "Saved on this phone. AI with your own key."
               : data.demo
                 ? "Sample data. Sign in to see your own."
                 : data.hasClassroom

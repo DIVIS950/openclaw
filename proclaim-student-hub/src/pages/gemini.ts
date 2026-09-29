@@ -25,7 +25,7 @@ interface GeminiReply {
 export class NoKeyError extends Error {
   constructor() {
     super(
-      "The AI isn't set up on this phone yet. Ask a parent to add a Gemini key in Apps › AI key.",
+      "The AI isn't set up on this phone yet. Ask a parent to add a Claude API key in Apps › AI key.",
     );
   }
 }

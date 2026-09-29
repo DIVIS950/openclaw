@@ -1,10 +1,12 @@
 import type { UserCap } from "../lib/claudeRuntime.ts";
+import type { Sample } from "../lib/claudeRuntime.ts";
+import { claudeSample, isClaudeKey } from "./claude.ts";
 import { geminiSample } from "./gemini.ts";
 import { localDb } from "./localDb.ts";
 
 // The GitHub Pages version has no claude.ai around it, so it provides the same
-// `window.claude.use(...)` the app already talks to: AI through Gemini, saving
-// on the phone. Gmail and Canva stay on the claude.ai link.
+// `window.claude.use(...)` the app already talks to: AI through Claude (a
+// Claude API key) or Gemini (a Gemini key), saving on the phone. Gmail and Canva stay on the claude.ai link.
 
 export const PAGES = import.meta.env.VITE_PAGES === "1";
 
@@ -47,8 +49,19 @@ const user: UserCap = {
   me: async () => ({ name: studentName.get(), email: null }),
 };
 
+/** Picks Claude or Gemini by the kind of key added, each time it's asked. */
+function pickSample(): Sample {
+  const claude = claudeSample(aiKey.get);
+  const gemini = geminiSample(aiKey.get);
+  const which = async () => (isClaudeKey((await aiKey.get()) ?? "") ? claude : gemini);
+  const sample = (async (input, options) => (await which())(input, options)) as Sample;
+  sample.json = async (input, options) => (await which()).json(input, options);
+  sample.limits = async () => (await which()).limits();
+  return sample;
+}
+
 export function installPagesRuntime() {
-  const caps = { sample: geminiSample(aiKey.get), db: localDb, user } as Record<string, unknown>;
+  const caps = { sample: pickSample(), db: localDb, user } as Record<string, unknown>;
   (window as unknown as { claude: unknown }).claude = {
     use: async (name: string) => caps[name] ?? null,
   };
