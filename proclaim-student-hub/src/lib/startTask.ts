@@ -53,5 +53,5 @@ export function startPrompt(hw: Homework, work: string): string {
 }
 
 export async function startTask(ai: AiProvider, hw: Homework, work: string): Promise<StartPlan> {
-  return readStartPlan(await ai.json(startPrompt(hw, work)));
+  return readStartPlan(await ai.json(startPrompt(hw, work), { deep: true }));
 }

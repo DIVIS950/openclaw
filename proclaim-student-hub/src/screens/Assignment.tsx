@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { FocusButton } from "../components/FocusTimer.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { StartTask } from "../components/StartTask.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -288,6 +289,7 @@ export function Assignment({ hw }: { hw: Homework }) {
           Hand in
         </button>
       </div>
+      <FocusButton title={hw.title} />
       <button
         className="btn block rise"
         disabled={!text.trim() || state === "loading"}

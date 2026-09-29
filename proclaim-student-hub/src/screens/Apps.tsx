@@ -1,7 +1,7 @@
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { PAGES } from "../pages/runtime.ts";
-import { CLAUDE_PAGE, PagesSettings, SendToWeb } from "../pages/WebVersion.tsx";
+import { PagesSettings } from "../pages/WebVersion.tsx";
 
 interface AppTile {
   name: string;
@@ -110,7 +110,6 @@ export function Apps() {
       </section>
 
       {PAGES && <PagesSettings />}
-      {CLAUDE_PAGE && !data.demo && <SendToWeb />}
 
       <div className="card row rise" style={{ gap: 12, animationDelay: "0.6s" }}>
         <span style={{ color: "var(--ink)" }}>

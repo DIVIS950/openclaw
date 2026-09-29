@@ -3,6 +3,7 @@ import { AddAnythingButton } from "../components/AddAnything.tsx";
 import { DaySummary } from "../components/DaySummary.tsx";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
+import { WeekPlan } from "../components/WeekPlan.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
@@ -158,6 +159,8 @@ export function Today() {
           </span>
         </button>
       )}
+
+      <WeekPlan />
 
       {Array.isArray(plan) && (
         <section className="ai-card pop" aria-label="Your plan for this evening">

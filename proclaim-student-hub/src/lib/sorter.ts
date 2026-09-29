@@ -94,7 +94,7 @@ export async function sortPost(
 ): Promise<SortedItem[]> {
   const text = input.text.trim() || "(see the photos)";
   return readSorted(
-    await ai.json(sortPrompt(text, today, input.classes), { images: input.images }),
+    await ai.json(sortPrompt(text, today, input.classes), { images: input.images, deep: true }),
   );
 }
 

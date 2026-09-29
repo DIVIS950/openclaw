@@ -322,8 +322,21 @@ export function dateInTitle(title: string, today: string): string {
     return fix(Number(cz[2]), Number(cz[1]));
   }
   const us = title.match(/\b(\d{1,2})\/(\d{1,2})\b/);
-  return us ? fix(Number(us[1]), Number(us[2])) : "";
+  if (us) {
+    return fix(Number(us[1]), Number(us[2]));
+  }
+  // "September 15th", "15 October"
+  const named = title.match(
+    /\b([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?\b|\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\b/,
+  );
+  if (named) {
+    const month = MONTHS.indexOf((named[1] ?? named[4]).slice(0, 3).toLowerCase()) + 1;
+    return month > 0 ? fix(month, Number(named[2] ?? named[3])) : "";
+  }
+  return "";
 }
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 export function suggestTests(
   input: { homework: Homework[]; courses: Course[]; existing: PrepTest[] },

@@ -3,7 +3,7 @@ import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
-import { dueLabel, isUrgent } from "../lib/format.ts";
+import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
 import { courses, progress } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
@@ -14,10 +14,15 @@ export function HomeworkScreen() {
   const { data, homework, reloadHomework, go } = useApp();
   const [classCount] = useState(() => courses.get().length);
   const [filter, setFilter] = useState<Filter>("All");
+  const [view, setView] = useState<"todo" | "done">("todo");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const list = (homework ?? []).filter((h) => !h.done && (filter === "All" || h.source === filter));
+  const inFilter = (homework ?? []).filter((h) => filter === "All" || h.source === filter);
+  const list = inFilter.filter((h) => !h.done);
+  const doneList = inFilter.filter((h) => h.done);
+  const groups = groupByDue(list);
+  const thisWeek = groups.overdue.length + groups.week.length;
   const sources = new Set((homework ?? []).map((h) => h.source));
   const filters: Filter[] = ["All", "Classroom", ...OTHER_SOURCES.filter((s) => sources.has(s))];
   useAiContext(
@@ -41,70 +46,127 @@ export function HomeworkScreen() {
         </button>
       </header>
 
-      <div className="pills" role="group" aria-label="Filter by app">
-        {filters.map((f) => (
-          <button key={f} className="pill" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-            {f}
-          </button>
-        ))}
-        <button className="pill" onClick={reloadHomework} aria-label="Refresh">
-          <Icon name="sync" size={14} />
+      <div className="hw-stats rise">
+        <div className="hw-stat">
+          <strong>{list.length}</strong>
+          <span>to do</span>
+        </div>
+        <div className={`hw-stat${groups.overdue.length ? " warm" : ""}`}>
+          <strong>{thisWeek}</strong>
+          <span>
+            {groups.overdue.length ? `this week · ${groups.overdue.length} late` : "this week"}
+          </span>
+        </div>
+        <div className="hw-stat">
+          <strong>{doneList.length}</strong>
+          <span>done</span>
+        </div>
+      </div>
+
+      <div className="segmented" style={{ gridTemplateColumns: "1fr 1fr" }} role="tablist">
+        <button role="tab" aria-selected={view === "todo"} onClick={() => setView("todo")}>
+          To do
+        </button>
+        <button role="tab" aria-selected={view === "done"} onClick={() => setView("done")}>
+          Done
         </button>
       </div>
 
-      <button
-        className="btn block rise"
-        style={{ justifyContent: "flex-start" }}
-        onClick={() => go("classes")}
-      >
-        <Icon name="classroom" size={18} />
-        <span style={{ flex: 1, textAlign: "left" }}>Your classes</span>
-        <span className="muted">{classCount ? `${classCount} ›` : "›"}</span>
-      </button>
-
-      {!data.hasClassroom && (
-        <section className="card stack rise">
-          <div className="row" style={{ gap: 10 }}>
-            <span
-              className="tile-icon"
-              style={{ "--tile": "#15803d", width: 40, height: 40 } as React.CSSProperties}
-              aria-hidden="true"
+      {filters.length > 2 && (
+        <div className="pills" role="group" aria-label="Filter by app">
+          {filters.map((f) => (
+            <button
+              key={f}
+              className="pill"
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
             >
-              <Icon name="classroom" size={20} />
-            </span>
-            <div className="stack" style={{ gap: 2, flex: 1 }}>
-              <strong>Classroom auto-sync {data.demo ? "(off in demo)" : "is on"}</strong>
-              <span className="muted">
-                New Classroom emails in your Gmail are added here by themselves.
-              </span>
-            </div>
-          </div>
-          <button className="btn small" onClick={() => setImporting(true)}>
-            <Icon name="camera" size={14} />
-            Or import a screenshot / video
-          </button>
-        </section>
+              {f}
+            </button>
+          ))}
+        </div>
       )}
-      {importing && <ImportSheet mode="homework" onClose={() => setImporting(false)} />}
-
-      <EmailScan />
 
       {homework === null ? (
         <div className="card stack">
           <div className="skeleton light" />
           <div className="skeleton light" style={{ width: "60%" }} />
         </div>
+      ) : view === "done" ? (
+        doneList.length === 0 ? (
+          <div className="card empty">Nothing ticked off yet.</div>
+        ) : (
+          <div className="stack">
+            {doneList.map((hw, i) => (
+              <HomeworkCard key={hw.id} hw={hw} delay={Math.min(i, 8) * 0.04} />
+            ))}
+          </div>
+        )
       ) : list.length === 0 ? (
-        <div className="card empty">
-          Nothing here. Tap + to add homework from Dr Frost, Desmos or another app.
-        </div>
+        <div className="card empty">All done! Tap + to add new homework.</div>
       ) : (
-        <div className="stack">
-          {list.map((hw, i) => (
-            <HomeworkCard key={hw.id} hw={hw} delay={i * 0.06} />
-          ))}
-        </div>
+        (
+          [
+            ["Overdue", groups.overdue],
+            ["This week", groups.week],
+            ["Later", groups.later],
+            ["No due date", groups.noDate],
+          ] as const
+        ).map(
+          ([title, items]) =>
+            items.length > 0 && (
+              <section key={title} className="stack" style={{ gap: 8 }}>
+                <h2 className={`eyebrow${title === "Overdue" ? " warm-text" : ""}`}>
+                  {title} · {items.length}
+                </h2>
+                {items.map((hw, i) => (
+                  <HomeworkCard key={hw.id} hw={hw} delay={Math.min(i, 8) * 0.04} />
+                ))}
+              </section>
+            ),
+        )
       )}
+
+      <section className="stack" style={{ gap: 10, marginTop: 8 }}>
+        <h2 className="eyebrow">Get homework in</h2>
+        <button
+          className="btn block"
+          style={{ justifyContent: "flex-start" }}
+          onClick={() => go("classes")}
+        >
+          <Icon name="classroom" size={18} />
+          <span style={{ flex: 1, textAlign: "left" }}>Your classes</span>
+          <span className="muted">{classCount ? `${classCount} ›` : "›"}</span>
+        </button>
+        {!data.hasClassroom && (
+          <section className="card stack">
+            <div className="row" style={{ gap: 10 }}>
+              <span
+                className="tile-icon"
+                style={{ "--tile": "#15803d", width: 40, height: 40 } as React.CSSProperties}
+                aria-hidden="true"
+              >
+                <Icon name="classroom" size={20} />
+              </span>
+              <div className="stack" style={{ gap: 2, flex: 1 }}>
+                <strong>Classroom auto-sync {data.demo ? "(off in demo)" : "is on"}</strong>
+                <span className="muted">
+                  New Classroom emails in your Gmail are added here by themselves.
+                </span>
+              </div>
+              <button className="round" onClick={reloadHomework} aria-label="Refresh">
+                <Icon name="sync" size={16} />
+              </button>
+            </div>
+            <button className="btn small" onClick={() => setImporting(true)}>
+              <Icon name="camera" size={14} />
+              Or import a screenshot / video
+            </button>
+          </section>
+        )}
+        <EmailScan />
+      </section>
+      {importing && <ImportSheet mode="homework" onClose={() => setImporting(false)} />}
 
       {adding && <AddHomework onClose={() => setAdding(false)} />}
     </main>
@@ -153,25 +215,26 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
             Open in {hw.source}
           </a>
         )}
-        {hw.source !== "Classroom" && (
-          <button
-            className="btn small"
-            onClick={async () => {
-              replaceHomework({ ...hw, done: true });
-              try {
-                await data.setDone(hw, true);
+        <button
+          className="btn small"
+          onClick={async () => {
+            const done = !hw.done;
+            replaceHomework({ ...hw, done });
+            try {
+              await data.setDone(hw, done);
+              if (done) {
                 progress.add(5);
                 toast(`${data.labels.ticked} +5 XP`);
-              } catch (err) {
-                replaceHomework(hw);
-                handleError(err);
               }
-            }}
-          >
-            <Icon name="check" size={14} />
-            Done
-          </button>
-        )}
+            } catch (err) {
+              replaceHomework(hw);
+              handleError(err);
+            }
+          }}
+        >
+          <Icon name={hw.done ? "sync" : "check"} size={14} />
+          {hw.done ? "Not done yet" : "Done"}
+        </button>
       </div>
     </article>
   );

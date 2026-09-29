@@ -2065,3 +2065,83 @@ label.call-orb {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.85);
 }
+
+/* ---------- Plan my week ---------- */
+
+.week-day {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.week-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* ---------- Focus timer ---------- */
+
+.focus-sheet {
+  align-items: stretch;
+  text-align: center;
+}
+
+.focus-ring {
+  align-self: center;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--accent) var(--done, 0deg), var(--line) 0);
+  margin: 8px 0;
+}
+
+.focus-ring span {
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--card);
+  font-size: 44px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Homework stats ---------- */
+
+.hw-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hw-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.hw-stat strong {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.hw-stat span {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.hw-stat.warm strong {
+  color: var(--warm);
+}

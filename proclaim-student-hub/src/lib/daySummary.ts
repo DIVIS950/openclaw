@@ -228,14 +228,13 @@ export function readSummary(value: unknown, d: Day): DaySummaryAi | null {
   };
 }
 
+/** The AI's take on the day, or null when its answer wasn't usable (never cached). */
 export async function aiSummary(
   ai: AiProvider,
   d: Day,
   name: string,
   now: Date,
-): Promise<DaySummaryAi> {
-  const value = await ai.json(summaryPrompt(d, name, now.toDateString(), now.getHours()), {
-    quick: true,
-  });
-  return readSummary(value, d) ?? localSummary(d);
+): Promise<DaySummaryAi | null> {
+  const value = await ai.json(summaryPrompt(d, name, now.toDateString(), now.getHours()));
+  return readSummary(value, d);
 }

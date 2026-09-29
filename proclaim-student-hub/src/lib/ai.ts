@@ -31,7 +31,11 @@ export interface AiProvider {
   /** One answer to one prompt; `quick` trades depth for speed. */
   text(prompt: string, opts?: { quick?: boolean }): Promise<string>;
   /** One JSON answer (the prompt must describe the shape). */
-  json(prompt: string, opts?: { quick?: boolean; images?: ImageInput[] }): Promise<unknown>;
+  /** `deep` asks for the strongest model (used where quality matters most). */
+  json(
+    prompt: string,
+    opts?: { quick?: boolean; deep?: boolean; images?: ImageInput[] },
+  ): Promise<unknown>;
   /** Streams a chat reply under standing instructions. */
   chat(
     instructions: string,
@@ -208,7 +212,7 @@ export function sampleAi(sample: Sample): AiProvider {
     async json(prompt, opts) {
       try {
         return await sample.json(prompt, {
-          modelTier: opts?.quick ? "quick" : "default",
+          modelTier: opts?.deep ? "complex" : opts?.quick ? "quick" : "default",
           cache: false,
           images: opts?.images?.length ? opts.images.map(toBlob) : undefined,
         });

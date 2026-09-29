@@ -1,5 +1,6 @@
 import { readTimetable } from "./aiFeatures.ts";
 import { courses, schedule, timetable, type Course, type CoursePost } from "./store.ts";
+import { addDays, dateInTitle, dayOf, sameTopic } from "./study.ts";
 import type { DataSource, Homework } from "./types.ts";
 
 // Starter data the student gave us (timetable, their classes, current homework),
@@ -123,6 +124,48 @@ export async function applyHomeworkSeed(
   }
 }
 
+export interface SeedTask extends SeedHomework {
+  done: boolean;
+}
+
+/**
+ * Every assignment posted in the student's classes becomes homework too (not
+ * only the few they listed). Older ones are ticked off as probably handed in;
+ * the student can untick any that aren't.
+ */
+export function seedTasks(seed: Seed, today: string): SeedTask[] {
+  const tasks: SeedTask[] = seed.homework.map((h) => ({
+    ...h,
+    done: Boolean(h.due && h.due < today),
+  }));
+  const recent = addDays(today, -10);
+  for (const course of seed.courses) {
+    for (const post of course.posts) {
+      if (post.kind !== "assignment") {
+        continue;
+      }
+      const due = dateInTitle(post.title, post.date || today) || undefined;
+      // Same task listed twice: similar title (unless the due dates differ),
+      // or the same class with the same due date.
+      const twin = tasks.some(
+        (t) =>
+          (sameTopic(t.title, post.title) && !(due && t.due && due !== t.due)) ||
+          (due !== undefined && t.due === due && sameTopic(t.course, course.name)),
+      );
+      if (twin) {
+        continue;
+      }
+      tasks.push({
+        title: post.title,
+        course: course.name,
+        due,
+        done: due ? due < today : !post.date || post.date < recent,
+      });
+    }
+  }
+  return tasks;
+}
+
 async function addSeedHomework(
   data: DataSource,
   known: Homework[],
@@ -130,17 +173,25 @@ async function addSeedHomework(
 ): Promise<Homework[]> {
   const titles = new Set(known.map((h) => h.title.trim().toLowerCase()));
   const added: Homework[] = [];
-  for (const h of seed.homework) {
-    if (!titles.has(h.title.toLowerCase())) {
-      added.push(
-        await data.addHomework({
-          title: h.title,
-          source: "Classroom",
-          due: h.due,
-          course: h.course,
-        }),
-      );
+  for (const h of seedTasks(seed, dayOf(new Date()))) {
+    const kDue = (k: Homework) => k.due?.slice(0, 10);
+    if (
+      titles.has(h.title.toLowerCase()) ||
+      known.some((k) => sameTopic(k.title, h.title) && !(h.due && kDue(k) && h.due !== kDue(k)))
+    ) {
+      continue;
     }
+    const hw = await data.addHomework({
+      title: h.title,
+      source: "Classroom",
+      due: h.due,
+      course: h.course,
+    });
+    if (h.done) {
+      await data.setDone(hw, true);
+      hw.done = true;
+    }
+    added.push(hw);
   }
   mark("psh.seed.homework", seed.version);
   return added;
