@@ -10,6 +10,7 @@ import { progress, timetable } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
 import { PAGES } from "../pages/runtime.ts";
+import { UnlockCard } from "../pages/Unlock.tsx";
 
 const QUICK_APPS: { name: string; url: string; icon: IconName; tile: string }[] = [
   { name: "Classroom", url: "https://classroom.google.com", icon: "classroom", tile: "#15803d" },
@@ -91,6 +92,8 @@ export function Today() {
           </button>
         </div>
       </header>
+
+      <UnlockCard />
 
       <section className="card-dark stack rise" style={{ gap: 12, animationDelay: "0.08s" }}>
         <div
