@@ -1,0 +1,15 @@
+{
+  "name": "Proclaim Student Hub",
+  "short_name": "Student Hub",
+  "description": "All your school apps in one place, with an AI study buddy.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#fffc00",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }],
+  "shortcuts": [
+    { "name": "To-do", "url": "./#todo" },
+    { "name": "Tests", "url": "./#tests" },
+    { "name": "Notes", "url": "./#notes" }
+  ]
+}
