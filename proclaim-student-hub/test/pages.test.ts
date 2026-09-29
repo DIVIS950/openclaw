@@ -179,3 +179,24 @@ describe("moving data from the claude.ai link to the web version", () => {
     expect(storage.getItem("psh.name")).toBe("Jan");
   });
 });
+
+describe("locked starter data on the public site", () => {
+  it("only opens with the right key", async () => {
+    const { decryptSeed } = await import("../src/pages/lockedSeed.ts");
+    const b64 = (b: Uint8Array) => Buffer.from(b).toString("base64url");
+    const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+    const aes = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const sealed = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        aes,
+        new TextEncoder().encode('{"version":"1"}'),
+      ),
+    );
+    const data = b64(new Uint8Array([...iv, ...sealed]));
+    await expect(decryptSeed(b64(keyBytes), data)).resolves.toEqual({ version: "1" });
+    const wrong = b64(crypto.getRandomValues(new Uint8Array(32)));
+    await expect(decryptSeed(wrong, data)).rejects.toBeDefined();
+  });
+});
