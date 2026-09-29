@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
+import { StartTask } from "../components/StartTask.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
 import { makeCanvaDesign } from "../lib/canva.ts";
@@ -111,14 +112,16 @@ export function Assignment({ hw }: { hw: Homework }) {
         </h1>
         <div className="row">
           <span className="chip">{dueLabel(hw.due)}</span>
-          <a
-            href={hw.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: 13, fontWeight: 600 }}
-          >
-            Open in Classroom
-          </a>
+          {hw.source === "Classroom" && (
+            <a
+              href={hw.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 13, fontWeight: 600 }}
+            >
+              Open in Classroom
+            </a>
+          )}
         </div>
       </header>
 
@@ -132,6 +135,12 @@ export function Assignment({ hw }: { hw: Homework }) {
           </p>
         </section>
       )}
+
+      <StartTask
+        hw={hw}
+        work={text}
+        onInsert={(outline) => onChange(text.trim() ? `${text.trimEnd()}\n\n${outline}` : outline)}
+      />
 
       <section className="card stack rise" style={{ animationDelay: "0.15s" }}>
         <div className="row" style={{ gap: 10 }}>

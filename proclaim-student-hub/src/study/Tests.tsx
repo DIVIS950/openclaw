@@ -16,6 +16,7 @@ import {
   prepPlan,
   prepTests,
   suggestTests,
+  testHandoff,
   type PrepDay,
   type PrepTest,
   type TestSuggestion,
@@ -50,7 +51,7 @@ export function Tests({
   const { homework } = useApp();
   const today = dayOf(new Date());
   const [list, setList] = useState<PrepTest[]>(prepTests.all);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(testHandoff.take);
   const [adding, setAdding] = useState<TestSuggestion | null>(null);
   const suggestions = useMemo(
     () => suggestTests({ homework: homework ?? [], courses: courses.get(), existing: list }, today),

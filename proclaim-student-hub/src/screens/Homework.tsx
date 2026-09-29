@@ -113,7 +113,8 @@ export function HomeworkScreen() {
 
 function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
   const { openAssignment, openAi, data, replaceHomework, handleError, toast } = useApp();
-  const inApp = hw.source === "Classroom";
+  // Classroom and "Other" work (e.g. added with Add anything) is done here.
+  const inApp = hw.source === "Classroom" || hw.source === "Other";
 
   return (
     <article
@@ -148,28 +149,28 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
             Do it here
           </button>
         ) : (
-          <>
-            <a className="btn small" href={hw.link} target="_blank" rel="noopener noreferrer">
-              Open in {hw.source}
-            </a>
-            <button
-              className="btn small"
-              onClick={async () => {
-                replaceHomework({ ...hw, done: true });
-                try {
-                  await data.setDone(hw, true);
-                  progress.add(5);
-                  toast(`${data.labels.ticked} +5 XP`);
-                } catch (err) {
-                  replaceHomework(hw);
-                  handleError(err);
-                }
-              }}
-            >
-              <Icon name="check" size={14} />
-              Done
-            </button>
-          </>
+          <a className="btn small" href={hw.link} target="_blank" rel="noopener noreferrer">
+            Open in {hw.source}
+          </a>
+        )}
+        {hw.source !== "Classroom" && (
+          <button
+            className="btn small"
+            onClick={async () => {
+              replaceHomework({ ...hw, done: true });
+              try {
+                await data.setDone(hw, true);
+                progress.add(5);
+                toast(`${data.labels.ticked} +5 XP`);
+              } catch (err) {
+                replaceHomework(hw);
+                handleError(err);
+              }
+            }}
+          >
+            <Icon name="check" size={14} />
+            Done
+          </button>
         )}
       </div>
     </article>

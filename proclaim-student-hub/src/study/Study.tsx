@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AddAnythingButton } from "../components/AddAnything.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { progress } from "../lib/store.ts";
@@ -42,10 +43,16 @@ function useOpenNote() {
 }
 
 export function TodoScreen() {
+  const [version, setVersion] = useState(0);
   return (
     <main className="screen">
       <ScreenHead title="To-do" sub="Everything you need to get done, by when it's due." />
-      <TodoList />
+      <AddAnythingButton
+        big
+        label="Add anything: paste or photo, the AI sorts it"
+        onSaved={() => setVersion((v) => v + 1)}
+      />
+      <TodoList key={version} />
     </main>
   );
 }

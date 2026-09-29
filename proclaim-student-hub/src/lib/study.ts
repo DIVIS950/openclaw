@@ -452,6 +452,19 @@ export const labHandoff = {
   },
 };
 
+/** A test whose plan should open when the Tests screen appears. */
+let nextTest: string | null = null;
+export const testHandoff = {
+  set: (id: string) => {
+    nextTest = id;
+  },
+  take: (): string | null => {
+    const id = nextTest;
+    nextTest = null;
+    return id;
+  },
+};
+
 /** A note to open when the Notes screen appears (set by other screens before going there). */
 let nextNote: string | null = null;
 export const noteHandoff = {

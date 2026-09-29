@@ -56,7 +56,8 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
         aria-label={`Mark ${hw.title} done`}
       />
       <span className="subject-dot" style={subjectVars(hw.course)} aria-hidden="true" />
-      {hw.source === "Classroom" ? (
+      {/* Classroom and "Other" work is done here; Dr Frost etc. open their own site. */}
+      {hw.source === "Classroom" || hw.source === "Other" ? (
         <button onClick={() => openAssignment(hw)} style={titleStyle}>
           {label}
         </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AgendaList } from "../components/Agenda.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -218,6 +219,8 @@ export function Timetable() {
       {importing && (
         <ImportSheet mode="timetable" onClose={() => setImporting(false)} onLessons={setLessons} />
       )}
+      <AgendaList />
+
       {editing && (
         <LessonEditor
           lesson={editing.lesson}

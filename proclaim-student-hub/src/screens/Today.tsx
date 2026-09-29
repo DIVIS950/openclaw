@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
+import { AddAnythingButton } from "../components/AddAnything.tsx";
+import { DaySummary } from "../components/DaySummary.tsx";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
 import { greeting, timeLabel } from "../lib/format.ts";
 import { progress, timetable } from "../lib/store.ts";
-import { dayOf, prepPlan, prepTests, todos } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { CalEvent } from "../lib/types.ts";
-import { NoKeyError } from "../pages/gemini.ts";
 import { PAGES } from "../pages/runtime.ts";
-
-const BRIEF_KEY = "psh.brief";
 
 const QUICK_APPS: { name: string; url: string; icon: IconName; tile: string }[] = [
   { name: "Classroom", url: "https://classroom.google.com", icon: "classroom", tile: "#15803d" },
@@ -24,21 +22,10 @@ export function Today() {
   const app = useApp();
   const { data, homework, profile, ai, go } = app;
   const [events, setEvents] = useState<CalEvent[] | null>(null);
-  const [brief, setBrief] = useState<string | null>(null);
-  const [briefFailed, setBriefFailed] = useState<false | "error" | "nokey">(false);
+  const [summaryVersion, setSummaryVersion] = useState(0);
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
-  const todayKey = dayOf(new Date());
-  const [prepToday] = useState(() =>
-    prepTests.all().flatMap((test) => {
-      const day = prepPlan(test, todayKey).find((d) => d.date === todayKey);
-      return day && !test.done.includes(todayKey) ? [{ test, day }] : [];
-    }),
-  );
-  const [todosToday] = useState(
-    () => todos.all().filter((t) => !t.done && t.due && t.due <= todayKey).length,
-  );
   const upcoming = upcomingLessons(lessons);
 
   const makePlan = async () => {
@@ -69,75 +56,11 @@ export function Today() {
 
   const open = (homework ?? []).filter((h) => !h.done);
   useAiContext(
-    `Today screen. Summary: ${brief ?? ""}. Homework still to do: ` +
+    "Today screen. Homework still to do: " +
       open
         .map((h) => `${h.title} (${h.course}, due ${h.due?.slice(0, 10) ?? "no date"})`)
         .join("; "),
   );
-
-  // Ask the AI for a short summary once the homework has loaded. Cached for the
-  // session so switching tabs doesn't cost another call.
-  useEffect(() => {
-    if (!homework || !events) {
-      return;
-    }
-    if (!ai) {
-      const next = open[0];
-      setBrief(
-        open.length === 0
-          ? "Nothing due right now. Nice one!"
-          : `You have ${open.length} things to do. Next up: ${next.title} (${next.course}).`,
-      );
-      return;
-    }
-    const cacheKey = `${open.map((h) => h.id).join(",")}|${new Date().toDateString()}`;
-    try {
-      const cached = JSON.parse(sessionStorage.getItem(BRIEF_KEY) ?? "null") as {
-        key: string;
-        text: string;
-      } | null;
-      if (cached?.key === cacheKey) {
-        setBrief(cached.text);
-        return;
-      }
-    } catch {
-      // Ignore a broken cache.
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const emails = await data.inbox().catch(() => []);
-        const text = await ai.brief({
-          name: profile?.name ?? "",
-          homework: open
-            .slice(0, 12)
-            .map((h) => ({ title: h.title, course: h.course, due: h.due })),
-          emails: emails
-            .filter((e) => e.unread)
-            .slice(0, 8)
-            .map((e) => ({ from: e.from, subject: e.subject })),
-          events: [
-            ...events.map((e) => ({ title: e.title, start: e.start })),
-            ...upcoming.lessons.map((l) => ({
-              title: l.subject,
-              start: `${upcoming.label} ${l.start}`,
-            })),
-          ],
-        });
-        if (!cancelled) {
-          setBrief(text);
-          sessionStorage.setItem(BRIEF_KEY, JSON.stringify({ key: cacheKey, text }));
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setBriefFailed(err instanceof NoKeyError ? "nokey" : "error");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [homework, events, ai]);
 
   return (
     <main className="screen">
@@ -156,6 +79,7 @@ export function Today() {
           </h1>
         </div>
         <div className="row">
+          <AddAnythingButton onSaved={() => setSummaryVersion((v) => v + 1)} />
           {stats.streak > 0 && (
             <span className="chip warm" aria-label={`${stats.streak} day streak`}>
               <Icon name="flame" size={14} />
@@ -184,31 +108,7 @@ export function Today() {
             </span>
           )}
         </div>
-        {brief ? (
-          <p className="pop" style={{ margin: 0, fontSize: 19, fontWeight: 800, lineHeight: 1.4 }}>
-            {brief}
-          </p>
-        ) : briefFailed === "nokey" ? (
-          <p style={{ margin: 0, fontSize: 15 }}>
-            The AI isn't set up on this phone yet.{" "}
-            <button
-              className="link-btn"
-              style={{ color: "var(--accent)" }}
-              onClick={() => go("apps")}
-            >
-              Set it up ›
-            </button>
-          </p>
-        ) : briefFailed ? (
-          <p style={{ margin: 0, fontSize: 15 }}>
-            Couldn't write your summary right now. Your homework is below.
-          </p>
-        ) : (
-          <div className="stack" style={{ gap: 8 }} aria-label="Loading summary">
-            <div className="skeleton" />
-            <div className="skeleton" style={{ width: "70%" }} />
-          </div>
-        )}
+        <DaySummary key={summaryVersion} />
         <div className="row">
           <button
             className="btn block"
@@ -254,45 +154,6 @@ export function Today() {
             ›
           </span>
         </button>
-      )}
-
-      {(prepToday.length > 0 || todosToday > 0) && (
-        <section className="card stack rise" style={{ animationDelay: "0.14s" }}>
-          <div className="between">
-            <h2 className="h2">Today's study</h2>
-            <button className="link-btn" onClick={() => go(prepToday.length ? "tests" : "todo")}>
-              Open ›
-            </button>
-          </div>
-          {prepToday.map((p) => (
-            <button
-              key={p.test.id}
-              className="between study-row"
-              style={subjectVars(p.test.subject)}
-              onClick={() => go("tests")}
-            >
-              <span className="row" style={{ gap: 8, minWidth: 0 }}>
-                <span className="subject-dot" />
-                <span style={{ minWidth: 0 }}>
-                  <strong>{p.day.title}</strong>
-                  <span className="muted" style={{ display: "block" }}>
-                    {p.test.subject} test {p.day.left === 0 ? "today" : `in ${p.day.left} days`} ·{" "}
-                    {p.day.minutes} min
-                  </span>
-                </span>
-              </span>
-              <span className="muted">›</span>
-            </button>
-          ))}
-          {todosToday > 0 && (
-            <button className="between study-row" onClick={() => go("todo")}>
-              <span>
-                <strong>{todosToday}</strong> to-do{todosToday === 1 ? "" : "s"} for today
-              </span>
-              <span className="muted">›</span>
-            </button>
-          )}
-        </section>
       )}
 
       {Array.isArray(plan) && (
