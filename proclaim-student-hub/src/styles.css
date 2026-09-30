@@ -1253,7 +1253,10 @@ textarea.field {
   border-radius: 22px;
   color: #fff;
   background: var(--hero);
-  box-shadow: var(--shadow-lg);
+  border-left: 5px solid var(--neon, var(--accent));
+  box-shadow:
+    var(--shadow-lg),
+    0 0 28px -6px var(--neon, var(--accent));
 }
 
 .now-label {
@@ -1277,7 +1280,8 @@ textarea.field {
 .now-bar > div {
   height: 100%;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--subject, #fff) 55%, #fff);
+  background: var(--neon, #fff);
+  box-shadow: 0 0 10px var(--neon, #fff);
   transition: width 1s linear;
 }
 
@@ -1327,16 +1331,20 @@ textarea.field {
   padding: 12px 14px;
   text-align: left;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--subject);
+  border: 1px solid var(--card-border);
+  border-left: 5px solid var(--neon, var(--subject));
   background: var(--card);
-  box-shadow: var(--shadow);
+  /* Neon stripe with a soft glow bleeding into the card. */
+  box-shadow:
+    var(--shadow),
+    inset 6px 0 18px -10px var(--neon, var(--subject));
 }
 
 .lesson.now {
-  background: color-mix(in srgb, var(--subject) 8%, var(--card));
-  border-color: color-mix(in srgb, var(--subject) 45%, var(--card));
-  border-left-color: var(--subject);
+  background: color-mix(in srgb, var(--neon, var(--subject)) 14%, var(--card));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--neon, var(--subject)) 60%, transparent),
+    0 8px 24px -6px var(--neon, var(--subject));
 }
 
 .lesson-time {
@@ -1373,7 +1381,8 @@ textarea.field {
   height: 8px;
   flex-shrink: 0;
   border-radius: 4px;
-  background: var(--subject);
+  background: var(--neon, var(--subject));
+  box-shadow: 0 0 8px var(--neon, var(--subject));
   animation: pulse 1.6s ease-in-out infinite;
 }
 
@@ -1393,9 +1402,11 @@ textarea.field {
   padding: 10px 12px;
   border-radius: 16px;
   border: none;
-  border-left: 4px solid var(--subject);
+  border-left: 5px solid var(--neon, var(--subject));
   background: var(--card);
-  box-shadow: var(--shadow);
+  box-shadow:
+    var(--shadow),
+    inset 6px 0 18px -10px var(--neon, var(--subject));
   text-align: left;
 }
 
