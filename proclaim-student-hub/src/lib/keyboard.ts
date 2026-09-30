@@ -22,6 +22,10 @@ export function trackKeyboard(root: HTMLElement = document.documentElement) {
       root.style.setProperty("--app-top", `${top}px`);
       // A big drop in visible height means the keyboard is up.
       root.classList.toggle("keyboard", Boolean(vv) && window.innerHeight - height > 120);
+      // Once the page is exactly the visible size there is nothing to pan; snap back if it did.
+      if (vv && top === 0 && window.scrollY > 0) {
+        window.scrollTo(0, 0);
+      }
     });
   };
   vv?.addEventListener("resize", apply);

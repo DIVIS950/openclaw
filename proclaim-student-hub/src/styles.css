@@ -83,10 +83,13 @@ body,
 }
 
 body {
-  /* Pinned: the page itself never scrolls or bounces, only the screens inside do. */
+  /* Pinned to exactly the visible area: the page itself can never scroll,
+     bounce or be dragged around behind the keyboard; only the screens inside scroll. */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: var(--app-h, 100%);
   overflow: hidden;
   overscroll-behavior: none;
   background: var(--bg);
