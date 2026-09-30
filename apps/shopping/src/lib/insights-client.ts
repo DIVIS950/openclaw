@@ -1,7 +1,7 @@
 "use client";
 
 import { getSample } from "./claude-page";
-import { cleanVerdict, heuristicVerdict, verdictPrompt, type Coupon, type Verdict, type VerdictInput } from "./prompts";
+import { cleanVerdict, extractJson, heuristicVerdict, verdictPrompt, type Coupon, type Verdict, type VerdictInput } from "./prompts";
 
 export type VerdictResult = Verdict & { source: "claude" | "rules" };
 
@@ -12,7 +12,6 @@ export async function fetchVerdict(input: VerdictInput): Promise<VerdictResult> 
     if (sample) {
       try {
         const { text } = await sample(verdictPrompt(input, false), { cache: { gcTime: 6 * 3600_000 } });
-        const { extractJson } = await import("./prompts");
         const v = cleanVerdict(extractJson(text));
         if (v) return { ...v, source: "claude" };
       } catch {

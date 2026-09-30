@@ -155,7 +155,7 @@ export function Assistant() {
                 </span>
                 <div className="flex-1">
                   <div className="font-serif text-lg font-semibold leading-tight">Orbit AI</div>
-                  <div className="text-xs text-muted">{aiEnabled ? "Claude · live web prices" : process.env.NEXT_PUBLIC_ORBIT_STATIC === "1" ? "Claude · estimated prices" : "Demo mode · sample data"}</div>
+                  <div className="text-xs text-muted">{aiEnabled ? "Claude · live web prices" : process.env.NEXT_PUBLIC_ORBIT_STATIC === "1" ? "Claude · estimated prices" : "Not switched on yet"}</div>
                 </div>
                 <button onClick={() => setOpen(false)} className="btn btn-ghost h-9 w-9" aria-label="Close">
                   <X size={18} />

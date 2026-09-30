@@ -1,6 +1,7 @@
 "use client";
 
 import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { useState } from "react";
 import type { Product } from "@/lib/data";
 import { cn } from "@/lib/format";
 import type { SafetyLevel } from "@/lib/safety";
@@ -36,14 +37,20 @@ export function Avatar({ name, image, size = 32 }: { name: string; image?: strin
 }
 
 export function ProductArt({ product, className, big, small }: { product: Product; className?: string; big?: boolean; small?: boolean }) {
+  const [broken, setBroken] = useState(false);
+  const photo = product.image && !broken;
   return (
     <div
-      className={cn("relative grid place-items-center overflow-hidden rounded-2xl", className)}
-      style={{ background: `radial-gradient(120% 90% at 30% 20%, ${product.art.from}, ${product.art.to})` }}
+      className={cn("relative grid place-items-center overflow-hidden rounded-2xl", photo && "bg-white", className)}
+      style={photo ? undefined : { background: `radial-gradient(120% 90% at 30% 20%, ${product.art.from}, ${product.art.to})` }}
     >
+      {photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={product.image} alt={`${product.brand} ${product.title}`} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="absolute inset-0 h-full w-full object-contain p-[8%]" />
+      )}
       {/* Softens the pastel tile in dark mode so it doesn't glare. */}
       <span className="absolute inset-0 bg-[var(--art-veil)]" aria-hidden />
-      <span className={cn("relative drop-shadow-[0_12px_18px_rgba(0,0,0,0.18)] select-none", big ? "text-[7rem]" : small ? "text-4xl" : "text-6xl")}>{product.art.glyph}</span>
+      {!photo && <span className={cn("relative drop-shadow-[0_12px_18px_rgba(0,0,0,0.18)] select-none", big ? "text-[7rem]" : small ? "text-4xl" : "text-6xl")}>{product.art.glyph}</span>}
       {!small && <span className="absolute left-3 top-3 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-700 backdrop-blur">
         {product.brand}
       </span>}

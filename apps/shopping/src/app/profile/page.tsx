@@ -83,15 +83,16 @@ export default function ProfilePage() {
       </Section>
 
       <Section icon={<Sparkles size={17} />} title="Connected services">
-        <Service name="Google account" on={user?.kind === "google"} detail={env.googleEnabled ? "Sign in with Google" : "Needs AUTH_GOOGLE_ID"} />
-        <Service name="Gmail parcel tracking" on={gmailConnected} detail={env.gmailEnabled ? "Read-only access to shipping emails" : "Demo parcels (set ORBIT_GMAIL=1)"} icon={<Mail size={14} />} />
-        <Service name="Claude AI" on={env.aiEnabled} detail={env.aiEnabled ? "Live prices, scam checks and ETAs" : "Demo answers (set ANTHROPIC_API_KEY)"} />
+        <Service name="Payments" on={env.paymentsEnabled} detail={env.paymentsEnabled ? "Apple Pay, Google Pay and cards via Stripe" : "Not switched on yet"} icon={<CreditCard size={14} />} />
+        <Service name="Claude AI" on={env.aiEnabled} detail={env.aiEnabled ? "Live prices, scam checks, buy advice and coupons" : "Not switched on yet"} icon={<Sparkles size={14} />} />
+        <Service name="Google account" on={user?.kind === "google"} detail={env.googleEnabled ? "Sign in with Google" : "Not switched on yet"} />
+        <Service name="Gmail parcel tracking" on={gmailConnected} detail={env.gmailEnabled ? "Read-only access to shipping emails" : "Not switched on yet"} icon={<Mail size={14} />} />
       </Section>
 
       <Section icon={<Lock size={17} />} title="Security">
         <ul className="space-y-1.5 text-sm text-muted">
           <li>• Google sign-in only — Orbit never sees your password.</li>
-          <li>• Card numbers and CVC are never stored; payments go through a PCI-compliant processor.</li>
+          <li>• Card details go straight to Stripe; Orbit never sees them, and you&apos;re only charged once your order is placed.</li>
           <li>• Gmail access is read-only and stays on the server, never in your browser.</li>
           <li>• Every shop is scam-checked before you can pay.</li>
         </ul>

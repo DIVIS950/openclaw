@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { orders } from "@/lib/server/orders-db";
-import { withEvent } from "@/lib/server/order-sync";
+import { commit, withEvent } from "@/lib/server/order-sync";
 import { fromCents, stripe } from "@/lib/server/stripe";
 
 /**
@@ -25,9 +25,9 @@ export async function POST(req: Request) {
     const order = id ? await orders().get(id) : null;
     if (order && order.paymentIntentId === pi.id) {
       if (event.type === "payment_intent.canceled" && order.status !== "cancelled") {
-        await orders().put(withEvent(order, "cancelled", "Payment released"));
+        await commit(withEvent(order, "cancelled", "Payment released"));
       } else if (event.type === "payment_intent.amount_capturable_updated" && order.status === "pending_payment") {
-        await orders().put(withEvent(order, "held", `${fromCents(pi.amount_capturable).toFixed(2)} EUR reserved`));
+        await commit(withEvent(order, "held", `${fromCents(pi.amount_capturable).toFixed(2)} EUR reserved`));
       }
     }
   }

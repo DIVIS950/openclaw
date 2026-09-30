@@ -2,7 +2,9 @@
 
 import { ArrowLeft, Check, ExternalLink, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { OrderPlaced } from "@/components/OrderPlaced";
 import { BoardingPass } from "@/components/BoardingPass";
 import { RoadTrip } from "@/components/RoadTrip";
 import { WorldMap } from "@/components/WorldMap";
@@ -25,6 +27,9 @@ export function OrderView({ id }: { id: string }) {
   const ref = myOrders.find((o) => o.id === id);
   const [order, setOrder] = useState<PublicOrder | null>(null);
   const [error, setError] = useState("");
+  const params = useSearchParams();
+  const router = useRouter();
+  const justPlaced = params.get("placed") === "1";
 
   useEffect(() => {
     if (!ref) return;
@@ -81,6 +86,10 @@ export function OrderView({ id }: { id: string }) {
       <p className="text-sm text-muted">
         from {order.item.store} · order {order.id}
       </p>
+
+      {justPlaced && order.status !== "cancelled" && (
+        <OrderPlaced title={`${order.item.brand} ${order.item.title}`} store={order.item.store} onDismiss={() => router.replace(`/order/${id}`)} />
+      )}
 
       {order.status === "cancelled" ? (
         <div className="card mt-5 flex gap-3 border-bad/40 p-4">

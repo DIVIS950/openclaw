@@ -108,8 +108,12 @@ try {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
 
-  await page.goto(`${BASE}/order/${created.id}`);
+  await page.goto(`${BASE}/order/${created.id}?placed=1`);
   await page.waitForSelector("text=Your card is not charged yet.");
+  check((await page.getByRole("heading", { name: "Order placed" }).count()) === 1, "customer sees the 'Order placed' moment after paying");
+  await page.screenshot({ path: path.join(out, "customer-placed.png"), fullPage: true });
+  await page.getByRole("button", { name: "Got it" }).click();
+  await page.waitForSelector("text=Order placed", { state: "detached" });
   check(true, "customer sees 'Payment reserved' on the order page");
   await page.screenshot({ path: path.join(out, "customer-held.png"), fullPage: true });
 

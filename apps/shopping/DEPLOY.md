@@ -62,6 +62,13 @@ Card reservations expire after about 7 days, so place or cancel orders quickly.
 Customers can return online purchases within 14 days in the EU; refunds are made
 in the Stripe dashboard.
 
+## Optional: emails to customers
+1. https://resend.com: sign up (free), verify your domain under **Domains**.
+2. **API Keys → Create**, then in Vercel add `RESEND_API_KEY` and
+   `ORBIT_EMAIL_FROM` (for example `Orbit <orders@your-domain.com>`), and redeploy.
+   Customers then get an email when their order is reserved, placed, shipped,
+   delivered or cancelled.
+
 ## Optional: Google sign-in + Gmail parcels
 1. https://console.cloud.google.com: create a project, then **APIs & Services**.
 2. **OAuth consent screen**: External, and add yourself as a test user. For Gmail,

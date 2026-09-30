@@ -11,6 +11,7 @@ export type RawProduct = {
   specs?: unknown;
   typicalPrice?: unknown;
   offers?: unknown;
+  image?: unknown;
 };
 
 type RawOffer = {
@@ -51,7 +52,7 @@ For each shop, honestly assess trust: HTTPS, approximate domain age in years, ra
 warehouseCity must be the closest city from this list: ${CITY_LIST}.
 
 Output format: JSON Lines. One product per line, no markdown, no numbering, no other text. Each line is exactly one object:
-{"title":"...","brand":"...","category":"...","emoji":"one emoji","blurb":"one short sentence","specs":["up to 4 short specs"],"typicalPrice":123,"offers":[{"store":"Shop name","domain":"shop.com","price":119.99,"url":"https://...","warehouseCity":"Berlin","https":true,"domainAgeYears":12,"rating":4.5,"reviews":20000,"returnsDays":30,"flags":[]}]}
+{"title":"...","brand":"...","category":"...","emoji":"one emoji","blurb":"one short sentence","specs":["up to 4 short specs"],"typicalPrice":123,"image":"https://... direct link to a product photo (jpg/png/webp) from the maker or a shop, or null","offers":[{"store":"Shop name","domain":"shop.com","price":119.99,"url":"https://...","warehouseCity":"Berlin","https":true,"domainAgeYears":12,"rating":4.5,"reviews":20000,"returnsDays":30,"flags":[]}]}
 Use null for url when you do not know the exact product page.`;
 }
 
@@ -147,6 +148,7 @@ export function normalize(raw: RawProduct, source: "web" | "estimate"): Product 
     // Median price is the market reference used by the scam check.
     typicalPrice: num(raw.typicalPrice, 0) || prices[Math.floor(prices.length / 2)],
     source,
+    image: source === "web" ? safeUrl(raw.image) : undefined,
   };
   registerDynamic([product], stores, offers);
   return product;

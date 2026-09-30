@@ -2,6 +2,9 @@ import { z } from "zod";
 import { aiEnabled } from "@/lib/ai";
 import { cleanVerdict, extractJson, heuristicVerdict, verdictPrompt } from "@/lib/prompts";
 import { askWithSearch } from "@/lib/server/ask";
+import { clientIp, createLimiter } from "@/lib/server/rate-limit";
+
+const allowed = createLimiter(15, 60_000);
 
 const Body = z.object({
   title: z.string().max(120),
@@ -15,6 +18,7 @@ const Body = z.object({
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
+  if (!allowed(clientIp(req))) return Response.json({ error: "Too many requests" }, { status: 429 });
   const v = parsed.data;
   if (!aiEnabled()) return Response.json({ ...heuristicVerdict(v), source: "rules" });
   try {

@@ -3,7 +3,7 @@
 import { BadgePercent, Info, MapPin, Plane, ShieldCheck, Truck, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEnv, useUser } from "@/components/Providers";
 import { StripePay, type CreatedOrder } from "@/components/StripePay";
 import { ProductArt } from "@/components/ui";
@@ -68,6 +68,9 @@ export function CheckoutView() {
   // The same pricing code the server runs, so the amount shown is the amount reserved.
   const priced = priceOrder({ ...input, speed: input.speed } as OrderInput, env.feePercent);
 
+  // A declined payment keeps the same order, so retries don't pile up orders and the coupon stays attached.
+  const started = useRef<{ key: string; order: CreatedOrder } | null>(null);
+
   async function createOrder(): Promise<CreatedOrder | string> {
     const check = OrderInput.safeParse(input);
     if (!check.success) {
@@ -76,12 +79,21 @@ export function CheckoutView() {
     }
     if (safety.level === "danger") return "Orbit doesn't buy from shops that look like scams.";
     setAppState({ address: addr });
+    const key = JSON.stringify(check.data);
+    if (started.current?.key === key) return started.current.order;
     const res = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(check.data) });
     const data = (await res.json().catch(() => ({}))) as Partial<CreatedOrder> & { error?: string };
     if (!res.ok || !data.id || !data.token || !data.clientSecret) return data.error ?? "Couldn't start the order. Try again.";
+    const order = data as CreatedOrder;
+    started.current = { key, order };
     // Keep the order's key on this device before paying, so redirects can find it.
-    setAppState((s) => ({ myOrders: [{ id: data.id!, token: data.token!, title: `${product.brand} ${product.title}`, createdAt: Date.now() }, ...s.myOrders], pendingCoupon: null }));
-    return data as CreatedOrder;
+    setAppState((s) => ({ myOrders: [{ id: order.id, token: order.token, title: `${product.brand} ${product.title}`, createdAt: Date.now() }, ...s.myOrders.filter((o) => o.id !== order.id)] }));
+    return order;
+  }
+
+  function paid(order: CreatedOrder) {
+    setAppState({ pendingCoupon: null });
+    router.push(`/order/${order.id}?placed=1`);
   }
 
   const set = (k: keyof Address) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setAddr({ ...addr, [k]: e.target.value });
@@ -135,7 +147,7 @@ export function CheckoutView() {
             <Notice>Payments aren't switched on yet. The owner needs to add the Stripe keys (see DEPLOY.md).</Notice>
           ) : (
             <div className="mt-4">
-              <StripePay amount={priced.authorized} createOrder={createOrder} onPaid={(o) => router.push(`/order/${o.id}`)} />
+              <StripePay amount={priced.authorized} createOrder={createOrder} onPaid={paid} />
             </div>
           )}
         </section>

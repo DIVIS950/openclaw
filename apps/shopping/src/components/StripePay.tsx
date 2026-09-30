@@ -105,6 +105,9 @@ function PayForm({ amount, createOrder, onPaid }: Props) {
               event.paymentFailed({ reason: "fail" });
               setError(msg);
             }
+          } catch {
+            event.paymentFailed({ reason: "fail" });
+            setError("Something went wrong. You haven't been charged; try again.");
           } finally {
             setBusy(false);
           }

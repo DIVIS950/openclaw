@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Redis } from "@upstash/redis";
 import type { Order } from "../order-types";
@@ -44,11 +44,14 @@ function fileDb(): OrderDb {
   // Serialise writes so concurrent requests can't clobber each other.
   let chain: Promise<unknown> = Promise.resolve();
   const readAll = async (): Promise<Record<string, Order>> => {
+    let raw: string;
     try {
-      return JSON.parse(await readFile(file, "utf8")) as Record<string, Order>;
+      raw = await readFile(file, "utf8");
     } catch {
-      return {};
+      return {}; // no file yet
     }
+    // A corrupt file must never be treated as "no orders", or the next write would erase them all.
+    return JSON.parse(raw) as Record<string, Order>;
   };
   return {
     get: async (id) => (await readAll())[id] ?? null,
@@ -57,7 +60,9 @@ function fileDb(): OrderDb {
         const all = await readAll();
         all[order.id] = order;
         await mkdir(path.dirname(file), { recursive: true });
-        await writeFile(file, JSON.stringify(all, null, 1));
+        // Write to a temp file and rename, so a crash mid-write can't corrupt the store.
+        await writeFile(`${file}.tmp`, JSON.stringify(all, null, 1));
+        await rename(`${file}.tmp`, file);
       });
       chain = next.catch(() => {});
       return next;

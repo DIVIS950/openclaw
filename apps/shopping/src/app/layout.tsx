@@ -4,6 +4,7 @@ import { gmailEnabled, googleEnabled } from "@/auth";
 import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
 import { aiEnabled } from "@/lib/ai";
+import { feePercent } from "@/lib/config";
 import { dbConfigured } from "@/lib/server/orders-db";
 import { stripeConfigured } from "@/lib/server/stripe";
 import { getSessionUser } from "@/lib/session";
@@ -35,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`${body.variable} ${display.variable}`}>
       <body>
-        <Providers value={{ user, googleEnabled, gmailEnabled, aiEnabled: aiEnabled(), paymentsEnabled: stripeConfigured && dbConfigured, feePercent: Number(process.env.ORBIT_FEE_PERCENT ?? 3) }}>
+        <Providers value={{ user, googleEnabled, gmailEnabled, aiEnabled: aiEnabled(), paymentsEnabled: stripeConfigured && dbConfigured, feePercent: feePercent() }}>
           <AppShell>{children}</AppShell>
         </Providers>
       </body>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { round2 } from "@/lib/order-types";
 import { checkPassword, endAdminSession, isAdmin, startAdminSession } from "@/lib/server/admin-auth";
 import { orders } from "@/lib/server/orders-db";
-import { withEvent } from "@/lib/server/order-sync";
+import { commit, withEvent } from "@/lib/server/order-sync";
 import { fromCents, stripe, toCents } from "@/lib/server/stripe";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -48,9 +48,11 @@ export async function markOrdered(_: ActionResult | null, form: FormData): Promi
     if (!(finalAmount > 0) || finalAmount > order.authorized) {
       return { ok: false, message: `The amount must be between 0 and ${order.authorized.toFixed(2)} EUR (what the customer approved).` };
     }
+    // Save the shop order number first, so a crash after the charge can still be recovered by syncPayment.
+    await orders().put({ ...order, shopOrderNumber });
     const pi = await stripe().paymentIntents.capture(order.paymentIntentId!, { amount_to_capture: toCents(finalAmount) });
     const charged = fromCents(pi.amount_received);
-    await orders().put({
+    await commit({
       ...withEvent(order, "ordered", `Shop order ${shopOrderNumber}`),
       shopOrderNumber,
       charged,
@@ -69,7 +71,7 @@ export async function markShipped(_: ActionResult | null, form: FormData): Promi
     const trackingNumber = text(form, "trackingNumber", 60);
     const carrier = text(form, "carrier", 40) || order.delivery.carrier;
     if (!trackingNumber) return { ok: false, message: "Enter the tracking number." };
-    await orders().put({ ...withEvent(order, "shipped", `${carrier} ${trackingNumber}`), trackingNumber, carrier });
+    await commit({ ...withEvent(order, "shipped", `${carrier} ${trackingNumber}`), trackingNumber, carrier });
     revalidatePath("/admin");
     return { ok: true, message: "Marked as shipped." };
   } catch (e) {
@@ -81,7 +83,7 @@ export async function markDelivered(_: ActionResult | null, form: FormData): Pro
   try {
     const order = await load(text(form, "id"));
     if (order.status !== "shipped") return { ok: false, message: "Only shipped orders can be delivered." };
-    await orders().put(withEvent(order, "delivered"));
+    await commit(withEvent(order, "delivered"));
     revalidatePath("/admin");
     return { ok: true, message: "Marked as delivered." };
   } catch (e) {
@@ -99,7 +101,7 @@ export async function cancelOrder(_: ActionResult | null, form: FormData): Promi
       const pi = await stripe().paymentIntents.retrieve(order.paymentIntentId);
       if (pi.status !== "canceled") await stripe().paymentIntents.cancel(order.paymentIntentId);
     }
-    await orders().put(withEvent(order, "cancelled", reason));
+    await commit(withEvent(order, "cancelled", reason));
     revalidatePath("/admin");
     return { ok: true, message: "Cancelled; the reserved money was released." };
   } catch (e) {

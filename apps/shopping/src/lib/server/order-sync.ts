@@ -1,5 +1,6 @@
 import "server-only";
 import type { Order, OrderStatus, PublicOrder } from "../order-types";
+import { notifyCustomer } from "./email";
 import { orders } from "./orders-db";
 import { fromCents, stripe } from "./stripe";
 
@@ -23,6 +24,17 @@ export async function syncPayment(order: Order): Promise<Order> {
   let next = order;
   if (pi.status === "requires_capture" && order.status === "pending_payment") next = withEvent(order, "held", `${fromCents(pi.amount_capturable).toFixed(2)} EUR reserved`);
   else if (pi.status === "canceled") next = withEvent(order, "cancelled", "Payment released");
-  if (next !== order) await orders().put(next);
+  // Captured outside the normal flow (a crash after capture, or the Stripe dashboard): record the charge.
+  else if (pi.status === "succeeded") next = { ...withEvent(order, "ordered", "Charged (recovered from Stripe)"), charged: fromCents(pi.amount_received) };
+  if (next !== order) {
+    await orders().put(next);
+    await notifyCustomer(next);
+  }
   return next;
+}
+
+/** Saves a status change and emails the customer about it. */
+export async function commit(next: Order): Promise<void> {
+  await orders().put(next);
+  await notifyCustomer(next);
 }

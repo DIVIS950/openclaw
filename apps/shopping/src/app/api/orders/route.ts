@@ -1,19 +1,11 @@
+import { feePercent } from "@/lib/config";
 import { OrderInput, priceOrder } from "@/lib/order-pricing";
 import type { Order } from "@/lib/order-types";
 import { dbConfigured, newId, newToken, orders } from "@/lib/server/orders-db";
+import { clientIp, createLimiter } from "@/lib/server/rate-limit";
 import { stripe, stripeConfigured, toCents } from "@/lib/server/stripe";
 
-const FEE_PERCENT = Number(process.env.ORBIT_FEE_PERCENT ?? 3);
-
-// Simple per-IP limit on new orders.
-const recent = new Map<string, number[]>();
-function allowed(ip: string) {
-  const now = Date.now();
-  const hits = (recent.get(ip) ?? []).filter((t) => now - t < 10 * 60_000);
-  if (hits.length >= 8) return false;
-  recent.set(ip, [...hits, now]);
-  return true;
-}
+const allowed = createLimiter(8, 10 * 60_000);
 
 /**
  * Creates an order and a Stripe PaymentIntent with manual capture: the money
@@ -29,10 +21,9 @@ export async function POST(req: Request) {
     const first = parsed.error.issues[0];
     return Response.json({ error: `Please check ${first?.path.join(" ") || "your details"}.` }, { status: 400 });
   }
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  if (!allowed(ip)) return Response.json({ error: "Too many orders, try again later." }, { status: 429 });
+  if (!allowed(clientIp(req))) return Response.json({ error: "Too many orders, try again later." }, { status: 429 });
 
-  const priced = priceOrder(parsed.data, FEE_PERCENT);
+  const priced = priceOrder(parsed.data, feePercent());
   if ("error" in priced) return Response.json({ error: priced.error }, { status: 400 });
 
   const now = Date.now();

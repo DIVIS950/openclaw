@@ -1,22 +1,12 @@
 import { z } from "zod";
 import { aiEnabled, claude, MODEL } from "@/lib/ai";
 import { searchPrompt } from "@/lib/search";
+import { clientIp, createLimiter } from "@/lib/server/rate-limit";
 
 const Body = z.object({ q: z.string().trim().min(1).max(200), city: z.string().max(80).default("Prague") });
 
-// Basic per-IP rate limit so a public deployment can't run up the API bill.
-const hits = new Map<string, number[]>();
-const LIMIT = 12;
-const WINDOW = 60_000;
-
-function allowed(ip: string) {
-  const now = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW);
-  if (recent.length >= LIMIT) return false;
-  recent.push(now);
-  hits.set(ip, recent);
-  return true;
-}
+// Per-IP rate limit so a public deployment can't run up the API bill.
+const allowed = createLimiter(12, 60_000);
 
 // Finished searches are reused for 15 minutes (same query + city).
 const cache = new Map<string, { at: number; text: string }>();
@@ -32,8 +22,7 @@ export async function POST(req: Request) {
   const headers = { "Content-Type": "text/plain; charset=utf-8", "X-Orbit-Mode": "live" };
   if (hit && Date.now() - hit.at < 15 * 60_000) return new Response(hit.text, { headers });
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  if (!allowed(ip)) return Response.json({ error: "Too many searches — wait a minute." }, { status: 429 });
+  if (!allowed(clientIp(req))) return Response.json({ error: "Too many searches — wait a minute." }, { status: 429 });
 
   const stream = claude().beta.messages.stream({
     model: MODEL,

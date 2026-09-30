@@ -13,7 +13,7 @@ function sign(value: string) {
   return createHmac("sha256", process.env.AUTH_SECRET!).update(value).digest("base64url");
 }
 
-function safeEqual(a: string, b: string) {
+export function safeEqual(a: string, b: string) {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);

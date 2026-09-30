@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { STATUS_LABEL, type Order, type OrderStatus } from "@/lib/order-types";
+import { STATUS_LABEL, type OrderStatus } from "@/lib/order-types";
 import { adminConfigured, isAdmin } from "@/lib/server/admin-auth";
+import { syncPayment, toPublic } from "@/lib/server/order-sync";
 import { dbConfigured, orders } from "@/lib/server/orders-db";
 import { stripeConfigured } from "@/lib/server/stripe";
 import { logout } from "./actions";
@@ -35,7 +36,8 @@ export default async function AdminPage() {
     );
   }
 
-  const all = await orders().list();
+  // Catch payments the webhook missed, so held orders show up under "Needs you".
+  const all = await Promise.all((await orders().list()).map((o) => (o.status === "pending_payment" ? syncPayment(o).catch(() => o) : o)));
   const reserved = all.filter((o) => o.status === "held").reduce((s, o) => s + o.authorized, 0);
 
   return (
@@ -63,7 +65,7 @@ export default async function AdminPage() {
             {g.hint && <p className="mb-3 text-sm text-muted">{g.hint}</p>}
             <div className="space-y-3">
               {rows.map((o) => (
-                <AdminOrderCard key={o.id} order={toAdminView(o)} statusLabel={STATUS_LABEL[o.status]} />
+                <AdminOrderCard key={o.id} order={toPublic(o)} statusLabel={STATUS_LABEL[o.status]} />
               ))}
             </div>
           </section>
@@ -72,12 +74,6 @@ export default async function AdminPage() {
       {!all.length && <p className="mt-16 text-center text-muted">No orders yet.</p>}
     </div>
   );
-}
-
-/** Everything the admin card shows; payment ids stay on the server. */
-function toAdminView(o: Order) {
-  const { token: _t, paymentIntentId: _p, ...rest } = o;
-  return rest;
 }
 
 function Setup({ children }: { children: React.ReactNode }) {

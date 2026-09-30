@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getStaticProduct, OFFERS } from "./data";
+import { getStaticProduct, getStore, OFFERS } from "./data";
 import { quoteDelivery } from "./delivery";
 import { findPlace } from "./geo";
 import { round2, serviceFee, type OrderDelivery, type OrderItem } from "./order-types";
@@ -43,6 +43,17 @@ export const OrderInput = z.object({
 });
 export type OrderInput = z.infer<typeof OrderInput>;
 
+/** "www.shop.cz/path" -> "shop.cz"; empty when it isn't a plausible hostname. */
+export function normalizeDomain(raw: string) {
+  const host = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/^www\./, "");
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : "";
+}
+
 export type PricedOrder = { item: OrderItem; delivery: OrderDelivery; fee: number; authorized: number };
 
 /**
@@ -58,10 +69,21 @@ export function priceOrder(input: OrderInput, feePercent: number): PricedOrder |
   if (!to) return { error: "We don't deliver to that city yet." };
 
   let price = input.item.price;
+  let item = { ...input.item };
   if (getStaticProduct(input.item.productId)) {
+    // Catalog product: take the price AND the shop from the catalog, never from the browser.
     const offer = OFFERS.find((o) => o.id === input.item.offerId && o.productId === input.item.productId);
-    if (!offer) return { error: "That offer is no longer available." };
+    const store = offer && getStore(offer.storeId);
+    if (!offer || !store) return { error: "That offer is no longer available." };
     price = offer.price;
+    item = { ...item, store: store.name, domain: store.domain, url: offer.url, fromCity: store.warehouse.city };
+  } else {
+    // Search result: the link the admin will open must be on the shop's own domain.
+    const domain = normalizeDomain(input.item.domain);
+    if (!domain) return { error: "Unknown shop." };
+    const host = input.item.url ? new URL(input.item.url).hostname.toLowerCase() : undefined;
+    if (host && host !== domain && !host.endsWith(`.${domain}`)) return { error: "The product link doesn't match the shop." };
+    item = { ...item, domain };
   }
 
   const quote = quoteDelivery(from, to).find((q) => q.speed === input.speed);
@@ -70,7 +92,7 @@ export function priceOrder(input: OrderInput, feePercent: number): PricedOrder |
   const subtotal = round2(price + quote.price);
   const fee = serviceFee(subtotal, feePercent);
   return {
-    item: { ...input.item, price: round2(price), fromCity: from.city },
+    item: { ...item, price: round2(price), fromCity: item.fromCity || from.city },
     delivery: { label: quote.label, price: quote.price, carrier: quote.carrier, mode: quote.mode, minDays: quote.minDays, maxDays: quote.maxDays },
     fee,
     authorized: round2(subtotal + fee),

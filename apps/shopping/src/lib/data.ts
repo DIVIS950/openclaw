@@ -38,6 +38,8 @@ export type Product = {
   typicalPrice: number;
   /** Where the data came from: built-in sample, live web search, or AI estimate. */
   source?: "sample" | "web" | "estimate";
+  /** Product photo (https) when the search found one; the art tile is the fallback. */
+  image?: string;
 };
 
 const place = (city: string) => PLACES.find((p) => p.city === city)!;
