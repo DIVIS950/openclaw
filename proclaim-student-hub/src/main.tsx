@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { trackKeyboard } from "./lib/keyboard.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
 import { importFromLocation } from "./lib/transfer.ts";
 import { localDb } from "./pages/localDb.ts";
@@ -9,6 +10,7 @@ import { installPagesRuntime, pagesImport, PAGES } from "./pages/runtime.ts";
 import "./styles.css";
 
 async function start() {
+  trackKeyboard();
   if (PAGES) {
     // GitHub Pages version: Gemini + phone storage stand in for claude.ai, and
     // data sent from the claude.ai link arrives in the address.

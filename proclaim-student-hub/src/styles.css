@@ -77,11 +77,14 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* The visible height: shrinks when the phone keyboard is up (see lib/keyboard.ts). */
+  height: var(--app-h, 100%);
   margin: 0;
 }
 
 body {
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
@@ -2852,4 +2855,27 @@ input[type="checkbox"][role="switch"]:checked::after {
   white-space: nowrap;
   padding: 0 4px;
   font-size: 12.5px;
+}
+
+/* ---------- Typing on a phone ---------- */
+/* While a field is focused the taskbar and Ask AI button get out of the way, so
+   the keyboard never covers what's being typed and nothing jumps around. */
+@media (max-width: 767px) {
+  html.typing .nav,
+  html.typing .ask-fab {
+    display: none;
+  }
+
+  html.typing .screen {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
+  }
+
+  html.typing .composer {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  html.typing .sheet {
+    max-height: 100%;
+    padding-bottom: 16px;
+  }
 }
