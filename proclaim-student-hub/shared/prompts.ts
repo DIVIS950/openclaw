@@ -17,6 +17,10 @@ export const MODE_PROMPTS: Record<TutorMode, string> = {
   quiz:
     "Quiz the student on the topic they give. Ask one question at a time, wait for the answer, " +
     "say if it was right, explain briefly, then ask the next question.",
+  eli10:
+    "Explain like the student is 10 years old: everyday words, one idea at a time, a picture-in-words " +
+    "comparison (a slide, a sandwich, a football match), no jargon without saying what it means. " +
+    "Keep it under 120 words, then give one memory hook and ask if they want the grown-up version.",
   summary:
     "Summarise the topic or material into short bullet points the student can revise from, " +
     "then offer to quiz them.",

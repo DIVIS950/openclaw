@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
-import { progress, schedule } from "../lib/store.ts";
+import { progress, schedule, weekLog } from "../lib/store.ts";
 import { labHandoff, labSubject, notes, packToNote, prepTests } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { play, sound } from "./fx.ts";
@@ -38,17 +38,29 @@ import {
 // Revision Lab: scan school work into packs, then practise them in eleven ways.
 // Everything is stored on this device, so practice works offline.
 
-type ItemMode = "flashcards" | "quiz" | "write" | "listen" | "review" | "speed" | "boss" | "mock";
+type ItemMode =
+  | "flashcards"
+  | "quiz"
+  | "write"
+  | "listen"
+  | "speak"
+  | "review"
+  | "speed"
+  | "boss"
+  | "mock"
+  | "exam";
 type PlayMode = ModeId | "review";
 const ITEM_MODES = new Set<PlayMode>([
   "flashcards",
   "quiz",
   "write",
   "listen",
+  "speak",
   "review",
   "speed",
   "boss",
   "mock",
+  "exam",
 ]);
 const isItemMode = (mode: PlayMode): mode is ItemMode => ITEM_MODES.has(mode);
 
@@ -69,6 +81,7 @@ type View =
 const SESSION_SIZE: Partial<Record<PlayMode, number>> = {
   boss: 10,
   mock: 20,
+  exam: 15,
   speed: 60,
   review: 20,
 };
@@ -77,7 +90,7 @@ const SESSION_SIZE: Partial<Record<PlayMode, number>> = {
 function pickEntries(packs: LabPack[], mode: PlayMode, today: string): Entry[] {
   const all = packs
     .flatMap((pack) => pack.items.map((item) => ({ pack, item })))
-    .filter((e) => mode !== "listen" || hearable(e.item, e.pack.subject));
+    .filter((e) => (mode !== "listen" && mode !== "speak") || hearable(e.item, e.pack.subject));
   const rank = (e: Entry) =>
     isWeak(e.item) || e.item.markedWrong ? 0 : isDue(e.item, today) ? 1 : 2;
   return shuffle(all, Date.now() % 10007)
@@ -203,6 +216,7 @@ export function Lab() {
       progress.add(xp);
     }
     daily.add(today, verdicts.size);
+    weekLog.add("lab", verdicts.size);
     show({ name: "results", outcome, packId: replay.packId, replay, xp });
   };
 
@@ -605,6 +619,39 @@ function LabHome({
               </strong>
               <span className="clip">{nextTest ? nextTest.topic : "Add a date"}</span>
             </button>
+          </div>
+
+          <div className="row rise" style={{ gap: 8 }}>
+            <button
+              className="btn big block exam-btn"
+              style={{ flex: 1 }}
+              disabled={packs.reduce((n, p) => n + p.items.length, 0) < 3}
+              onClick={() => onPlay("exam", packs, null)}
+            >
+              ⏱ Exam mode
+              <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
+                Timed · no hints
+              </span>
+            </button>
+            {packs.some((p) => canHear(p)) && (
+              <button
+                className="btn big block"
+                style={{ flex: 1 }}
+                onClick={() =>
+                  onPlay(
+                    "speak",
+                    packs.filter((p) => canHear(p)),
+                    null,
+                  )
+                }
+              >
+                <Icon name="mic" size={18} />
+                Say it
+                <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
+                  Spanish · Czech
+                </span>
+              </button>
+            )}
           </div>
 
           {subjects.length > 0 && (

@@ -3,6 +3,7 @@ import { AddAnythingButton } from "../components/AddAnything.tsx";
 import { DaySummary } from "../components/DaySummary.tsx";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
+import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { WeekPlan } from "../components/WeekPlan.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
 import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
@@ -221,6 +222,8 @@ export function Today() {
       )}
 
       {week && <WeekPlan onClose={() => setWeek(false)} />}
+
+      <WeeklyReport />
 
       <nav className="tiles-grid rise" style={{ animationDelay: "0.1s" }} aria-label="Shortcuts">
         {TILES.filter((t) => !t.needsAi || ai).map((t, i) => (

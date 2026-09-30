@@ -120,7 +120,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
   const save = async () => {
     setBusy(true);
     try {
-      const saved = await saveSorted(ready, data, today);
+      const saved = await saveSorted(ready, data, today, ai);
       if (saved.homework > 0) {
         reloadHomework();
       }

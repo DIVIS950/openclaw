@@ -300,6 +300,7 @@ export const MODES = [
   { id: "quiz", title: "Quiz", blurb: "Pick from 4 answers" },
   { id: "write", title: "Write it", blurb: "Type the answer" },
   { id: "listen", title: "Listen & type", blurb: "Hear the word, spell it" },
+  { id: "speak", title: "Say it", blurb: "Speak the word out loud" },
   { id: "match", title: "Match", blurb: "Pair terms and meanings" },
   { id: "gap", title: "Gap-fill", blurb: "Finish the sentences" },
   { id: "order", title: "Order the steps", blurb: "Put them in sequence" },
@@ -307,6 +308,7 @@ export const MODES = [
   { id: "boss", title: "Boss battle", blurb: "3 lives, beat the boss" },
   { id: "speed", title: "Speed round", blurb: "60 seconds, go fast" },
   { id: "mock", title: "Mock test", blurb: "No hints until the end" },
+  { id: "exam", title: "Exam mode", blurb: "Timed, no hints, real score" },
 ] as const;
 export type ModeId = (typeof MODES)[number]["id"];
 
@@ -319,6 +321,7 @@ export function modeBlocked(mode: ModeId, pack: LabPack): string | null {
   const n = pack.items.length;
   switch (mode) {
     case "listen":
+    case "speak":
       return (pack.subject === "Spanish" || pack.subject === "Czech") &&
         pack.items.some((i) => i.kind === "term")
         ? null
@@ -335,6 +338,7 @@ export function modeBlocked(mode: ModeId, pack: LabPack): string | null {
     case "speed":
     case "boss":
     case "mock":
+    case "exam":
       return n >= 3 ? null : "Needs at least 3 items";
     default:
       return n > 0 ? null : "Add some items first";

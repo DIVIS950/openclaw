@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AppConfig, TutorMode } from "../shared/api.ts";
+import type { AppConfig, ImageInput, TutorMode } from "../shared/api.ts";
 import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
@@ -283,8 +283,8 @@ function Shell({
           context: request?.context ?? aiContext,
         }),
       setAiContext,
-      askTutor: (text: string, mode: TutorMode = "explain") => {
-        setTutorSeed({ text, mode, key: Date.now() });
+      askTutor: (text: string, mode: TutorMode = "explain", images?: ImageInput[]) => {
+        setTutorSeed({ text, mode, images, key: Date.now() });
         go("tutor");
       },
       handleError,

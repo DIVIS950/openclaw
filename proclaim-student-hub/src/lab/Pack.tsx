@@ -28,6 +28,7 @@ const MODE_ICONS: Record<ModeId, string> = {
   quiz: "❓",
   write: "✍️",
   listen: "🎧",
+  speak: "🎤",
   match: "🔗",
   gap: "🧩",
   order: "🔢",
@@ -35,6 +36,7 @@ const MODE_ICONS: Record<ModeId, string> = {
   boss: "👾",
   speed: "⚡",
   mock: "📝",
+  exam: "⏱️",
 };
 
 /** One dot per item, filled by how far up the boxes it is. */

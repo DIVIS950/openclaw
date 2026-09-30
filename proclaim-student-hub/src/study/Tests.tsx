@@ -4,6 +4,7 @@ import { useAiContext, useApp } from "../context.ts";
 import { dayString } from "../lab/model.ts";
 import { packFromTopic } from "../lab/scan.ts";
 import { labPacks, settings } from "../lab/store.ts";
+import { autoPackInBackground } from "../lib/autoPack.ts";
 import { courses } from "../lib/store.ts";
 import {
   daysBetween,
@@ -22,6 +23,7 @@ import {
   type TestSuggestion,
 } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
+import { GradesSection } from "./Grades.tsx";
 
 // Tests coming up, each with a plan for every day until the test: get the
 // material, learn it, practise, a mock test the day before, a recap on the day.
@@ -48,7 +50,7 @@ export function Tests({
   /** Shown above the list, but not over an open test. */
   header?: ReactNode;
 }) {
-  const { homework } = useApp();
+  const { homework, ai, toast } = useApp();
   const today = dayOf(new Date());
   const [list, setList] = useState<PrepTest[]>(prepTests.all);
   const [open, setOpen] = useState<string | null>(testHandoff.take);
@@ -182,6 +184,8 @@ export function Tests({
         </details>
       )}
 
+      <GradesSection tests={past} />
+
       {adding && (
         <AddTest
           start={adding}
@@ -191,6 +195,8 @@ export function Tests({
             save([...list, t]);
             setAdding(null);
             setOpen(t.id);
+            // The AI builds the pack while the plan opens.
+            autoPackInBackground(ai, t, toast, () => setList(prepTests.all()));
           }}
         />
       )}

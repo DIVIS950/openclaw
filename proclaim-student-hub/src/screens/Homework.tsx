@@ -4,7 +4,7 @@ import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
-import { courses, progress } from "../lib/store.ts";
+import { courses, progress, weekLog } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 
@@ -224,6 +224,7 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
               await data.setDone(hw, done);
               if (done) {
                 progress.add(5);
+                weekLog.add("hw", 1);
                 toast(`${data.labels.ticked} +5 XP`);
               }
             } catch (err) {

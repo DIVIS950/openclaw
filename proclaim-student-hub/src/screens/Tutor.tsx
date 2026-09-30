@@ -9,6 +9,7 @@ const MODES: { id: TutorMode; label: string }[] = [
   { id: "explain", label: "Explain" },
   { id: "check", label: "Check" },
   { id: "quiz", label: "Quiz me" },
+  { id: "eli10", label: "I'm 10" },
   { id: "summary", label: "Summary" },
 ];
 
@@ -118,7 +119,7 @@ export function Tutor() {
     if (seed && handledSeed.current !== seed.key) {
       handledSeed.current = seed.key;
       setMode(seed.mode);
-      void send(seed.text, [], seed.mode);
+      void send(seed.text, seed.images ?? [], seed.mode);
     }
   }, [app.tutorSeed]);
 
@@ -150,7 +151,7 @@ export function Tutor() {
       >
         <div className="between">
           <div>
-            <h1 className="h1" style={{ fontSize: 28 }}>
+            <h1 className="h1" style={{ fontSize: 24, whiteSpace: "nowrap" }}>
               Study buddy
             </h1>
             <p className="sub" style={{ fontSize: 13 }}>
@@ -189,7 +190,7 @@ export function Tutor() {
           className="segmented"
           role="tablist"
           aria-label="Mode"
-          style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
+          style={{ gridTemplateColumns: `repeat(${MODES.length}, minmax(0, 1fr))` }}
         >
           {MODES.map((m) => (
             <button
@@ -266,6 +267,12 @@ export function Tutor() {
             </button>
             <button className="btn small" onClick={() => void send("Quiz me on this.", [], "quiz")}>
               Quiz me on this
+            </button>
+            <button
+              className="btn small soft"
+              onClick={() => void send("Explain that again like I'm 10.", [], "eli10")}
+            >
+              Like I'm 10
             </button>
           </div>
         )}

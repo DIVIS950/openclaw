@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AddAnythingButton } from "../components/AddAnything.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
-import { progress } from "../lib/store.ts";
+import { progress, weekLog } from "../lib/store.ts";
 import { dayOf, groupTodos, newId, noteHandoff, todos, type Todo } from "../lib/study.ts";
 import { Notes } from "./Notes.tsx";
 import { Tests } from "./Tests.tsx";
@@ -137,6 +137,7 @@ function TodoList() {
   const toggle = (t: Todo) => {
     if (!t.done) {
       progress.add(2);
+      weekLog.add("todo", 1);
     }
     save(list.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)));
   };

@@ -2755,3 +2755,101 @@ input[type="checkbox"][role="switch"]:checked::after {
 .dot.flagged {
   background: #ff2e7a;
 }
+
+/* ---------- Phase 2: weekly report, grades, exam, say it ---------- */
+
+.week-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+}
+
+.week-nums {
+  font-size: 14px;
+}
+
+.week-nums strong {
+  color: var(--accent-ink);
+  font-family: var(--serif);
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.grade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.grade-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+}
+
+.grade-letter {
+  font-family: var(--serif);
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--neon, var(--accent));
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon, var(--accent)) 45%, transparent);
+}
+
+.grade-ask {
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  border: 2px solid var(--accent-soft);
+}
+
+.exam-btn {
+  flex-direction: column;
+  gap: 0;
+  border: 2px solid var(--ink);
+}
+
+.exam-timer {
+  font-variant-numeric: tabular-nums;
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.exam-timer.warm {
+  background: #ff2e7a;
+  color: #fff;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.speak-btn {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.speak-btn.live {
+  background: #ff2e7a;
+  box-shadow: 0 0 0 10px rgba(255, 46, 122, 0.25);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Five tutor tabs on a phone: keep each on one line. */
+.segmented button {
+  white-space: nowrap;
+  padding: 0 4px;
+  font-size: 12.5px;
+}

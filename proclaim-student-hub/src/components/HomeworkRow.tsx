@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../context.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
-import { progress } from "../lib/store.ts";
+import { progress, weekLog } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
 
@@ -25,6 +25,7 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
     replaceHomework(next);
     if (next.done) {
       progress.add(5);
+      weekLog.add("hw", 1);
     }
     setBusy(true);
     try {

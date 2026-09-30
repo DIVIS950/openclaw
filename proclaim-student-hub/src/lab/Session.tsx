@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Confetti } from "../components/Confetti.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
+import { canListen, listen } from "../lib/voice.ts";
 import { buzz, play } from "./fx.ts";
 import {
   ACCENT_KEYS,
@@ -15,7 +16,7 @@ import {
   type Verdict,
 } from "./model.ts";
 import { explainItem } from "./scan.ts";
-import { canHear, hear, hearable } from "./speech.ts";
+import { canHear, hear, hearable, speechLang } from "./speech.ts";
 import type { LabSettings } from "./store.ts";
 
 // The practice engine for item-by-item modes (flashcards, quiz, write, speed,
@@ -47,7 +48,7 @@ export interface Outcome {
   seconds?: number;
 }
 
-type Style = "card" | "quiz" | "write" | "listen";
+type Style = "card" | "quiz" | "write" | "listen" | "speak";
 
 /** A round speaker button that reads a foreign word in its own language. */
 export function HearButton({ entry, big = false }: { entry: Entry; big?: boolean }) {
@@ -70,6 +71,75 @@ export function HearButton({ entry, big = false }: { entry: Entry; big?: boolean
 }
 
 const flip = (item: Item): Item => ({ ...item, prompt: item.answer, answer: item.prompt });
+
+/** Say it: the English meaning is shown; the student says the foreign word. */
+function SpeakCard({
+  entry,
+  onHeard,
+  onSkip,
+  onType,
+}: {
+  entry: Entry;
+  onHeard: (heard: string) => void;
+  onSkip: () => void;
+  onType: () => void;
+}) {
+  const { handleError } = useApp();
+  const [partial, setPartial] = useState("");
+  const [stop, setStop] = useState<(() => void) | null>(null);
+  const lang = speechLang(entry.pack.subject) ?? "en-GB";
+  useEffect(() => () => stop?.(), [stop]);
+
+  const talk = () => {
+    if (stop) {
+      stop();
+      return;
+    }
+    const session = listen(setPartial, lang);
+    setStop(() => session.stop);
+    session.done.then(
+      (heard) => {
+        setStop(null);
+        if (heard) {
+          onHeard(heard);
+        }
+      },
+      (err: unknown) => {
+        setStop(null);
+        handleError(err);
+      },
+    );
+  };
+
+  return (
+    <div className="stack">
+      <div className="card stack" style={{ alignItems: "center", gap: 10, textAlign: "center" }}>
+        <span className="chip">{entry.pack.subject} · say it</span>
+        <span className="muted">How do you say…</span>
+        <div className="flashcard-text">{entry.item.answer}</div>
+        <button
+          className={`speak-btn${stop ? " live" : ""}`}
+          onClick={talk}
+          aria-label={stop ? "Stop listening" : "Say the word"}
+        >
+          <Icon name="mic" size={34} />
+        </button>
+        <span className="muted" style={{ minHeight: 20 }}>
+          {stop ? partial || "Listening…" : "Tap the mic, then say it"}
+        </span>
+      </div>
+      <div className="row">
+        <HearButton entry={entry} />
+        <button className="btn" type="button" onClick={onType} style={{ flex: 1 }}>
+          Type instead
+        </button>
+        <button className="btn ghost" type="button" onClick={onSkip}>
+          I don't know
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ---------- Small shared pieces ----------
 
@@ -283,8 +353,15 @@ function Question({
     () => quizOptions(shown, backwards ? entry.pack.items.map(flip) : entry.pack.items),
     [shown, backwards, entry],
   );
+  // "Type instead" on a speaking card.
+  const [typeInstead, setTypeInstead] = useState(false);
   // With too few different answers a quiz is a giveaway; rate yourself instead.
-  const kind: Style = style === "quiz" && options.length < 3 ? "card" : style;
+  const kind: Style =
+    style === "quiz" && options.length < 3
+      ? "card"
+      : style === "speak" && (typeInstead || !canListen())
+        ? "listen"
+        : style;
   const [flipped, setFlipped] = useState(false);
   const [typed, setTyped] = useState("");
   const [result, setResult] = useState<{ verdict: Verdict; given: string; note: string } | null>(
@@ -389,6 +466,20 @@ function Question({
           </div>
         )}
       </div>
+    );
+  }
+
+  if (kind === "speak") {
+    return (
+      <SpeakCard
+        entry={entry}
+        onHeard={(heard) => {
+          const m = markAnswer(heard, entry.item.prompt);
+          settle(m.verdict, heard, m.note || `It means: ${entry.item.answer}`);
+        }}
+        onSkip={() => settle("wrong", "")}
+        onType={() => setTypeInstead(true)}
+      />
     );
   }
 
@@ -503,7 +594,7 @@ function Question({
 // ---------- Sessions ----------
 
 export function Session(props: {
-  mode: "flashcards" | "quiz" | "write" | "listen" | "review" | "speed" | "boss" | "mock";
+  mode: StraightMode | "speed" | "boss";
   entries: Entry[];
   prefs: LabSettings;
   onDone: (outcome: Outcome) => void;
@@ -539,6 +630,19 @@ export function Combo({ combo }: { combo: number }) {
   );
 }
 
+type StraightMode =
+  | "flashcards"
+  | "quiz"
+  | "write"
+  | "listen"
+  | "speak"
+  | "review"
+  | "mock"
+  | "exam";
+
+/** Seconds per question in exam mode. */
+export const EXAM_SECONDS_PER_ITEM = 30;
+
 /** Flashcards, quiz, write and mock test: one question after another. */
 function Straight({
   mode,
@@ -547,7 +651,7 @@ function Straight({
   onDone,
   onQuit,
 }: {
-  mode: "flashcards" | "quiz" | "write" | "listen" | "review" | "mock";
+  mode: StraightMode;
   entries: Entry[];
   prefs: LabSettings;
   onDone: (outcome: Outcome) => void;
@@ -563,6 +667,30 @@ function Straight({
   const [party, setParty] = useState(0);
   const retried = useRef(new Set<string>());
   const startedAt = useRef(Date.now());
+  const timed = mode === "exam" || mode === "mock";
+  const noRetry = timed;
+  // Exam mode: a clock, and unanswered questions count as wrong when it runs out.
+  const [left, setLeft] = useState(entries.length * EXAM_SECONDS_PER_ITEM);
+  const finished = useRef(false);
+  useEffect(() => {
+    if (mode !== "exam") {
+      return;
+    }
+    const t = window.setInterval(() => setLeft((s) => s - 1), 1000);
+    return () => window.clearInterval(t);
+  }, [mode]);
+  useEffect(() => {
+    if (mode === "exam" && left <= 0 && !finished.current) {
+      finished.current = true;
+      const rest = queue.slice(index).map((e) => answerFor(e, "wrong"));
+      onDone({
+        mode,
+        answers: [...answers, ...rest],
+        note: "Time's up! Unanswered questions count as wrong.",
+        seconds: Math.round((Date.now() - startedAt.current) / 1000),
+      });
+    }
+  }, [left, mode]);
   const entry = queue[index];
   const isRetry = answers.some((a) => a.itemId === entry.item.id);
   // Daily review mixes the ways of asking, so each card is practised differently.
@@ -581,18 +709,24 @@ function Straight({
             ? hearable(entry.item, entry.pack.subject)
               ? "listen"
               : "write"
-            : mode === "review"
-              ? mixed[index % mixed.length]
-              : index % 2
-                ? "quiz"
-                : "write";
+            : mode === "speak"
+              ? hearable(entry.item, entry.pack.subject)
+                ? "speak"
+                : "write"
+              : mode === "review"
+                ? mixed[index % mixed.length]
+                : index % 2
+                  ? "quiz"
+                  : "write";
   const title = {
     flashcards: "Flashcards",
     quiz: "Quiz",
     write: "Write it",
     listen: "Listen & type",
+    speak: "Say it",
     review: "Daily review",
     mock: "Mock test",
+    exam: "Exam mode",
   }[mode];
 
   const next = (verdict: Verdict) => {
@@ -602,7 +736,7 @@ function Straight({
     }
     const all = [...answers, answerFor(entry, verdict, isRetry)];
     let q = queue;
-    if (verdict !== "correct" && mode !== "mock" && !retried.current.has(entry.item.id)) {
+    if (verdict !== "correct" && !noRetry && !retried.current.has(entry.item.id)) {
       retried.current.add(entry.item.id);
       const at = Math.min(q.length, index + 4);
       q = [...q.slice(0, at), entry, ...q.slice(at)];
@@ -616,6 +750,7 @@ function Straight({
       setParty(streak);
     }
     if (index + 1 >= q.length) {
+      finished.current = true;
       onDone({
         mode,
         answers: all,
@@ -634,6 +769,12 @@ function Straight({
       <SessionHeader title={title} done={index} total={queue.length} onQuit={onQuit}>
         {mode === "mock" && <p className="sub">Test conditions: answers are marked at the end.</p>}
         <div className="row" style={{ gap: 6, minHeight: 24 }}>
+          {mode === "exam" && (
+            <span className={`chip exam-timer${left <= 30 ? " warm" : ""}`} aria-live="polite">
+              ⏱ {Math.floor(Math.max(0, left) / 60)}:
+              {String(Math.max(0, left) % 60).padStart(2, "0")}
+            </span>
+          )}
           <Combo combo={combo} />
           {isRetry && <span className="chip">Second go</span>}
         </div>
@@ -645,13 +786,13 @@ function Straight({
         style={style}
         // Language terms are asked both ways; typing the foreign word practises spelling.
         reverse={
-          mode === "listen" || mode === "review"
+          mode === "listen" || mode === "speak" || mode === "review"
             ? false
-            : mode === "write" || mode === "mock"
+            : mode === "write" || timed
               ? index % 2 === 1
               : index % 3 === 2
         }
-        feedback={mode !== "mock" && mode !== "flashcards"}
+        feedback={!timed && mode !== "flashcards"}
         prefs={prefs}
         onAnswer={next}
       />

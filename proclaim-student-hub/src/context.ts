@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect } from "react";
-import type { TutorMode } from "../shared/api.ts";
+import type { ImageInput, TutorMode } from "../shared/api.ts";
 import type { AiProvider } from "./lib/ai.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 
@@ -41,6 +41,8 @@ export const SCREENS: Screen[] = [
 export interface TutorSeed {
   text: string;
   mode: TutorMode;
+  /** Photos to send with the request (e.g. answers to check). */
+  images?: ImageInput[];
   /** Changes on every request so the tutor knows it's a new one. */
   key: number;
 }
@@ -59,7 +61,7 @@ export interface AppContext {
   assignment: Homework | null;
   openAssignment: (hw: Homework) => void;
   tutorSeed: TutorSeed | null;
-  askTutor: (text: string, mode?: TutorMode) => void;
+  askTutor: (text: string, mode?: TutorMode, images?: ImageInput[]) => void;
   /** Opens the AI helper over the current screen. */
   openAi: (request?: { question?: string; context?: string }) => void;
   /** Screens describe what's on them so the AI helper knows what "this" means. */

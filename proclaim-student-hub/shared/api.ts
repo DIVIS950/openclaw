@@ -1,6 +1,6 @@
 // Request/response shapes shared by the browser app and the server.
 
-export type TutorMode = "explain" | "check" | "quiz" | "summary";
+export type TutorMode = "explain" | "check" | "quiz" | "summary" | "eli10";
 
 export interface ImageInput {
   mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";

@@ -6,6 +6,7 @@ import { useAiContext, useApp } from "../context.ts";
 import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
 import { makeCanvaDesign } from "../lib/canva.ts";
 import { dueLabel } from "../lib/format.ts";
+import { photoToImageInput } from "../lib/image.ts";
 import {
   applyEdits,
   POLISH_AREAS,
@@ -290,6 +291,7 @@ export function Assignment({ hw }: { hw: Homework }) {
         </button>
       </div>
       <FocusButton title={hw.title} />
+      <CheckPhotoButton title={hw.title} course={hw.course} />
       <button
         className="btn block rise"
         disabled={!text.trim() || state === "loading"}
@@ -354,6 +356,59 @@ function SaveChip({ state, savedLabel }: { state: SaveState; savedLabel: string 
       <Icon name="check" size={14} />
       {savedLabel}
     </span>
+  );
+}
+
+/** Photo of written answers → the tutor marks them, question by question. */
+function CheckPhotoButton({ title, course }: { title: string; course: string }) {
+  const { ai, askTutor, handleError, toast } = useApp();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  if (!ai) {
+    return null;
+  }
+  return (
+    <>
+      <button
+        className="btn block rise"
+        disabled={busy}
+        onClick={() => input.current?.click()}
+        aria-label="Check my answers from a photo"
+      >
+        <Icon name={busy ? "loader" : "camera"} size={16} className={busy ? "spin" : undefined} />
+        Check my answers (photo)
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        multiple
+        hidden
+        onChange={async (e) => {
+          const files = e.target.files;
+          if (!files?.length) {
+            return;
+          }
+          setBusy(true);
+          try {
+            const images = await Promise.all(Array.from(files).map(photoToImageInput));
+            toast("Sending your answers to the tutor…");
+            askTutor(
+              `These are my answers for "${title}" (${course}). Check each one: say which are right, ` +
+                "and for each wrong one give a hint so I can fix it myself.",
+              "check",
+              images,
+            );
+          } catch (err) {
+            handleError(err);
+          } finally {
+            setBusy(false);
+            e.target.value = "";
+          }
+        }}
+      />
+    </>
   );
 }
 

@@ -52,7 +52,37 @@ export const progress = {
   add(gain: number): Progress {
     const next = nextProgress(progress.get(), gain, localDay());
     write("psh.progress", next);
+    weekLog.add("xp", gain);
     return next;
+  },
+};
+
+// ---------- Week log (for the weekly report) ----------
+
+export type WeekKind = "xp" | "hw" | "lab" | "todo" | "focus";
+
+export interface WeekEvent {
+  day: string;
+  kind: WeekKind;
+  n: number;
+}
+
+/** Small counters per day: XP earned, homework done, cards practised, to-dos ticked. */
+export const weekLog = {
+  all: (): WeekEvent[] => read<WeekEvent[]>("psh.weeklog", []),
+  add(kind: WeekKind, n: number, day = localDay()) {
+    if (n <= 0) {
+      return;
+    }
+    // Keep about five weeks so old days don't pile up.
+    const cutoff = new Date(`${day}T12:00:00`);
+    cutoff.setDate(cutoff.getDate() - 35);
+    const keep = weekLog.all().filter((e) => e.day >= localDay(cutoff));
+    const same = keep.find((e) => e.day === day && e.kind === kind);
+    write(
+      "psh.weeklog",
+      same ? keep.map((e) => (e === same ? { ...e, n: e.n + n } : e)) : [...keep, { day, kind, n }],
+    );
   },
 };
 

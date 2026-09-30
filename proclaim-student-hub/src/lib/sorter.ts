@@ -2,6 +2,7 @@ import type { ImageInput } from "../../shared/api.ts";
 import { STUDENT_CONTEXT } from "../../shared/prompts.ts";
 import { agenda } from "./agenda.ts";
 import type { AiProvider } from "./ai.ts";
+import { autoPackInBackground } from "./autoPack.ts";
 import { dayOf, newId, notes, prepTests, todos } from "./study.ts";
 import type { DataSource } from "./types.ts";
 
@@ -114,6 +115,7 @@ export async function saveSorted(
   items: SortedItem[],
   data: Pick<DataSource, "addHomework">,
   today = dayOf(new Date()),
+  ai: AiProvider | null = null,
 ): Promise<Record<SortKind, number>> {
   const saved: Record<SortKind, number> = { homework: 0, test: 0, todo: 0, event: 0, note: 0 };
   for (const item of items) {
@@ -129,20 +131,21 @@ export async function saveSorted(
           course: item.subject || undefined,
         });
         break;
-      case "test":
-        prepTests.save([
-          ...prepTests.all(),
-          {
-            id: newId("x"),
-            subject: item.subject || "Test",
-            topic: item.title,
-            date: item.date,
-            start: today,
-            packId: "",
-            done: [],
-          },
-        ]);
+      case "test": {
+        const test = {
+          id: newId("x"),
+          subject: item.subject || "Test",
+          topic: item.title,
+          date: item.date,
+          start: today,
+          packId: "",
+          done: [],
+        };
+        prepTests.save([...prepTests.all(), test]);
+        // The pack builds in the background so the sort finishes quickly.
+        autoPackInBackground(ai, test, () => {});
         break;
+      }
       case "todo":
         todos.add({
           text: item.title,

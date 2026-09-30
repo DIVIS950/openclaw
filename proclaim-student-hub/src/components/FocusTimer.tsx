@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "../context.ts";
-import { progress } from "../lib/store.ts";
+import { progress, weekLog } from "../lib/store.ts";
 import { Icon } from "./Icon.tsx";
 
 // A focus timer for one piece of homework: pick 15/25/45 minutes, keep the
@@ -80,6 +80,7 @@ function FocusTimer({ title, onClose }: { title: string; onClose: () => void }) 
       setEndsAt(null);
       setPausedLeft(null);
       progress.add(10);
+      weekLog.add("focus", minutes);
       toast(`${minutes} minutes of focus done! +10 XP. Take a 5 minute break.`);
       onClose();
     }
