@@ -14,6 +14,7 @@ import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
 import type { CalEvent } from "../lib/types.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
+import { AiKeyCard } from "../pages/WebVersion.tsx";
 
 // Today: one glanceable dashboard. The dark hero holds the AI summary and the
 // two AI planners; six yellow tiles open everything else in one tap.
@@ -42,8 +43,8 @@ const TILES: {
     icon: "camera",
     tint: "var(--warm)",
   },
-  { screen: "inbox", label: "Inbox", sub: "School email", icon: "mail", tint: "var(--good)" },
-  { screen: "tutoring", label: "Tutoring", sub: "Tutors & lessons", icon: "book", tint: "#7c3aed" },
+  { screen: "inbox", label: "Inbox", sub: "School email", icon: "mail", tint: "#22ff77" },
+  { screen: "tutoring", label: "Tutoring", sub: "Tutors & lessons", icon: "book", tint: "#b026ff" },
   {
     screen: "timetable",
     label: "Timetable",
@@ -51,7 +52,7 @@ const TILES: {
     icon: "calendar",
     tint: "var(--accent)",
   },
-  { screen: "apps", label: "Apps", sub: "Classroom, Dr Frost…", icon: "apps", tint: "var(--ink)" },
+  { screen: "apps", label: "Apps", sub: "Classroom, Dr Frost…", icon: "apps", tint: "#ff2ec4" },
 ];
 
 const TILE_NAMES: Partial<Record<Screen, string>> = {
@@ -146,6 +147,7 @@ export function Today() {
       </header>
 
       <UnlockCard />
+      <AiKeyCard />
 
       <section className="card stack rise hero" style={{ gap: 12, animationDelay: "0.05s" }}>
         <div className="between hero-label">

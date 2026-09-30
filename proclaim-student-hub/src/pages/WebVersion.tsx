@@ -64,16 +64,90 @@ export function SendToWeb({ compact = false }: { compact?: boolean }) {
   );
 }
 
-/** On GitHub Pages: name and AI key, both kept only on this phone. */
-export function PagesSettings() {
+/** The AI key box: a parent pastes a Claude key once; it stays on this phone. */
+export function AiKeyForm({
+  onSaved,
+  compact,
+}: {
+  onSaved?: (hasKey: boolean) => void;
+  compact?: boolean;
+}) {
   const { toast } = useApp();
-  const [name, setName] = useState(studentName.get);
   const [saved, setSaved] = useState<string | null | undefined>(undefined);
   const hasKey = saved === undefined ? null : Boolean(saved);
   const [key, setKey] = useState("");
   useEffect(() => {
     void aiKey.get().then(setSaved);
   }, []);
+
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      {!compact && <span className="eyebrow">AI key</span>}
+      <span style={{ fontSize: 14 }} hidden={compact && !hasKey}>
+        {hasKey === null
+          ? "Checking…"
+          : hasKey
+            ? `✅ The AI is set up on this phone (${isClaudeKey(saved ?? "") ? "Claude" : "Gemini"}).`
+            : "No AI key yet. A parent (18+) makes a Claude API key at console.anthropic.com (API keys, with some credit) and pastes it here once."}
+      </span>
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          aiKey.set(key);
+          setKey("");
+          setSaved(key.trim() || null);
+          toast(key.trim() ? "AI key saved on this phone." : "Key removed.");
+          onSaved?.(Boolean(key.trim()));
+        }}
+      >
+        <input
+          className="field"
+          type="password"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder={hasKey ? "Leave empty and save to remove" : "Paste a Claude key (sk-ant-…)"}
+          aria-label="AI key"
+          autoComplete="off"
+          style={{ flex: 1 }}
+        />
+        <button className="btn primary" type="submit">
+          Save
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/** On Today (website only): a bright card until the AI key is in. */
+export function AiKeyCard() {
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (PAGES) {
+      void aiKey.get().then((k) => setHasKey(Boolean(k)));
+    }
+  }, []);
+  if (!PAGES || hasKey !== false) {
+    return null;
+  }
+  return (
+    <section className="card stack rise ai-key-card" style={{ gap: 10 }} aria-label="Set up the AI">
+      <h2 className="h2 row" style={{ gap: 6 }}>
+        <Icon name="sparkle" size={18} />
+        Set up the AI on this phone
+      </h2>
+      <p className="muted" style={{ margin: 0 }}>
+        The AI needs a Claude API key. Ask a parent to make one at console.anthropic.com and paste
+        it below. It stays on this phone only.
+      </p>
+      <AiKeyForm compact onSaved={(ok) => setHasKey(!ok)} />
+    </section>
+  );
+}
+
+/** On GitHub Pages: name and AI key, both kept only on this phone. */
+export function PagesSettings() {
+  const [name, setName] = useState(studentName.get);
 
   return (
     <section className="card stack rise" style={{ gap: 12 }}>
@@ -93,42 +167,7 @@ export function PagesSettings() {
           autoComplete="given-name"
         />
       </label>
-      <div className="stack" style={{ gap: 6 }}>
-        <span className="eyebrow">AI key</span>
-        <span style={{ fontSize: 14 }}>
-          {hasKey === null
-            ? "Checking…"
-            : hasKey
-              ? `✅ The AI is set up on this phone (${isClaudeKey(saved ?? "") ? "Claude" : "Gemini"}).`
-              : "No AI key yet. A parent (18+) makes a Claude API key at console.anthropic.com (API keys, with some credit) and pastes it here once."}
-        </span>
-        <form
-          className="row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            aiKey.set(key);
-            setKey("");
-            setSaved(key.trim() || null);
-            toast(key.trim() ? "AI key saved on this phone." : "Key removed.");
-          }}
-        >
-          <input
-            className="field"
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder={
-              hasKey ? "Leave empty and save to remove" : "Paste a Claude key (sk-ant-…)"
-            }
-            aria-label="AI key"
-            autoComplete="off"
-            style={{ flex: 1 }}
-          />
-          <button className="btn primary" type="submit">
-            Save
-          </button>
-        </form>
-      </div>
+      <AiKeyForm />
     </section>
   );
 }

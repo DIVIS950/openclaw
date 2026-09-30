@@ -531,11 +531,15 @@ textarea.field {
   height: 10px;
   flex-shrink: 0;
   border-radius: 5px;
-  background: var(--subject, var(--accent));
+  background: var(--neon, var(--subject, var(--accent)));
+  box-shadow: 0 0 8px var(--neon, var(--subject, var(--accent)));
 }
 
 .subject-card {
-  border-left: 4px solid var(--subject, var(--accent));
+  border-left: 5px solid var(--neon, var(--subject, var(--accent)));
+  box-shadow:
+    var(--shadow),
+    inset 6px 0 18px -10px var(--neon, var(--subject, var(--accent)));
 }
 
 /* ---------- Chat ---------- */
@@ -2213,7 +2217,7 @@ label.call-orb {
   color: var(--on-accent);
   background:
     radial-gradient(circle, var(--accent) 60%, transparent 61%),
-    conic-gradient(var(--orange) var(--p, 0%), var(--line) 0);
+    conic-gradient(#ffe600 var(--p, 0%), var(--line) 0);
 }
 
 .hero {
@@ -2296,8 +2300,14 @@ label.call-orb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--tile, var(--accent)) 12%, var(--card));
-  color: var(--tile, var(--accent));
+  /* Bright neon squares with dark icons, plus a soft glow. */
+  background: var(--tile, var(--accent));
+  color: #14151a;
+  box-shadow: 0 4px 14px -4px var(--tile, var(--accent));
+}
+
+.quick-tile:not([style*="--tile"]) .quick-tile-icon {
+  color: var(--on-accent);
 }
 
 .clip {
@@ -2522,7 +2532,7 @@ label.call-orb {
   font-weight: 800;
   background:
     radial-gradient(circle, var(--card) 60%, transparent 61%),
-    conic-gradient(var(--subject, var(--accent)) var(--p, 0%), var(--line) 0);
+    conic-gradient(var(--neon, var(--subject, var(--accent))) var(--p, 0%), var(--line) 0);
 }
 
 .hear-btn {
@@ -2707,4 +2717,41 @@ input[type="checkbox"][role="switch"]:checked::after {
 
 .round.dark {
   box-shadow: none;
+}
+
+/* ---------- Bright touches ---------- */
+
+.ai-key-card {
+  border: 2px solid var(--accent);
+  box-shadow:
+    var(--shadow),
+    0 0 24px -8px var(--accent);
+}
+
+.ai-key-card .h2 {
+  color: var(--accent-ink);
+}
+
+.chip.warm {
+  background: #ffe600;
+  color: #14151a;
+}
+
+.chip.good {
+  background: #22ff77;
+  color: #0b3d1f;
+}
+
+.nav-ai {
+  box-shadow:
+    0 10px 24px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.dot {
+  background: #00d4ff;
+}
+
+.dot.flagged {
+  background: #ff2e7a;
 }
