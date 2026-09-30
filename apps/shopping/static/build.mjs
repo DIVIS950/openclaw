@@ -55,4 +55,26 @@ const html = `<title>Orbit</title>
 <script>${js}</script>
 `;
 writeFileSync(path.join(out, "orbit.html"), html);
+
+// A complete page for normal web hosting (GitHub Pages), with its own head and icon.
+mkdirSync(path.join(out, "site"), { recursive: true });
+writeFileSync(
+  path.join(out, "site/index.html"),
+  `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f6fa">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Orbit">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+${html}</body>
+</html>
+`,
+);
+writeFileSync(path.join(out, "site/icon.svg"), readFileSync(path.join(root, "public/icon.svg")));
 console.log(`static/dist/orbit.html ${(html.length / 1024).toFixed(0)} KB`);
