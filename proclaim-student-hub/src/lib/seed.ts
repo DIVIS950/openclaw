@@ -1,6 +1,6 @@
 import { readTimetable } from "./aiFeatures.ts";
 import { courses, schedule, timetable, type Course, type CoursePost } from "./store.ts";
-import { addDays, dateInTitle, dayOf, sameTopic } from "./study.ts";
+import { addDays, dateInTitle, dayOf, newId, prepTests, sameTopic } from "./study.ts";
 import type { DataSource, Homework } from "./types.ts";
 
 // Starter data the student gave us (timetable, their classes, current homework),
@@ -97,6 +97,26 @@ export function applyLocalSeed(seed = pageSeed()): void {
   const tests = seed.tests.filter((t) => !have.has(`${t.topic}|${t.date}`));
   if (tests.length > 0) {
     schedule.save({ ...plan, tests: [...plan.tests, ...tests] });
+    // The Tests screen keeps its own list; add the new ones there too.
+    const prep = prepTests.all();
+    const missing = tests.filter(
+      (t) => !prep.some((p) => p.date === t.date && sameTopic(p.topic, t.topic)),
+    );
+    if (missing.length > 0) {
+      const today = dayOf(new Date());
+      prepTests.save([
+        ...prep,
+        ...missing.map((t) => ({
+          id: newId("x"),
+          subject: t.topic.split(/[:(]/)[0].trim(),
+          topic: t.topic,
+          date: t.date,
+          start: today,
+          packId: "",
+          done: [],
+        })),
+      ]);
+    }
   }
   if (seed.courses.length > 0) {
     courses.save(seed.courses);

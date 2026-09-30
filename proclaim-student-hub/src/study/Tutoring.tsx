@@ -871,7 +871,7 @@ function LogSession({
             { id: newId("s"), tutorId: "", date, topic: topic.trim(), notes: text.trim() },
             homework
               .split("\n")
-              .map((h) => h.replace(/^[•\-*\d.)\s]+/, "").trim())
+              .map((h) => h.replace(/^\s*(?:[•\-*]|\d+[.)])\s+/, "").trim())
               .filter(Boolean),
           );
         }}

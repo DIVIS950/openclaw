@@ -2879,3 +2879,8 @@ input[type="checkbox"][role="switch"]:checked::after {
     padding-bottom: 16px;
   }
 }
+
+.banner.good {
+  background: var(--good-soft);
+  color: var(--good);
+}

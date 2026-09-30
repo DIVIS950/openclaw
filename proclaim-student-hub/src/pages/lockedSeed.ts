@@ -5,6 +5,8 @@
 // the key so the home-screen icon keeps working.
 
 const KEY_STORE = "psh.seed.key";
+/** The last decrypted data, so the app still opens with no signal. */
+const SEED_CACHE = "psh.seed.cache";
 
 const fromBase64Url = (s: string) =>
   Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
@@ -57,18 +59,40 @@ export async function unlockSeed(): Promise<boolean> {
       key = "";
     }
   }
+  const w = window as unknown as { __PSH_SEED__?: unknown };
+  let text: string;
   try {
     const res = await fetch("./private.dat", { cache: "no-cache" });
     if (!res.ok) {
       return false;
     }
-    if (!key) {
-      lockState.locked = true;
-      return false;
+    text = await res.text();
+  } catch {
+    // Offline (e.g. the home-screen app with no signal): use the last copy.
+    try {
+      const cached = localStorage.getItem(SEED_CACHE);
+      if (cached && key) {
+        w.__PSH_SEED__ = JSON.parse(cached);
+        return true;
+      }
+    } catch {
+      // No cached copy.
     }
-    const seed = await decryptSeed(key, await res.text());
-    (window as unknown as { __PSH_SEED__?: unknown }).__PSH_SEED__ = seed;
+    return false;
+  }
+  if (!key) {
+    lockState.locked = true;
+    return false;
+  }
+  try {
+    const seed = await decryptSeed(key, text);
+    w.__PSH_SEED__ = seed;
     localStorage.setItem(KEY_STORE, key);
+    try {
+      localStorage.setItem(SEED_CACHE, JSON.stringify(seed));
+    } catch {
+      // Cache is a bonus.
+    }
     return true;
   } catch {
     // Wrong or old key: ask for the link again.

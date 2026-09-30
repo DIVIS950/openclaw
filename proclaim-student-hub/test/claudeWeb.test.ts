@@ -110,9 +110,7 @@ describe("Claude on the website", () => {
           ),
       ),
     );
-    await expect(claudeSample(async () => "sk-ant-bad")("hi")).rejects.toThrow(
-      /Claude key isn't valid/,
-    );
+    await expect(claudeSample(async () => "sk-ant-bad")("hi")).rejects.toThrow(/key isn't valid/);
     vi.unstubAllGlobals();
   });
 });

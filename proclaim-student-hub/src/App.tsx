@@ -124,7 +124,13 @@ export function App() {
   );
 }
 
+/** The private link keeps its key in the address; "Add to Home Screen" needs it there. */
+const keyInHash = () => /^#(k|import)=/.test(window.location.hash);
+
 function screenFromHash(): Screen {
+  if (keyInHash()) {
+    return "today";
+  }
   const name = window.location.hash.slice(1) as Screen;
   return SCREENS.includes(name) ? name : "today";
 }
@@ -242,7 +248,8 @@ function Shell({
   // Keep the phone's back button working by mirroring the screen in the URL hash.
   const go = useCallback((next: Screen) => {
     setScreen(next);
-    if (window.location.hash.slice(1) !== next) {
+    // With the key in the address, leave the address alone (no back-button mirroring).
+    if (!keyInHash() && window.location.hash.slice(1) !== next) {
       window.location.hash = next;
     }
   }, []);

@@ -58,18 +58,32 @@ export async function toMessages(
   return messages;
 }
 
+/** The API's own words for the problem, without the SDK's status prefix. */
+function apiMessage(err: InstanceType<typeof Anthropic.APIError>): string {
+  const raw = (err.error as { error?: { message?: string } } | undefined)?.error?.message;
+  return (raw ?? err.message).replace(/^\d{3}\s*/, "").slice(0, 200);
+}
+
 function friendly(err: unknown): Error {
   if (err instanceof Anthropic.AuthenticationError) {
-    return new Error("The Claude key isn't valid. Check it in Apps › AI key.");
+    return new Error("Claude says the key isn't valid (401). Paste it again in Apps › AI key.");
   }
   if (err instanceof Anthropic.PermissionDeniedError) {
-    return new Error("This Claude key isn't allowed to do that. Check it in Apps › AI key.");
+    return new Error(`Claude refused this key (403): ${apiMessage(err)}`);
   }
   if (err instanceof Anthropic.RateLimitError) {
-    return new Error("You've used the AI a lot just now. Try again in a minute.");
+    return new Error("You've used the AI a lot just now (429). Try again in a minute.");
   }
   if (err instanceof Anthropic.BadRequestError && /credit|billing/i.test(err.message)) {
-    return new Error("The Claude account is out of credit. Ask the parent who made the key.");
+    return new Error(
+      "The Claude account has no credit. Add credit at console.anthropic.com › Billing.",
+    );
+  }
+  if (err instanceof Anthropic.NotFoundError) {
+    return new Error(`Claude can't find that (404): ${apiMessage(err)}`);
+  }
+  if (err instanceof Anthropic.BadRequestError) {
+    return new Error(`Claude rejected the request (400): ${apiMessage(err)}`);
   }
   if (err instanceof Anthropic.APIUserAbortError) {
     return Object.assign(new Error("Stopped."), { code: "cancelled" });
@@ -78,9 +92,36 @@ function friendly(err: unknown): Error {
     return new Error("Can't reach Claude. Check the internet connection.");
   }
   if (err instanceof Anthropic.APIError && (err.status ?? 0) >= 500) {
-    return new Error("Claude is very busy right now. Try again in a minute.");
+    return new Error(`Claude is very busy right now (${err.status}). Try again in a minute.`);
+  }
+  if (err instanceof Anthropic.APIError) {
+    return new Error(`Claude error ${err.status ?? ""}: ${apiMessage(err)}`);
   }
   return err instanceof Error ? err : new Error("The AI had a problem. Please try again.");
+}
+
+/** One tiny real request, so the key card can say exactly what works or not. */
+export async function testClaude(key: string): Promise<string> {
+  const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 0 });
+  try {
+    const message = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: "Reply with exactly: OK" }],
+      output_config: { effort: "low" },
+      ...FALLBACK,
+    });
+    const text = message.content
+      .flatMap((b) => (b.type === "text" ? [b.text] : []))
+      .join("")
+      .trim();
+    if (message.stop_reason === "refusal" || !text) {
+      return `Claude replied but sent no text (${message.stop_reason}). The key works; try the app.`;
+    }
+    return `Claude answered "${text.slice(0, 20)}" using ${message.model}.`;
+  } catch (err) {
+    throw friendly(err);
+  }
 }
 
 export function claudeSample(getKey: () => Promise<string | null>): Sample {

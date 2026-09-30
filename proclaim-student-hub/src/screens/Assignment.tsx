@@ -330,6 +330,9 @@ export function Assignment({ hw }: { hw: Homework }) {
               await save();
             }
             await saving.current;
+            if (text.trim() && !fileId.current) {
+              throw new Error("Your work couldn't be saved to Google, so it wasn't handed in yet.");
+            }
             return fileId.current;
           }}
           onClose={() => setSheet(false)}

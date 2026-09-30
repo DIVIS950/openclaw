@@ -147,10 +147,10 @@ describe("moving data from the claude.ai link to the web version", () => {
     expect(await decodeTransfer("garbage")).toBeNull();
   });
 
-  it("merges lists by id and keeps the timetable from claude.ai", () => {
+  it("merges lists by id (the phone wins) and keeps the timetable from claude.ai", () => {
     expect(
       mergeValue("psh.todos", [{ id: "a", v: 1 }, { id: "web" }], [{ id: "a", v: 2 }, { id: "b" }]),
-    ).toEqual([{ id: "a", v: 2 }, { id: "b" }, { id: "web" }]);
+    ).toEqual([{ id: "a", v: 1 }, { id: "web" }, { id: "b" }]);
     expect(mergeValue("psh.timetable", { old: 1 }, { new: 1 })).toEqual({ new: 1 });
     expect(mergeValue("psh.lab.settings", { mine: 1 }, { theirs: 1 })).toEqual({ mine: 1 });
     expect(mergeValue("psh.progress", { xp: 50 }, { xp: 20 })).toEqual({ xp: 50 });

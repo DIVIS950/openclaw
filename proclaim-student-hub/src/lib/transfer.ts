@@ -105,13 +105,13 @@ export async function transferLink(t: Transfer): Promise<string> {
   return `${PAGES_URL}${TAG}${await encodeTransfer(t)}`;
 }
 
-/** Lists of items with ids merge by id (incoming wins); anything else follows the rules above. */
+/** Lists of items with ids merge by id (the phone's copy wins, new ids are added); anything else follows the rules above. */
 export function mergeValue(key: string, local: unknown, incoming: unknown): unknown {
   const byId = (list: unknown[]) =>
     list.every((x) => x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string");
   if (Array.isArray(local) && Array.isArray(incoming) && byId(local) && byId(incoming)) {
-    const ids = new Set(incoming.map((x) => (x as { id: string }).id));
-    return [...incoming, ...local.filter((x) => !ids.has((x as { id: string }).id))];
+    const ids = new Set(local.map((x) => (x as { id: string }).id));
+    return [...local, ...incoming.filter((x) => !ids.has((x as { id: string }).id))];
   }
   if (key === "psh.progress" && local && incoming) {
     return (local as { xp?: number }).xp! >= (incoming as { xp?: number }).xp! ? local : incoming;

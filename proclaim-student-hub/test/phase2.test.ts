@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bySubject, grades, letter, parseScore, percent } from "../src/lib/grades.ts";
+import { MODE_PROMPTS } from "../shared/prompts.ts";
 import { modeBlocked, MODES, type LabPack } from "../src/lab/model.ts";
+import { bySubject, grades, letter, parseScore, percent } from "../src/lib/grades.ts";
 import { weekLog } from "../src/lib/store.ts";
 import { readReport, weekStart, weekStats } from "../src/lib/weekly.ts";
-import { MODE_PROMPTS } from "../shared/prompts.ts";
 
 // Phase 2: grades, weekly report numbers, exam and say-it modes, "like I'm 10".
 
@@ -32,17 +32,52 @@ describe("grades", () => {
   });
 
   it("averages per subject, weakest first, with a trend", () => {
-    grades.add({ subject: "Maths", topic: "a", date: "2026-09-01", score: 10, outOf: 20, testId: "" });
-    grades.add({ subject: "Maths", topic: "b", date: "2026-09-20", score: 18, outOf: 20, testId: "" });
-    grades.add({ subject: "Science", topic: "c", date: "2026-09-10", score: 19, outOf: 20, testId: "" });
+    grades.add({
+      subject: "Maths",
+      topic: "a",
+      date: "2026-09-01",
+      score: 10,
+      outOf: 20,
+      testId: "",
+    });
+    grades.add({
+      subject: "Maths",
+      topic: "b",
+      date: "2026-09-20",
+      score: 18,
+      outOf: 20,
+      testId: "",
+    });
+    grades.add({
+      subject: "Science",
+      topic: "c",
+      date: "2026-09-10",
+      score: 19,
+      outOf: 20,
+      testId: "",
+    });
     const s = bySubject(grades.all());
     expect(s.map((x) => x.subject)).toEqual(["Maths", "Science"]);
     expect(s[0]).toMatchObject({ average: 70, count: 2, trend: "up" });
   });
 
   it("replaces the grade for the same test instead of doubling it", () => {
-    grades.add({ subject: "Maths", topic: "a", date: "2026-09-01", score: 10, outOf: 20, testId: "x1" });
-    grades.add({ subject: "Maths", topic: "a", date: "2026-09-01", score: 15, outOf: 20, testId: "x1" });
+    grades.add({
+      subject: "Maths",
+      topic: "a",
+      date: "2026-09-01",
+      score: 10,
+      outOf: 20,
+      testId: "x1",
+    });
+    grades.add({
+      subject: "Maths",
+      topic: "a",
+      date: "2026-09-01",
+      score: 15,
+      outOf: 20,
+      testId: "x1",
+    });
     expect(grades.all()).toHaveLength(1);
     expect(grades.all()[0].score).toBe(15);
   });
