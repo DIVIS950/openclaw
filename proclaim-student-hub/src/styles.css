@@ -83,6 +83,10 @@ body,
 }
 
 body {
+  /* Pinned: the page itself never scrolls or bounces, only the screens inside do. */
+  position: fixed;
+  inset: 0;
+  width: 100%;
   overflow: hidden;
   overscroll-behavior: none;
   background: var(--bg);
@@ -151,6 +155,8 @@ button:disabled {
   max-width: 480px;
   height: 100%;
   margin: 0 auto;
+  /* Follows the visible part of the page when the keyboard slides it up (lib/keyboard.ts). */
+  transform: translateY(var(--app-top, 0px));
   display: flex;
   flex-direction: column;
   background: var(--bg);

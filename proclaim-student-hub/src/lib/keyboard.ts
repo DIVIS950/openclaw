@@ -1,8 +1,8 @@
 // The phone keyboard: when it opens, iOS and Android shrink the visible part
-// of the page but not the page itself, so the taskbar and composer end up
-// hidden behind the keyboard and the layout jumps. This keeps the app the
-// size of what's actually visible, pins it to the top, and hides the taskbar
-// while a field is being typed in.
+// of the page, and iPhone also slides the visible part upwards. The app is
+// sized and positioned to that visible part (one frame at a time, so it
+// follows the keyboard animation smoothly instead of jumping), and while a
+// field is being typed in the taskbar gets out of the way.
 
 const FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
@@ -12,15 +12,17 @@ function isField(el: Element | null): boolean {
 
 export function trackKeyboard(root: HTMLElement = document.documentElement) {
   const vv = window.visualViewport;
+  let frame = 0;
   const apply = () => {
-    const height = Math.round(vv ? vv.height : window.innerHeight);
-    root.style.setProperty("--app-h", `${height}px`);
-    // A big drop in visible height means the keyboard is up.
-    root.classList.toggle("keyboard", Boolean(vv) && window.innerHeight - height > 120);
-    // iOS scrolls the whole page to show the field; scroll it back so the app stays put.
-    if (vv && (vv.offsetTop > 0 || window.scrollY > 0)) {
-      window.scrollTo(0, 0);
-    }
+    window.cancelAnimationFrame(frame);
+    frame = window.requestAnimationFrame(() => {
+      const height = Math.round(vv ? vv.height : window.innerHeight);
+      const top = Math.round(vv ? vv.offsetTop : 0);
+      root.style.setProperty("--app-h", `${height}px`);
+      root.style.setProperty("--app-top", `${top}px`);
+      // A big drop in visible height means the keyboard is up.
+      root.classList.toggle("keyboard", Boolean(vv) && window.innerHeight - height > 120);
+    });
   };
   vv?.addEventListener("resize", apply);
   vv?.addEventListener("scroll", apply);
@@ -28,6 +30,7 @@ export function trackKeyboard(root: HTMLElement = document.documentElement) {
   document.addEventListener("focusin", (e) => {
     if (isField(e.target as Element)) {
       root.classList.add("kb-typing");
+      apply();
     }
   });
   document.addEventListener("focusout", () => {
@@ -35,6 +38,7 @@ export function trackKeyboard(root: HTMLElement = document.documentElement) {
     window.setTimeout(() => {
       if (!isField(document.activeElement)) {
         root.classList.remove("kb-typing");
+        apply();
       }
     }, 80);
   });
