@@ -185,8 +185,8 @@ export function DaySummary() {
       )}
       {homework === null ? (
         <div className="stack" style={{ gap: 8 }} aria-label="Loading summary">
-          <div className="skeleton" />
-          <div className="skeleton" style={{ width: "70%" }} />
+          <div className="skeleton light" />
+          <div className="skeleton light" style={{ width: "70%" }} />
         </div>
       ) : (
         <p className="pop day-headline">{summary.headline}</p>

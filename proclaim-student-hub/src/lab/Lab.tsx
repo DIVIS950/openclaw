@@ -566,6 +566,7 @@ function LabHome({
           <div className="lab-actions rise">
             <button
               className="quick-tile"
+              style={{ "--tile": "var(--warm)" } as React.CSSProperties}
               aria-label="Scan a test or notes"
               onClick={() => go({ name: "scan" })}
             >
@@ -577,6 +578,7 @@ function LabHome({
             </button>
             <button
               className="quick-tile"
+              style={{ "--tile": "#c2262e" } as React.CSSProperties}
               aria-label={`${weak} weak spots`}
               onClick={() => go({ name: "weak" })}
             >

@@ -1,59 +1,70 @@
 /* Student Hub: clean, grown-up look. One violet accent, subjects shown as
    small colour dots and stripes, light and dark mode, subtle motion only. */
 
+/* Chalk & Ink: a warm chalk ground, near-black ink, one ultramarine accent
+   for everything the AI does, tangerine for streaks and things due soon.
+   Big rounded white cards with no borders, soft shadows, calm motion. */
+
 :root {
-  --bg: #ffffff;
+  --bg: #f3f1eb;
   --card: #ffffff;
-  --card-2: #f2f2f2;
-  --line: #e6e6e6;
-  --line-soft: #efefef;
-  --ink: #000000;
-  --muted: #6b6b6b;
-  /* Snapchat yellow: fills only. Text that needs the accent uses --accent-ink. */
-  --accent: #fffc00;
-  --accent-ink: #000000;
-  --on-accent: #000000;
-  --link: #0a84d6;
-  --warm: #e0282e;
-  --good: #0f9d58;
-  --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--card));
-  --warm-soft: color-mix(in srgb, var(--warm) 9%, var(--card));
-  --good-soft: color-mix(in srgb, var(--good) 10%, var(--card));
+  --card-2: #f7f5f0;
+  --card-border: transparent;
+  --line: #e6e2d8;
+  --line-soft: #f0ede6;
+  --seg: #e9e6de;
+  --ink: #14151a;
+  --muted: #6b6a63;
+  --accent: #2d4ef5;
+  --accent-ink: #1f3ad0;
+  --on-accent: #ffffff;
+  --link: #2d4ef5;
+  --warm: #d8600a;
+  --orange: #ff7a1a;
+  --good: #0f8a4c;
+  --accent-soft: #eef1ff;
+  --warm-soft: #fff0e6;
+  --good-soft: #e8f7ef;
   --chip: var(--card-2);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
-  --hero: #0d0d0d;
+  --shadow: 0 1px 2px rgba(20, 21, 26, 0.05), 0 4px 14px rgba(20, 21, 26, 0.04);
+  --shadow-lg: 0 12px 32px rgba(20, 21, 26, 0.18);
+  --hero: #14151a;
   --hero-ink: #ffffff;
-  --glass: rgba(255, 255, 255, 0.82);
-  --overlay: rgba(0, 0, 0, 0.5);
-  --serif: "Inter", system-ui, -apple-system, sans-serif;
-  --sans: "Inter", system-ui, -apple-system, sans-serif;
-  --radius: 18px;
+  --glass: rgba(243, 241, 235, 0.86);
+  --overlay: rgba(20, 21, 26, 0.45);
+  --serif: "Sora", "Manrope", system-ui, -apple-system, sans-serif;
+  --sans: "Manrope", system-ui, -apple-system, sans-serif;
+  --radius: 20px;
+  --spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --bounce: cubic-bezier(0.34, 1.3, 0.64, 1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #000000;
-    --card: #121212;
-    --card-2: #1c1c1e;
-    --line: #2a2a2a;
-    --line-soft: #1f1f1f;
-    --ink: #ffffff;
-    --muted: #9a9a9a;
-    --accent: #fffc00;
-    --accent-ink: #fffc00;
-    --on-accent: #000000;
-    --link: #3fb6ff;
-    --warm: #ff5a5f;
-    --good: #34d17a;
-    --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--card));
-    --warm-soft: color-mix(in srgb, var(--warm) 16%, var(--card));
-    --good-soft: color-mix(in srgb, var(--good) 14%, var(--card));
+    --bg: #0e0f13;
+    --card: #181a20;
+    --card-2: #21242c;
+    --card-border: #262932;
+    --line: #2a2d36;
+    --line-soft: #23262e;
+    --seg: #23262e;
+    --ink: #f4f3ee;
+    --muted: #9c9b94;
+    --accent: #4f6bff;
+    --accent-ink: #9fb0ff;
+    --on-accent: #ffffff;
+    --link: #8fa2ff;
+    --warm: #ff9a4d;
+    --orange: #ff8a33;
+    --good: #3ccf85;
+    --accent-soft: #1f2540;
+    --warm-soft: #33241a;
+    --good-soft: #17302a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
-    --hero: #1c1c1e;
-    --glass: rgba(18, 18, 18, 0.85);
+    --hero: #1e2129;
+    --glass: rgba(14, 15, 19, 0.86);
     --overlay: rgba(0, 0, 0, 0.65);
     color-scheme: dark;
   }
@@ -194,23 +205,24 @@ button:disabled {
 }
 
 .nav-ai {
-  width: 50px;
-  height: 50px;
-  margin-top: -22px;
-  border-radius: 25px;
+  width: 52px;
+  height: 52px;
+  margin-top: -24px;
+  border-radius: 26px;
   background: var(--accent);
   color: var(--on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   border: 4px solid var(--bg);
-  box-shadow: var(--shadow-lg);
-  border: 4px solid var(--bg);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.25s var(--bounce);
 }
 
 .nav-item[aria-current="page"] .nav-ai {
   background: var(--ink);
-  color: var(--accent);
+  color: var(--bg);
+  transform: translateY(-2px);
 }
 
 /* ---------- Type ---------- */
@@ -226,16 +238,17 @@ button:disabled {
 .h1 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -274,7 +287,7 @@ button:disabled {
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius);
   padding: 14px 16px;
   box-shadow: var(--shadow);
@@ -283,14 +296,14 @@ button:disabled {
 .card-dark {
   background: var(--hero);
   color: var(--hero-ink, #fff);
-  border-radius: 22px;
+  border-radius: 24px;
   padding: 20px;
   box-shadow: var(--shadow-lg);
 }
 
 .list {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -338,8 +351,9 @@ button:disabled {
 .btn {
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
   background: var(--card);
   font-weight: 600;
   font-size: 14px;
@@ -365,7 +379,20 @@ button:disabled {
 .btn.ghost {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
   color: var(--muted);
+}
+
+.btn.soft {
+  background: var(--accent-soft);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--accent-ink);
+}
+
+.btn.primary,
+.btn.dark {
+  box-shadow: none;
 }
 
 .btn.small {
@@ -405,7 +432,8 @@ button:disabled {
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
   background: var(--card);
   font-weight: 600;
   font-size: 13px;
@@ -420,15 +448,15 @@ button:disabled {
 .segmented {
   display: grid;
   gap: 4px;
-  background: var(--card-2);
+  background: var(--seg);
   padding: 4px;
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .segmented button {
-  min-height: 36px;
+  min-height: 38px;
   border: none;
-  border-radius: 9px;
+  border-radius: 11px;
   background: transparent;
   color: var(--muted);
   font-weight: 600;
@@ -559,7 +587,8 @@ textarea.field {
   height: 44px;
   flex-shrink: 0;
   border-radius: 22px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
   background: var(--card);
   display: inline-flex;
   align-items: center;
@@ -568,9 +597,9 @@ textarea.field {
 }
 
 .round.dark {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
 }
 
 .typing span {
@@ -602,7 +631,7 @@ textarea.field {
 .tile {
   position: relative;
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius);
   padding: 14px 8px;
   display: flex;
@@ -665,7 +694,7 @@ textarea.field {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  animation: sheetUp 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation: sheetUp 0.42s var(--bounce) both;
   max-height: 90%;
   overflow-y: auto;
 }
@@ -778,7 +807,7 @@ textarea.field {
   min-height: 44px;
   padding: 0 16px 0 12px;
   border-radius: 22px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   background: var(--card);
   color: var(--ink);
   font-weight: 600;
@@ -791,7 +820,7 @@ textarea.field {
 
 .ai-card {
   background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card));
+  border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 14px 16px;
   display: flex;
@@ -934,7 +963,7 @@ textarea.field {
 .lab-tile,
 .pack-card {
   text-align: left;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   background: var(--card);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -985,7 +1014,7 @@ textarea.field {
   width: 10px;
   height: 10px;
   border-radius: 5px;
-  background: #e8c800;
+  background: var(--accent);
 }
 
 .dot.flagged {
@@ -1362,9 +1391,9 @@ textarea.field {
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  border-top: 3px solid var(--subject);
+  border-radius: 16px;
+  border: none;
+  border-left: 4px solid var(--subject);
   background: var(--card);
   box-shadow: var(--shadow);
   text-align: left;
@@ -1412,11 +1441,11 @@ textarea.field {
 /* ---------- Motion (subtle) ---------- */
 
 .rise {
-  animation: rise 0.35s ease both;
+  animation: rise 0.45s var(--spring) both;
 }
 
 .pop {
-  animation: fadeUp 0.3s ease both;
+  animation: fadeUp 0.4s var(--spring) both;
 }
 
 .spin {
@@ -1430,7 +1459,7 @@ textarea.field {
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -1441,7 +1470,7 @@ textarea.field {
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(4px) scale(0.98);
+    transform: translateY(6px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -1598,15 +1627,8 @@ textarea.field {
   background-size: 200% 100%;
 }
 
-.card-dark::before,
-.now-card::before {
-  content: "";
-  display: block;
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--accent);
-  margin-bottom: 2px;
+.card-dark .btn.primary {
+  color: var(--on-accent);
 }
 
 .class-row {
@@ -1880,6 +1902,7 @@ label.call-orb {
 
   .nav-item[aria-current="page"] {
     background: var(--card);
+    box-shadow: var(--shadow);
   }
 
   .nav-ai {
@@ -1927,7 +1950,7 @@ label.call-orb {
   }
 
   .h1 {
-    font-size: 34px;
+    font-size: 40px;
   }
 }
 
@@ -1969,8 +1992,8 @@ label.call-orb {
   border: none;
   border-radius: 14px;
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--card-2);
+  color: var(--ink);
   font-size: 13px;
   font-weight: 600;
   text-align: left;
@@ -1978,9 +2001,11 @@ label.call-orb {
 
 .day-headline {
   margin: 0;
+  font-family: var(--serif);
   font-size: 19px;
-  font-weight: 800;
-  line-height: 1.35;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .day-section {
@@ -1994,7 +2019,7 @@ label.call-orb {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .day-row {
@@ -2003,15 +2028,15 @@ label.call-orb {
   gap: 10px;
   width: 100%;
   border: none;
-  border-radius: 12px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--card-2);
+  color: var(--ink);
   text-align: left;
 }
 
 .day-row:active {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--line-soft);
 }
 
 .day-num,
@@ -2029,11 +2054,12 @@ label.call-orb {
 
 .day-num {
   background: var(--accent);
-  color: #000;
+  color: var(--on-accent);
 }
 
 .day-icon {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 .day-text {
@@ -2052,18 +2078,18 @@ label.call-orb {
 
 .day-text span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
 }
 
 .day-go {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
   font-size: 18px;
 }
 
 .day-tip {
   margin: 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--muted);
 }
 
 /* ---------- Plan my week ---------- */
@@ -2128,10 +2154,12 @@ label.call-orb {
   padding: 12px;
   border-radius: var(--radius);
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
 }
 
 .hw-stat strong {
+  font-family: var(--serif);
   font-size: 26px;
   line-height: 1;
 }
@@ -2155,7 +2183,8 @@ label.call-orb {
   min-height: 40px;
   padding: 3px 10px 3px 3px;
   border-radius: 20px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
   background: var(--card);
   color: var(--ink);
   font-size: 13px;
@@ -2173,14 +2202,39 @@ label.call-orb {
   color: var(--on-accent);
   background:
     radial-gradient(circle, var(--accent) 60%, transparent 61%),
-    conic-gradient(var(--ink) var(--p, 0%), var(--line) 0);
+    conic-gradient(var(--orange) var(--p, 0%), var(--line) 0);
+}
+
+.hero {
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 24px;
+  box-shadow:
+    0 1px 2px rgba(20, 21, 26, 0.05),
+    0 10px 30px rgba(20, 21, 26, 0.06);
+}
+
+.hero::before {
+  display: none;
 }
 
 .hero .hero-btn {
-  min-height: 42px;
+  min-height: 46px;
   padding: 0 8px;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
+}
+
+.hero-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero-label .ai {
+  color: var(--accent);
 }
 
 .ghost-on-dark {
@@ -2202,9 +2256,9 @@ label.call-orb {
   align-items: flex-start;
   gap: 2px;
   padding: 12px;
-  min-height: 108px;
+  min-height: 100px;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   background: var(--card);
   color: var(--ink);
   text-align: left;
@@ -2213,6 +2267,7 @@ label.call-orb {
 
 .quick-tile strong {
   margin-top: 8px;
+  font-family: var(--serif);
   font-size: 14px;
   line-height: 1.2;
 }
@@ -2224,14 +2279,14 @@ label.call-orb {
 }
 
 .quick-tile-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--tile, var(--accent)) 12%, var(--card));
+  color: var(--tile, var(--accent));
 }
 
 .clip {
@@ -2245,7 +2300,7 @@ label.call-orb {
 /* Opacity only: a transform here would turn the screen into a stacking
    context and trap sheets under the taskbar. Children add the lift. */
 .app > .screen {
-  animation: screenIn 0.24s ease backwards;
+  animation: screenIn 0.28s ease backwards;
 }
 
 @keyframes screenIn {
@@ -2410,7 +2465,7 @@ label.call-orb {
   height: 84px;
   background:
     radial-gradient(circle, var(--hero) 62%, transparent 63%),
-    conic-gradient(var(--accent) var(--p, 0%), rgba(255, 255, 255, 0.16) 0);
+    conic-gradient(var(--orange) var(--p, 0%), rgba(255, 255, 255, 0.16) 0);
 }
 
 .goal-ring span {
@@ -2442,7 +2497,8 @@ label.call-orb {
   padding: 12px 6px;
   border-radius: var(--radius);
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
   font-size: 12px;
   font-weight: 600;
   text-align: center;
@@ -2608,4 +2664,36 @@ input[type="checkbox"][role="switch"]:checked {
 
 input[type="checkbox"][role="switch"]:checked::after {
   transform: translateX(18px);
+}
+
+/* ---------- Chalk & Ink: rings animate to their value, section labels ---------- */
+
+/* Lets the conic rings sweep to their value instead of jumping. */
+@property --p {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+.level-ring,
+.goal-ring,
+.mini-ring {
+  transition: --p 0.9s var(--spring);
+}
+
+.section-label {
+  margin: 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-label.warm {
+  color: var(--warm);
+}
+
+.round.dark {
+  box-shadow: none;
 }

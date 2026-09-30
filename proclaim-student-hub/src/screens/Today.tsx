@@ -18,13 +18,40 @@ import { UnlockCard } from "../pages/Unlock.tsx";
 // Today: one glanceable dashboard. The dark hero holds the AI summary and the
 // two AI planners; six yellow tiles open everything else in one tap.
 
-const TILES: { screen: Screen; label: string; sub: string; icon: IconName; needsAi?: boolean }[] = [
-  { screen: "call", label: "Talk", sub: "Voice study buddy", icon: "mic", needsAi: true },
-  { screen: "revise", label: "Revision Lab", sub: "Scan → flashcards", icon: "camera" },
-  { screen: "inbox", label: "Inbox", sub: "School email", icon: "mail" },
-  { screen: "tutoring", label: "Tutoring", sub: "Tutors & lessons", icon: "book" },
-  { screen: "timetable", label: "Timetable", sub: "Lessons & calendar", icon: "calendar" },
-  { screen: "apps", label: "Apps", sub: "Classroom, Dr Frost…", icon: "apps" },
+// Each tile gets its own tint so the grid reads at a glance.
+const TILES: {
+  screen: Screen;
+  label: string;
+  sub: string;
+  icon: IconName;
+  tint: string;
+  needsAi?: boolean;
+}[] = [
+  {
+    screen: "call",
+    label: "Talk",
+    sub: "Voice study buddy",
+    icon: "mic",
+    tint: "var(--accent)",
+    needsAi: true,
+  },
+  {
+    screen: "revise",
+    label: "Revision Lab",
+    sub: "Scan → flashcards",
+    icon: "camera",
+    tint: "var(--warm)",
+  },
+  { screen: "inbox", label: "Inbox", sub: "School email", icon: "mail", tint: "var(--good)" },
+  { screen: "tutoring", label: "Tutoring", sub: "Tutors & lessons", icon: "book", tint: "#7c3aed" },
+  {
+    screen: "timetable",
+    label: "Timetable",
+    sub: "Lessons & calendar",
+    icon: "calendar",
+    tint: "var(--accent)",
+  },
+  { screen: "apps", label: "Apps", sub: "Classroom, Dr Frost…", icon: "apps", tint: "var(--ink)" },
 ];
 
 const TILE_NAMES: Partial<Record<Screen, string>> = {
@@ -120,17 +147,14 @@ export function Today() {
 
       <UnlockCard />
 
-      <section className="card-dark stack rise hero" style={{ gap: 12, animationDelay: "0.05s" }}>
-        <div
-          className="between"
-          style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}
-        >
-          <span className="row" style={{ gap: 6 }}>
+      <section className="card stack rise hero" style={{ gap: 12, animationDelay: "0.05s" }}>
+        <div className="between hero-label">
+          <span className="row ai" style={{ gap: 6 }}>
             <Icon name="sparkle" size={16} className="wiggle" />
             Your day
           </span>
           {!data.demo && (
-            <span className="row" style={{ gap: 4, color: "#fff" }}>
+            <span className="row" style={{ gap: 4 }}>
               <Icon name="sync" size={13} className="spin-slow" />
               Synced
             </span>
@@ -140,7 +164,7 @@ export function Today() {
         {ai && (
           <div className="row">
             <button
-              className="btn block hero-btn"
+              className="btn block primary hero-btn"
               style={{ flex: 1 }}
               disabled={plan === "loading"}
               onClick={() => void makePlan()}
@@ -153,7 +177,7 @@ export function Today() {
               Plan tonight
             </button>
             <button
-              className="btn block hero-btn ghost-on-dark"
+              className="btn block soft hero-btn"
               style={{ flex: 1 }}
               disabled={week}
               onClick={() => setWeek(true)}
@@ -201,7 +225,9 @@ export function Today() {
           <button
             key={t.screen}
             className="quick-tile pop"
-            style={{ animationDelay: `${0.12 + i * 0.04}s` }}
+            style={
+              { "--tile": t.tint, animationDelay: `${0.12 + i * 0.04}s` } as React.CSSProperties
+            }
             aria-label={TILE_NAMES[t.screen] ?? t.label}
             onClick={() => go(t.screen === "inbox" && PAGES ? "todo" : t.screen)}
           >
