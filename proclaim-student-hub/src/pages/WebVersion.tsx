@@ -140,7 +140,7 @@ export function AiKeyCard() {
         The AI needs a Claude API key. Ask a parent to make one at console.anthropic.com and paste
         it below. It stays on this phone only.
       </p>
-      <AiKeyForm compact onSaved={(ok) => setHasKey(!ok)} />
+      <AiKeyForm compact onSaved={(ok) => setHasKey(ok)} />
     </section>
   );
 }

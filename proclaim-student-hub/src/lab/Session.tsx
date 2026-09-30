@@ -347,21 +347,19 @@ function Question({
   prefs: LabSettings;
   onAnswer: (verdict: Verdict) => void;
 }) {
-  const backwards = reverse && entry.item.kind === "term";
+  // "Type instead" on a speaking card, or no speech recognition here.
+  const [typeInstead, setTypeInstead] = useState(false);
+  const speakTyped = style === "speak" && (typeInstead || !canListen());
+  // Typed speaking practice shows the meaning and asks for the foreign word.
+  const backwards = (reverse || speakTyped) && entry.item.kind === "term";
   const shown = useMemo(() => (backwards ? flip(entry.item) : entry.item), [backwards, entry]);
   const options = useMemo(
     () => quizOptions(shown, backwards ? entry.pack.items.map(flip) : entry.pack.items),
     [shown, backwards, entry],
   );
-  // "Type instead" on a speaking card.
-  const [typeInstead, setTypeInstead] = useState(false);
   // With too few different answers a quiz is a giveaway; rate yourself instead.
   const kind: Style =
-    style === "quiz" && options.length < 3
-      ? "card"
-      : style === "speak" && (typeInstead || !canListen())
-        ? "listen"
-        : style;
+    style === "quiz" && options.length < 3 ? "card" : speakTyped ? "write" : style;
   const [flipped, setFlipped] = useState(false);
   const [typed, setTyped] = useState("");
   const [result, setResult] = useState<{ verdict: Verdict; given: string; note: string } | null>(

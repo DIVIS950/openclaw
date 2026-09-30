@@ -27,14 +27,14 @@ export function trackKeyboard(root: HTMLElement = document.documentElement) {
   window.addEventListener("resize", apply);
   document.addEventListener("focusin", (e) => {
     if (isField(e.target as Element)) {
-      root.classList.add("typing");
+      root.classList.add("kb-typing");
     }
   });
   document.addEventListener("focusout", () => {
     // Give the focus a moment to land on the next field before deciding.
     window.setTimeout(() => {
       if (!isField(document.activeElement)) {
-        root.classList.remove("typing");
+        root.classList.remove("kb-typing");
       }
     }, 80);
   });

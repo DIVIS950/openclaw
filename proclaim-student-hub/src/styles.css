@@ -2861,20 +2861,20 @@ input[type="checkbox"][role="switch"]:checked::after {
 /* While a field is focused the taskbar and Ask AI button get out of the way, so
    the keyboard never covers what's being typed and nothing jumps around. */
 @media (max-width: 767px) {
-  html.typing .nav,
-  html.typing .ask-fab {
+  html.kb-typing.keyboard .nav,
+  html.kb-typing.keyboard .ask-fab {
     display: none;
   }
 
-  html.typing .screen {
+  html.kb-typing.keyboard .screen {
     padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
   }
 
-  html.typing .composer {
+  html.kb-typing.keyboard .composer {
     margin-bottom: env(safe-area-inset-bottom);
   }
 
-  html.typing .sheet {
+  html.kb-typing.keyboard .sheet {
     max-height: 100%;
     padding-bottom: 16px;
   }

@@ -5,6 +5,7 @@ import { useCapability } from "../lib/claudeRuntime.ts";
 import { progress, schedule, weekLog } from "../lib/store.ts";
 import { labHandoff, labSubject, notes, packToNote, prepTests } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
+import { canListen } from "../lib/voice.ts";
 import { play, sound } from "./fx.ts";
 import { GapFill, LabelDiagram, Match, OrderSteps } from "./Games.tsx";
 import {
@@ -113,6 +114,9 @@ function useOnline(): boolean {
   return online;
 }
 
+/** Fired when packs are saved from outside the Lab (see lib/autoPack.ts). */
+export const PACKS_CHANGED = "psh:packs";
+
 function packAsText(pack: LabPack): string {
   return [
     `${pack.topic} (${pack.subject})`,
@@ -128,6 +132,12 @@ export function Lab() {
   const app = useApp();
   const [packs, setPacks] = useState<LabPack[]>(labPacks.all);
   const [prefs, setPrefs] = useState<LabSettings>(settings.get);
+  // A test's pack can be built in the background while the Lab is open.
+  useEffect(() => {
+    const refresh = () => setPacks(labPacks.all());
+    window.addEventListener(PACKS_CHANGED, refresh);
+    return () => window.removeEventListener(PACKS_CHANGED, refresh);
+  }, []);
   // Another screen (a test's prep plan, a note, tutoring) may have sent us here with a job.
   const [request] = useState(() => labHandoff.take());
   const scanRequest = request?.kind === "scan" ? request : null;
@@ -633,7 +643,7 @@ function LabHome({
                 Timed · no hints
               </span>
             </button>
-            {packs.some((p) => canHear(p)) && (
+            {canListen() && packs.some((p) => canHear(p)) && (
               <button
                 className="btn big block"
                 style={{ flex: 1 }}

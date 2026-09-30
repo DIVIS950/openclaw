@@ -32,6 +32,8 @@ export async function autoPack(ai: AiProvider, test: PrepTest): Promise<PrepTest
     labels: [],
   };
   labPacks.saveAll([...labPacks.all(), pack]);
+  // An open Lab screen re-reads its packs.
+  window.dispatchEvent(new Event("psh:packs"));
   notes.upsert(packToNote(pack));
   const linked = { ...test, packId: pack.id };
   prepTests.save(prepTests.all().map((t) => (t.id === test.id ? linked : t)));
