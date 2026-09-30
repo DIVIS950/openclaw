@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Confetti } from "../components/Confetti.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { canSpeak, speak } from "../lib/voice.ts";
+import { play } from "./fx.ts";
 import {
   dayString,
   isDue,
@@ -247,11 +249,21 @@ export function Results({
   onMissed: (() => void) | null;
   onBack: () => void;
 }) {
-  const percent = sessionPercent(outcome.answers.map((a) => a.verdict));
+  // First answers only: a card's second go doesn't count against the score.
+  const first = outcome.answers.filter((a) => !a.retry);
+  const percent = sessionPercent(first.map((a) => a.verdict));
   const real = pack ? scorePercent(pack.testScore) : null;
-  const missed = [
-    ...new Set(outcome.answers.filter((a) => a.verdict !== "correct").map((a) => a.label)),
-  ];
+  const fixed = new Set(
+    outcome.answers.filter((a) => a.retry && a.verdict === "correct").map((a) => a.itemId),
+  );
+  const wrongOnes = first.filter((a) => a.verdict !== "correct");
+  const missed = [...new Set(wrongOnes.map((a) => a.label))];
+  const seconds = outcome.seconds ?? 0;
+  useEffect(() => {
+    if (percent >= 90) {
+      play("win");
+    }
+  }, []);
   const title = MODES.find((m) => m.id === outcome.mode)?.title ?? "Practice";
   useAiContext(
     `Results of ${title}${pack ? ` on "${pack.topic}"` : ""}: ${percent}%. Missed: ${missed.join("; ") || "nothing"}.`,
@@ -298,16 +310,46 @@ export function Results({
         </div>
       )}
 
-      {missed.length > 0 && (
-        <div className="card stack rise">
-          <h2 className="h2">To work on</h2>
-          <div className="pills" style={{ flexWrap: "wrap" }}>
-            {missed.map((m) => (
-              <span key={m} className="chip warm">
-                {m}
-              </span>
-            ))}
+      {percent >= 90 && <Confetti big />}
+
+      <div className="summary-row rise">
+        <div className="hw-stat">
+          <strong>{first.filter((a) => a.verdict === "correct").length}</strong>
+          <span>right</span>
+        </div>
+        <div className={`hw-stat${wrongOnes.length ? " warm" : ""}`}>
+          <strong>{wrongOnes.length}</strong>
+          <span>to fix</span>
+        </div>
+        <div className="hw-stat">
+          <strong>{fixed.size}</strong>
+          <span>fixed on 2nd go</span>
+        </div>
+        {seconds > 0 && (
+          <div className="hw-stat">
+            <strong>{Math.round(seconds / 60) || 1}</strong>
+            <span>min</span>
           </div>
+        )}
+      </div>
+
+      {wrongOnes.length > 0 && (
+        <div className="card stack rise" style={{ gap: 8 }}>
+          <h2 className="h2">Go over these</h2>
+          {wrongOnes.map((a, i) => (
+            <div key={`${a.itemId ?? a.label}-${i}`} className="miss-row">
+              <span className={`miss-dot${fixed.has(a.itemId) ? " ok" : ""}`} aria-hidden="true" />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong>{a.label}</strong>
+                {a.answer && (
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    {a.answer}
+                  </div>
+                )}
+              </div>
+              {fixed.has(a.itemId) && <span className="chip good">Fixed</span>}
+            </div>
+          ))}
         </div>
       )}
 

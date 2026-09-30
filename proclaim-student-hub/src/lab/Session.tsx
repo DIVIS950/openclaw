@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Confetti } from "../components/Confetti.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
+import { buzz, play } from "./fx.ts";
 import {
   ACCENT_KEYS,
   markAnswer,
@@ -30,6 +32,10 @@ export interface Answer {
   verdict: Verdict;
   packId?: string;
   itemId?: string;
+  /** The right answer, for the session summary. */
+  answer?: string;
+  /** This was the card's second go in the session. */
+  retry?: boolean;
 }
 
 export interface Outcome {
@@ -37,6 +43,8 @@ export interface Outcome {
   answers: Answer[];
   /** A line for the results screen ("You beat the boss!"). */
   note?: string;
+  /** How long the session took. */
+  seconds?: number;
 }
 
 type Style = "card" | "quiz" | "write" | "listen";
@@ -290,6 +298,8 @@ function Question({
   }, []);
 
   const settle = (verdict: Verdict, given: string, note = "") => {
+    play(verdict === "wrong" ? "wrong" : "right");
+    buzz(verdict === "wrong" ? [30, 40, 30] : 12);
     if (feedback) {
       setResult({ verdict, given, note });
     } else {
@@ -330,30 +340,40 @@ function Question({
   }
 
   if (kind === "card") {
+    const mastered = entry.item.box >= 3;
     return (
       <div className="stack">
+        {/* The button is the outside: Chrome can't do 3D inside a <button>. */}
         <button
-          className={`flashcard${flipped ? " back" : ""}`}
-          key={flipped ? "b" : "f"}
-          onClick={() => setFlipped(true)}
+          className={`flip${flipped ? " flipped" : ""}`}
+          onClick={() => {
+            if (!flipped) {
+              play("flip");
+              setFlipped(true);
+            }
+          }}
           aria-label={flipped ? "Answer" : "Tap to see the answer"}
         >
-          {flipped ? (
-            <div className="stack" style={{ gap: 8 }}>
-              <div className="row" style={{ gap: 10, justifyContent: "center" }}>
-                <div className="flashcard-text">{shown.answer}</div>
-                {backwards && <HearButton entry={entry} />}
-              </div>
-              {entry.item.explanation && (
-                <div style={{ opacity: 0.8 }}>{entry.item.explanation}</div>
-              )}
+          <div className="flip-inner">
+            <div className="flashcard flip-face">
+              {prompt}
+              <span style={{ fontSize: 13, opacity: 0.7 }}>Think of the answer, then tap</span>
             </div>
-          ) : (
-            prompt
-          )}
-          <span style={{ fontSize: 13, opacity: 0.7 }}>
-            {flipped ? "How did you do?" : "Think of the answer, then tap"}
-          </span>
+            <div className="flashcard back flip-face">
+              <div className="stack" style={{ gap: 8 }}>
+                <div className="row" style={{ gap: 10, justifyContent: "center" }}>
+                  <div className="flashcard-text">{shown.answer}</div>
+                  {backwards && <HearButton entry={entry} />}
+                </div>
+                {entry.item.explanation && (
+                  <div style={{ opacity: 0.8 }}>{entry.item.explanation}</div>
+                )}
+              </div>
+              <span style={{ fontSize: 13, opacity: 0.7 }}>
+                {mastered ? "Mastered · keep it that way" : "How did you do?"}
+              </span>
+            </div>
+          </div>
         </button>
         {flipped && (
           <div className="rate-row rise">
@@ -498,12 +518,26 @@ export function Session(props: {
   return <Straight {...props} mode={props.mode} />;
 }
 
-const answerFor = (entry: Entry, verdict: Verdict): Answer => ({
+const answerFor = (entry: Entry, verdict: Verdict, retry = false): Answer => ({
   label: entry.item.prompt,
   verdict,
   packId: entry.pack.id,
   itemId: entry.item.id,
+  answer: entry.item.answer,
+  retry,
 });
+
+/** Right answers in a row, with a little celebration at milestones. */
+export function Combo({ combo }: { combo: number }) {
+  if (combo < 2) {
+    return null;
+  }
+  return (
+    <span key={combo} className={`chip combo pop${combo >= 5 ? " hot" : ""}`} aria-live="polite">
+      🔥 {combo} in a row
+    </span>
+  );
+}
 
 /** Flashcards, quiz, write and mock test: one question after another. */
 function Straight({
@@ -519,9 +553,18 @@ function Straight({
   onDone: (outcome: Outcome) => void;
   onQuit: () => void;
 }) {
+  // Cards you miss come back a few cards later in the same session (once),
+  // so the queue can grow; mocks stay fixed like a real test.
+  const [queue, setQueue] = useState<Entry[]>(entries);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
-  const entry = entries[index];
+  const [combo, setCombo] = useState(0);
+  const [best, setBest] = useState(0);
+  const [party, setParty] = useState(0);
+  const retried = useRef(new Set<string>());
+  const startedAt = useRef(Date.now());
+  const entry = queue[index];
+  const isRetry = answers.some((a) => a.itemId === entry.item.id);
   // Daily review mixes the ways of asking, so each card is practised differently.
   const mixed: Style[] =
     hearable(entry.item, entry.pack.subject) && canHear(entry.pack)
@@ -553,20 +596,49 @@ function Straight({
   }[mode];
 
   const next = (verdict: Verdict) => {
-    const all = [...answers, answerFor(entry, verdict)];
-    if (index + 1 >= entries.length) {
-      onDone({ mode, answers: all });
+    if (mode === "flashcards") {
+      // Flashcards rate themselves, so their sound comes here.
+      play(verdict === "wrong" ? "wrong" : "right");
+    }
+    const all = [...answers, answerFor(entry, verdict, isRetry)];
+    let q = queue;
+    if (verdict !== "correct" && mode !== "mock" && !retried.current.has(entry.item.id)) {
+      retried.current.add(entry.item.id);
+      const at = Math.min(q.length, index + 4);
+      q = [...q.slice(0, at), entry, ...q.slice(at)];
+    }
+    const streak = verdict === "correct" ? combo + 1 : 0;
+    const bestNow = Math.max(best, streak);
+    setCombo(streak);
+    setBest(bestNow);
+    if (streak > 0 && streak % 5 === 0) {
+      play("combo");
+      setParty(streak);
+    }
+    if (index + 1 >= q.length) {
+      onDone({
+        mode,
+        answers: all,
+        note: bestNow >= 5 ? `Best run: ${bestNow} in a row.` : undefined,
+        seconds: Math.round((Date.now() - startedAt.current) / 1000),
+      });
       return;
     }
     setAnswers(all);
+    setQueue(q);
     setIndex(index + 1);
   };
 
   return (
     <main className="screen">
-      <SessionHeader title={title} done={index} total={entries.length} onQuit={onQuit}>
+      <SessionHeader title={title} done={index} total={queue.length} onQuit={onQuit}>
         {mode === "mock" && <p className="sub">Test conditions: answers are marked at the end.</p>}
+        <div className="row" style={{ gap: 6, minHeight: 24 }}>
+          <Combo combo={combo} />
+          {isRetry && <span className="chip">Second go</span>}
+        </div>
       </SessionHeader>
+      {party > 0 && <Confetti key={party} />}
       <Question
         key={`${index}-${entry.item.id}`}
         entry={entry}
