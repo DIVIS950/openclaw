@@ -19,13 +19,11 @@ import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
 import { Call } from "./screens/Call.tsx";
 import { Classes } from "./screens/Classes.tsx";
-import { Home } from "./screens/Home.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { Inbox } from "./screens/Inbox.tsx";
-import { More } from "./screens/More.tsx";
-import { Settings } from "./screens/Settings.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Timetable } from "./screens/Timetable.tsx";
+import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
 import { NotesScreen, TestsScreen, TodoScreen, TutoringScreen } from "./study/Study.tsx";
 
@@ -352,9 +350,7 @@ function Shell({
             )}
           </div>
         )}
-        {current === "today" && <Home />}
-        {current === "more" && <More />}
-        {current === "settings" && <Settings />}
+        {current === "today" && <Today />}
         {current === "homework" && <HomeworkScreen />}
         {current === "assignment" && assignment && (
           <Assignment key={assignment.id} hw={assignment} />
@@ -410,54 +406,41 @@ function Shell({
 
 function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
   const active = (names: Screen[]) => (names.includes(screen) ? "page" : undefined);
-  const MORE: Screen[] = [
-    "more",
-    "settings",
-    "homework",
-    "assignment",
-    "todo",
-    "tests",
-    "notes",
-    "tutoring",
-    "inbox",
-    "apps",
-    "classes",
-  ];
   return (
     <nav className="nav" aria-label="Main">
       <button className="nav-item" aria-current={active(["today"])} onClick={() => go("today")}>
-        <Icon name="home" size={26} />
-        Home
+        <Icon name="home" />
+        Today
       </button>
       <button
         className="nav-item"
-        aria-current={active(["revise", "games"])}
-        onClick={() => go("revise")}
+        aria-current={active(["homework", "assignment", "classes"])}
+        onClick={() => go("homework")}
       >
-        <Icon name="book" size={26} />
-        Revise
+        <Icon name="homework" />
+        Homework
+      </button>
+      <button className="nav-item" aria-current={active(["todo"])} onClick={() => go("todo")}>
+        <Icon name="todo" />
+        To-do
       </button>
       <button
         className="nav-item"
-        aria-current={active(["tutor", "call"])}
+        aria-current={active(["tutor", "revise", "games", "call"])}
         onClick={() => go("tutor")}
       >
         <span className="nav-ai">
-          <Icon name="sparkle" size={26} />
+          <Icon name="sparkle" size={22} />
         </span>
-        AI
+        AI help
       </button>
-      <button
-        className="nav-item"
-        aria-current={active(["timetable"])}
-        onClick={() => go("timetable")}
-      >
-        <Icon name="calendar" size={26} />
-        Timetable
+      <button className="nav-item" aria-current={active(["tests"])} onClick={() => go("tests")}>
+        <Icon name="flag" />
+        Tests
       </button>
-      <button className="nav-item" aria-current={active(MORE)} onClick={() => go("more")}>
-        <Icon name="apps" size={26} />
-        More
+      <button className="nav-item" aria-current={active(["notes"])} onClick={() => go("notes")}>
+        <Icon name="note" />
+        Notes
       </button>
     </nav>
   );

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { SoundSwitch } from "../components/SoundSwitch.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
 import { progress, schedule, weekLog } from "../lib/store.ts";
 import { labHandoff, labSubject, notes, packToNote, prepTests } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { canListen } from "../lib/voice.ts";
+import { play, sound } from "./fx.ts";
 import { GapFill, LabelDiagram, Match, OrderSteps } from "./Games.tsx";
 import {
   dayString,
@@ -431,6 +431,33 @@ export function Lab() {
 }
 
 // ---------- Home ----------
+
+function SoundSwitch() {
+  const [on, setOn] = useState(sound.on);
+  return (
+    <label className="card between" style={{ cursor: "pointer" }}>
+      <span className="stack" style={{ gap: 2 }}>
+        <strong>Sounds</strong>
+        <span className="muted" style={{ fontSize: 13 }}>
+          Little sounds for right, wrong and streaks
+        </span>
+      </span>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={on}
+        onChange={(e) => {
+          sound.set(e.target.checked);
+          setOn(e.target.checked);
+          if (e.target.checked) {
+            play("right");
+          }
+        }}
+        aria-label="Sounds"
+      />
+    </label>
+  );
+}
 
 function LabHome({
   packs,

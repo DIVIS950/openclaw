@@ -5,103 +5,69 @@
    for everything the AI does, tangerine for streaks and things due soon.
    Big rounded white cards with no borders, soft shadows, calm motion. */
 
-/* iPhone-clean: the system font, white groups on a soft grey ground, one
-   blue accent, red only for overdue, hairline separators, large titles.
-   Dark mode mirrors Apple's: black ground, graphite groups. Subjects show as
-   a small colour dot, nothing louder. The theme can be forced with
-   html[data-theme="light"|"dark"]; otherwise it follows the phone. */
-
 :root {
-  --bg: #f2f2f7;
+  --bg: #f3f1eb;
   --card: #ffffff;
-  --card-2: #f2f2f7;
+  --card-2: #f7f5f0;
   --card-border: transparent;
-  --line: #d1d1d6;
-  --line-soft: #e5e5ea;
-  --seg: #e9e9ee;
-  --ink: #000000;
-  --muted: #6d6d72;
-  --accent: #007aff;
-  --accent-ink: #0066d6;
+  --line: #e6e2d8;
+  --line-soft: #f0ede6;
+  --seg: #e9e6de;
+  --ink: #14151a;
+  --muted: #6b6a63;
+  --accent: #2d4ef5;
+  --accent-ink: #1f3ad0;
   --on-accent: #ffffff;
-  --link: #007aff;
-  --warm: #ff3b30;
-  --orange: #ff9500;
-  --good: #34c759;
-  --accent-soft: #e5f0ff;
-  --warm-soft: #ffe5e3;
-  --good-soft: #e3f8ea;
+  --link: #2d4ef5;
+  --warm: #d8600a;
+  --orange: #ff7a1a;
+  --good: #0f8a4c;
+  --accent-soft: #eef1ff;
+  --warm-soft: #fff0e6;
+  --good-soft: #e8f7ef;
   --chip: var(--card-2);
-  --shadow: none;
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.18);
-  --hero: #1c1c1e;
+  --shadow: 0 1px 2px rgba(20, 21, 26, 0.05), 0 4px 14px rgba(20, 21, 26, 0.04);
+  --shadow-lg: 0 12px 32px rgba(20, 21, 26, 0.18);
+  --hero: #14151a;
   --hero-ink: #ffffff;
-  --glass: rgba(249, 249, 249, 0.86);
-  --overlay: rgba(0, 0, 0, 0.4);
-  --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-  --radius: 14px;
+  --glass: rgba(243, 241, 235, 0.86);
+  --overlay: rgba(20, 21, 26, 0.45);
+  --serif: "Sora", "Manrope", system-ui, -apple-system, sans-serif;
+  --sans: "Manrope", system-ui, -apple-system, sans-serif;
+  --radius: 20px;
   --spring: cubic-bezier(0.22, 1, 0.36, 1);
   --bounce: cubic-bezier(0.34, 1.3, 0.64, 1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #000000;
-    --card: #1c1c1e;
-    --card-2: #2c2c2e;
-    --card-border: transparent;
-    --line: #38383a;
-    --line-soft: #2c2c2e;
-    --seg: #2c2c2e;
-    --ink: #ffffff;
-    --muted: #98989e;
-    --accent: #0a84ff;
-    --accent-ink: #5eb0ff;
+  :root {
+    --bg: #0e0f13;
+    --card: #181a20;
+    --card-2: #21242c;
+    --card-border: #262932;
+    --line: #2a2d36;
+    --line-soft: #23262e;
+    --seg: #23262e;
+    --ink: #f4f3ee;
+    --muted: #9c9b94;
+    --accent: #4f6bff;
+    --accent-ink: #9fb0ff;
     --on-accent: #ffffff;
-    --link: #0a84ff;
-    --warm: #ff453a;
-    --orange: #ff9f0a;
-    --good: #30d158;
-    --accent-soft: #0f2a4d;
-    --warm-soft: #3a1512;
-    --good-soft: #0f2e1a;
-    --shadow: none;
+    --link: #8fa2ff;
+    --warm: #ff9a4d;
+    --orange: #ff8a33;
+    --good: #3ccf85;
+    --accent-soft: #1f2540;
+    --warm-soft: #33241a;
+    --good-soft: #17302a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
-    --hero: #2c2c2e;
-    --glass: rgba(22, 22, 24, 0.86);
-    --overlay: rgba(0, 0, 0, 0.6);
+    --hero: #1e2129;
+    --glass: rgba(14, 15, 19, 0.86);
+    --overlay: rgba(0, 0, 0, 0.65);
     color-scheme: dark;
   }
-}
-
-:root[data-theme="dark"] {
-  --bg: #000000;
-  --card: #1c1c1e;
-  --card-2: #2c2c2e;
-  --card-border: transparent;
-  --line: #38383a;
-  --line-soft: #2c2c2e;
-  --seg: #2c2c2e;
-  --ink: #ffffff;
-  --muted: #98989e;
-  --accent: #0a84ff;
-  --accent-ink: #5eb0ff;
-  --on-accent: #ffffff;
-  --link: #0a84ff;
-  --warm: #ff453a;
-  --orange: #ff9f0a;
-  --good: #30d158;
-  --accent-soft: #0f2a4d;
-  --warm-soft: #3a1512;
-  --good-soft: #0f2e1a;
-  --shadow: none;
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --hero: #2c2c2e;
-  --glass: rgba(22, 22, 24, 0.86);
-  --overlay: rgba(0, 0, 0, 0.6);
-  color-scheme: dark;
 }
 
 * {
@@ -203,7 +169,7 @@ button:disabled {
 .screen {
   flex: 1;
   overflow-y: auto;
-  padding: calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 96px);
+  padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 110px);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -218,68 +184,84 @@ button:disabled {
   display: flex;
   justify-content: space-around;
   align-items: flex-start;
-  padding: 6px 2px calc(env(safe-area-inset-bottom) + 4px);
+  padding: 8px 2px calc(env(safe-area-inset-bottom) + 8px);
   background: var(--glass);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid var(--line);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+  border-top: 1px solid var(--line);
 }
 
 .nav-item {
+  /* Six items: share the width so they fit on small phones too. */
   flex: 1 1 0;
   min-width: 0;
-  max-width: 96px;
-  min-height: 46px;
+  max-width: 72px;
+  min-height: 50px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   border: none;
   background: none;
-  font-size: 10px;
-  letter-spacing: 0;
-  font-weight: 500;
+  /* Shrinks a little on narrow phones so "Homework" still fits. */
+  font-size: clamp(9.5px, 2.8vw, 11px);
+  letter-spacing: -0.3px;
+  font-weight: 600;
   color: var(--muted);
-  padding: 2px 0;
+  padding: 4px 0;
   white-space: nowrap;
 }
 
 .nav-item[aria-current="page"] {
-  color: var(--accent);
+  color: var(--ink);
 }
 
 .nav-ai {
+  width: 52px;
+  height: 52px;
+  margin-top: -24px;
+  border-radius: 26px;
+  background: var(--accent);
+  color: var(--on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 4px solid var(--bg);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.25s var(--bounce);
+}
+
+.nav-item[aria-current="page"] .nav-ai {
+  background: var(--ink);
+  color: var(--bg);
+  transform: translateY(-2px);
 }
 
 /* ---------- Type ---------- */
 
 .eyebrow {
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
-  letter-spacing: 0;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding-left: 4px;
 }
 
 .h1 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.4px;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .h2 {
   margin: 0;
   font-family: var(--serif);
   font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .sub {
@@ -321,68 +303,6 @@ button:disabled {
   border-radius: var(--radius);
   padding: 14px 16px;
   box-shadow: var(--shadow);
-}
-
-/* iOS inset list: rows separated by hairlines that start after the leading icon. */
-.ios-list {
-  background: var(--card);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.ios-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 48px;
-  padding: 10px 16px;
-  border: none;
-  background: none;
-  color: var(--ink);
-  text-align: left;
-  font-size: 16px;
-  position: relative;
-}
-
-.ios-row + .ios-row::before {
-  content: "";
-  position: absolute;
-  left: 56px;
-  right: 0;
-  top: 0;
-  border-top: 0.5px solid var(--line);
-}
-
-.ios-row.plain + .ios-row.plain::before {
-  left: 16px;
-}
-
-.ios-row:active {
-  background: var(--card-2);
-}
-
-.ios-icon {
-  width: 30px;
-  height: 30px;
-  flex: none;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--tile, var(--accent));
-  color: #ffffff;
-}
-
-.ios-chevron {
-  color: var(--line);
-  font-size: 20px;
-  line-height: 1;
-}
-
-.ios-value {
-  color: var(--muted);
-  font-size: 15px;
 }
 
 .card-dark {
@@ -443,12 +363,12 @@ button:disabled {
 .btn {
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--card-border);
   box-shadow: var(--shadow);
-  background: var(--card-2);
+  background: var(--card);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -539,16 +459,16 @@ button:disabled {
 
 .segmented {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   background: var(--seg);
-  padding: 2px;
-  border-radius: 9px;
+  padding: 4px;
+  border-radius: 14px;
 }
 
 .segmented button {
-  min-height: 32px;
+  min-height: 38px;
   border: none;
-  border-radius: 7px;
+  border-radius: 11px;
   background: transparent;
   color: var(--muted);
   font-weight: 600;
@@ -558,7 +478,7 @@ button:disabled {
 .segmented button[aria-selected="true"] {
   background: var(--card);
   color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow);
 }
 
 /* ---------- Form fields ---------- */
@@ -623,11 +543,15 @@ textarea.field {
   height: 10px;
   flex-shrink: 0;
   border-radius: 5px;
-  background: var(--subject, var(--accent));
+  background: var(--neon, var(--subject, var(--accent)));
+  box-shadow: 0 0 8px var(--neon, var(--subject, var(--accent)));
 }
 
 .subject-card {
-  border-left: 4px solid var(--subject, var(--accent));
+  border-left: 5px solid var(--neon, var(--subject, var(--accent)));
+  box-shadow:
+    var(--shadow),
+    inset 6px 0 18px -10px var(--neon, var(--subject, var(--accent)));
 }
 
 /* ---------- Chat ---------- */
@@ -1345,7 +1269,10 @@ textarea.field {
   border-radius: 22px;
   color: #fff;
   background: var(--hero);
-  box-shadow: var(--shadow-lg);
+  border-left: 5px solid var(--neon, var(--accent));
+  box-shadow:
+    var(--shadow-lg),
+    0 0 28px -6px var(--neon, var(--accent));
 }
 
 .now-label {
@@ -1369,7 +1296,8 @@ textarea.field {
 .now-bar > div {
   height: 100%;
   border-radius: 3px;
-  background: var(--subject, #fff);
+  background: var(--neon, #fff);
+  box-shadow: 0 0 10px var(--neon, #fff);
   transition: width 1s linear;
 }
 
@@ -1420,13 +1348,19 @@ textarea.field {
   text-align: left;
   border-radius: var(--radius);
   border: 1px solid var(--card-border);
-  border-left: 4px solid var(--subject);
+  border-left: 5px solid var(--neon, var(--subject));
   background: var(--card);
+  /* Neon stripe with a soft glow bleeding into the card. */
+  box-shadow:
+    var(--shadow),
+    inset 6px 0 18px -10px var(--neon, var(--subject));
 }
 
 .lesson.now {
-  background: color-mix(in srgb, var(--subject) 10%, var(--card));
-  box-shadow: 0 0 0 1.5px var(--subject);
+  background: color-mix(in srgb, var(--neon, var(--subject)) 14%, var(--card));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--neon, var(--subject)) 60%, transparent),
+    0 8px 24px -6px var(--neon, var(--subject));
 }
 
 .lesson-time {
@@ -1463,7 +1397,8 @@ textarea.field {
   height: 8px;
   flex-shrink: 0;
   border-radius: 4px;
-  background: var(--subject);
+  background: var(--neon, var(--subject));
+  box-shadow: 0 0 8px var(--neon, var(--subject));
   animation: pulse 1.6s ease-in-out infinite;
 }
 
@@ -1483,8 +1418,11 @@ textarea.field {
   padding: 10px 12px;
   border-radius: 16px;
   border: none;
-  border-left: 4px solid var(--subject);
+  border-left: 5px solid var(--neon, var(--subject));
   background: var(--card);
+  box-shadow:
+    var(--shadow),
+    inset 6px 0 18px -10px var(--neon, var(--subject));
   text-align: left;
 }
 
@@ -2291,7 +2229,7 @@ label.call-orb {
   color: var(--on-accent);
   background:
     radial-gradient(circle, var(--accent) 60%, transparent 61%),
-    conic-gradient(var(--orange) var(--p, 0%), var(--line) 0);
+    conic-gradient(#ffe600 var(--p, 0%), var(--line) 0);
 }
 
 .hero {
@@ -2374,8 +2312,14 @@ label.call-orb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Bright neon squares with dark icons, plus a soft glow. */
   background: var(--tile, var(--accent));
-  color: #ffffff;
+  color: #14151a;
+  box-shadow: 0 4px 14px -4px var(--tile, var(--accent));
+}
+
+.quick-tile:not([style*="--tile"]) .quick-tile-icon {
+  color: var(--on-accent);
 }
 
 .clip {
@@ -2600,7 +2544,7 @@ label.call-orb {
   font-weight: 800;
   background:
     radial-gradient(circle, var(--card) 60%, transparent 61%),
-    conic-gradient(var(--subject, var(--accent)) var(--p, 0%), var(--line) 0);
+    conic-gradient(var(--neon, var(--subject, var(--accent))) var(--p, 0%), var(--line) 0);
 }
 
 .hear-btn {
@@ -2800,12 +2744,28 @@ input[type="checkbox"][role="switch"]:checked::after {
   color: var(--accent-ink);
 }
 
+.chip.warm {
+  background: #ffe600;
+  color: #14151a;
+}
+
+.chip.good {
+  background: #22ff77;
+  color: #0b3d1f;
+}
+
+.nav-ai {
+  box-shadow:
+    0 10px 24px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
 .dot {
-  background: var(--accent);
+  background: #00d4ff;
 }
 
 .dot.flagged {
-  background: var(--warm);
+  background: #ff2e7a;
 }
 
 /* ---------- Phase 2: weekly report, grades, exam, say it ---------- */
@@ -2851,7 +2811,8 @@ input[type="checkbox"][role="switch"]:checked::after {
   font-family: var(--serif);
   font-size: 28px;
   line-height: 1.1;
-  color: var(--subject, var(--accent));
+  color: var(--neon, var(--accent));
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon, var(--accent)) 45%, transparent);
 }
 
 .grade-ask {
@@ -2931,187 +2892,4 @@ input[type="checkbox"][role="switch"]:checked::after {
 .banner.good {
   background: var(--good-soft);
   color: var(--good);
-}
-
-/* ---------- iPhone-clean: Home, More, Settings ---------- */
-
-.screen.ios {
-  gap: 20px;
-}
-
-.ios-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ios-input {
-  border: none;
-  background: none;
-  text-align: right;
-  font-size: 16px;
-  color: var(--ink);
-  min-width: 0;
-  flex: 1;
-}
-
-.ios-input:focus {
-  outline: none;
-}
-
-.up-next {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px;
-  border-radius: 16px;
-}
-
-.up-next-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  line-height: 1.2;
-}
-
-/* Swipe-to-done rows */
-.swipe-row {
-  position: relative;
-  overflow: hidden;
-  background: var(--good);
-}
-
-.swipe-back {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-left: 18px;
-  color: #ffffff;
-  font-weight: 600;
-  opacity: 0.7;
-}
-
-.swipe-back.ready {
-  opacity: 1;
-}
-
-.hw-line {
-  background: var(--card);
-  touch-action: pan-y;
-  transition: transform 0.18s var(--spring);
-  gap: 12px;
-  padding: 10px 12px 10px 14px;
-}
-
-.swipe-row + .swipe-row .hw-line::before {
-  content: "";
-  position: absolute;
-  left: 50px;
-  right: 0;
-  top: 0;
-  border-top: 0.5px solid var(--line);
-}
-
-.hw-open {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border: none;
-  background: none;
-  padding: 0;
-  text-align: left;
-  color: inherit;
-}
-
-.hw-open .hw-title {
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.hw-sub {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.hw-sub .soon {
-  color: var(--orange);
-  font-weight: 600;
-}
-
-.hw-done .hw-title {
-  text-decoration: line-through;
-  color: var(--muted);
-}
-
-.tick {
-  width: 24px;
-  height: 24px;
-  flex: none;
-  border-radius: 50%;
-  border: 1.5px solid var(--line);
-  background: transparent;
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.tick.on {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.level-pill {
-  min-height: 36px;
-}
-
-/* iOS toggle switch */
-input[role="switch"] {
-  appearance: none;
-  width: 51px;
-  height: 31px;
-  border-radius: 16px;
-  background: var(--line);
-  position: relative;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  margin: 0;
-}
-
-input[role="switch"]::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s var(--spring);
-}
-
-input[role="switch"]:checked {
-  background: var(--good);
-}
-
-input[role="switch"]:checked::after {
-  transform: translateX(20px);
-}
-
-/* The floating "Ask AI" pill looks like an iOS button */
-.ask-fab {
-  background: var(--card);
-  color: var(--accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
 }
