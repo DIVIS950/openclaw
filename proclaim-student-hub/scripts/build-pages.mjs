@@ -8,9 +8,11 @@ import { execFileSync } from "node:child_process";
 import { webcrypto as crypto } from "node:crypto";
 import fs from "node:fs";
 
+// One stamp for the app and version.json, so "Update now" can compare them.
+const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
 execFileSync("npx", ["vite", "build", "--base", "./", "--outDir", "dist-pages", "--emptyOutDir"], {
   stdio: "inherit",
-  env: { ...process.env, VITE_WEB_PAGE: "1", VITE_PAGES: "1" },
+  env: { ...process.env, VITE_WEB_PAGE: "1", VITE_PAGES: "1", BUILD_STAMP: stamp },
 });
 // Google sign-in is only for the server version; don't load Google's script here.
 const index = "dist-pages/index.html";
@@ -48,4 +50,9 @@ if (fs.existsSync(seedFile)) {
     "Encrypted your data into dist-pages/private.dat (private link key: private/pages-key.txt)",
   );
 }
-console.log("Built dist-pages/ for GitHub Pages");
+// The app compares this with its own build stamp to offer "Update now".
+fs.writeFileSync(
+  "dist-pages/version.json",
+  JSON.stringify({ build: stamp, at: new Date().toISOString() }),
+);
+console.log(`Built dist-pages/ for GitHub Pages (build ${stamp})`);

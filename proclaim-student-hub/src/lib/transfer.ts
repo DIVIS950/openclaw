@@ -81,12 +81,27 @@ const toBase64Url = (bytes: Uint8Array) => {
 const fromBase64Url = (s: string) =>
   Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 
-export async function encodeTransfer(t: Transfer): Promise<string> {
+/** Any JSON → a short link-safe code (compressed). */
+export async function packJson(value: unknown): Promise<string> {
   const bytes = await pipe(
-    new TextEncoder().encode(JSON.stringify(t)),
+    new TextEncoder().encode(JSON.stringify(value)),
     new CompressionStream("deflate-raw"),
   );
   return toBase64Url(bytes);
+}
+
+/** The reverse of packJson; null when the code is damaged. */
+export async function unpackJson<T>(code: string): Promise<T | null> {
+  try {
+    const bytes = await pipe(fromBase64Url(code), new DecompressionStream("deflate-raw"));
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function encodeTransfer(t: Transfer): Promise<string> {
+  return packJson(t);
 }
 
 export async function decodeTransfer(code: string): Promise<Transfer | null> {

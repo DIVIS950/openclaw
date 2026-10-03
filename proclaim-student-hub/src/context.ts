@@ -53,7 +53,8 @@ export interface AppContext {
   ai: AiProvider | null;
   profile: Profile | null;
   homework: Homework[] | null;
-  reloadHomework: () => void;
+  /** `force` checks Classroom emails again even if it just did. */
+  reloadHomework: (force?: boolean) => void;
   replaceHomework: (hw: Homework) => void;
   addHomeworkItem: (hw: Homework) => void;
   screen: Screen;

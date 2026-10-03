@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
+import { mastery } from "../lab/model.ts";
+import { labPacks } from "../lab/store.ts";
 import { imageSrc, photoToImageInput, smallCopy } from "../lib/image.ts";
 import {
   dayOf,
@@ -20,6 +22,7 @@ import {
 import { readMaterial } from "../lib/studyAi.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { lessonPrep, lessonRecap, tutorContext, type LessonPrep } from "../lib/tutorAi.ts";
+import { buildPacket, packetLink, tutorHomework, TUTOR_APP_URL } from "../lib/tutorLink.ts";
 import { lessonLabel, nextLesson, parseWhen, upcomingTutoring } from "../lib/tutorSchedule.ts";
 
 // Tutoring: the student's tutors, when the next lesson is (with one tap to
@@ -528,10 +531,13 @@ function TutorPage({
         </div>
         <div className="row" style={{ flexWrap: "wrap" }}>
           <JoinButtons tutor={tutor} />
+          <ShareWithTutor tutor={tutor} />
         </div>
       </header>
 
       <PrepCard tutor={tutor} sessions={sessions} materials={materials} auto={autoPrep} />
+
+      <TutorHomeworkList tutor={tutor} />
 
       <div className="segmented" style={{ gridTemplateColumns: "1fr 1fr" }} role="tablist">
         <button role="tab" aria-selected={tab === "lessons"} onClick={() => setTab("lessons")}>
@@ -730,6 +736,112 @@ function TutorPage({
         />
       )}
     </>
+  );
+}
+
+/** The link that opens this tutor's Tutor Hub with the student's lessons and homework. */
+function ShareWithTutor({ tutor }: { tutor: Tutor }) {
+  const { profile, toast } = useApp();
+  const [link, setLink] = useState<string | null>(null);
+  const make = async () => {
+    const items = labPacks
+      .all()
+      .filter((p) => p.subject.toLowerCase() === tutor.subject.toLowerCase())
+      .flatMap((p) => p.items);
+    const test = prepTests
+      .all()
+      .filter((t) => t.subject.toLowerCase() === tutor.subject.toLowerCase())
+      .toSorted((a, b) => a.date.localeCompare(b.date))[0];
+    const packet = buildPacket(tutor, {
+      student: profile?.name?.split(" ")[0] ?? "Student",
+      mastery: items.length ? mastery(items) : null,
+      nextTest: test ? { topic: test.topic, date: test.date } : null,
+    });
+    const url = await packetLink(packet);
+    setLink(url);
+    const text = `Hi ${tutor.name}, this opens my lessons and homework in your Tutor Hub:\n${url}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast("Link copied. Send it to your tutor.");
+    } catch {
+      toast("Copy the link below and send it to your tutor.");
+    }
+  };
+  return (
+    <>
+      <button className="btn small" onClick={() => void make()}>
+        <Icon name="send" size={14} />
+        Share with my tutor
+      </button>
+      {link && (
+        <textarea
+          className="field"
+          readOnly
+          rows={2}
+          value={link}
+          aria-label="Link for your tutor"
+          style={{ fontSize: 11, width: "100%" }}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      )}
+      <span className="muted" style={{ fontSize: 12, width: "100%" }}>
+        Your tutor opens it at {TUTOR_APP_URL.replace("https://", "")} and can send lessons and
+        homework back.
+      </span>
+    </>
+  );
+}
+
+/** Homework this tutor set (from their link or a logged lesson), ticked off here. */
+function TutorHomeworkList({ tutor }: { tutor: Tutor }) {
+  const [list, setList] = useState(() => tutorHomework(tutor));
+  const open = list.filter((h) => !h.done);
+  if (list.length === 0) {
+    return null;
+  }
+  const tick = (id: string) => {
+    const all = todos.all().map((t) => (t.id === id ? { ...t, done: !t.done } : t));
+    todos.save(all);
+    setList(tutorHomework(tutor));
+  };
+  return (
+    <section className="stack rise" style={{ gap: 6 }}>
+      <h2 className="eyebrow">
+        Homework from {tutor.name} · {open.length} to do
+      </h2>
+      <div className="list">
+        {list
+          .toSorted(
+            (a, b) => Number(a.done) - Number(b.done) || (a.due || "~").localeCompare(b.due || "~"),
+          )
+          .slice(0, 6)
+          .map((h) => (
+            <div key={h.id} className={`hw-row${h.done ? " hw-done" : ""}`}>
+              <input
+                type="checkbox"
+                checked={h.done}
+                onChange={() => tick(h.id)}
+                aria-label={`Mark "${h.text}" done`}
+              />
+              <span className="hw-title" style={{ flex: 1 }}>
+                {h.text}
+              </span>
+              {h.due && (
+                <span className="chip">
+                  {new Date(`${h.due}T12:00:00`).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </span>
+              )}
+            </div>
+          ))}
+      </div>
+    </section>
   );
 }
 

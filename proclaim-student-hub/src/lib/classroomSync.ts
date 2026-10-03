@@ -151,6 +151,33 @@ export function newClassroomTasks(
   return { tasks, ids };
 }
 
+export interface SyncStatus {
+  /** ISO time of the last check. */
+  at: string;
+  checked: number;
+  added: number;
+  error: string;
+}
+
+const STATUS_KEY = "psh.sync.status";
+
+export const syncStatus = {
+  get(): SyncStatus | null {
+    try {
+      return JSON.parse(localStorage.getItem(STATUS_KEY) ?? "null") as SyncStatus | null;
+    } catch {
+      return null;
+    }
+  },
+  set(s: SyncStatus) {
+    try {
+      localStorage.setItem(STATUS_KEY, JSON.stringify(s));
+    } catch {
+      // Not remembered.
+    }
+  },
+};
+
 /** Adds homework from new Classroom emails. Returns what was added. */
 export async function syncClassroomEmails(
   data: DataSource,
@@ -160,7 +187,18 @@ export async function syncClassroomEmails(
   if (data.demo || !data.searchEmails) {
     return [];
   }
-  const emails = await data.searchEmails(CLASSROOM_QUERY);
+  let emails: Email[];
+  try {
+    emails = await data.searchEmails(CLASSROOM_QUERY);
+  } catch (err) {
+    syncStatus.set({
+      at: now.toISOString(),
+      checked: 0,
+      added: 0,
+      error: err instanceof Error ? err.message : "Gmail couldn't be reached.",
+    });
+    throw err;
+  }
   const seen = readSeen();
   const { tasks, ids } = newClassroomTasks(emails, known, seen, now);
   const added: Homework[] = [];
@@ -181,5 +219,6 @@ export async function syncClassroomEmails(
   } finally {
     saveSeen(seen);
   }
+  syncStatus.set({ at: now.toISOString(), checked: emails.length, added: added.length, error: "" });
   return added;
 }

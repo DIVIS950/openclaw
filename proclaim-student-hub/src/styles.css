@@ -2893,3 +2893,8 @@ input[type="checkbox"][role="switch"]:checked::after {
   background: var(--good-soft);
   color: var(--good);
 }
+
+.update-banner {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}

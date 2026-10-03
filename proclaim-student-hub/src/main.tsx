@@ -3,7 +3,10 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { trackKeyboard } from "./lib/keyboard.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
+import { dayOf } from "./lib/study.ts";
 import { importFromLocation } from "./lib/transfer.ts";
+import { tutorImport } from "./lib/tutorImport.ts";
+import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
 import { localDb } from "./pages/localDb.ts";
 import { unlockSeed } from "./pages/lockedSeed.ts";
 import { installPagesRuntime, pagesImport, PAGES } from "./pages/runtime.ts";
@@ -21,6 +24,11 @@ async function start() {
   }
   // Set up the student's own timetable and classes before the first screen draws.
   applyLocalSeed();
+  // A link from a tutor: lessons, homework and materials go straight in.
+  const fromTutor = await importReplyFromLocation(dayOf(new Date())).catch(() => null);
+  if (fromTutor) {
+    tutorImport.set(appliedSummary(fromTutor));
+  }
 
   const root = document.getElementById("root");
   if (root) {

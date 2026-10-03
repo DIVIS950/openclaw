@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
+import { syncStatus } from "../lib/classroomSync.ts";
 import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
 import { courses, progress, weekLog } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
@@ -17,6 +18,17 @@ export function HomeworkScreen() {
   const [view, setView] = useState<"todo" | "done">("todo");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [sync, setSync] = useState(syncStatus.get);
+  const [checking, setChecking] = useState(false);
+  const checkNow = () => {
+    setChecking(true);
+    reloadHomework(true);
+    // The sync runs in the background; read its result when it's likely done.
+    window.setTimeout(() => {
+      setSync(syncStatus.get());
+      setChecking(false);
+    }, 6000);
+  };
 
   const inFilter = (homework ?? []).filter((h) => filter === "All" || h.source === filter);
   const list = inFilter.filter((h) => !h.done);
@@ -151,11 +163,24 @@ export function HomeworkScreen() {
               <div className="stack" style={{ gap: 2, flex: 1 }}>
                 <strong>Classroom auto-sync {data.demo ? "(off in demo)" : "is on"}</strong>
                 <span className="muted">
-                  New Classroom emails in your Gmail are added here by themselves.
+                  {sync
+                    ? sync.error
+                      ? `Last check failed: ${sync.error}`
+                      : `Last check ${new Date(sync.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · ${sync.checked} Classroom ${sync.checked === 1 ? "email" : "emails"} · ${sync.added} new`
+                    : "New Classroom emails in your Gmail are added here by themselves."}
                 </span>
               </div>
-              <button className="round" onClick={reloadHomework} aria-label="Refresh">
-                <Icon name="sync" size={16} />
+              <button
+                className="round"
+                onClick={checkNow}
+                disabled={checking}
+                aria-label="Check Classroom emails now"
+              >
+                <Icon
+                  name={checking ? "loader" : "sync"}
+                  size={16}
+                  className={checking ? "spin" : undefined}
+                />
               </button>
             </div>
             <button className="btn small" onClick={() => setImporting(true)}>

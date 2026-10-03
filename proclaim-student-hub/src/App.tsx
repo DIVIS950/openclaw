@@ -13,7 +13,12 @@ import { DemoData } from "./lib/demoData.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
 import { applyHomeworkSeed } from "./lib/seed.ts";
+import { dayOf } from "./lib/study.ts";
+import { tutorImport } from "./lib/tutorImport.ts";
+import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
+import { reloadToUpdate, watchForUpdates } from "./lib/updates.ts";
+import { PAGES } from "./pages/runtime.ts";
 import { pagesImport } from "./pages/runtime.ts";
 import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
@@ -182,6 +187,22 @@ function Shell({
     [toast],
   );
 
+  // A newer build on the website: offer a reload (a home-screen app keeps the old one).
+  const [updateReady, setUpdateReady] = useState(false);
+  useEffect(() => {
+    if (PAGES) {
+      watchForUpdates(__BUILD__, () => setUpdateReady(true));
+    }
+  }, []);
+
+  // Something a tutor sent (opened from their link).
+  useEffect(() => {
+    const got = tutorImport.take();
+    if (got) {
+      toast(got);
+    }
+  }, [toast]);
+
   // Data just brought over from the claude.ai link (GitHub Pages version).
   useEffect(() => {
     const added = pagesImport.added;
@@ -198,8 +219,8 @@ function Shell({
   // New Classroom emails become homework; at most once a minute, one at a time.
   const lastSync = useRef(0);
   const syncClassroom = useCallback(
-    (known: Homework[]) => {
-      if (Date.now() - lastSync.current < 60_000) {
+    (known: Homework[], force = false) => {
+      if (!force && Date.now() - lastSync.current < 60_000) {
         return;
       }
       lastSync.current = Date.now();
@@ -216,29 +237,32 @@ function Shell({
     [data, toast],
   );
 
-  const reloadHomework = useCallback(() => {
-    data.homework().then(
-      (list) => {
-        setHomework(list);
-        // Starter homework first, so the email sync sees it and doesn't add it twice.
-        applyHomeworkSeed(data, list)
-          .catch((err: unknown) => {
-            console.warn("Couldn't add starter homework", err);
-            return [];
-          })
-          .then((added) => {
-            if (added.length > 0) {
-              setHomework((l) => [...(l ?? []), ...added]);
-            }
-            syncClassroom([...list, ...added]);
-          });
-      },
-      (err: unknown) => {
-        setHomework((h) => h ?? []);
-        handleError(err);
-      },
-    );
-  }, [data, handleError, syncClassroom]);
+  const reloadHomework = useCallback(
+    (force = false) => {
+      data.homework().then(
+        (list) => {
+          setHomework(list);
+          // Starter homework first, so the email sync sees it and doesn't add it twice.
+          applyHomeworkSeed(data, list)
+            .catch((err: unknown) => {
+              console.warn("Couldn't add starter homework", err);
+              return [];
+            })
+            .then((added) => {
+              if (added.length > 0) {
+                setHomework((l) => [...(l ?? []), ...added]);
+              }
+              syncClassroom([...list, ...added], force);
+            });
+        },
+        (err: unknown) => {
+          setHomework((h) => h ?? []);
+          handleError(err);
+        },
+      );
+    },
+    [data, handleError, syncClassroom],
+  );
 
   useEffect(() => {
     reloadHomework();
@@ -256,6 +280,16 @@ function Shell({
 
   useEffect(() => {
     const onHash = () => {
+      // A tutor's link tapped while the app is already open.
+      if (window.location.hash.startsWith("#tutor=")) {
+        void importReplyFromLocation(dayOf(new Date())).then((got) => {
+          if (got) {
+            toast(appliedSummary(got));
+            reloadHomework();
+          }
+        });
+        return;
+      }
       const next = screenFromHash();
       setScreen((current) =>
         next === "assignment" && current !== "assignment" ? "homework" : next,
@@ -263,7 +297,7 @@ function Shell({
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  }, [toast, reloadHomework]);
 
   const ctx = useMemo<AppContext>(
     () => ({
@@ -320,6 +354,18 @@ function Shell({
   return (
     <Ctx.Provider value={ctx}>
       <div className="app">
+        {updateReady && (
+          <div
+            className="banner between update-banner"
+            role="status"
+            style={{ margin: "12px 16px 0" }}
+          >
+            <span>A new version is ready.</span>
+            <button className="btn small dark" onClick={reloadToUpdate}>
+              Update now
+            </button>
+          </div>
+        )}
         {needReconnect && auth && (
           <div className="banner between" role="alert" style={{ margin: "12px 16px 0" }}>
             <span>Your Google sign-in expired.</span>
