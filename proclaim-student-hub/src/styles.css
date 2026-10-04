@@ -2898,3 +2898,31 @@ input[type="checkbox"][role="switch"]:checked::after {
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
+
+/* ---------- Snap it, revise it ---------- */
+
+.snap-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 22px;
+  border: none;
+  background: var(--hero);
+  color: var(--hero-ink);
+  text-align: left;
+  box-shadow: var(--shadow-lg);
+}
+
+.snap-icon {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

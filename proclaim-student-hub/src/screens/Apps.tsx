@@ -1,4 +1,5 @@
 import { Icon, type IconName } from "../components/Icon.tsx";
+import { BackupCard, Tools } from "../components/Tools.tsx";
 import { useApp } from "../context.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { CLAUDE_PAGE, PagesSettings, SendToWeb } from "../pages/WebVersion.tsx";
@@ -95,6 +96,8 @@ export function Apps() {
         <p className="sub">One tap into every school app.</p>
       </header>
 
+      <Tools />
+
       <section className="stack">
         <h2 className="eyebrow" style={{ margin: 0 }}>
           Google
@@ -109,6 +112,7 @@ export function Apps() {
         <Tiles apps={OTHERS} start={0.35} />
       </section>
 
+      <BackupCard />
       {PAGES && <PagesSettings />}
       {CLAUDE_PAGE && !data.demo && <SendToWeb />}
 

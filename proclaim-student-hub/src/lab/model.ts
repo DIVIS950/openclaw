@@ -309,6 +309,7 @@ export const MODES = [
   { id: "speed", title: "Speed round", blurb: "60 seconds, go fast" },
   { id: "mock", title: "Mock test", blurb: "No hints until the end" },
   { id: "exam", title: "Exam mode", blurb: "Timed, no hints, real score" },
+  { id: "open", title: "Exam questions", blurb: "Write answers, the AI marks them" },
 ] as const;
 export type ModeId = (typeof MODES)[number]["id"];
 
@@ -339,6 +340,7 @@ export function modeBlocked(mode: ModeId, pack: LabPack): string | null {
     case "boss":
     case "mock":
     case "exam":
+    case "open":
       return n >= 3 ? null : "Needs at least 3 items";
     default:
       return n > 0 ? null : "Add some items first";

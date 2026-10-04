@@ -1,3 +1,4 @@
+import { dateInTitle, dayOf, newId, prepTests, sameTopic } from "./study.ts";
 import type { DataSource, Email, Homework } from "./types.ts";
 
 // Classroom itself is blocked for outside apps at school, but Classroom emails
@@ -39,12 +40,20 @@ export function parseDue(text: string, now: Date): string {
   if (/\bdue tomorrow\b/i.test(text)) {
     return plusDays(now, 1);
   }
+  // Only real month names count, so "Due Oct 9 See details" never reads "See" as a month.
+  const MONTH = "((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)";
   const m =
     text.match(
-      /\bdue:?\s+(?:[a-z]+,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,})\.?(?:,?\s+(\d{4}))?/i,
+      new RegExp(
+        `\\bdue:?\\s+(?:[a-z]+,?\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+${MONTH}\\.?(?:,?\\s+(\\d{4}))?`,
+        "i",
+      ),
     ) ??
     text.match(
-      /\bdue:?\s+(?:[a-z]+,?\s+)?([a-z]{3,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/i,
+      new RegExp(
+        `\\bdue:?\\s+(?:[a-z]+,?\\s+)?${MONTH}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?`,
+        "i",
+      ),
     );
   if (!m) {
     return "";
@@ -73,10 +82,55 @@ export interface ClassroomTask {
   course: string;
 }
 
-/** "Mr Smith posted a new assignment in 9A Maths" → "9A Maths". */
+/**
+ * The class an email is about. Classroom's own emails start "Notification settings
+ * <class> New assignment <title>…"; older forwards say "posted a new assignment in <class>".
+ */
 export function parseCourse(text: string): string {
+  const direct = text.match(
+    /Notification settings\s+(.{2,60}?)\s+(?:New (?:assignment|material|announcement|question)|Due (?:tomorrow|today)|Missing|Reminder)\b/i,
+  );
+  if (direct) {
+    return direct[1].trim();
+  }
   const m = text.match(/\bposted a new \w+ in ([^.\n]{2,40}?)(?:\s*[.\n]|\s+due\b|$)/i);
   return m ? m[1].trim() : "";
+}
+
+/** Gmail cuts long subjects ("…"); the snippet has the whole title. */
+export function fullTitle(title: string, snippet: string): string {
+  if (!/[…]$|\.\.\.$/.test(title)) {
+    return title;
+  }
+  const stem = title.replace(/[…]$|\.\.\.$/, "").trim();
+  const i = snippet.indexOf(stem);
+  if (i < 0) {
+    return stem;
+  }
+  const rest = snippet.slice(i);
+  const end = rest.search(/\s+(?:Due\b|See details|View assignment|Posted on)/);
+  return (end > 0 ? rest.slice(0, end) : rest).trim().slice(0, 120);
+}
+
+/** A material or announcement that is really about a test ("Test 6.10. - organizace výuky"). */
+export function parseTestNotice(
+  email: Pick<Email, "subject" | "snippet">,
+  today: string,
+): { topic: string; date: string; course: string } | null {
+  let subject = email.subject.trim();
+  while (/^(fwd?|fw):\s*/i.test(subject)) {
+    subject = subject.replace(/^(fwd?|fw):\s*/i, "");
+  }
+  const m = subject.match(/^new (?:material|announcement):\s*(.+)$/i);
+  if (!m) {
+    return null;
+  }
+  const title = fullTitle(m[1].replace(/^["“'‘]+|["”'’]+$/g, "").trim(), email.snippet);
+  if (!/\b(test|exam|assessment)\b|písemk|testu/i.test(title)) {
+    return null;
+  }
+  const date = dateInTitle(title, today);
+  return date ? { topic: title, date, course: parseCourse(email.snippet) } : null;
 }
 
 /** The homework in one Classroom email, or null for posts that aren't work (materials, comments, grades). */
@@ -92,11 +146,13 @@ export function parseClassroomEmail(
   if (!m) {
     return null;
   }
-  const title = m[2]
-    .trim()
-    .replace(/^["“'‘]+|["”'’]+$/g, "")
-    .trim()
-    .slice(0, 120);
+  const title = fullTitle(
+    m[2]
+      .trim()
+      .replace(/^["“'‘]+|["”'’]+$/g, "")
+      .trim(),
+    email.snippet,
+  ).slice(0, 120);
   if (!title) {
     return null;
   }
@@ -218,6 +274,27 @@ export async function syncClassroomEmails(
     }
   } finally {
     saveSeen(seen);
+  }
+  // Materials and announcements that announce a test go into the Tests screen.
+  const today = dayOf(now);
+  const tests = prepTests.all();
+  const notices = emails
+    .map((e) => parseTestNotice(e, today))
+    .filter((t): t is NonNullable<typeof t> => t !== null && t.date >= today)
+    .filter((t) => !tests.some((x) => x.date === t.date && sameTopic(x.topic, t.topic)));
+  if (notices.length > 0) {
+    prepTests.save([
+      ...tests,
+      ...notices.map((t) => ({
+        id: newId("x"),
+        subject: t.course || t.topic.split(/[:(]/)[0].trim(),
+        topic: t.topic,
+        date: t.date,
+        start: today,
+        packId: "",
+        done: [],
+      })),
+    ]);
   }
   syncStatus.set({ at: now.toISOString(), checked: emails.length, added: added.length, error: "" });
   return added;

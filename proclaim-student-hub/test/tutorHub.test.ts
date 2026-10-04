@@ -26,7 +26,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const ana = { id: "tu1", name: "Ana", subject: "Spanish", meet: "", whatsapp: "", when: "Tuesdays 17:00" };
+const ana = {
+  id: "tu1",
+  name: "Ana",
+  subject: "Spanish",
+  meet: "",
+  whatsapp: "",
+  when: "Tuesdays 17:00",
+};
 
 describe("packet to the tutor", () => {
   it("carries this tutor's lessons, materials (no photos) and homework", () => {
@@ -36,9 +43,21 @@ describe("packet to the tutor", () => {
       { id: "s2", tutorId: "other", date: "2026-10-01", topic: "Not hers", notes: "" },
     ]);
     tutoring.saveMaterials([
-      { id: "m1", tutorId: "tu1", title: "Verbs", text: "ser, estar", photo: "data:x", date: "2026-10-01" },
+      {
+        id: "m1",
+        tutorId: "tu1",
+        title: "Verbs",
+        text: "ser, estar",
+        photo: "data:x",
+        date: "2026-10-01",
+      },
     ]);
-    todos.add({ text: "Learn verbs", due: "2026-10-07", subject: "Spanish", from: "Tutoring with Ana" });
+    todos.add({
+      text: "Learn verbs",
+      due: "2026-10-07",
+      subject: "Spanish",
+      from: "Tutoring with Ana",
+    });
     todos.add({ text: "PE kit", due: "", subject: "", from: "" });
     const p = buildPacket(ana, { student: "Jan", mastery: 60, nextTest: null });
     expect(p.sessions.map((s) => s.id)).toEqual(["s1"]);
@@ -54,7 +73,9 @@ describe("reply from the tutor", () => {
     kind: "from-tutor",
     tutorId: "tu1",
     tutorName: "Ana",
-    sessions: [{ id: "s9", tutorId: "tu1", date: "2026-10-03", topic: "Subjunctive", notes: "Good" }],
+    sessions: [
+      { id: "s9", tutorId: "tu1", date: "2026-10-03", topic: "Subjunctive", notes: "Good" },
+    ],
     materials: [{ id: "m9", tutorId: "tu1", title: "List 5", text: "a, b", date: "2026-10-03" }],
     homework: [{ id: "t9", text: "Workbook p. 12", due: "2026-10-10", done: false }],
     when: "Thursdays 16:00",
@@ -70,9 +91,18 @@ describe("reply from the tutor", () => {
     expect(a).toMatchObject({ tutorName: "Ana", sessions: 1, materials: 1, homework: 1 });
     expect(tutoring.sessions()[0].topic).toBe("Subjunctive");
     expect(tutoring.materials()[0]).toMatchObject({ title: "List 5", photo: "" });
-    expect(todos.all()[0]).toMatchObject({ text: "Workbook p. 12", from: "Tutoring with Ana", subject: "Spanish" });
-    expect(tutoring.tutors()[0]).toMatchObject({ when: "Thursdays 16:00", meet: "https://meet.google.com/abc" });
-    expect(appliedSummary(a)).toBe('From Ana: 1 homework, 1 lesson note, 1 material. "Well done today"');
+    expect(todos.all()[0]).toMatchObject({
+      text: "Workbook p. 12",
+      from: "Tutoring with Ana",
+      subject: "Spanish",
+    });
+    expect(tutoring.tutors()[0]).toMatchObject({
+      when: "Thursdays 16:00",
+      meet: "https://meet.google.com/abc",
+    });
+    expect(appliedSummary(a)).toBe(
+      'From Ana: 1 homework, 1 lesson note, 1 material. "Well done today"',
+    );
   });
 
   it("does not add the same things twice", () => {

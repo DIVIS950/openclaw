@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { backups } from "./lib/backup.ts";
 import { trackKeyboard } from "./lib/keyboard.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
 import { dayOf } from "./lib/study.ts";
@@ -24,6 +25,12 @@ async function start() {
   }
   // Set up the student's own timetable and classes before the first screen draws.
   applyLocalSeed();
+  // One snapshot a day of everything, so a mistake can be undone (Apps › Automatic saves).
+  try {
+    backups.daily();
+  } catch {
+    // Storage blocked: no snapshot this time.
+  }
   // A link from a tutor: lessons, homework and materials go straight in.
   const fromTutor = await importReplyFromLocation(dayOf(new Date())).catch(() => null);
   if (fromTutor) {

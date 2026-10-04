@@ -22,8 +22,10 @@ import {
   type ModeId,
   type Subject,
 } from "./model.ts";
+import { OpenQuestions } from "./Open.tsx";
 import { LearnList, MasteryDots, PackHome, Results } from "./Pack.tsx";
 import { RevisionPlan } from "./Plan.tsx";
+import { QuickSnap } from "./QuickSnap.tsx";
 import { Scan } from "./Scan.tsx";
 import { Session, type Entry, type Outcome } from "./Session.tsx";
 import { canHear, daily, DAILY_GOAL, hearable } from "./speech.ts";
@@ -49,7 +51,8 @@ type ItemMode =
   | "speed"
   | "boss"
   | "mock"
-  | "exam";
+  | "exam"
+  | "open";
 type PlayMode = ModeId | "review";
 const ITEM_MODES = new Set<PlayMode>([
   "flashcards",
@@ -62,6 +65,7 @@ const ITEM_MODES = new Set<PlayMode>([
   "boss",
   "mock",
   "exam",
+  "open",
 ]);
 const isItemMode = (mode: PlayMode): mode is ItemMode => ITEM_MODES.has(mode);
 
@@ -83,6 +87,7 @@ const SESSION_SIZE: Partial<Record<PlayMode, number>> = {
   boss: 10,
   mock: 20,
   exam: 15,
+  open: 12,
   speed: 60,
   review: 20,
 };
@@ -230,6 +235,21 @@ export function Lab() {
     show({ name: "results", outcome, packId: replay.packId, replay, xp });
   };
 
+  /** A new pack: saved, turned into a note, linked to its test, and opened. */
+  const savePack = (pack: LabPack, testId?: string) => {
+    save([...packs, pack]);
+    notes.upsert(packToNote(pack));
+    if (testId) {
+      prepTests.save(prepTests.all().map((t) => (t.id === testId ? { ...t, packId: pack.id } : t)));
+    }
+    progress.add(10);
+    app.toast(`Pack ready: ${pack.items.length} cards. +10 XP`);
+    show({ name: "pack", id: pack.id });
+    if (!app.data.demo) {
+      app.data.saveNotes(`Revision: ${pack.topic}`, packAsText(pack)).catch(app.handleError);
+    }
+  };
+
   const packById = (id: string | null) => packs.find((p) => p.id === id) ?? null;
   const back = () => show({ name: "home" });
 
@@ -250,26 +270,7 @@ export function Lab() {
                 }
               : undefined
           }
-          onSave={(pack) => {
-            save([...packs, pack]);
-            // Every pack also becomes a note (with its vocab list), and a test's pack is linked to the test.
-            notes.upsert(packToNote(pack));
-            if (scanRequest?.testId) {
-              prepTests.save(
-                prepTests
-                  .all()
-                  .map((t) => (t.id === scanRequest.testId ? { ...t, packId: pack.id } : t)),
-              );
-            }
-            progress.add(10);
-            app.toast("Pack saved. +10 XP");
-            show({ name: "pack", id: pack.id });
-            if (!app.data.demo) {
-              app.data
-                .saveNotes(`Revision: ${pack.topic}`, packAsText(pack))
-                .catch(app.handleError);
-            }
-          }}
+          onSave={(pack) => savePack(pack, scanRequest?.testId)}
         />
       );
     case "plan":
@@ -320,6 +321,7 @@ export function Lab() {
             go={show}
             onPlay={play}
             onSample={() => save([...packs, samplePack()])}
+            onSnap={savePack}
           />
         );
       }
@@ -346,6 +348,33 @@ export function Lab() {
       const done = (outcome: Outcome) => finish(outcome, view);
       const props = { onDone: done, onQuit: quit };
       if (isItemMode(view.mode)) {
+        if (view.mode === "open") {
+          const pack = packById(view.packId) ?? view.entries[0]?.pack;
+          if (!pack) {
+            return (
+              <LabHome
+                packs={packs}
+                today={today}
+                online={online}
+                go={show}
+                onPlay={play}
+                onSample={() => save([...packs, samplePack()])}
+                onSnap={savePack}
+              />
+            );
+          }
+          return (
+            <OpenQuestions
+              key={view.key}
+              pack={pack}
+              entries={view.entries}
+              onDone={(outcome) => finish(outcome, view)}
+              onQuit={() =>
+                show(view.packId ? { name: "pack", id: view.packId } : { name: "home" })
+              }
+            />
+          );
+        }
         return (
           <Session
             key={view.key}
@@ -425,6 +454,7 @@ export function Lab() {
           go={show}
           onPlay={play}
           onSample={() => save([...packs, samplePack()])}
+          onSnap={savePack}
         />
       );
   }
@@ -466,6 +496,7 @@ function LabHome({
   go,
   onPlay,
   onSample,
+  onSnap,
 }: {
   packs: LabPack[];
   today: string;
@@ -473,6 +504,7 @@ function LabHome({
   go: (view: View) => void;
   onPlay: (mode: PlayMode, from: LabPack[], packId: string | null) => void;
   onSample: () => void;
+  onSnap?: (pack: LabPack) => void;
 }) {
   const { go: appGo } = useApp();
   const stats = progress.get();
@@ -536,11 +568,12 @@ function LabHome({
         <div className="banner">Offline: practice works; scanning needs the internet.</div>
       )}
 
+      {onSnap && <QuickSnap prefs={settings.get()} online={online} onSaved={onSnap} />}
       {packs.length === 0 ? (
         <>
-          <button className="btn big primary rise" onClick={() => go({ name: "scan" })}>
+          <button className="btn big rise" onClick={() => go({ name: "scan" })}>
             <Icon name="camera" size={20} />
-            Scan a test or notes
+            Scan with options
           </button>
           <div className="card stack empty">
             <strong>No packs yet</strong>
