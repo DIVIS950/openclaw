@@ -13,6 +13,7 @@ import { tutoring } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
 import type { CalEvent } from "../lib/types.ts";
+import { gmailLink } from "../pages/gmailLink.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 import { AiKeyCard } from "../pages/WebVersion.tsx";
@@ -234,7 +235,9 @@ export function Today() {
               { "--tile": t.tint, animationDelay: `${0.12 + i * 0.04}s` } as React.CSSProperties
             }
             aria-label={TILE_NAMES[t.screen] ?? t.label}
-            onClick={() => go(t.screen === "inbox" && PAGES ? "todo" : t.screen)}
+            onClick={() =>
+              go(t.screen === "inbox" && PAGES && !gmailLink.granted ? "todo" : t.screen)
+            }
           >
             <span className="quick-tile-icon" aria-hidden="true">
               <Icon name={t.icon} size={22} />

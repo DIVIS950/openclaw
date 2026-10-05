@@ -76,7 +76,16 @@ function writeStored(value: StoredToken | null) {
   }
 }
 
+const GIS_SRC = "https://accounts.google.com/gsi/client";
+
 async function waitForGis(): Promise<GoogleIdentity> {
+  // The website build doesn't ship Google's script; load it the first time it's needed.
+  if (!window.google?.accounts?.oauth2 && !document.querySelector(`script[src="${GIS_SRC}"]`)) {
+    const script = document.createElement("script");
+    script.src = GIS_SRC;
+    script.async = true;
+    document.head.appendChild(script);
+  }
   for (let i = 0; i < 100; i++) {
     if (window.google?.accounts?.oauth2) {
       return window.google;
@@ -97,7 +106,10 @@ export class GoogleAuth {
   private client: TokenClient | null = null;
   private pending: { resolve: (t: string) => void; reject: (e: Error) => void } | null = null;
 
-  constructor(private readonly clientId: string) {}
+  constructor(
+    private readonly clientId: string,
+    private readonly scopes: string[] = SCOPES,
+  ) {}
 
   get isSignedIn(): boolean {
     return this.current !== null && this.current.expiresAt > Date.now();
@@ -116,7 +128,7 @@ export class GoogleAuth {
     const gis = await waitForGis();
     this.client ??= gis.accounts.oauth2.initTokenClient({
       client_id: this.clientId,
-      scope: SCOPES.join(" "),
+      scope: this.scopes.join(" "),
       callback: (response) => {
         const pending = this.pending;
         this.pending = null;

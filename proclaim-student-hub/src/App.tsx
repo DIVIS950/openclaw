@@ -18,6 +18,7 @@ import { tutorImport } from "./lib/tutorImport.ts";
 import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { reloadToUpdate, watchForUpdates } from "./lib/updates.ts";
+import { gmailLink, withGmail } from "./pages/gmailLink.ts";
 import { PAGES } from "./pages/runtime.ts";
 import { pagesImport } from "./pages/runtime.ts";
 import { Apps } from "./screens/Apps.tsx";
@@ -54,7 +55,9 @@ async function connectWebPage(): Promise<WebSession> {
   const userId = user ? await user.id().catch(() => null) : null;
   const ai = sample ? sampleAi(sample) : null;
   if (mcp || (db && userId)) {
-    return { data: new ClaudeData(mcp, db, userId, user), ai };
+    const data = new ClaudeData(mcp, db, userId, user);
+    // On the website, Gmail comes from the student's own Google sign-in.
+    return { data: PAGES ? withGmail(data) : data, ai };
   }
   return { data: new DemoData(), ai };
 }
@@ -116,7 +119,7 @@ export function App() {
       key={mode}
       data={session.data}
       ai={session.ai}
-      auth={mode === "google" ? auth : null}
+      auth={mode === "google" ? auth : PAGES ? gmailLink.auth : null}
       onSignOut={
         WEB_PAGE
           ? null

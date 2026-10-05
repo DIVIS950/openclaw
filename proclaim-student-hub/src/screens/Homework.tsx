@@ -8,6 +8,9 @@ import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
 import { courses, progress, weekLog } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
+import { gmailLink } from "../pages/gmailLink.ts";
+import { PAGES } from "../pages/runtime.ts";
+import { GmailCard } from "../pages/WebVersion.tsx";
 
 type Filter = "All" | Source;
 
@@ -150,7 +153,8 @@ export function HomeworkScreen() {
           <span style={{ flex: 1, textAlign: "left" }}>Your classes</span>
           <span className="muted">{classCount ? `${classCount} ›` : "›"}</span>
         </button>
-        {!data.hasClassroom && (
+        {PAGES && !gmailLink.granted && <GmailCard />}
+        {!data.hasClassroom && (!PAGES || gmailLink.granted) && (
           <section className="card stack">
             <div className="row" style={{ gap: 10 }}>
               <span

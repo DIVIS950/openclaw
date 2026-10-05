@@ -4,6 +4,7 @@ import { useApp } from "../context.ts";
 import { collectStore, PAGES_URL, transferLink } from "../lib/transfer.ts";
 import { isClaudeKey, testClaude } from "./claude.ts";
 import { geminiSample } from "./gemini.ts";
+import { gmailClientId, gmailLink, isClientId } from "./gmailLink.ts";
 import { aiKey, PAGES, studentName } from "./runtime.ts";
 
 // The two versions of the hub and the bridge between them:
@@ -230,6 +231,152 @@ export function AiKeyCard() {
         >
           Done, hide this
         </button>
+      )}
+    </section>
+  );
+}
+
+/** Gmail on the website: paste the Google client ID once, then connect. */
+export function GmailCard() {
+  const { toast, handleError, reloadHomework } = useApp();
+  const [id, setId] = useState(gmailClientId.get);
+  const [draft, setDraft] = useState("");
+  const [connected, setConnected] = useState(() => gmailLink.connected);
+  const [busy, setBusy] = useState(false);
+  const [showHow, setShowHow] = useState(false);
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      await gmailLink.connect();
+      setConnected(true);
+      toast("Gmail connected. Checking Classroom emails…");
+      // The data source picks Gmail up on the next load; sync now needs a reload.
+      window.setTimeout(() => window.location.reload(), 900);
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card stack" style={{ gap: 10 }}>
+      <div className="row" style={{ gap: 10 }}>
+        <span
+          className="tile-icon"
+          style={{ "--tile": "#c5221f", width: 40, height: 40 } as React.CSSProperties}
+          aria-hidden="true"
+        >
+          <Icon name="mail" size={20} />
+        </span>
+        <div className="stack" style={{ gap: 2, flex: 1 }}>
+          <strong>Gmail on this website</strong>
+          <span className="muted">
+            {connected
+              ? "Connected. Classroom emails become homework here, checked when the app opens."
+              : gmailLink.granted
+                ? "Signed in before; the sign-in lasts an hour. Tap Reconnect to check emails."
+                : id
+                  ? "Client ID saved. Connect your Google account (read-only)."
+                  : "Needs a Google client ID, made once by a parent. Then Classroom emails sync here too."}
+          </span>
+        </div>
+      </div>
+      {id ? (
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          {connected ? (
+            <>
+              <button className="btn small" onClick={() => reloadHomework(true)}>
+                <Icon name="sync" size={14} />
+                Check Classroom now
+              </button>
+              <button
+                className="btn small ghost"
+                onClick={() => {
+                  gmailLink.disconnect();
+                  setConnected(false);
+                  toast("Gmail disconnected.");
+                }}
+              >
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <button className="btn small primary" disabled={busy} onClick={() => void connect()}>
+              <Icon
+                name={busy ? "loader" : "mail"}
+                size={14}
+                className={busy ? "spin" : undefined}
+              />
+              {gmailLink.granted ? "Reconnect Gmail" : "Connect Gmail"}
+            </button>
+          )}
+          <button
+            className="btn small ghost"
+            onClick={() => {
+              gmailClientId.set("");
+              gmailLink.disconnect();
+              setId("");
+              setConnected(false);
+            }}
+          >
+            Remove ID
+          </button>
+        </div>
+      ) : (
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!isClientId(draft)) {
+              toast("That isn't a client ID: it ends with .apps.googleusercontent.com");
+              return;
+            }
+            gmailClientId.set(draft);
+            setId(draft.trim());
+            setDraft("");
+            toast("Client ID saved. Now tap Connect Gmail.");
+          }}
+        >
+          <input
+            className="field"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Paste the client ID (…apps.googleusercontent.com)"
+            aria-label="Google client ID"
+            autoComplete="off"
+            style={{ flex: 1 }}
+          />
+          <button className="btn primary" type="submit">
+            Save
+          </button>
+        </form>
+      )}
+      <button
+        className="link-btn"
+        style={{ alignSelf: "flex-start", minHeight: 32 }}
+        onClick={() => setShowHow((v) => !v)}
+      >
+        {showHow ? "Hide the steps" : "How does a parent make the client ID?"}
+      </button>
+      {showHow && (
+        <ol className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+          <li>
+            Go to console.cloud.google.com, signed in with the parent's Google account. Make a new
+            project called Student Hub.
+          </li>
+          <li>APIs &amp; Services › Library: enable the Gmail API.</li>
+          <li>
+            APIs &amp; Services › OAuth consent screen: External, app name Student Hub, your email,
+            then under Test users add the student's Gmail address (the one the school forwards to).
+          </li>
+          <li>
+            APIs &amp; Services › Credentials › Create credentials › OAuth client ID › Web
+            application. Under Authorised JavaScript origins add https://divis950.github.io. Create.
+          </li>
+          <li>Copy the client ID (ends with .apps.googleusercontent.com) and paste it above.</li>
+        </ol>
       )}
     </section>
   );
