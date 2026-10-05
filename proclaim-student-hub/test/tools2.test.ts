@@ -163,3 +163,38 @@ describe("calculator", () => {
     expect(calc("1/0")).toBe("");
   });
 });
+
+import { newClassroomTasks } from "../src/lib/classroomSync.ts";
+
+describe("due tomorrow", () => {
+  it("counts from the day the email was sent, and skips what is already past", () => {
+    const emails = [
+      {
+        id: "e1",
+        subject: 'Due tomorrow: "HW due Thursday 10/1"',
+        snippet:
+          "Notification settings Y9 Math 26/27 Mr Fitz Due tomorrow HW due Thursday 10/1 Complete the packet Due Oct 1 View assignment",
+        sender: "no-reply@classroom.google.com",
+        date: "2026-09-30T21:55:16Z",
+        viewUrl: "",
+        labelIds: [],
+      },
+      {
+        id: "e2",
+        subject: 'Due tomorrow: "Read chapter 3"',
+        snippet: "Notification settings 9i English Due tomorrow Read chapter 3 View assignment",
+        sender: "no-reply@classroom.google.com",
+        date: "2026-10-04T18:00:00Z",
+        viewUrl: "",
+        labelIds: [],
+      },
+    ];
+    const { tasks } = newClassroomTasks(
+      emails as never,
+      [],
+      new Set(),
+      new Date("2026-10-04T20:00:00"),
+    );
+    expect(tasks).toEqual([{ title: "Read chapter 3", due: "2026-10-05", course: "9i English" }]);
+  });
+});

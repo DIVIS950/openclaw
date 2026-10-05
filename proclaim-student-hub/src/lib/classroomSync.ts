@@ -196,7 +196,9 @@ export function newClassroomTasks(
       continue;
     }
     ids.push(email.id);
-    const task = parseClassroomEmail(email, now);
+    // "Due tomorrow" means the day after the email was sent, not after the sync.
+    const sent = email.date ? new Date(email.date) : now;
+    const task = parseClassroomEmail(email, Number.isNaN(sent.getTime()) ? now : sent);
     const key = task?.title.toLowerCase();
     if (!task || !key || titles.has(key) || (task.due && task.due < today)) {
       continue;
