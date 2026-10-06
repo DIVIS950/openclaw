@@ -5,6 +5,7 @@ import { backups } from "./lib/backup.ts";
 import { trackKeyboard } from "./lib/keyboard.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
 import { dayOf } from "./lib/study.ts";
+import { applyTheme, watchTheme } from "./lib/theme.ts";
 import { importFromLocation } from "./lib/transfer.ts";
 import { tutorImport } from "./lib/tutorImport.ts";
 import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
@@ -14,6 +15,9 @@ import { installPagesRuntime, pagesImport, PAGES } from "./pages/runtime.ts";
 import "./styles.css";
 
 async function start() {
+  // Night Studio look, dark unless the student chose otherwise in Apps › Look.
+  applyTheme();
+  watchTheme();
   trackKeyboard();
   if (PAGES) {
     // GitHub Pages version: Gemini + phone storage stand in for claude.ai, and

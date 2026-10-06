@@ -1,4 +1,5 @@
 import { Icon, type IconName } from "../components/Icon.tsx";
+import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
 import { useApp } from "../context.ts";
 import { PAGES } from "../pages/runtime.ts";
@@ -112,6 +113,7 @@ export function Apps() {
         <Tiles apps={OTHERS} start={0.35} />
       </section>
 
+      <LookCard />
       <BackupCard />
       {PAGES && <GmailCard />}
       {PAGES && <PagesSettings />}
