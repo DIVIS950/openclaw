@@ -213,7 +213,7 @@ function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOp
       <div className="between" style={{ alignItems: "center", gap: 12 }}>
         <div className="stack" style={{ gap: 6, minWidth: 0 }}>
           <span className="eyebrow" style={{ color: "var(--neon, var(--accent-ink))" }}>
-            Next test · {dayLabel(test.date, today)}
+            Next test · {test.subject} · {dayLabel(test.date, today)}
           </span>
           <strong className="h2" style={{ fontSize: 18, lineHeight: 1.25 }}>
             {cleanTopic(test.subject, test.topic)}

@@ -54,7 +54,8 @@ function whenText(n: number): string {
 export function cleanTopic(subject: string, topic: string): string {
   const t = topic.trim();
   const sub = subject.trim().toLowerCase();
-  return sub && t.toLowerCase().startsWith(`${sub}:`) ? t.slice(sub.length + 1).trim() : t;
+  const rest = sub && t.toLowerCase().startsWith(`${sub}:`) ? t.slice(sub.length + 1).trim() : t;
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
 }
 
 export function buildDay(input: {

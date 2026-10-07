@@ -52,11 +52,11 @@ export function NowCard() {
         </span>
       </div>
       <div className="row" style={{ gap: 10 }}>
-        <button className="btn" style={{ flex: 1 }} onClick={() => go("timetable")}>
+        <button className="btn" onClick={() => go("timetable")}>
           <Icon name="calendar" size={18} />
           Timetable
         </button>
-        <button className="btn primary" style={{ flex: 1 }} onClick={() => go("tutor")}>
+        <button className="btn primary" onClick={() => go("tutor")}>
           <Icon name="sparkle" size={18} />
           Prep me
         </button>

@@ -4637,3 +4637,31 @@ input[type="date"].field {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
+
+/* ---------- Review pass 3 ---------- */
+
+/* Now card buttons share the row on phones; on wider screens they keep a sane width. */
+.now-card .row .btn {
+  flex: 1;
+}
+@media (min-width: 768px) and (min-height: 600px) {
+  .now-card .row {
+    justify-content: flex-end;
+  }
+  .now-card .row .btn {
+    flex: 0 1 220px;
+  }
+}
+/* Stats: only the first number carries the accent, in both themes. */
+:root[data-theme="light"] .hw-stat:nth-child(2) strong,
+:root[data-theme="light"] .hw-stat:nth-child(3) strong {
+  color: var(--ink);
+}
+/* Tool icons stay in the accent even once the AI key is set. */
+.tool .ico {
+  --tile: var(--accent);
+}
+/* The Study buddy composer has its own fade; the bar's fade would grey it out. */
+.app:has(> .composer) .nav::before {
+  display: none;
+}

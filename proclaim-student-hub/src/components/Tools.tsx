@@ -371,7 +371,7 @@ export function BackupCard() {
           <span className="muted">
             Everything saves as you go.{" "}
             {latest
-              ? `Last snapshot ${new Date(latest.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`
+              ? `Last snapshot ${new Date(latest.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).replace(/ /g, "\u00a0")}.`
               : "A snapshot is kept once a day."}
           </span>
         </div>
