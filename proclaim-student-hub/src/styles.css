@@ -3157,7 +3157,10 @@ h3,
   background: var(--hero);
   color: var(--ink);
   border: 1px solid var(--card-border);
-  border-left: 6px solid var(--neon, var(--accent));
+  /* The subject colour lives in the ring and a soft halo, not a stripe. */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--neon, var(--accent)) 28%, transparent),
+    0 18px 50px color-mix(in srgb, var(--neon, var(--accent)) 16%, transparent);
 }
 .now-title {
   font-size: 24px;
