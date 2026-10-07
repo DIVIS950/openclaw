@@ -30,6 +30,15 @@ const ICON: Record<DayItem["kind"], IconName> = {
   tutor: "book",
 };
 
+const TINT: Record<DayItem["kind"], string> = {
+  homework: "var(--accent)",
+  test: "var(--coral)",
+  todo: "var(--cyan)",
+  event: "var(--violet)",
+  email: "var(--cyan)",
+  tutor: "var(--amber)",
+};
+
 export function DaySummary() {
   const { ai, data, homework, profile, go, openAssignment } = useApp();
   const [emails, setEmails] = useState<Email[] | null>(null);
@@ -152,16 +161,18 @@ export function DaySummary() {
 
   const row = (item: DayItem, why?: string, n?: number) => (
     <button key={item.ref} className="day-row" onClick={() => open(item)}>
-      <span className={n ? "day-num" : "day-icon"} aria-hidden="true">
-        {n ?? <Icon name={ICON[item.kind]} size={14} />}
+      <span
+        className={n ? "day-num" : "day-icon"}
+        style={{ "--tile": TINT[item.kind] } as React.CSSProperties}
+        aria-hidden="true"
+      >
+        {n ?? <Icon name={ICON[item.kind]} size={18} />}
       </span>
       <span className="day-text">
         <strong>{item.text}</strong>
         <span>{why ?? item.sub}</span>
       </span>
-      <span aria-hidden="true" className="day-go">
-        ›
-      </span>
+      <Icon name="chevron" size={18} className="chev" />
     </button>
   );
 

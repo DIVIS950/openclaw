@@ -1,3 +1,4 @@
+import { AskButton } from "../components/AskButton.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
@@ -9,8 +10,7 @@ interface AppTile {
   name: string;
   url: string;
   icon: IconName;
-  bg: string;
-  ink: string;
+  tint: string;
 }
 
 const GOOGLE: AppTile[] = [
@@ -18,20 +18,18 @@ const GOOGLE: AppTile[] = [
     name: "Classroom",
     url: "https://classroom.google.com",
     icon: "classroom",
-    bg: "#e3f1e6",
-    ink: "#1f6b3a",
+    tint: "var(--mint)",
   },
-  { name: "Gmail", url: "https://mail.google.com", icon: "mail", bg: "#fbe4e1", ink: "#a8321f" },
-  { name: "Drive", url: "https://drive.google.com", icon: "drive", bg: "#fbf0d2", ink: "#7a5000" },
-  { name: "Docs", url: "https://docs.google.com", icon: "doc", bg: "#e4e8fa", ink: "#1c2f8f" },
+  { name: "Gmail", url: "https://mail.google.com", icon: "mail", tint: "var(--coral)" },
+  { name: "Drive", url: "https://drive.google.com", icon: "drive", tint: "var(--amber)" },
+  { name: "Docs", url: "https://docs.google.com", icon: "doc", tint: "var(--cyan)" },
   {
     name: "Calendar",
     url: "https://calendar.google.com",
     icon: "calendar",
-    bg: "#e1eef9",
-    ink: "#1d5b8f",
+    tint: "var(--violet)",
   },
-  { name: "Keep", url: "https://keep.google.com", icon: "keep", bg: "#fcefc7", ink: "#7a5500" },
+  { name: "Keep", url: "https://keep.google.com", icon: "keep", tint: "var(--amber)" },
 ];
 
 const OTHERS: AppTile[] = [
@@ -39,31 +37,27 @@ const OTHERS: AppTile[] = [
     name: "Dr Frost",
     url: "https://www.drfrost.org",
     icon: "frost",
-    bg: "#e0f2f7",
-    ink: "#16657a",
+    tint: "var(--cyan)",
   },
   {
     name: "Desmos",
     url: "https://www.desmos.com/calculator",
     icon: "graph",
-    bg: "#e6f2e2",
-    ink: "#2f6b22",
+    tint: "var(--lime)",
   },
   {
     name: "Student Desmos",
     url: "https://student.desmos.com",
     icon: "points",
-    bg: "#dff1ee",
-    ink: "#1b6a5f",
+    tint: "var(--mint)",
   },
   {
     name: "ActiveLearn",
     url: "https://www.pearsonactivelearn.com",
     icon: "book",
-    bg: "#eee6f7",
-    ink: "#5b2e91",
+    tint: "var(--violet)",
   },
-  { name: "Canva", url: "https://www.canva.com", icon: "palette", bg: "#e7e4fa", ink: "#4a33a8" },
+  { name: "Canva", url: "https://www.canva.com", icon: "palette", tint: "var(--violet)" },
 ];
 
 function Tiles({ apps, start }: { apps: AppTile[]; start: number }) {
@@ -78,8 +72,8 @@ function Tiles({ apps, start }: { apps: AppTile[]; start: number }) {
           rel="noopener noreferrer"
           style={{ animationDelay: `${start + i * 0.05}s` }}
         >
-          <span className="tile-icon" style={{ "--tile": a.ink } as React.CSSProperties}>
-            <Icon name={a.icon} size={26} />
+          <span className="tile-icon" style={{ "--tile": a.tint } as React.CSSProperties}>
+            <Icon name={a.icon} size={18} />
           </span>
           {a.name}
         </a>
@@ -103,9 +97,12 @@ export function Apps() {
   const { profile, data, signOut, go } = useApp();
   return (
     <main className="screen" style={{ gap: 18 }}>
-      <header className="stack rise" style={{ gap: 4 }}>
+      <header className="between rise">
         <h1 className="h1">More</h1>
-        <p className="sub">Everything else in the hub, one tap away.</p>
+        <div className="head-chips">
+          {profile?.name && <span className="chip">{profile.name} · Park Lane</span>}
+          <AskButton />
+        </div>
       </header>
 
       <nav className="hub-grid rise" aria-label="Hub">
@@ -117,7 +114,7 @@ export function Apps() {
             onClick={() => go(h.screen)}
           >
             <span className="hub-icon" aria-hidden="true">
-              <Icon name={h.icon} size={22} />
+              <Icon name={h.icon} size={20} />
             </span>
             {h.label}
           </button>

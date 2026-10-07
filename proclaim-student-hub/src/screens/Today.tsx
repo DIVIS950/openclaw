@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AddAnythingButton } from "../components/AddAnything.tsx";
+import { AskButton } from "../components/AskButton.tsx";
 import { DaySummary } from "../components/DaySummary.tsx";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
@@ -67,7 +67,7 @@ export function Today() {
   const app = useApp();
   const { data, homework, profile, ai, go } = app;
   const [events, setEvents] = useState<CalEvent[] | null>(null);
-  const [summaryVersion, setSummaryVersion] = useState(0);
+  const [summaryVersion] = useState(0);
   const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
   const [week, setWeek] = useState(false);
   const [lessons] = useState<Lesson[]>(timetable.get);
@@ -112,8 +112,8 @@ export function Today() {
 
   return (
     <main className="screen">
-      <header className="stack rise" style={{ gap: 2 }}>
-        <div className="between">
+      <header className="between rise" style={{ alignItems: "flex-end", gap: 12 }}>
+        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
           <div className="eyebrow">
             {new Date().toLocaleDateString("en-GB", {
               weekday: "long",
@@ -121,74 +121,67 @@ export function Today() {
               month: "long",
             })}
           </div>
-          <div className="row">
-            <AddAnythingButton onSaved={() => setSummaryVersion((v) => v + 1)} />
-            <button
-              className="level-pill"
-              aria-label={`Level ${lvl.level}, ${stats.xp} XP${stats.streak ? `, ${stats.streak} day streak` : ""}`}
-              onClick={() => go("apps")}
-            >
-              <span
-                className="level-ring"
-                style={{ "--p": `${lvl.percent}%` } as React.CSSProperties}
-              >
-                {lvl.level}
-              </span>
-              {stats.streak > 0 && (
-                <span className="row" style={{ gap: 2 }}>
-                  <Icon name="flame" size={13} />
-                  {stats.streak}
-                </span>
-              )}
-            </button>
-          </div>
+          <h1 className="h1">{profile?.name ? `Hey ${profile.name}` : greeting()}</h1>
         </div>
-        <h1 className="h1">
-          {greeting()}
-          {profile?.name ? `, ${profile.name}` : ""}
-        </h1>
+        <div className="head-chips">
+          <button
+            className="level-pill"
+            aria-label={`Level ${lvl.level}, ${stats.xp} XP${stats.streak ? `, ${stats.streak} day streak` : ""}`}
+            onClick={() => go("apps")}
+          >
+            <span
+              className="level-ring"
+              style={{ "--p": `${lvl.percent}%` } as React.CSSProperties}
+            >
+              {lvl.level}
+            </span>
+            {stats.xp} XP
+          </button>
+          {stats.streak > 0 && (
+            <span className="chip accent">
+              <Icon name="flame" size={14} />
+              {stats.streak} {stats.streak === 1 ? "day" : "days"}
+            </span>
+          )}
+          <AskButton />
+        </div>
       </header>
 
       <UnlockCard />
       <NowCard />
       <AiKeyCard />
 
-      <section className="card stack rise hero" style={{ gap: 12, animationDelay: "0.05s" }}>
-        <div className="between hero-label">
-          <span className="row ai" style={{ gap: 6 }}>
-            <Icon name="sparkle" size={16} className="wiggle" />
-            Your day
+      <section className="stack" style={{ gap: 10 }}>
+        <div className="between">
+          <h2 className="h2">Your day</h2>
+          <span className="chip violet">
+            <Icon name="sparkle" size={14} />
+            {ai && !data.demo ? "AI sorted" : "Sorted"}
           </span>
-          {!data.demo && (
-            <span className="row" style={{ gap: 4 }}>
-              <Icon name="sync" size={13} className="spin-slow" />
-              Synced
-            </span>
-          )}
         </div>
         <DaySummary key={summaryVersion} />
         {ai && (
-          <div className="row">
+          <div className="row" style={{ gap: 10 }}>
             <button
-              className="btn block primary hero-btn"
+              className="btn primary"
               style={{ flex: 1 }}
               disabled={plan === "loading"}
               onClick={() => void makePlan()}
             >
               <Icon
                 name={plan === "loading" ? "loader" : "sparkle"}
-                size={15}
+                size={16}
                 className={plan === "loading" ? "spin" : undefined}
               />
               Plan tonight
             </button>
             <button
-              className="btn block soft hero-btn"
+              className="btn"
               style={{ flex: 1 }}
               disabled={week}
               onClick={() => setWeek(true)}
             >
-              <Icon name="calendar" size={15} />
+              <Icon name="calendar" size={16} />
               Plan my week
             </button>
           </div>

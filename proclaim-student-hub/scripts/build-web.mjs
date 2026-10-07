@@ -29,8 +29,10 @@ const seed = fs.existsSync(seedFile)
   ? `<script>window.__PSH_SEED__ = ${JSON.stringify(JSON.parse(fs.readFileSync(seedFile, "utf8"))).replace(/</g, "\\u003c")};</script>\n`
   : "";
 
-const html = `<title>Proclaim Student Hub</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap">
+// The charset comes first: with the fonts inlined, the first bytes are all ASCII and
+// a browser would otherwise guess Latin-1 and break the non-ASCII regexes in the bundle.
+const html = `<meta charset="utf-8">
+<title>Proclaim Student Hub</title>
 <style>
 ${css}
 </style>

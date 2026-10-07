@@ -141,41 +141,27 @@ export function Tutor() {
 
   return (
     <>
-      <header
-        className="stack"
-        style={{
-          padding: "calc(env(safe-area-inset-top) + 20px) 20px 12px",
-          gap: 12,
-          borderBottom: "1px solid var(--line)",
-        }}
-      >
+      <header className="stack buddy-head">
         <div className="between">
-          <div>
-            <h1 className="h1" style={{ fontSize: 24, whiteSpace: "nowrap" }}>
-              Study buddy
-            </h1>
-            <p className="sub" style={{ fontSize: 13 }}>
-              Helps you understand, not just copy.
-            </p>
-          </div>
-          <div className="row">
+          <h1 className="h1" style={{ whiteSpace: "nowrap" }}>
+            Study buddy
+          </h1>
+          <div className="head-chips">
             {app.ai && (
               <button
-                className="btn small primary"
+                className="round"
                 onClick={() => app.go("call")}
                 aria-label="Voice call with your study buddy"
               >
-                <Icon name="mic" size={14} />
-                Talk
+                <Icon name="mic" size={18} />
               </button>
             )}
-            <button className="btn small" onClick={() => app.go("revise")}>
-              <Icon name="camera" size={14} />
-              Revision Lab
+            <button className="round" onClick={() => app.go("revise")} aria-label="Revision Lab">
+              <Icon name="camera" size={18} />
             </button>
             {turns.length > 0 && (
               <button
-                className="btn small ghost"
+                className="btn small"
                 onClick={() => {
                   abort.current?.abort();
                   setTurns([]);
@@ -205,7 +191,7 @@ export function Tutor() {
         </div>
       </header>
 
-      <main className="screen" style={{ gap: 12, paddingTop: 16 }} aria-live="polite">
+      <main className="screen" style={{ gap: 12, paddingTop: 8 }} aria-live="polite">
         {turns.length === 0 && (
           <div className="stack rise" style={{ gap: 8 }}>
             <p className="sub">Ask about any homework, or snap a photo of a question.</p>
@@ -349,7 +335,7 @@ export function Tutor() {
             resize: "none",
           }}
           value={input}
-          placeholder="Ask about any homework…"
+          placeholder="Ask anything…"
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {

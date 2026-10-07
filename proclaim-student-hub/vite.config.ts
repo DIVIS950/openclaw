@@ -21,6 +21,8 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    // The one-file claude.ai page carries its fonts inline; the website keeps them as files.
+    assetsInlineLimit: singleFile ? Number.MAX_SAFE_INTEGER : 4096,
     rollupOptions: singleFile
       ? { output: { inlineDynamicImports: true } }
       : pages

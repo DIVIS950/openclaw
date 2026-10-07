@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AddAnythingButton } from "../components/AddAnything.tsx";
+import { AskButton } from "../components/AskButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { progress, weekLog } from "../lib/store.ts";
@@ -15,20 +16,21 @@ import { Tutoring } from "./Tutoring.tsx";
 function ScreenHead({ title, sub, back }: { title: string; sub: string; back?: boolean }) {
   const { go } = useApp();
   return (
-    <header className="stack rise" style={{ gap: 4 }}>
-      {back && (
-        <button
-          className="link-btn"
-          style={{ alignSelf: "flex-start" }}
-          onClick={() => go("today")}
-        >
-          ‹ Today
-        </button>
-      )}
-      <h1 className="h1">{title}</h1>
-      <p className="muted" style={{ margin: 0 }}>
-        {sub}
-      </p>
+    <header className="between rise" style={{ alignItems: "flex-start" }}>
+      <div className="stack" style={{ gap: 4, minWidth: 0 }}>
+        {back && (
+          <button
+            className="link-btn"
+            style={{ alignSelf: "flex-start", minHeight: 28 }}
+            onClick={() => go("today")}
+          >
+            ‹ Today
+          </button>
+        )}
+        <h1 className="h1">{title}</h1>
+        <p className="sub">{sub}</p>
+      </div>
+      <AskButton />
     </header>
   );
 }

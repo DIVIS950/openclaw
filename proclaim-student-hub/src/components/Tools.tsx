@@ -26,7 +26,7 @@ const TOOLS: Tool[] = [
     label: "Translate",
     sub: "EN ↔ ES / CZ",
     icon: "book",
-    tint: "#ff5a00",
+    tint: "var(--amber)",
     placeholder: "Paste a sentence or a word list…",
     languages: ["Spanish", "Czech", "English"],
     prompt: (t, lang) =>
@@ -37,7 +37,7 @@ const TOOLS: Tool[] = [
     label: "Summarise",
     sub: "Long text → key points",
     icon: "doc",
-    tint: "#00a3ff",
+    tint: "var(--cyan)",
     placeholder: "Paste the text, notes or an article…",
     prompt: (t) =>
       `Summarise this for revision: 5-8 short bullet points of the ideas a Year 9 student must remember, then one line "Remember:" with the single most important fact.\n\n<text>${t}</text>`,
@@ -47,7 +47,7 @@ const TOOLS: Tool[] = [
     label: "Make questions",
     sub: "Text → practice questions",
     icon: "flag",
-    tint: "#b026ff",
+    tint: "var(--violet)",
     placeholder: "Paste the notes or a textbook page…",
     prompt: (t) =>
       `From this material write 8 practice questions for a Year 9 student: 4 short-answer, 2 "explain why", 2 "give an example". Put the answers at the end under "Answers".\n\n<text>${t}</text>`,
@@ -57,7 +57,7 @@ const TOOLS: Tool[] = [
     label: "Explain simply",
     sub: "Like I'm 10",
     icon: "sparkle",
-    tint: "#22ff77",
+    tint: "var(--mint)",
     placeholder: "What should I explain? (a word, a topic, a paragraph)",
     prompt: (t) =>
       `Explain this like I'm 10: everyday words, one idea at a time, a comparison from real life, under 120 words, then one memory hook.\n\n<text>${t}</text>`,
@@ -67,7 +67,7 @@ const TOOLS: Tool[] = [
     label: "Fix my writing",
     sub: "Spelling, grammar, flow",
     icon: "wand",
-    tint: "#ffe600",
+    tint: "var(--lime)",
     placeholder: "Paste your paragraph or essay…",
     prompt: (t) =>
       `Correct the spelling, grammar and punctuation of this student's writing without changing their ideas or voice. First give the corrected text. Then "Changes:" with up to 5 short lines saying what was fixed and why, so they learn it.\n\n<text>${t}</text>`,
@@ -77,7 +77,7 @@ const TOOLS: Tool[] = [
     label: "Plan an essay",
     sub: "Title → structure",
     icon: "note",
-    tint: "#ff2ec4",
+    tint: "var(--coral)",
     placeholder: "The essay title or question…",
     prompt: (t) =>
       `Plan an essay for a Year 9 student on: <text>${t}</text>. Give: a one-sentence thesis, 3-4 paragraph headings each with 2 bullet points of what to include and one example, and a closing idea. Do not write the essay.`,
@@ -98,29 +98,29 @@ export function Tools() {
       <h2 className="eyebrow" style={{ margin: 0 }}>
         Tools
       </h2>
-      <div className="tiles">
-        {TOOLS.map((t, i) => (
+      <div className="tool-grid">
+        {TOOLS.map((t) => (
           <button
             key={t.id}
-            className="tile"
-            style={{ "--tile": t.tint, animationDelay: `${i * 0.04}s` } as React.CSSProperties}
+            className="tool"
+            style={{ "--tile": t.tint } as React.CSSProperties}
             onClick={() => setOpen(t)}
             disabled={!ai}
             aria-label={t.label}
           >
-            <span className="tile-icon">
-              <Icon name={t.icon} size={24} />
+            <span className="ico">
+              <Icon name={t.icon} size={18} />
             </span>
             {t.label}
           </button>
         ))}
         <button
-          className="tile"
-          style={{ "--tile": "#ff3b30" } as React.CSSProperties}
+          className="tool"
+          style={{ "--tile": "var(--coral)" } as React.CSSProperties}
           onClick={() => go("tests")}
           aria-label="Countdown to the next test"
         >
-          <span className="tile-icon" style={{ fontSize: 18, fontWeight: 800 }}>
+          <span className="ico num" style={{ fontSize: 15 }}>
             {days === null ? "–" : days}
           </span>
           {days === null
@@ -294,12 +294,12 @@ function Calculator() {
   return (
     <>
       <button
-        className="tile"
-        style={{ "--tile": "#14151a" } as React.CSSProperties}
+        className="tool"
+        style={{ "--tile": "var(--cyan)" } as React.CSSProperties}
         onClick={() => setOpen(true)}
         aria-label="Calculator"
       >
-        <span className="tile-icon" style={{ fontSize: 18, fontWeight: 800 }}>
+        <span className="ico num" style={{ fontSize: 18 }}>
           =
         </span>
         Calculator

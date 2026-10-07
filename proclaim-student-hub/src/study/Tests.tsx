@@ -130,38 +130,29 @@ export function Tests({
         </div>
       )}
 
-      {upcoming.map((t, i) => {
-        const plan = prepPlan(t, today);
-        const todayStep = plan.find((d) => d.date === today);
-        const doneCount = plan.filter((d) => t.done.includes(d.date)).length;
-        return (
-          <button
-            key={t.id}
-            className="card stack subject-card rise test-card"
-            style={{ ...subjectVars(t.subject), animationDelay: `${i * 0.04}s` }}
-            onClick={() => setOpen(t.id)}
-          >
-            <div className="between">
-              <span className="eyebrow row" style={{ gap: 6 }}>
-                <span className="subject-dot" /> {t.subject}
+      {upcoming.length > 0 && (
+        <NextTest test={upcoming[0]} today={today} onOpen={() => setOpen(upcoming[0].id)} />
+      )}
+
+      {upcoming.length > 1 && (
+        <section className="card rows rise" aria-label="More tests">
+          {upcoming.slice(1).map((t) => (
+            <button
+              key={t.id}
+              className="test-row test-card"
+              style={subjectVars(t.subject)}
+              onClick={() => setOpen(t.id)}
+            >
+              <span className="chip subject">{t.subject}</span>
+              <span className="row-text">
+                <strong>{t.topic}</strong>
+                <span>{dayLabel(t.date, today)}</span>
               </span>
-              <span className={`chip${daysBetween(today, t.date) <= 1 ? " warm" : " accent"}`}>
-                {countdown(t.date, today)}
-              </span>
-            </div>
-            <strong style={{ fontSize: 16 }}>{t.topic}</strong>
-            <div className="bar" aria-label={`${doneCount} of ${plan.length} prep days done`}>
-              <div style={{ width: `${plan.length ? (doneCount / plan.length) * 100 : 0}%` }} />
-            </div>
-            {todayStep && (
-              <span className="muted">
-                Today: <strong style={{ color: "var(--ink)" }}>{todayStep.title}</strong>
-                {t.done.includes(today) ? " ✓" : ` · ${todayStep.minutes} min`}
-              </span>
-            )}
-          </button>
-        );
-      })}
+              <span className="num">{daysBetween(today, t.date)} d</span>
+            </button>
+          ))}
+        </section>
+      )}
 
       {past.length > 0 && (
         <details className="card">
@@ -201,6 +192,62 @@ export function Tests({
         />
       )}
     </>
+  );
+}
+
+/** The next test as the hero card: countdown, prep steps and today's step. */
+function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOpen: () => void }) {
+  const plan = prepPlan(test, today);
+  const todayStep = plan.find((d) => d.date === today);
+  const todayIndex = plan.findIndex((d) => d.date === today);
+  const days = daysBetween(today, test.date);
+  return (
+    <button
+      className="card test-hero test-card rise"
+      style={subjectVars(test.subject)}
+      onClick={onOpen}
+    >
+      <div className="between" style={{ alignItems: "center", gap: 12 }}>
+        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
+          <span className="eyebrow" style={{ color: "var(--neon, var(--accent-ink))" }}>
+            Next test · {dayLabel(test.date, today)}
+          </span>
+          <strong className="h2" style={{ fontSize: 18, lineHeight: 1.25 }}>
+            {test.topic.toLowerCase().startsWith(test.subject.toLowerCase())
+              ? test.topic
+              : `${test.subject} · ${test.topic}`}
+          </strong>
+          <span className="sub">
+            Prep plan: {plan.length} {plan.length === 1 ? "day" : "days"}, about 10 min each
+          </span>
+        </div>
+        <span className="test-count">
+          <span className="num">{days}</span>
+          <span className="eyebrow">{days === 1 ? "day" : "days"}</span>
+        </span>
+      </div>
+      <div className="steps" aria-label={`${test.done.length} of ${plan.length} prep days done`}>
+        {plan.map((d, i) => (
+          <span
+            key={d.date}
+            className={test.done.includes(d.date) ? "done" : i === todayIndex ? "now" : ""}
+          />
+        ))}
+      </div>
+      {todayStep && (
+        <div className="row" style={{ gap: 10 }}>
+          <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+            <strong>
+              {test.done.includes(today) ? "Done for today ✓" : `Today, step ${todayIndex + 1}`}
+            </strong>
+            <span className="sub">
+              {todayStep.title} · {todayStep.minutes} min
+            </span>
+          </span>
+          <span className="btn primary small">Open</span>
+        </div>
+      )}
+    </button>
   );
 }
 

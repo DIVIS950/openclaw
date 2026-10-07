@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AgendaList } from "../components/Agenda.tsx";
+import { AskButton } from "../components/AskButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -28,6 +29,13 @@ function useNow(): Date {
   }, []);
   return now;
 }
+
+/** The day of the month for this weekday in the current week. */
+const dateOf = (d: Weekday, now: Date) => {
+  const date = new Date(now);
+  date.setDate(now.getDate() + WEEKDAYS.indexOf(d) - ((now.getDay() + 6) % 7));
+  return date.getDate();
+};
 
 const inMinutes = (n: number) =>
   n < 60 ? `${n} min` : `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ""}`;
@@ -75,18 +83,21 @@ export function Timetable() {
           </button>
           <h1 className="h1">Timetable</h1>
         </div>
-        <button
-          className="round dark"
-          aria-label="Add a lesson"
-          onClick={() =>
-            setEditing({
-              lesson: { day, start: "09:00", end: "10:00", subject: "", room: "" },
-              index: -1,
-            })
-          }
-        >
-          <Icon name="plus" size={20} />
-        </button>
+        <div className="head-chips">
+          <AskButton />
+          <button
+            className="round dark"
+            aria-label="Add a lesson"
+            onClick={() =>
+              setEditing({
+                lesson: { day, start: "09:00", end: "10:00", subject: "", room: "" },
+                index: -1,
+              })
+            }
+          >
+            <Icon name="plus" size={20} />
+          </button>
+        </div>
       </header>
 
       {lessons.length === 0 ? (
@@ -168,6 +179,7 @@ export function Timetable() {
                 onClick={() => setDay(d)}
               >
                 {d}
+                <b>{dateOf(d, now)}</b>
               </button>
             ))}
           </div>

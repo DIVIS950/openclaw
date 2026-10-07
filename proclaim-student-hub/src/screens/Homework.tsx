@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AskButton } from "../components/AskButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -52,13 +53,23 @@ export function HomeworkScreen() {
   return (
     <main className="screen">
       <header className="between rise">
-        <div className="stack" style={{ gap: 4 }}>
+        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
           <h1 className="h1">Homework</h1>
-          <p className="sub">{data.labels.homeworkSub}</p>
+          <span className="sync-line">
+            <span className="dot-ok" aria-hidden="true" />
+            {data.demo
+              ? "Sample data"
+              : sync && !sync.error
+                ? `Classroom checked ${new Date(sync.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                : data.labels.homeworkSub}
+          </span>
         </div>
-        <button className="round dark" aria-label="Add homework" onClick={() => setAdding(true)}>
-          <Icon name="plus" size={20} />
-        </button>
+        <div className="head-chips">
+          <AskButton />
+          <button className="round dark" aria-label="Add homework" onClick={() => setAdding(true)}>
+            <Icon name="plus" size={20} />
+          </button>
+        </div>
       </header>
 
       <div className="hw-stats rise">
@@ -213,18 +224,18 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
       style={{ ...subjectVars(hw.course), animationDelay: `${delay}s` }}
     >
       <div className="between">
-        <span className="row" style={{ gap: 8, minWidth: 0 }}>
-          <span className="subject-dot" aria-hidden="true" />
-          <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-            {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
-          </span>
+        <span className="chip subject" title={hw.course}>
+          {hw.course}
         </span>
-        <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
+        <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>
+          <Icon name="clock" size={14} />
+          {dueLabel(hw.due)}
+        </span>
       </div>
-      <div style={{ fontSize: 16, fontWeight: 650, lineHeight: 1.3 }}>{hw.title}</div>
+      <div className="task-title">{hw.title}</div>
       <div className="row" style={{ flexWrap: "wrap" }}>
         <button
-          className="btn small dark"
+          className="btn small violet"
           onClick={() =>
             openAi({
               context: `Homework: "${hw.title}" (${hw.course}, ${hw.source}). ${hw.description}`,
@@ -241,11 +252,13 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
           </button>
         ) : (
           <a className="btn small" href={hw.link} target="_blank" rel="noopener noreferrer">
-            Open in {hw.source}
+            <Icon name="link" size={14} />
+            {hw.source}
           </a>
         )}
         <button
           className="btn small"
+          style={{ marginLeft: "auto" }}
           onClick={async () => {
             const done = !hw.done;
             replaceHomework({ ...hw, done });

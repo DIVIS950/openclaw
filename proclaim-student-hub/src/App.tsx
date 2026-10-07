@@ -389,9 +389,7 @@ function Shell({
         {data.demo && current === "today" && (
           <div className="banner between" style={{ margin: "12px 16px 0" }}>
             <span>
-              {WEB_PAGE
-                ? "Sample data: open this page signed in to Claude to use your own."
-                : "Demo mode: sample data only."}
+              {WEB_PAGE ? "Sample data · sign in to Claude for your own" : "Demo: sample data"}
             </span>
             {onSignOut && (
               <button className="btn small dark" onClick={onSignOut}>
@@ -416,16 +414,6 @@ function Shell({
         {current === "tests" && <TestsScreen />}
         {current === "notes" && <NotesScreen />}
         {current === "tutoring" && <TutoringScreen />}
-        {current !== "tutor" && current !== "call" && (
-          <button
-            className="ask-fab pop"
-            aria-label="Ask AI about this screen"
-            onClick={() => setAiSheet({ key: Date.now(), context: aiContext })}
-          >
-            <Icon name="sparkle" size={20} />
-            Ask AI
-          </button>
-        )}
         {aiSheet && (
           <AskAi
             key={aiSheet.key}

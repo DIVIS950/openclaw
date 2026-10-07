@@ -32,7 +32,7 @@ export class DemoData implements DataSource {
     tickedStep: "Ticked off (demo only)",
     added: "Added (demo).",
     ticked: "Ticked off (demo).",
-    homeworkSub: "Everything in one list (sample data).",
+    homeworkSub: "Sample data",
     addNote: "For apps like Dr Frost that can't share homework automatically.",
     sent: "Sent (demo).",
   };
