@@ -8,40 +8,42 @@
 :root {
   /* Night Studio (default, dark): ink-navy ground, lime for actions and the
      active tab, neon subject colours. Light mode keeps the same neon. */
-  --bg: #0b0d14;
-  --card: #151a28;
-  --card-2: #1d2335;
-  --card-border: rgba(255, 255, 255, 0.07);
+  --bg: #07070f;
+  --card: #12122a;
+  --card-2: #1b1b3a;
+  --card-border: rgba(255, 255, 255, 0.09);
   --line: rgba(255, 255, 255, 0.09);
   --line-soft: rgba(255, 255, 255, 0.06);
-  --seg: #1d2335;
-  --ink: #f3f5fa;
-  --muted: #8d95ab;
-  --accent: #c8ff4d;
-  --accent-ink: #c8ff4d;
-  --on-accent: #0b0d14;
-  --link: #c8ff4d;
-  --warm: #ff5c7a;
+  --seg: #1b1b3a;
+  --ink: #f4f3ff;
+  --muted: #8e8cb0;
+  --accent: #c8ff2e;
+  --accent-ink: #c8ff2e;
+  --on-accent: #07070f;
+  --link: #c8ff2e;
+  --warm: #ff3dae;
   --orange: #ffc24d;
-  --good: #4dffb0;
-  --accent-soft: rgba(200, 255, 77, 0.14);
-  --warm-soft: rgba(255, 92, 122, 0.16);
-  --good-soft: rgba(77, 255, 176, 0.14);
-  --lime: #c8ff4d;
-  --coral: #ff5c7a;
-  --cyan: #4de1ff;
-  --violet: #9b7bff;
+  --good: #3df2ff;
+  --accent-soft: rgba(200, 255, 46, 0.14);
+  --warm-soft: rgba(255, 61, 174, 0.16);
+  --good-soft: rgba(61, 242, 255, 0.14);
+  --lime: #c8ff2e;
+  --coral: #ff3dae;
+  --cyan: #3df2ff;
+  --violet: #9d6bff;
   --amber: #ffc24d;
-  --mint: #4dffb0;
+  --mint: #3df2ff;
   --chip: var(--card-2);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
-  --glow: 0 0 0 1px rgba(200, 255, 77, 0.22), 0 18px 50px rgba(200, 255, 77, 0.12);
-  --hero: linear-gradient(135deg, #151a28, #1a2140);
-  --hero-ink: #f3f5fa;
-  --glass: rgba(11, 13, 20, 0.82);
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --glow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent),
+    0 0 36px color-mix(in oklab, var(--accent) 28%, transparent), 0 14px 34px rgba(0, 0, 0, 0.45);
+  --hero: #12122a;
+  --hero-ink: #f4f3ff;
+  --glass: rgba(7, 7, 15, 0.84);
   --overlay: rgba(0, 0, 0, 0.65);
-  --serif: "Space Grotesk", "DM Sans", system-ui, -apple-system, sans-serif;
+  --serif: "Unbounded", "DM Sans", system-ui, -apple-system, sans-serif;
   --sans: "DM Sans", system-ui, -apple-system, sans-serif;
   --radius: 24px;
   --spring: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -49,35 +51,71 @@
   color-scheme: dark;
 }
 
+/* Accent: lime by default; cyan, magenta or violet from More › Look. */
+:root[data-accent="cyan"] {
+  --accent: #3df2ff;
+  --accent-ink: #3df2ff;
+  --link: #3df2ff;
+  --accent-soft: rgba(61, 242, 255, 0.14);
+}
+:root[data-accent="magenta"] {
+  --accent: #ff3dae;
+  --accent-ink: #ff3dae;
+  --link: #ff3dae;
+  --accent-soft: rgba(255, 61, 174, 0.16);
+}
+:root[data-accent="violet"] {
+  --accent: #9d6bff;
+  --accent-ink: #b48cff;
+  --link: #b48cff;
+  --accent-soft: rgba(157, 107, 255, 0.2);
+}
+:root[data-theme="light"][data-accent="cyan"] {
+  --accent-ink: #0b7f8e;
+  --link: #0b7f8e;
+  --accent-soft: rgba(61, 242, 255, 0.26);
+}
+:root[data-theme="light"][data-accent="magenta"] {
+  --accent-ink: #c4147e;
+  --link: #c4147e;
+}
+:root[data-theme="light"][data-accent="violet"] {
+  --accent-ink: #5b2be0;
+  --link: #5b2be0;
+  --accent-soft: rgba(157, 107, 255, 0.18);
+}
+
 /* Light mode: chosen in Apps › Look, or "Auto" follows the phone. */
 :root[data-theme="light"] {
-  --bg: #f4f5fa;
+  --bg: #f3f2fa;
   --card: #ffffff;
-  --card-2: #eef0f7;
-  --card-border: rgba(10, 14, 30, 0.06);
-  --line: rgba(10, 14, 30, 0.1);
-  --line-soft: rgba(10, 14, 30, 0.06);
-  --seg: #e6e9f2;
-  --ink: #0b0d14;
-  --muted: #5b6378;
-  --accent: #c8ff4d;
-  --accent-ink: #3f6600;
-  --on-accent: #0b0d14;
-  --link: #3f6600;
-  --warm: #d4294a;
-  --orange: #c77a00;
-  --good: #0f8a4c;
-  --accent-soft: #eaf7c9;
-  --warm-soft: #ffe6ec;
-  --good-soft: #dcf7ea;
+  --card-2: #ecebf7;
+  --card-border: rgba(15, 14, 36, 0.09);
+  --line: rgba(15, 14, 36, 0.09);
+  --line-soft: rgba(15, 14, 36, 0.06);
+  --seg: #ecebf7;
+  --ink: #0f0e24;
+  --muted: #6b6990;
+  --accent: #c8ff2e;
+  --accent-ink: #3f7a00;
+  --on-accent: #07070f;
+  --link: #3f7a00;
+  --warm: #c4147e;
+  --orange: #b86a00;
+  --good: #0b7f8e;
+  --accent-soft: rgba(200, 255, 46, 0.4);
+  --warm-soft: rgba(255, 61, 174, 0.16);
+  --good-soft: rgba(61, 242, 255, 0.26);
   --chip: var(--card-2);
-  --shadow: 0 1px 2px rgba(10, 14, 30, 0.05), 0 6px 18px rgba(10, 14, 30, 0.06);
-  --shadow-lg: 0 14px 36px rgba(10, 14, 30, 0.16);
-  --glow: 0 0 0 1px rgba(120, 170, 0, 0.25), 0 18px 50px rgba(200, 255, 77, 0.35);
-  --hero: linear-gradient(135deg, #ffffff, #eef7d6);
-  --hero-ink: #0b0d14;
-  --glass: rgba(244, 245, 250, 0.86);
-  --overlay: rgba(10, 14, 30, 0.45);
+  --shadow: 0 12px 30px rgba(15, 14, 36, 0.1);
+  --shadow-lg: 0 18px 40px rgba(15, 14, 36, 0.16);
+  --glow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent),
+    0 0 30px color-mix(in oklab, var(--accent) 35%, transparent), 0 12px 30px rgba(15, 14, 36, 0.1);
+  --hero: #ffffff;
+  --hero-ink: #0f0e24;
+  --glass: rgba(243, 242, 250, 0.84);
+  --overlay: rgba(15, 14, 36, 0.45);
   color-scheme: light;
 }
 
@@ -3272,4 +3310,147 @@ h3,
   animation: none;
   transition: transform 0.3s var(--spring);
   background: var(--card);
+}
+
+/* ---------- Proclaim canvas look: orbs, glass tab bar, round Add, hero glow ---------- */
+
+/* Two blurred colour orbs drift slowly behind every screen. */
+.app::before,
+.app::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(64px);
+  opacity: 0.45;
+  pointer-events: none;
+  background: var(--accent);
+  animation: orb-drift 16s ease-in-out infinite alternate;
+}
+.app::before {
+  width: 260px;
+  height: 260px;
+  right: -100px;
+  top: -120px;
+  inset-inline-start: auto;
+  background-image: none;
+}
+.app::after {
+  width: 300px;
+  height: 300px;
+  left: -160px;
+  top: 300px;
+  background: var(--violet);
+  animation-duration: 22s;
+  animation-delay: -6s;
+}
+:root[data-theme="light"] .app::before,
+:root[data-theme="light"] .app::after {
+  opacity: 0.5;
+  background-image: none;
+}
+@keyframes orb-drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(36px, 44px) scale(1.18);
+  }
+}
+
+.nav {
+  background: var(--glass);
+  border-radius: 0;
+}
+.nav-item {
+  color: var(--muted);
+}
+.nav-item > svg {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 0;
+}
+.nav-item[aria-current="page"] {
+  color: var(--accent-ink);
+}
+.nav-item[aria-current="page"] > svg {
+  background: none;
+  color: var(--accent-ink);
+  animation: tab-pop 0.35s var(--bounce);
+}
+.nav-fab {
+  border-radius: 50%;
+  border: 0;
+  margin-top: -32px;
+  animation: fab-pulse 2.4s ease-in-out infinite;
+}
+@keyframes fab-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 6px color-mix(in oklab, var(--accent) 18%, transparent),
+      0 10px 30px color-mix(in oklab, var(--accent) 45%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 13px color-mix(in oklab, var(--accent) 8%, transparent),
+      0 10px 46px color-mix(in oklab, var(--accent) 75%, transparent);
+  }
+}
+
+.hero,
+.now-card {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow: var(--glow);
+}
+.now-ring {
+  background: conic-gradient(var(--accent) var(--p), var(--line) 0);
+}
+.now-ring > span {
+  font-family: var(--serif);
+  font-weight: 800;
+}
+
+.ask-fab {
+  background: var(--violet);
+  color: #07070f;
+  box-shadow: 0 10px 28px rgba(157, 107, 255, 0.45);
+}
+
+.h1,
+h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+.eyebrow {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app::before,
+  .app::after,
+  .nav-fab {
+    animation: none;
+  }
+}
+
+.accent-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--card);
+}
+.accent-swatch[aria-checked="true"] {
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 4px var(--ink);
 }

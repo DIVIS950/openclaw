@@ -27,8 +27,39 @@ export function applyTheme(pref: ThemePref = themePref()): "dark" | "light" {
   const mode = resolve(pref);
   document.documentElement.dataset.theme = mode;
   const meta = document.querySelector('meta[name="theme-color"]');
-  meta?.setAttribute("content", mode === "dark" ? "#0b0d14" : "#f4f5fa");
+  meta?.setAttribute("content", mode === "dark" ? "#07070f" : "#f3f2fa");
   return mode;
+}
+
+export type Accent = "lime" | "cyan" | "magenta" | "violet";
+export const ACCENTS: Accent[] = ["lime", "cyan", "magenta", "violet"];
+const ACCENT_KEY = "psh.accent";
+
+export function accentPref(): Accent {
+  try {
+    const v = localStorage.getItem(ACCENT_KEY);
+    return ACCENTS.find((a) => a === v) ?? "lime";
+  } catch {
+    return "lime";
+  }
+}
+
+/** Writes data-accent on <html>; lime needs no attribute. */
+export function applyAccent(accent: Accent = accentPref()): void {
+  if (accent === "lime") {
+    delete document.documentElement.dataset.accent;
+  } else {
+    document.documentElement.dataset.accent = accent;
+  }
+}
+
+export function setAccentPref(accent: Accent): void {
+  try {
+    localStorage.setItem(ACCENT_KEY, accent);
+  } catch {
+    // Private mode: lasts until the tab closes.
+  }
+  applyAccent(accent);
 }
 
 export function setThemePref(pref: ThemePref): void {

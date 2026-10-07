@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { setThemePref, themePref, type ThemePref } from "../lib/theme.ts";
+import {
+  ACCENTS,
+  accentPref,
+  setAccentPref,
+  setThemePref,
+  themePref,
+  type Accent,
+  type ThemePref,
+} from "../lib/theme.ts";
 import { Icon } from "./Icon.tsx";
 
 const OPTIONS: { value: ThemePref; label: string }[] = [
@@ -8,11 +16,19 @@ const OPTIONS: { value: ThemePref; label: string }[] = [
   { value: "auto", label: "Auto" },
 ];
 
-/** Apps › Look: dark (default), light, or follow the phone. */
+const SWATCH: Record<Accent, string> = {
+  lime: "#c8ff2e",
+  cyan: "#3df2ff",
+  magenta: "#ff3dae",
+  violet: "#9d6bff",
+};
+
+/** More › Look: dark (default), light or follow the phone, plus the accent colour. */
 export function LookCard() {
   const [pref, setPref] = useState<ThemePref>(() => themePref());
+  const [accent, setAccent] = useState<Accent>(() => accentPref());
   return (
-    <section className="card stack rise" aria-label="Look" style={{ gap: 10 }}>
+    <section className="card stack rise" aria-label="Look" style={{ gap: 12 }}>
       <div className="row" style={{ gap: 10 }}>
         <span style={{ color: "var(--accent-ink)" }}>
           <Icon name="sparkle" size={20} />
@@ -20,7 +36,7 @@ export function LookCard() {
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700 }}>Look</div>
           <div className="muted" style={{ fontSize: 13 }}>
-            Night Studio: dark by default. Auto follows your phone.
+            Dark by default. Auto follows your phone.
           </div>
         </div>
       </div>
@@ -38,6 +54,25 @@ export function LookCard() {
             {o.label}
           </button>
         ))}
+      </div>
+      <div className="between">
+        <span style={{ fontWeight: 600 }}>Accent</span>
+        <div className="row" style={{ gap: 10 }} role="radiogroup" aria-label="Accent colour">
+          {ACCENTS.map((a) => (
+            <button
+              key={a}
+              role="radio"
+              aria-checked={accent === a}
+              aria-label={a}
+              className="accent-swatch"
+              style={{ background: SWATCH[a] }}
+              onClick={() => {
+                setAccent(a);
+                setAccentPref(a);
+              }}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

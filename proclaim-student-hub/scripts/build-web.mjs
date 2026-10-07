@@ -30,7 +30,7 @@ const seed = fs.existsSync(seedFile)
   : "";
 
 const html = `<title>Proclaim Student Hub</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap">
 <style>
 ${css}
 </style>
