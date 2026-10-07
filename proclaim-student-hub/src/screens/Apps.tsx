@@ -75,7 +75,7 @@ function Tiles({ apps, start }: { apps: AppTile[]; start: number }) {
           <span className="tile-icon" style={{ "--tile": a.tint } as React.CSSProperties}>
             <Icon name={a.icon} size={18} />
           </span>
-          {a.name}
+          <span className="tile-label">{a.name}</span>
         </a>
       ))}
     </div>

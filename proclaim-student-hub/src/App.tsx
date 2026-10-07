@@ -354,6 +354,17 @@ function Shell({
   );
 
   const current = screen === "assignment" && !assignment ? "homework" : screen;
+  // Shown at the top of Today in demo mode; it scrolls away with the screen.
+  const demoBanner = data.demo ? (
+    <div className="banner between">
+      <span>{WEB_PAGE ? "Sample data · sign in to Claude for your own" : "Demo: sample data"}</span>
+      {onSignOut && (
+        <button className="btn small dark" onClick={onSignOut}>
+          Sign in
+        </button>
+      )}
+    </div>
+  ) : null;
 
   return (
     <Ctx.Provider value={ctx}>
@@ -386,19 +397,7 @@ function Shell({
             </button>
           </div>
         )}
-        {data.demo && current === "today" && (
-          <div className="banner between" style={{ margin: "12px 16px 0" }}>
-            <span>
-              {WEB_PAGE ? "Sample data · sign in to Claude for your own" : "Demo: sample data"}
-            </span>
-            {onSignOut && (
-              <button className="btn small dark" onClick={onSignOut}>
-                Sign in
-              </button>
-            )}
-          </div>
-        )}
-        {current === "today" && <Today />}
+        {current === "today" && <Today demoBanner={demoBanner} />}
         {current === "homework" && <HomeworkScreen />}
         {current === "assignment" && assignment && (
           <Assignment key={assignment.id} hw={assignment} />

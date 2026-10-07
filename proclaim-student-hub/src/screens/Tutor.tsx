@@ -9,7 +9,7 @@ const MODES: { id: TutorMode; label: string }[] = [
   { id: "explain", label: "Explain" },
   { id: "check", label: "Check" },
   { id: "quiz", label: "Quiz me" },
-  { id: "eli10", label: "I'm 10" },
+  { id: "eli10", label: "Simpler" },
   { id: "summary", label: "Summary" },
 ];
 
@@ -191,7 +191,7 @@ export function Tutor() {
       <main className="screen buddy-body" style={{ gap: 12, paddingTop: 8 }} aria-live="polite">
         {turns.length === 0 && (
           <div className="stack rise" style={{ gap: 8 }}>
-            <p className="sub">Ask about any homework, or snap a photo of a question.</p>
+            <p className="sub buddy-hint">Ask about any homework, or snap a photo of a question.</p>
             {[
               "Explain how to solve 3x + 7 = 22",
               "Quiz me on the causes of World War One",

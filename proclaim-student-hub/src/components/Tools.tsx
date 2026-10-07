@@ -99,7 +99,7 @@ export function Tools() {
         <h2 className="eyebrow" style={{ margin: 0 }}>
           Tools
         </h2>
-        {!ai && <span className="sub">AI tools need the key (below)</span>}
+        {!ai && <span className="sub">Needs an AI key (Apps › AI key)</span>}
       </div>
       <div className="tool-grid">
         {TOOLS.map((t) => (
@@ -408,7 +408,7 @@ export function BackupCard() {
               }
             }}
           >
-            Undo to{" "}
+            Restore{" "}
             {new Date(`${latest.day}T12:00:00`).toLocaleDateString("en-GB", {
               day: "numeric",
               month: "short",

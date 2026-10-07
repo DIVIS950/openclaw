@@ -50,6 +50,13 @@ function whenText(n: number): string {
   return n === 0 ? "due today" : n === 1 ? "due tomorrow" : `due in ${n} days`;
 }
 
+/** A topic that starts with its own subject ("Maths: Term 1 test") loses that prefix. */
+export function cleanTopic(subject: string, topic: string): string {
+  const t = topic.trim();
+  const sub = subject.trim().toLowerCase();
+  return sub && t.toLowerCase().startsWith(`${sub}:`) ? t.slice(sub.length + 1).trim() : t;
+}
+
 export function buildDay(input: {
   now: Date;
   today: string;
@@ -89,8 +96,8 @@ export function buildDay(input: {
       ref: `test:${test.id}`,
       kind: "test",
       id: test.id,
-      text: `${test.subject}: ${day.title}`,
-      sub: `${test.topic} · test ${day.left === 0 ? "today" : `in ${day.left} days`} · ${day.minutes} min`,
+      text: `${test.subject}: ${cleanTopic(test.subject, test.topic)}`,
+      sub: `${day.title} · ${day.minutes} min · test ${day.left === 0 ? "today" : `in ${day.left} days`}`,
       urgency: day.left,
     }),
   );
@@ -104,7 +111,7 @@ export function buildDay(input: {
         ref: `test:${t.id}`,
         kind: "test",
         id: t.id,
-        text: `${t.subject} test: ${t.topic}`,
+        text: `${t.subject} test: ${cleanTopic(t.subject, t.topic)}`,
         sub: n === 0 ? "today" : n === 1 ? "tomorrow" : `in ${n} days`,
         urgency: n,
       };

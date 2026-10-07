@@ -63,7 +63,7 @@ const TILE_NAMES: Partial<Record<Screen, string>> = {
   apps: "All apps",
 };
 
-export function Today() {
+export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const app = useApp();
   const { data, homework, profile, ai, go } = app;
   const [events, setEvents] = useState<CalEvent[] | null>(null);
@@ -112,6 +112,7 @@ export function Today() {
 
   return (
     <main className="screen">
+      {demoBanner}
       <header className="between rise" style={{ alignItems: "flex-end", gap: 12 }}>
         <div className="stack" style={{ gap: 6, minWidth: 0 }}>
           <div className="eyebrow">

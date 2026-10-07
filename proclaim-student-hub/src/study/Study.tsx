@@ -48,12 +48,8 @@ export function TodoScreen() {
   const [version, setVersion] = useState(0);
   return (
     <main className="screen">
-      <ScreenHead title="To-do" sub="Everything you need to get done, by when it's due." />
-      <AddAnythingButton
-        big
-        label="Add anything (paste, photo or type)"
-        onSaved={() => setVersion((v) => v + 1)}
-      />
+      <ScreenHead title="To-do" sub="Everything to get done, by due date." />
+      <AddAnythingButton big label="Add anything" onSaved={() => setVersion((v) => v + 1)} />
       <TodoList key={version} />
     </main>
   );
@@ -211,6 +207,7 @@ function TodoList() {
           <input
             className="field"
             type="date"
+            lang="en-GB"
             value={due}
             onChange={(e) => setDue(e.target.value)}
             aria-label="Due date (optional)"

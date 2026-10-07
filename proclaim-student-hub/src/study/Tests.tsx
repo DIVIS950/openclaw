@@ -5,6 +5,7 @@ import { dayString } from "../lab/model.ts";
 import { packFromTopic } from "../lab/scan.ts";
 import { labPacks, settings } from "../lab/store.ts";
 import { autoPackInBackground } from "../lib/autoPack.ts";
+import { cleanTopic } from "../lib/daySummary.ts";
 import { courses } from "../lib/store.ts";
 import {
   daysBetween,
@@ -145,7 +146,7 @@ export function Tests({
             >
               <span className="chip subject">{t.subject}</span>
               <span className="row-text">
-                <strong>{t.topic}</strong>
+                <strong>{cleanTopic(t.subject, t.topic)}</strong>
                 <span>{dayLabel(t.date, today)}</span>
               </span>
               <span className={`num${daysBetween(today, t.date) <= 2 ? " soon" : ""}`}>
@@ -215,9 +216,7 @@ function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOp
             Next test · {dayLabel(test.date, today)}
           </span>
           <strong className="h2" style={{ fontSize: 18, lineHeight: 1.25 }}>
-            {test.topic.toLowerCase().startsWith(test.subject.toLowerCase())
-              ? test.topic
-              : `${test.subject} · ${test.topic}`}
+            {cleanTopic(test.subject, test.topic)}
           </strong>
           <span className="sub">
             Prep plan: {plan.length} {plan.length === 1 ? "day" : "days"}, about 10 min each
@@ -322,6 +321,7 @@ function AddTest({
           <input
             className="field"
             type="date"
+            lang="en-GB"
             min={today}
             value={date}
             onChange={(e) => setDate(e.target.value)}

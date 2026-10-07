@@ -353,6 +353,7 @@ function AddHomework({ onClose }: { onClose: () => void }) {
           <input
             className="field"
             type="date"
+            lang="en-GB"
             value={due}
             onChange={(e) => setDue(e.target.value)}
           />

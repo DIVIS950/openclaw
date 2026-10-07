@@ -48,7 +48,7 @@ export function AddAnythingButton({
           <Icon name="plus" size={26} />
         </button>
       ) : big ? (
-        <button className="btn block primary" onClick={() => setOpen(true)}>
+        <button className="btn block" onClick={() => setOpen(true)}>
           <Icon name="plus" size={16} />
           {label}
         </button>
@@ -257,6 +257,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
                       <input
                         className="field"
                         type="date"
+                        lang="en-GB"
                         value={it.date}
                         onChange={(e) => change(i, { date: e.target.value })}
                         aria-label={it.kind === "homework" ? "Due date" : "Date"}

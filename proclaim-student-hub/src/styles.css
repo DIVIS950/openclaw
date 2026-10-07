@@ -4535,3 +4535,105 @@ input[type="date"].field::-webkit-calendar-picker-indicator {
 .buddy-body {
   justify-content: flex-end;
 }
+
+/* ---------- Review pass 2: opaque bar, quieter halo, colour discipline ---------- */
+
+:root {
+  --glass: rgba(7, 7, 15, 0.98);
+}
+:root[data-theme="light"] {
+  --glass: rgba(243, 242, 250, 0.98);
+}
+.nav::before {
+  top: -72px;
+  height: 72px;
+  background: linear-gradient(to bottom, transparent, var(--bg) 65%);
+}
+@keyframes fab-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 5px color-mix(in oklab, var(--accent) 16%, transparent),
+      0 8px 24px color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--accent) 8%, transparent),
+      0 8px 28px color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+}
+
+/* Icon tints: hub and tools in the accent; brand colours only on the app links. */
+.hub-icon,
+.quick-tile-icon,
+.day-icon {
+  --tile: var(--accent);
+}
+.hw-stat strong {
+  color: var(--ink);
+}
+.hw-stat:nth-child(1) strong {
+  color: var(--accent-ink);
+}
+.hw-stat:nth-child(2) strong,
+.hw-stat:nth-child(3) strong {
+  color: var(--ink);
+}
+.hw-stat.warm strong {
+  color: var(--warm);
+}
+
+/* Secondary lines clamp to two lines too. */
+.day-text span,
+.row-text span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.sub {
+  text-wrap: pretty;
+}
+
+/* App links: two to a row on phones so the names fit; label ellipsised. */
+.tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tile-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Light timetable: start times stay ink; only the subject dot carries colour. */
+:root[data-theme="light"] .lesson-time strong {
+  color: var(--ink);
+}
+:root[data-theme="light"] .steps span.now {
+  background: color-mix(in srgb, var(--neon, var(--accent)) 55%, #000);
+  opacity: 0.5;
+}
+
+/* Study buddy empty state sits mid-screen, one thumb from the composer. */
+.buddy-body:has(.buddy-hint) {
+  justify-content: center;
+}
+
+/* Native date fields: visible as a field even before a value is picked. */
+input[type="date"].field {
+  min-width: 0;
+}
+
+@media (min-width: 768px) and (min-height: 600px) {
+  .screen > .banner {
+    max-width: 780px;
+  }
+  .now-card .btn {
+    flex: 0 1 220px;
+  }
+  .tiles {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
