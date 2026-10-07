@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
+import { MessageThread } from "../components/MessageThread.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { mastery } from "../lab/model.ts";
 import { labPacks } from "../lab/store.ts";
@@ -17,6 +18,7 @@ import {
   whatsappLink,
   type Tutor,
   type TutorMaterial,
+  type TutorMessage,
   type TutorSession,
 } from "../lib/study.ts";
 import { readMaterial } from "../lib/studyAi.ts";
@@ -539,6 +541,8 @@ function TutorPage({
 
       <TutorHomeworkList tutor={tutor} />
 
+      <TutorMessages tutor={tutor} />
+
       <div className="segmented" style={{ gridTemplateColumns: "1fr 1fr" }} role="tablist">
         <button role="tab" aria-selected={tab === "lessons"} onClick={() => setTab("lessons")}>
           Lessons · {sessions.length}
@@ -739,6 +743,36 @@ function TutorPage({
   );
 }
 
+/** Messages with this tutor; new ones ride along in the next "Share with my tutor" link. */
+function TutorMessages({ tutor }: { tutor: Tutor }) {
+  const [list, setList] = useState<TutorMessage[]>(() =>
+    tutoring.messages().filter((m) => m.tutorId === tutor.id),
+  );
+  const lastShared = tutoring.lastShared(tutor.id);
+  const pending = list.filter((m) => m.from === "student" && m.at > lastShared).length;
+  return (
+    <MessageThread
+      messages={list}
+      me="student"
+      otherName={tutor.name}
+      placeholder={`Message ${tutor.name}…`}
+      pending={pending}
+      onSend={(text) => {
+        const msg: TutorMessage = {
+          id: newId("g"),
+          tutorId: tutor.id,
+          from: "student",
+          text,
+          at: new Date().toISOString(),
+        };
+        const all = [...tutoring.messages(), msg].slice(-200);
+        tutoring.saveMessages(all);
+        setList(all.filter((m) => m.tutorId === tutor.id));
+      }}
+    />
+  );
+}
+
 /** The link that opens this tutor's Tutor Hub with the student's lessons and homework. */
 function ShareWithTutor({ tutor }: { tutor: Tutor }) {
   const { profile, toast } = useApp();
@@ -754,10 +788,12 @@ function ShareWithTutor({ tutor }: { tutor: Tutor }) {
       .toSorted((a, b) => a.date.localeCompare(b.date))[0];
     const packet = buildPacket(tutor, {
       student: profile?.name?.split(" ")[0] ?? "Student",
+      studentEmail: profile?.email ?? "",
       mastery: items.length ? mastery(items) : null,
       nextTest: test ? { topic: test.topic, date: test.date } : null,
     });
     const url = await packetLink(packet);
+    tutoring.markShared(tutor.id);
     setLink(url);
     const text = `Hi ${tutor.name}, this opens my lessons and homework in your Tutor Hub:\n${url}`;
     try {

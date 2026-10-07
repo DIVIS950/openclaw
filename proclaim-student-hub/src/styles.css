@@ -73,15 +73,18 @@
   --accent-soft: rgba(157, 107, 255, 0.2);
 }
 :root[data-theme="light"][data-accent="cyan"] {
+  --accent: #3df2ff;
   --accent-ink: #0b7f8e;
   --link: #0b7f8e;
   --accent-soft: rgba(61, 242, 255, 0.26);
 }
 :root[data-theme="light"][data-accent="magenta"] {
+  --accent: #ff3dae;
   --accent-ink: #c4147e;
   --link: #c4147e;
 }
 :root[data-theme="light"][data-accent="violet"] {
+  --accent: #9d6bff;
   --accent-ink: #5b2be0;
   --link: #5b2be0;
   --accent-soft: rgba(157, 107, 255, 0.18);
@@ -4670,4 +4673,59 @@ input[type="date"].field {
 }
 :root[data-theme="light"] .test-hero .eyebrow {
   color: color-mix(in srgb, var(--neon, var(--accent)) 55%, #000);
+}
+
+/* ---------- Tutor Hub and messages ---------- */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 86%;
+  align-self: flex-start;
+}
+.msg.mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.msg-who {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.msg-text {
+  padding: 9px 12px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.msg.mine .msg-text {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  border-radius: 16px 16px 4px 16px;
+}
+.tutor-hub .screen {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 32px);
+}
+.tutor-hub .pills {
+  margin: 0;
+  padding: 2px 0;
+  flex-wrap: wrap;
+  overflow: visible;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.send-card {
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
 }

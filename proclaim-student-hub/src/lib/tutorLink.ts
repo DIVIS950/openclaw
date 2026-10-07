@@ -4,6 +4,7 @@ import {
   tutoring,
   type Tutor,
   type TutorMaterial,
+  type TutorMessage,
   type TutorSession,
 } from "./study.ts";
 import { packJson, PAGES_URL, unpackJson } from "./transfer.ts";
@@ -30,10 +31,14 @@ export interface TutorPacket {
   v: 1;
   kind: "to-tutor";
   student: string;
+  /** For calendar invites; "" when the app doesn't know it. */
+  studentEmail?: string;
   tutor: Tutor;
   sessions: TutorSession[];
   materials: Omit<TutorMaterial, "photo">[];
   homework: TutorHomework[];
+  /** The conversation so far (both sides), newest last. */
+  messages?: TutorMessage[];
   /** The student's mastery in this subject (0-100), when the Lab knows it. */
   mastery: number | null;
   nextTest: { topic: string; date: string } | null;
@@ -52,6 +57,8 @@ export interface TutorReply {
   when: string;
   meet: string;
   message: string;
+  /** Messages the tutor wrote (the one-line `message` is also kept for older apps). */
+  messages?: TutorMessage[];
   sentAt: string;
 }
 
@@ -67,12 +74,18 @@ export function tutorHomework(tutor: Pick<Tutor, "name">): TutorHomework[] {
 
 export function buildPacket(
   tutor: Tutor,
-  extras: { student: string; mastery: number | null; nextTest: TutorPacket["nextTest"] },
+  extras: {
+    student: string;
+    studentEmail?: string;
+    mastery: number | null;
+    nextTest: TutorPacket["nextTest"];
+  },
 ): TutorPacket {
   return {
     v: 1,
     kind: "to-tutor",
     student: extras.student,
+    studentEmail: extras.studentEmail ?? "",
     tutor,
     sessions: tutoring.sessions().filter((s) => s.tutorId === tutor.id),
     materials: tutoring
@@ -80,6 +93,10 @@ export function buildPacket(
       .filter((m) => m.tutorId === tutor.id)
       .map(({ photo: _photo, ...m }) => m),
     homework: tutorHomework(tutor),
+    messages: tutoring
+      .messages()
+      .filter((m) => m.tutorId === tutor.id)
+      .slice(-40),
     mastery: extras.mastery,
     nextTest: extras.nextTest,
     sentAt: new Date().toISOString(),
@@ -109,6 +126,7 @@ export interface Applied {
   materials: number;
   homework: number;
   message: string;
+  messages: number;
 }
 
 /** Merges a tutor's reply into the student's data; new things only, by id. */
@@ -137,6 +155,28 @@ export function applyReply(reply: TutorReply, today: string): Applied {
   if (newMaterials.length > 0) {
     tutoring.saveMaterials([...materials, ...newMaterials]);
   }
+  // The tutor's messages join the thread (older apps only sent the one line).
+  const thread = tutoring.messages();
+  const incoming: TutorMessage[] = (
+    reply.messages?.length
+      ? reply.messages
+      : reply.message?.trim()
+        ? [
+            {
+              id: `m-${reply.sentAt}`,
+              tutorId: reply.tutorId,
+              from: "tutor" as const,
+              text: reply.message.trim(),
+              at: reply.sentAt,
+            },
+          ]
+        : []
+  ).filter((m) => m.from === "tutor" && m.text.trim() && !thread.some((x) => x.id === m.id));
+  if (incoming.length > 0) {
+    tutoring.saveMessages(
+      [...thread, ...incoming.map((m) => ({ ...m, tutorId: reply.tutorId }))].slice(-200),
+    );
+  }
   const list = todos.all();
   let homework = 0;
   for (const h of reply.homework) {
@@ -163,7 +203,8 @@ export function applyReply(reply: TutorReply, today: string): Applied {
     sessions: newSessions.length,
     materials: newMaterials.length,
     homework,
-    message: reply.message ?? "",
+    message: reply.message ?? incoming[incoming.length - 1]?.text ?? "",
+    messages: incoming.length,
   };
 }
 
@@ -181,12 +222,38 @@ export async function importReplyFromLocation(today: string): Promise<Applied | 
 /** Message for the toast after a reply came in. */
 export function appliedSummary(a: Applied): string {
   const parts = [
+    a.messages ? `${a.messages} ${a.messages === 1 ? "message" : "messages"}` : "",
     a.homework ? `${a.homework} homework` : "",
     a.sessions ? `${a.sessions} lesson ${a.sessions === 1 ? "note" : "notes"}` : "",
     a.materials ? `${a.materials} ${a.materials === 1 ? "material" : "materials"}` : "",
   ].filter(Boolean);
   const what = parts.length ? parts.join(", ") : "nothing new";
   return `From ${a.tutorName}: ${what}.${a.message ? ` "${a.message}"` : ""}`;
+}
+
+/**
+ * A Google Calendar "new event" link, pre-filled: the tutor opens it, Google
+ * adds a Meet link when the event has guests, and the student gets the invite.
+ */
+export function calendarInviteLink(opts: {
+  title: string;
+  start: Date;
+  minutes: number;
+  guest: string;
+  details?: string;
+}): string {
+  const stamp = (d: Date) => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
+  const end = new Date(opts.start.getTime() + opts.minutes * 60_000);
+  const q = new URLSearchParams({
+    action: "TEMPLATE",
+    text: opts.title,
+    dates: `${stamp(opts.start)}/${stamp(end)}`,
+    details: opts.details ?? "",
+  });
+  if (opts.guest) {
+    q.set("add", opts.guest);
+  }
+  return `https://calendar.google.com/calendar/render?${q.toString()}`;
 }
 
 /** The tutor's own copy, so the Tutor Hub remembers between visits. */
@@ -236,5 +303,8 @@ export function mergePacket(saved: TutorPacket | null, fresh: TutorPacket): Tuto
     sessions: byId(saved.sessions, fresh.sessions),
     materials: byId(saved.materials, fresh.materials),
     homework: byId(saved.homework, fresh.homework),
+    messages: byId(saved.messages ?? [], fresh.messages ?? []).toSorted((a, b) =>
+      a.at.localeCompare(b.at),
+    ),
   };
 }

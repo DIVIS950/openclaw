@@ -93,10 +93,31 @@ export function applyLocalSeed(seed = pageSeed()): void {
     timetable.save(seed.timetable);
   }
   const plan = schedule.get();
-  const have = new Set(plan.tests.map((t) => `${t.topic}|${t.date}`));
-  const tests = seed.tests.filter((t) => !have.has(`${t.topic}|${t.date}`));
+  // A test the student already has, now on another date in the seed: it moved.
+  const moved = seed.tests.filter((t) =>
+    plan.tests.some((p) => p.date !== t.date && sameTopic(p.topic, t.topic)),
+  );
+  if (moved.length > 0) {
+    const dateFor = (topic: string) => moved.find((m) => sameTopic(m.topic, topic))?.date;
+    schedule.save({
+      ...plan,
+      tests: plan.tests.map((p) => ({ ...p, date: dateFor(p.topic) ?? p.date })),
+    });
+    prepTests.save(
+      prepTests.all().map((p) => {
+        const date = dateFor(p.topic);
+        return date && date !== p.date ? { ...p, date } : p;
+      }),
+    );
+  }
+  const current = schedule.get();
+  const have = new Set(current.tests.map((t) => `${t.topic}|${t.date}`));
+  const tests = seed.tests.filter(
+    (t) =>
+      !have.has(`${t.topic}|${t.date}`) && !current.tests.some((p) => sameTopic(p.topic, t.topic)),
+  );
   if (tests.length > 0) {
-    schedule.save({ ...plan, tests: [...plan.tests, ...tests] });
+    schedule.save({ ...current, tests: [...current.tests, ...tests] });
     // The Tests screen keeps its own list; add the new ones there too.
     const prep = prepTests.all();
     const missing = tests.filter(

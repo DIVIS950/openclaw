@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { newId, type TutorSession } from "../lib/study.ts";
+import { MessageThread } from "../components/MessageThread.tsx";
+import { newId, type TutorMessage, type TutorSession } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import {
+  calendarInviteLink,
   mergePacket,
   readPacketFromLocation,
   replyLink,
@@ -32,7 +34,7 @@ const dateLabel = (day: string) =>
       })
     : "";
 
-type Tab = "lessons" | "homework" | "materials" | "settings";
+type Tab = "lessons" | "homework" | "materials" | "messages";
 
 export function TutorApp() {
   const [packet, setPacket] = useState<TutorPacket | null | "loading">("loading");
@@ -43,7 +45,8 @@ export function TutorApp() {
     sessions: TutorSession[];
     homework: TutorHomework[];
     materials: TutorPacket["materials"];
-  }>({ sessions: [], homework: [], materials: [] });
+    messages: TutorMessage[];
+  }>({ sessions: [], homework: [], materials: [], messages: [] });
   const [when, setWhen] = useState("");
   const [meet, setMeet] = useState("");
   const [message, setMessage] = useState("");
@@ -116,7 +119,8 @@ export function TutorApp() {
   const tutor = packet.tutor;
   const start = nextLesson({ when }, new Date());
   const open = all.homework.filter((h) => !h.done);
-  const changes = added.sessions.length + added.homework.length + added.materials.length;
+  const changes =
+    added.sessions.length + added.homework.length + added.materials.length + added.messages.length;
 
   const send = async () => {
     const reply: TutorReply = {
@@ -130,6 +134,20 @@ export function TutorApp() {
       when,
       meet,
       message: message.trim(),
+      messages: [
+        ...added.messages,
+        ...(message.trim()
+          ? [
+              {
+                id: newId("g"),
+                tutorId: tutor.id,
+                from: "tutor" as const,
+                text: message.trim(),
+                at: new Date().toISOString(),
+              },
+            ]
+          : []),
+      ],
       sentAt: new Date().toISOString(),
     };
     const url = await replyLink(reply);
@@ -141,10 +159,11 @@ export function TutorApp() {
       sessions: [...added.sessions, ...packet.sessions],
       homework: [...added.homework, ...packet.homework],
       materials: [...added.materials, ...packet.materials],
+      messages: [...(packet.messages ?? []), ...reply.messages!],
     };
     tutorStore.set(merged);
     setPacket(merged);
-    setAdded({ sessions: [], homework: [], materials: [] });
+    setAdded({ sessions: [], homework: [], materials: [], messages: [] });
     setMessage("");
   };
 
@@ -162,63 +181,73 @@ export function TutorApp() {
     }
   };
 
+  const tutorMessages = (packet.messages ?? []).filter((m) => m.tutorId === tutor.id);
+  const thread = [...tutorMessages, ...added.messages].toSorted((a, b) => a.at.localeCompare(b.at));
+  const studentEmail = packet.studentEmail ?? "";
+
   return (
-    <div className="app">
+    <div className="app tutor-hub">
       <main className="screen" style={{ gap: 16 }}>
-        <header className="stack rise" style={{ gap: 6 }}>
-          <div className="between">
+        <header className="between rise" style={{ alignItems: "flex-end" }}>
+          <div className="stack" style={{ gap: 6, minWidth: 0 }}>
             <span className="eyebrow">Tutor Hub · {tutor.name}</span>
-            {students.length > 1 && (
-              <select
-                className="field"
-                style={{ width: "auto", minHeight: 34 }}
-                value={tutorStore.key(tutor.id, packet.student)}
-                onChange={(e) => {
-                  const next = students.find(
-                    (s) => tutorStore.key(s.tutor.id, s.student) === e.target.value,
-                  );
-                  if (next) {
-                    setPacket(next);
-                    setWhen(next.tutor.when);
-                    setMeet(next.tutor.meet);
-                    setAdded({ sessions: [], homework: [], materials: [] });
-                  }
-                }}
-                aria-label="Student"
-              >
-                {students.map((s) => (
-                  <option
-                    key={tutorStore.key(s.tutor.id, s.student)}
-                    value={tutorStore.key(s.tutor.id, s.student)}
-                  >
-                    {s.student} · {s.tutor.subject}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <h1 className="h1">{packet.student}</h1>
-          <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
-            <span className="chip accent" style={subjectVars(tutor.subject)}>
-              <span className="subject-dot" aria-hidden="true" /> {tutor.subject}
-            </span>
-            <span className="chip">
-              <Icon name="calendar" size={12} />
-              {start ? `Next lesson ${lessonLabel(start, new Date())}` : when || "No lesson time"}
-            </span>
-            {packet.mastery !== null && (
-              <span className="chip good">{packet.mastery}% mastered in the Lab</span>
-            )}
-            {packet.nextTest && (
-              <span className="chip warm">
-                Test: {packet.nextTest.topic} · {dateLabel(packet.nextTest.date)}
+            <h1 className="h1">{packet.student}</h1>
+            <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+              <span className="chip subject" style={subjectVars(tutor.subject)}>
+                {tutor.subject}
               </span>
-            )}
+              {packet.mastery !== null && (
+                <span className="chip good">{packet.mastery}% mastered</span>
+              )}
+              {packet.nextTest && (
+                <span className="chip warm">
+                  <Icon name="flag" size={13} />
+                  Test {dateLabel(packet.nextTest.date)}
+                </span>
+              )}
+            </div>
           </div>
-          <span className="muted" style={{ fontSize: 12 }}>
-            Student's data as of {new Date(packet.sentAt).toLocaleString("en-GB")}
-          </span>
+          {students.length > 1 && (
+            <select
+              className="field"
+              style={{ width: "auto", minHeight: 40 }}
+              value={tutorStore.key(tutor.id, packet.student)}
+              onChange={(e) => {
+                const next = students.find(
+                  (s) => tutorStore.key(s.tutor.id, s.student) === e.target.value,
+                );
+                if (next) {
+                  setPacket(next);
+                  setWhen(next.tutor.when);
+                  setMeet(next.tutor.meet);
+                  setAdded({ sessions: [], homework: [], materials: [], messages: [] });
+                }
+              }}
+              aria-label="Student"
+            >
+              {students.map((s) => (
+                <option
+                  key={tutorStore.key(s.tutor.id, s.student)}
+                  value={tutorStore.key(s.tutor.id, s.student)}
+                >
+                  {s.student} · {s.tutor.subject}
+                </option>
+              ))}
+            </select>
+          )}
         </header>
+
+        <NextLessonCard
+          student={packet.student}
+          studentEmail={studentEmail}
+          subject={tutor.subject}
+          when={when}
+          meet={meet}
+          start={start}
+          onWhen={setWhen}
+          onMeet={setMeet}
+          onSay={say}
+        />
 
         <div className="hw-stats rise">
           <div className="hw-stat">
@@ -227,24 +256,31 @@ export function TutorApp() {
           </div>
           <div className={`hw-stat${open.length ? " warm" : ""}`}>
             <strong>{open.length}</strong>
-            <span>homework open</span>
+            <span>to do</span>
           </div>
           <div className="hw-stat">
             <strong>{all.homework.filter((h) => h.done).length}</strong>
-            <span>homework done</span>
+            <span>done</span>
           </div>
         </div>
 
-        <div className="segmented" role="tablist" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-          {(["lessons", "homework", "materials", "settings"] as Tab[]).map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
+        <div className="pills" role="tablist" aria-label="Section">
+          {(["lessons", "homework", "materials", "messages"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              className="pill"
+              role="tab"
+              aria-selected={tab === t}
+              aria-pressed={tab === t}
+              onClick={() => setTab(t)}
+            >
               {t === "lessons"
                 ? "Lessons"
                 : t === "homework"
                   ? "Homework"
                   : t === "materials"
                     ? "Materials"
-                    : "Settings"}
+                    : `Messages${thread.length ? ` · ${thread.length}` : ""}`}
             </button>
           ))}
         </div>
@@ -275,46 +311,48 @@ export function TutorApp() {
             onAdd={(m) => setAdded((a) => ({ ...a, materials: [m, ...a.materials] }))}
           />
         )}
-        {tab === "settings" && (
-          <section className="card stack rise" style={{ gap: 10 }}>
-            <label className="stack" style={{ gap: 4 }}>
-              <span className="eyebrow">Lessons are usually</span>
-              <input
-                className="field"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-                placeholder="e.g. Tuesdays 17:00"
-              />
-            </label>
-            <label className="stack" style={{ gap: 4 }}>
-              <span className="eyebrow">Google Meet link</span>
-              <input
-                className="field"
-                value={meet}
-                onChange={(e) => setMeet(e.target.value)}
-                placeholder="https://meet.google.com/…"
-                inputMode="url"
-              />
-            </label>
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              These go to the student with your next send.
-            </p>
-          </section>
+        {tab === "messages" && (
+          <MessageThread
+            messages={thread}
+            me="tutor"
+            otherName={packet.student}
+            placeholder={`Message ${packet.student}…`}
+            pending={added.messages.length}
+            onSend={(text) =>
+              setAdded((a) => ({
+                ...a,
+                messages: [
+                  ...a.messages,
+                  {
+                    id: newId("g"),
+                    tutorId: tutor.id,
+                    from: "tutor",
+                    text,
+                    at: new Date().toISOString(),
+                  },
+                ],
+              }))
+            }
+          />
         )}
 
-        <section className="card-dark stack rise" style={{ gap: 10 }}>
-          <strong style={{ fontSize: 17 }}>
-            {changes
-              ? `${changes} new ${changes === 1 ? "thing" : "things"} to send`
-              : "Send to student"}
-          </strong>
+        <section className="card stack rise send-card" style={{ gap: 10 }}>
+          <div className="stack" style={{ gap: 2 }}>
+            <strong style={{ fontSize: 17 }}>
+              {changes
+                ? `${changes} new ${changes === 1 ? "thing" : "things"} to send`
+                : "Send to student"}
+            </strong>
+            <span className="sub">
+              Lessons, homework, materials, messages and the lesson time all go in one link.
+            </span>
+          </div>
           <textarea
             className="field"
             rows={2}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="A short message for the student (optional)"
-            style={{ color: "var(--ink)" }}
           />
           <button className="btn primary big" onClick={() => void send()}>
             <Icon name="send" size={18} />
@@ -345,12 +383,12 @@ export function TutorApp() {
                 rows={2}
                 value={link}
                 aria-label="Link for the student"
-                style={{ fontSize: 11, color: "var(--ink)" }}
+                style={{ fontSize: 11 }}
                 onFocus={(e) => e.currentTarget.select()}
               />
-              <span style={{ fontSize: 13, opacity: 0.8 }}>
-                The student opens it on their phone; it drops straight into their Tutoring and
-                To-do.
+              <span className="sub">
+                The student opens it on their phone; it drops straight into their Tutoring, To-do
+                and Messages.
               </span>
             </div>
           )}
@@ -367,6 +405,188 @@ export function TutorApp() {
       </main>
     </div>
   );
+}
+
+/**
+ * The next lesson: countdown, Join Meet, and "Schedule" which opens the
+ * tutor's Google Calendar with the student as a guest, so the invite (and
+ * the Meet link Google adds) lands in the student's calendar and app.
+ */
+function NextLessonCard({
+  student,
+  studentEmail,
+  subject,
+  when,
+  meet,
+  start,
+  onWhen,
+  onMeet,
+  onSay,
+}: {
+  student: string;
+  studentEmail: string;
+  subject: string;
+  when: string;
+  meet: string;
+  start: Date | null;
+  onWhen: (v: string) => void;
+  onMeet: (v: string) => void;
+  onSay: (text: string) => void;
+}) {
+  const [edit, setEdit] = useState(false);
+  const [date, setDate] = useState(() => (start ? start.toISOString().slice(0, 10) : today()));
+  const [time, setTime] = useState(() => (start ? start.toTimeString().slice(0, 5) : "17:00"));
+  const [minutes, setMinutes] = useState(60);
+  const now = new Date();
+  const link = safeMeet(meet);
+  const schedule = () => {
+    const at = new Date(`${date}T${time}:00`);
+    if (Number.isNaN(at.getTime())) {
+      onSay("Pick a date and time first.");
+      return;
+    }
+    const url = calendarInviteLink({
+      title: `${subject} tutoring with ${student}`,
+      start: at,
+      minutes,
+      guest: studentEmail,
+      details: link ? `Google Meet: ${link}` : "Google adds a Meet link to this invite.",
+    });
+    window.open(url, "_blank", "noopener");
+    onSay(
+      studentEmail
+        ? `Calendar opened with ${student} invited. Save it and the invite reaches them.`
+        : "Calendar opened. Add the student's email as a guest, then save.",
+    );
+  };
+  return (
+    <section className="card hero stack rise" style={{ gap: 14 }} aria-label="Next lesson">
+      <div className="between" style={{ alignItems: "center", gap: 12 }}>
+        <div className="stack" style={{ gap: 5, minWidth: 0 }}>
+          <span className="eyebrow" style={{ color: "var(--accent-ink)" }}>
+            {start ? `Next lesson · ${lessonLabel(start, now)}` : "Next lesson"}
+          </span>
+          <strong className="h2" style={{ fontSize: 18 }}>
+            {when || "No regular time yet"}
+          </strong>
+          <span className="sub">{link ? "Google Meet" : "No Meet link yet"}</span>
+        </div>
+        {start && (
+          <span className="test-count">
+            <span className="num" style={{ color: "var(--accent-ink)", fontSize: 26 }}>
+              {countdownLabel(start, now)}
+            </span>
+            <span className="eyebrow">to go</span>
+          </span>
+        )}
+      </div>
+      <div className="row" style={{ gap: 10 }}>
+        {link ? (
+          <a
+            className="btn primary"
+            style={{ flex: 1 }}
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon name="link" size={16} />
+            Join Meet
+          </a>
+        ) : (
+          <button className="btn primary" style={{ flex: 1 }} onClick={() => setEdit(true)}>
+            <Icon name="link" size={16} />
+            Add Meet link
+          </button>
+        )}
+        <button className="btn" style={{ flex: 1 }} onClick={() => setEdit((v) => !v)}>
+          <Icon name="calendar" size={16} />
+          {edit ? "Close" : "Schedule"}
+        </button>
+      </div>
+      {edit && (
+        <div
+          className="stack"
+          style={{ gap: 10, paddingTop: 4, borderTop: "1px solid var(--line)" }}
+        >
+          <label className="stack" style={{ gap: 4 }}>
+            <span className="eyebrow">Lessons are usually</span>
+            <input
+              className="field"
+              value={when}
+              onChange={(e) => onWhen(e.target.value)}
+              placeholder="e.g. Tuesdays 17:00"
+            />
+          </label>
+          <label className="stack" style={{ gap: 4 }}>
+            <span className="eyebrow">Google Meet link</span>
+            <input
+              className="field"
+              value={meet}
+              onChange={(e) => onMeet(e.target.value)}
+              placeholder="https://meet.google.com/…"
+              inputMode="url"
+            />
+          </label>
+          <span className="eyebrow">Send a calendar invite</span>
+          <div className="row" style={{ gap: 8 }}>
+            <input
+              className="field"
+              type="date"
+              lang="en-GB"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              aria-label="Lesson date"
+              style={{ flex: 1.2 }}
+            />
+            <input
+              className="field"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Lesson time"
+              style={{ flex: 1 }}
+            />
+            <select
+              className="field"
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value))}
+              aria-label="Length"
+              style={{ flex: 0.9 }}
+            >
+              {[30, 45, 60, 90].map((m) => (
+                <option key={m} value={m}>
+                  {m} min
+                </option>
+              ))}
+            </select>
+          </div>
+          <button className="btn block" onClick={schedule}>
+            <Icon name="calendar" size={16} />
+            Open in Google Calendar{studentEmail ? ` · invites ${student}` : ""}
+          </button>
+          <span className="sub">
+            Google adds a Meet link to the invite; the student sees it in Today and Tutoring. The
+            time and Meet link above go to the student with your next link.
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const safeMeet = (url: string) => (/^https:\/\/[^\s]+$/i.test(url.trim()) ? url.trim() : "");
+
+/** "1d 5h", "3h 20m" or "now". */
+function countdownLabel(start: Date, now: Date): string {
+  const ms = start.getTime() - now.getTime();
+  if (ms <= 0) {
+    return "now";
+  }
+  const mins = Math.round(ms / 60_000);
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 function LessonsTab({

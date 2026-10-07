@@ -131,7 +131,13 @@ function syncSchedule(list: PrepTest[]) {
   const plan = schedule.get();
   schedule.save({
     ...plan,
-    tests: list.map((t) => ({ topic: `${t.subject}: ${t.topic}`, date: t.date })),
+    tests: list.map((t) => ({
+      // Seeded topics already start with the subject; don't say it twice.
+      topic: t.topic.toLowerCase().startsWith(`${t.subject.toLowerCase()}:`)
+        ? t.topic
+        : `${t.subject}: ${t.topic}`,
+      date: t.date,
+    })),
   });
 }
 
@@ -416,7 +422,27 @@ export interface TutorMaterial {
   date: string;
 }
 
+/** A short message between the student and a tutor, carried in the shared links. */
+export interface TutorMessage {
+  id: string;
+  tutorId: string;
+  from: "student" | "tutor";
+  text: string;
+  /** ISO time. */
+  at: string;
+}
+
 export const tutoring = {
+  messages: (): TutorMessage[] => read<TutorMessage[]>("psh.tutor.messages", []),
+  saveMessages: (list: TutorMessage[]) => write("psh.tutor.messages", list),
+  /** When this tutor last got a link (ISO), so unsent messages can be counted. */
+  lastShared: (tutorId: string): string =>
+    read<Record<string, string>>("psh.tutor.shared", {})[tutorId] ?? "",
+  markShared: (tutorId: string) =>
+    write("psh.tutor.shared", {
+      ...read<Record<string, string>>("psh.tutor.shared", {}),
+      [tutorId]: new Date().toISOString(),
+    }),
   tutors: (): Tutor[] => read<Tutor[]>("psh.tutors", []),
   saveTutors: (list: Tutor[]) => write("psh.tutors", list),
   sessions: (): TutorSession[] => read<TutorSession[]>("psh.tutor.sessions", []),

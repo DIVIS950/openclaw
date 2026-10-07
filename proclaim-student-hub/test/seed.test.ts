@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readSeed } from "../src/lib/seed.ts";
 
 describe("readSeed", () => {
@@ -51,5 +51,48 @@ describe("readSeed", () => {
   it("rejects seeds without a version", () => {
     expect(readSeed({ timetable: [] })).toBeNull();
     expect(readSeed(null)).toBeNull();
+  });
+});
+
+describe("applyLocalSeed", () => {
+  it("moves a test to the seed's new date instead of adding a second copy", async () => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+      key: (i: number) => [...map.keys()][i] ?? null,
+      get length() {
+        return map.size;
+      },
+    });
+    const { prepTests } = await import("../src/lib/study.ts");
+    const { schedule } = await import("../src/lib/store.ts");
+    const { applyLocalSeed, readSeed } = await import("../src/lib/seed.ts");
+    const topic = "Czech Geography: summative test (Europe political map)";
+    schedule.save({ tests: [{ topic, date: "2026-10-20" }], days: [], done: [] });
+    prepTests.save([
+      {
+        id: "x1",
+        subject: "Czech Geography",
+        topic,
+        date: "2026-10-20",
+        start: "2026-10-01",
+        packId: "",
+        done: [],
+      },
+    ]);
+    applyLocalSeed(
+      readSeed({
+        version: "v2",
+        timetable: [],
+        tests: [{ topic, date: "2026-10-22" }],
+        homework: [],
+        courses: [],
+      }),
+    );
+    expect(schedule.get().tests).toEqual([{ topic, date: "2026-10-22" }]);
+    expect(prepTests.all().map((t) => t.date)).toEqual(["2026-10-22"]);
+    vi.unstubAllGlobals();
   });
 });
