@@ -4665,3 +4665,9 @@ input[type="date"].field {
 .app:has(> .composer) .nav::before {
   display: none;
 }
+.test-hero .eyebrow {
+  color: var(--neon, var(--accent-ink));
+}
+:root[data-theme="light"] .test-hero .eyebrow {
+  color: color-mix(in srgb, var(--neon, var(--accent)) 55%, #000);
+}
