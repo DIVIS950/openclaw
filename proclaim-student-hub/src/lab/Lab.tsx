@@ -542,8 +542,8 @@ function LabHome({
           <h1 className="h1">Level {lvl.level}</h1>
         </div>
         <div className="row">
-          <span className="chip warm" style={{ borderRadius: 16, padding: "6px 10px" }}>
-            <Icon name="flame" size={16} className="wiggle" />
+          <span className={stats.streak > 0 ? "chip warm" : "chip"}>
+            <Icon name="flame" size={16} className={stats.streak > 0 ? "wiggle" : undefined} />
             {stats.streak} {stats.streak === 1 ? "day" : "days"}
           </span>
           <button

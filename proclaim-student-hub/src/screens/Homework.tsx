@@ -56,7 +56,11 @@ export function HomeworkScreen() {
         <div className="stack" style={{ gap: 6, minWidth: 0 }}>
           <h1 className="h1">Homework</h1>
           <span className="sync-line">
-            <span className="dot-ok" aria-hidden="true" />
+            <span
+              className="dot-ok"
+              style={data.demo ? { background: "var(--muted)" } : undefined}
+              aria-hidden="true"
+            />
             {data.demo
               ? "Sample data"
               : sync && !sync.error

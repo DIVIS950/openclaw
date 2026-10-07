@@ -148,7 +148,9 @@ export function Tests({
                 <strong>{t.topic}</strong>
                 <span>{dayLabel(t.date, today)}</span>
               </span>
-              <span className="num">{daysBetween(today, t.date)} d</span>
+              <span className={`num${daysBetween(today, t.date) <= 2 ? " soon" : ""}`}>
+                {daysBetween(today, t.date)} d
+              </span>
             </button>
           ))}
         </section>

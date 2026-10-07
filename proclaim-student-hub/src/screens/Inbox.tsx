@@ -76,7 +76,11 @@ export function Inbox() {
       <header className="between rise">
         <div className="stack" style={{ gap: 4 }}>
           <h1 className="h1">Inbox</h1>
-          <p className="sub">Gmail and Classroom posts, with an AI one-liner on each.</p>
+          <p className="sub">
+            {app.ai
+              ? "Gmail and Classroom posts, with an AI one-liner on each."
+              : "Gmail and Classroom posts."}
+          </p>
         </div>
         <button className="round" aria-label="All apps" onClick={() => app.go("apps")}>
           <Icon name="apps" size={20} />

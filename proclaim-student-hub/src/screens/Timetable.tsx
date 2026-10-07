@@ -206,9 +206,15 @@ export function Timetable() {
                     <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
                       <strong className="lesson-name">{l.subject}</strong>
                       <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                        {l.room && <span className="lesson-room">Room {l.room}</span>}
-                        {hw.length > 0 && (
-                          <span className="lesson-room">· {hw.length} homework</span>
+                        {(l.room || hw.length > 0) && (
+                          <span className="lesson-room">
+                            {[
+                              l.room ? `Room ${l.room}` : "",
+                              hw.length > 0 ? `${hw.length} homework` : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
                         )}
                       </span>
                     </span>

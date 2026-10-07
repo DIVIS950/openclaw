@@ -95,9 +95,12 @@ export function Tools() {
   const days = nextTest ? daysBetween(today, nextTest.date) : null;
   return (
     <section className="stack" style={{ gap: 10 }}>
-      <h2 className="eyebrow" style={{ margin: 0 }}>
-        Tools
-      </h2>
+      <div className="between">
+        <h2 className="eyebrow" style={{ margin: 0 }}>
+          Tools
+        </h2>
+        {!ai && <span className="sub">AI tools need the key (below)</span>}
+      </div>
       <div className="tool-grid">
         {TOOLS.map((t) => (
           <button
@@ -131,11 +134,7 @@ export function Tools() {
         </button>
         <Calculator />
       </div>
-      {!ai && (
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          The AI tools need the key (Apps › AI key).
-        </p>
-      )}
+
       {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
     </section>
   );
@@ -409,7 +408,11 @@ export function BackupCard() {
               }
             }}
           >
-            Undo to {latest.day.slice(5)}
+            Undo to{" "}
+            {new Date(`${latest.day}T12:00:00`).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })}
           </button>
         )}
       </div>

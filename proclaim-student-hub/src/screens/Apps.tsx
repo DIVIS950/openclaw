@@ -46,7 +46,7 @@ const OTHERS: AppTile[] = [
     tint: "var(--lime)",
   },
   {
-    name: "Student Desmos",
+    name: "Desmos Student",
     url: "https://student.desmos.com",
     icon: "points",
     tint: "var(--mint)",

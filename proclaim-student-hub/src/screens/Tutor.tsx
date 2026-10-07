@@ -156,9 +156,6 @@ export function Tutor() {
                 <Icon name="mic" size={18} />
               </button>
             )}
-            <button className="round" onClick={() => app.go("revise")} aria-label="Revision Lab">
-              <Icon name="camera" size={18} />
-            </button>
             {turns.length > 0 && (
               <button
                 className="btn small"
@@ -191,7 +188,7 @@ export function Tutor() {
         </div>
       </header>
 
-      <main className="screen" style={{ gap: 12, paddingTop: 8 }} aria-live="polite">
+      <main className="screen buddy-body" style={{ gap: 12, paddingTop: 8 }} aria-live="polite">
         {turns.length === 0 && (
           <div className="stack rise" style={{ gap: 8 }}>
             <p className="sub">Ask about any homework, or snap a photo of a question.</p>

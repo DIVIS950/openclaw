@@ -154,10 +154,7 @@ export function Today() {
       <section className="stack" style={{ gap: 10 }}>
         <div className="between">
           <h2 className="h2">Your day</h2>
-          <span className="chip violet">
-            <Icon name="sparkle" size={14} />
-            {ai && !data.demo ? "AI sorted" : "Sorted"}
-          </span>
+          <span className="eyebrow">{ai && !data.demo ? "AI sorted" : "By due date"}</span>
         </div>
         <DaySummary key={summaryVersion} />
         {ai && (

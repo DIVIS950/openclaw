@@ -51,7 +51,7 @@ export function TodoScreen() {
       <ScreenHead title="To-do" sub="Everything you need to get done, by when it's due." />
       <AddAnythingButton
         big
-        label="Add anything: paste or photo, the AI sorts it"
+        label="Add anything (paste, photo or type)"
         onSaved={() => setVersion((v) => v + 1)}
       />
       <TodoList key={version} />

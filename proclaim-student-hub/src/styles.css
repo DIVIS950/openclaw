@@ -4266,3 +4266,272 @@ h2 {
     animation: none;
   }
 }
+
+/* ---------- Review pass 1: glass bar, truncation, disabled, radii, orbs ---------- */
+
+:root {
+  --glass: rgba(7, 7, 15, 0.94);
+  --r-card: 24px;
+  --r-tile: 20px;
+  --r-inner: 14px;
+}
+:root[data-theme="light"] {
+  --glass: rgba(243, 242, 250, 0.94);
+}
+
+/* Lines are drawn on the card, not through it, so the orbs don't tint them. */
+.card,
+.list,
+.hw-stat,
+.quick-tile,
+.tile,
+.hub-tile,
+.tool,
+.btn,
+.pill,
+.round,
+.day-section,
+.hw-swipe,
+.lesson {
+  background-clip: padding-box;
+}
+
+/* Two radii: standalone blocks and tiles, and things nested inside them. */
+.hw-stat,
+.quick-tile,
+.hub-tile,
+.subject-card,
+.hw-swipe,
+.tool,
+.tile,
+.lesson,
+.day-tabs button {
+  border-radius: var(--r-tile);
+}
+.field,
+.ico,
+.hub-icon,
+.tile-icon,
+.quick-tile-icon,
+.day-icon,
+.day-num {
+  border-radius: var(--r-inner);
+}
+.hub-icon,
+.tool .ico,
+.tile-icon,
+.quick-tile-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+.textarea.field,
+textarea.field {
+  border-radius: 16px;
+  resize: none;
+}
+
+/* The tab bar hides what is under it; the fade above it is taller. */
+.nav::before {
+  top: -56px;
+  height: 56px;
+  background: linear-gradient(to bottom, transparent, var(--bg) 85%);
+}
+.screen {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 140px);
+}
+
+/* Orbs: lower, behind the cards, softer in light mode. */
+.app::after {
+  top: 55%;
+  left: -200px;
+}
+.app::before,
+.app::after {
+  opacity: 0.3;
+  filter: blur(80px);
+}
+:root[data-theme="light"] .app::before,
+:root[data-theme="light"] .app::after {
+  opacity: 0.18;
+  filter: blur(90px);
+}
+
+/* Disabled primary actions turn neutral instead of a dimmed lime. */
+.btn.primary:disabled,
+.btn.dark:disabled,
+.round.dark:disabled,
+.btn.big:disabled {
+  opacity: 1;
+  background: var(--card-2);
+  color: var(--muted);
+  border-color: var(--line);
+  box-shadow: none;
+}
+.tool:disabled {
+  opacity: 1;
+  color: var(--muted);
+}
+.tool:disabled .ico {
+  background: var(--card-2);
+  color: var(--muted);
+}
+/* Only the Add button glows; buttons inside cards stay flat. */
+.card .btn.primary,
+.now-card .btn.primary,
+.test-hero .btn.primary {
+  box-shadow: none;
+}
+
+/* Titles may take two lines instead of eating the one word that matters. */
+.row-text strong,
+.day-text strong {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.test-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+.test-row .chip.subject {
+  max-width: 100%;
+}
+.test-row .row-text {
+  flex-basis: 100%;
+  order: 3;
+}
+.test-row .num {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+  align-self: center;
+}
+.test-row .num.soon {
+  color: var(--warm);
+}
+
+/* Light mode: subject colours darken for text and bars on white. */
+:root[data-theme="light"] .test-hero .eyebrow,
+:root[data-theme="light"] .test-count .num,
+:root[data-theme="light"] .lesson-time strong {
+  color: color-mix(in srgb, var(--neon, var(--accent)) 55%, #000);
+}
+:root[data-theme="light"] .steps span.done {
+  background: color-mix(in srgb, var(--neon, var(--accent)) 70%, #000);
+}
+
+/* Snap card: same card as everything else. */
+.snap-btn {
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  background-clip: padding-box;
+}
+.snap-btn:disabled {
+  opacity: 1;
+  color: var(--muted);
+}
+.snap-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-inner);
+}
+.snap-btn:disabled .snap-icon {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
+/* Empty states: one pattern. */
+.empty {
+  padding: 28px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-inner);
+}
+
+/* Big full-width actions keep one line. */
+.btn.big {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Timetable: colour dot before the subject, not a bar on the edge. */
+.lesson {
+  padding-left: 14px;
+}
+.lesson::before {
+  display: none;
+}
+.lesson-name::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: 1px;
+  background: var(--neon, var(--subject, var(--accent)));
+}
+.day-tabs button {
+  min-height: 60px;
+  gap: 3px;
+}
+.day-tabs button.is-today::after {
+  bottom: 6px;
+}
+
+/* Horizontal rows fade out at the gutter instead of a hard cut. */
+.pills,
+.buddy-head .segmented {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  padding-right: 44px;
+}
+
+/* Native date fields in the dark theme. */
+input[type="date"].field::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  filter: invert(1);
+}
+:root[data-theme="light"] input[type="date"].field::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+/* Settings rows: the icon sits on the first line of a two-line block. */
+.card.row {
+  align-items: flex-start;
+}
+.card.row > .tile-icon,
+.card.row > span:first-child {
+  margin-top: 2px;
+}
+.tile {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The demo banner and Today's "Now:" line: no duplicates of the Now card. */
+.banner {
+  margin-bottom: 4px;
+}
+.now-card ~ section .day-now {
+  display: none;
+}
+
+/* Study buddy: suggestions sit above the composer. */
+.buddy-body {
+  justify-content: flex-end;
+}
