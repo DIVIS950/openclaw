@@ -3086,3 +3086,187 @@ h3,
   color: var(--on-accent);
   border-color: transparent;
 }
+
+/* ---------- Night Studio Pro ---------- */
+
+/* Soft colour wash behind everything: lime top-left, violet bottom-right. */
+.app::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(60% 40% at 0% 0%, rgba(200, 255, 77, 0.1), transparent 70%),
+    radial-gradient(50% 40% at 100% 100%, rgba(155, 123, 255, 0.14), transparent 70%);
+}
+:root[data-theme="light"] .app::before {
+  background:
+    radial-gradient(60% 40% at 0% 0%, rgba(200, 255, 77, 0.3), transparent 70%),
+    radial-gradient(50% 40% at 100% 100%, rgba(155, 123, 255, 0.16), transparent 70%);
+}
+.app {
+  isolation: isolate;
+}
+
+.h1 {
+  font-size: 34px;
+}
+
+/* Tab bar: four tabs around the raised Add button. */
+.nav {
+  justify-content: space-between;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.nav-item {
+  max-width: none;
+  flex: 1 1 0;
+}
+.nav-fab {
+  flex: 0 0 auto;
+  width: 62px;
+  height: 62px;
+  margin-top: -30px;
+  border-radius: 22px;
+  border: 4px solid var(--bg);
+  background: var(--accent);
+  color: var(--on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 30px rgba(200, 255, 77, 0.35);
+  transition: transform 0.25s var(--bounce);
+}
+.nav-fab:active {
+  transform: scale(0.92);
+}
+@media (min-width: 768px) and (min-height: 600px) {
+  .nav-fab {
+    margin: 6px auto;
+  }
+}
+
+/* The Now card: live ring, subject colour on the edge. */
+.now-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 26px;
+  background: var(--hero);
+  color: var(--ink);
+  border: 1px solid var(--card-border);
+  border-left: 6px solid var(--neon, var(--accent));
+}
+.now-title {
+  font-size: 24px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.now-ring {
+  --p: 0%;
+  flex: none;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--neon, var(--accent)) var(--p), rgba(128, 128, 128, 0.18) 0);
+  transition: background 0.6s ease;
+}
+.now-ring > span {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--card);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  font-family: var(--serif);
+}
+
+/* More screen: the hub grid. */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.hub-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+  min-height: 44px;
+}
+.hub-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  display: inline-grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--tile) 18%, var(--card));
+  color: var(--tile);
+  transition: transform 0.25s var(--bounce);
+}
+:root[data-theme="light"] .hub-icon {
+  background: color-mix(in srgb, var(--tile) 22%, #fff);
+  color: color-mix(in srgb, var(--tile) 70%, #000);
+}
+.hub-tile:active .hub-icon {
+  transform: scale(0.92);
+}
+
+/* Homework rows: swipe right to finish. */
+.hw-swipe {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.hw-swipe-under {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 18px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.hw-swipe-armed .hw-swipe-under {
+  opacity: 1;
+}
+.hw-swipe-tick {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--on-accent);
+  color: var(--accent);
+  font-size: 13px;
+  transition: transform 0.25s var(--bounce);
+}
+.hw-swipe-armed .hw-swipe-tick {
+  transform: scale(1.25);
+}
+.hw-swipe .hw-row {
+  position: relative;
+  /* The rise animation would pin transform to none and block the swipe. */
+  animation: none;
+  transition: transform 0.3s var(--spring);
+  background: var(--card);
+}

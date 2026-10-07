@@ -30,17 +30,24 @@ const KIND_ICON = {
 export function AddAnythingButton({
   label = "Add anything",
   big = false,
+  variant,
   onSaved,
 }: {
   label?: string;
   big?: boolean;
+  /** "fab": the raised centre button in the tab bar. */
+  variant?: "fab";
   /** Lets the screen showing the lists reload them. */
   onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      {big ? (
+      {variant === "fab" ? (
+        <button className="nav-fab" aria-label={label} onClick={() => setOpen(true)}>
+          <Icon name="plus" size={26} />
+        </button>
+      ) : big ? (
         <button className="btn block primary" onClick={() => setOpen(true)}>
           <Icon name="plus" size={16} />
           {label}

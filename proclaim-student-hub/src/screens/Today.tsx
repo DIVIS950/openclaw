@@ -3,6 +3,7 @@ import { AddAnythingButton } from "../components/AddAnything.tsx";
 import { DaySummary } from "../components/DaySummary.tsx";
 import { HomeworkRow } from "../components/HomeworkRow.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
+import { NowCard } from "../components/NowCard.tsx";
 import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { WeekPlan } from "../components/WeekPlan.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
@@ -149,6 +150,7 @@ export function Today() {
       </header>
 
       <UnlockCard />
+      <NowCard />
       <AiKeyCard />
 
       <section className="card stack rise hero" style={{ gap: 12, animationDelay: "0.05s" }}>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, ImageInput, TutorMode } from "../shared/api.ts";
+import { AddAnythingButton } from "./components/AddAnything.tsx";
 import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
@@ -469,27 +470,33 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         <Icon name="homework" />
         Homework
       </button>
-      <button className="nav-item" aria-current={active(["todo"])} onClick={() => go("todo")}>
-        <Icon name="todo" />
-        To-do
+      {/* The big centre button: paste, photo, voice or type and the AI files it. */}
+      <AddAnythingButton variant="fab" />
+      <button
+        className="nav-item"
+        aria-current={active(["tutor", "call"])}
+        onClick={() => go("tutor")}
+      >
+        <Icon name="sparkle" />
+        AI help
       </button>
       <button
         className="nav-item"
-        aria-current={active(["tutor", "revise", "games", "call"])}
-        onClick={() => go("tutor")}
+        aria-current={active([
+          "apps",
+          "todo",
+          "tests",
+          "notes",
+          "revise",
+          "games",
+          "timetable",
+          "tutoring",
+          "inbox",
+        ])}
+        onClick={() => go("apps")}
       >
-        <span className="nav-ai">
-          <Icon name="sparkle" size={22} />
-        </span>
-        AI help
-      </button>
-      <button className="nav-item" aria-current={active(["tests"])} onClick={() => go("tests")}>
-        <Icon name="flag" />
-        Tests
-      </button>
-      <button className="nav-item" aria-current={active(["notes"])} onClick={() => go("notes")}>
-        <Icon name="note" />
-        Notes
+        <Icon name="apps" />
+        More
       </button>
     </nav>
   );

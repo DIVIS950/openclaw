@@ -1,7 +1,7 @@
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
-import { useApp } from "../context.ts";
+import { useApp, type Screen } from "../context.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { CLAUDE_PAGE, GmailCard, PagesSettings, SendToWeb } from "../pages/WebVersion.tsx";
 
@@ -88,14 +88,41 @@ function Tiles({ apps, start }: { apps: AppTile[]; start: number }) {
   );
 }
 
+const HUB: { screen: Screen; label: string; icon: IconName; tint: string }[] = [
+  { screen: "todo", label: "To-do", icon: "todo", tint: "var(--cyan)" },
+  { screen: "tests", label: "Tests", icon: "flag", tint: "var(--coral)" },
+  { screen: "notes", label: "Notes", icon: "note", tint: "var(--amber)" },
+  { screen: "revise", label: "Revise", icon: "camera", tint: "var(--lime)" },
+  { screen: "timetable", label: "Timetable", icon: "calendar", tint: "var(--violet)" },
+  { screen: "tutoring", label: "Tutoring", icon: "book", tint: "var(--mint)" },
+  { screen: "inbox", label: "Inbox", icon: "mail", tint: "var(--cyan)" },
+  { screen: "call", label: "Talk", icon: "mic", tint: "var(--coral)" },
+];
+
 export function Apps() {
-  const { profile, data, signOut } = useApp();
+  const { profile, data, signOut, go } = useApp();
   return (
     <main className="screen" style={{ gap: 18 }}>
       <header className="stack rise" style={{ gap: 4 }}>
-        <h1 className="h1">Your apps</h1>
-        <p className="sub">One tap into every school app.</p>
+        <h1 className="h1">More</h1>
+        <p className="sub">Everything else in the hub, one tap away.</p>
       </header>
+
+      <nav className="hub-grid rise" aria-label="Hub">
+        {HUB.map((h, i) => (
+          <button
+            key={h.screen}
+            className="hub-tile pop"
+            style={{ "--tile": h.tint, animationDelay: `${i * 0.04}s` } as React.CSSProperties}
+            onClick={() => go(h.screen)}
+          >
+            <span className="hub-icon" aria-hidden="true">
+              <Icon name={h.icon} size={22} />
+            </span>
+            {h.label}
+          </button>
+        ))}
+      </nav>
 
       <Tools />
 
