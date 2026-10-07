@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../context.ts";
 import { nowLesson } from "../lib/nowLesson.ts";
 import { timetable } from "../lib/store.ts";
+import { CountUp } from "./CountUp.tsx";
 import { Icon } from "./Icon.tsx";
 
 /**
@@ -22,31 +23,48 @@ export function NowCard() {
   const lesson = info.lesson;
   const live = info.state === "now";
   const pct = live ? Math.round(info.progress * 100) : 0;
-  const big = live ? info.minutesLeft : info.minutesUntil < 100 ? info.minutesUntil : lesson.start;
+  const big = live ? info.minutesLeft : info.minutesUntil < 100 ? info.minutesUntil : null;
   const small = live ? "min left" : info.minutesUntil < 100 ? "min to go" : "starts";
+  // Ring: r=36 → circumference 226.2; the offset is what's left to draw.
+  const off = 226.2 * (1 - (live ? info.progress : 0));
   return (
-    <section className="now-card" aria-label={live ? "Now" : "Next lesson"}>
+    <section className="card hero now-card rise d2" aria-label={live ? "Now" : "Next lesson"}>
       <div className="now-head">
-        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
-          <span className="eyebrow">
-            {live && <span className="live-dot" aria-hidden="true" />}
+        <div className="stack" style={{ gap: 7, minWidth: 0 }}>
+          <span className="eyebrow row" style={{ color: "var(--accent-t)", gap: 8 }}>
+            {live && <span className="dot" aria-hidden="true" />}
             {live ? "Now" : "Next up"}
             {lesson.room ? ` · Room ${lesson.room}` : ""}
           </span>
-          <strong className="display now-title">{lesson.subject}</strong>
-          <span className="sub">
+          <strong className="h1 now-title" style={{ fontSize: 30 }}>
+            {lesson.subject}
+          </strong>
+          <span className="t2 s13">
             {lesson.start}
             {lesson.end ? ` – ${lesson.end}` : ""}
-            {live && info.after ? ` · then ${info.after.subject}` : ""}
+            {live && info.after ? ` · ${info.after.subject} next` : ""}
           </span>
         </div>
         <span
-          className="now-ring"
-          style={{ "--p": `${pct}%` } as React.CSSProperties}
+          className="ring-wrap now-ring"
+          style={{ "--off": off } as React.CSSProperties}
           aria-label={live ? `${info.minutesLeft} minutes left, ${pct}% through` : "Not started"}
         >
-          <span>
-            <b>{big}</b>
+          <svg viewBox="0 0 84 84" width="84" height="84" aria-hidden="true">
+            <circle cx="42" cy="42" r="36" fill="none" stroke="var(--line)" strokeWidth="7" />
+            <circle
+              className="arc"
+              cx="42"
+              cy="42"
+              r="36"
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="ring-text">
+            <b>{big === null ? lesson.start : <CountUp n={big} delay={600} />}</b>
             <small>{small}</small>
           </span>
         </span>

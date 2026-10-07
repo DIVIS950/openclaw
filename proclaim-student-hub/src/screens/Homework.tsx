@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { AskButton } from "../components/AskButton.tsx";
+import { CountUp } from "../components/CountUp.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
+import { SwipeDone } from "../components/SwipeDone.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { syncStatus } from "../lib/classroomSync.ts";
@@ -21,6 +22,7 @@ export function HomeworkScreen() {
   const [filter, setFilter] = useState<Filter>("All");
   const [view, setView] = useState<"todo" | "done">("todo");
   const [adding, setAdding] = useState(false);
+  void setAdding;
   const [importing, setImporting] = useState(false);
   const [sync, setSync] = useState(syncStatus.get);
   const [checking, setChecking] = useState(false);
@@ -52,48 +54,58 @@ export function HomeworkScreen() {
 
   return (
     <main className="screen">
-      <header className="between rise">
-        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
-          <h1 className="h1">Homework</h1>
-          <span className="sync-line">
-            <span
-              className="dot-ok"
-              style={data.demo ? { background: "var(--muted)" } : undefined}
-              aria-hidden="true"
-            />
+      <header className="stack rise" style={{ gap: 6 }}>
+        <h1 className="h1">Homework</h1>
+        <div className="row sync-line" style={{ gap: 8 }}>
+          <span
+            className="dot-ok"
+            style={data.demo ? { background: "var(--muted)" } : undefined}
+            aria-hidden="true"
+          />
+          <span style={{ flex: 1 }}>
             {data.demo
               ? "Sample data"
               : sync && !sync.error
-                ? `Classroom checked ${new Date(sync.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-                : data.labels.homeworkSub}
+                ? `Synced from Classroom ${new Date(sync.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                : "Synced from Classroom"}
+            {list.length > 0 && view === "todo" ? " · swipe right to tick off" : ""}
           </span>
-        </div>
-        <div className="head-chips">
-          <AskButton />
-          <button className="round dark" aria-label="Add homework" onClick={() => setAdding(true)}>
-            <Icon name="plus" size={20} />
-          </button>
+          {!data.demo && (
+            <button
+              className="btn link s12"
+              style={{ minHeight: 44, padding: "0 10px" }}
+              onClick={checkNow}
+              disabled={checking}
+              aria-label="Check Classroom emails now"
+            >
+              {checking ? "Checking…" : "Check now"}
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="hw-stats rise">
+      <div className="hw-stats rise d1">
         <div className="hw-stat">
-          <strong>{list.length}</strong>
+          <strong>
+            <CountUp n={list.length} />
+          </strong>
           <span>to do</span>
         </div>
         <div className={`hw-stat${groups.overdue.length ? " warm" : ""}`}>
-          <strong>{thisWeek}</strong>
-          <span>
-            {groups.overdue.length ? `this week · ${groups.overdue.length} late` : "this week"}
-          </span>
+          <strong>
+            <CountUp n={thisWeek} />
+          </strong>
+          <span>{groups.overdue.length ? `${groups.overdue.length} late` : "this week"}</span>
         </div>
         <div className="hw-stat">
-          <strong>{doneList.length}</strong>
+          <strong>
+            <CountUp n={doneList.length} />
+          </strong>
           <span>done</span>
         </div>
       </div>
 
-      <div className="segmented" style={{ gridTemplateColumns: "1fr 1fr" }} role="tablist">
+      <div className="segmented" role="tablist">
         <button role="tab" aria-selected={view === "todo"} onClick={() => setView("todo")}>
           To do
         </button>
@@ -127,30 +139,30 @@ export function HomeworkScreen() {
           <div className="card empty">Nothing ticked off yet.</div>
         ) : (
           <div className="stack">
-            {doneList.map((hw, i) => (
-              <HomeworkCard key={hw.id} hw={hw} delay={Math.min(i, 8) * 0.04} />
+            {doneList.map((hw) => (
+              <HomeworkCard key={hw.id} hw={hw} />
             ))}
           </div>
         )
       ) : list.length === 0 ? (
         <div className="card empty">All done! Tap + to add new homework.</div>
       ) : (
-        (
-          [
-            ["Overdue", groups.overdue],
-            ["This week", groups.week],
-            ["Later", groups.later],
-            ["No due date", groups.noDate],
-          ] as const
-        ).map(
-          ([title, items]) =>
+        dayGroups(list).map(
+          ([title, items], g) =>
             items.length > 0 && (
-              <section key={title} className="stack" style={{ gap: 8 }}>
-                <h2 className={`eyebrow${title === "Overdue" ? " warm-text" : ""}`}>
-                  {title} · {items.length}
+              <section
+                key={title}
+                className={`stack rise d${Math.min(g + 3, 5)}`}
+                style={{ gap: 8 }}
+              >
+                <h2
+                  className={`eyebrow${title === "Overdue" ? " fix-text" : ""}`}
+                  style={{ paddingLeft: 4 }}
+                >
+                  {title}
                 </h2>
-                {items.map((hw, i) => (
-                  <HomeworkCard key={hw.id} hw={hw} delay={Math.min(i, 8) * 0.04} />
+                {items.map((hw) => (
+                  <HomeworkCard key={hw.id} hw={hw} />
                 ))}
               </section>
             ),
@@ -217,29 +229,73 @@ export function HomeworkScreen() {
   );
 }
 
-function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
+/** Overdue, Due today, Tomorrow, then one group per day ("Fri 9 Oct"), then No date. */
+function dayGroups(list: Homework[]): [string, Homework[]][] {
+  const groups = groupByDue(list);
+  const byDay = new Map<string, Homework[]>();
+  for (const hw of [...groups.week, ...groups.later]) {
+    const label = dueLabel(hw.due);
+    const key =
+      label === "Today"
+        ? "Due today"
+        : label === "Tomorrow"
+          ? "Tomorrow"
+          : new Date(hw.due ?? "").toLocaleDateString("en-GB", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+            });
+    byDay.set(key, [...(byDay.get(key) ?? []), hw]);
+  }
+  return [["Overdue", groups.overdue], ...byDay.entries(), ["No date", groups.noDate]];
+}
+
+/** "16:00" when the due date has a time, otherwise "Today", "Tomorrow", "Fri" or the date. */
+function dueChip(hw: Homework): string {
+  if (hw.due && /T\d{2}:\d{2}/.test(hw.due)) {
+    const d = new Date(hw.due);
+    if (d.getHours() !== 0 || d.getMinutes() !== 0) {
+      return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    }
+  }
+  return dueLabel(hw.due);
+}
+
+function HomeworkCard({ hw }: { hw: Homework }) {
   const { openAssignment, openAi, data, replaceHomework, handleError, toast } = useApp();
   // Classroom and "Other" work (e.g. added with Add anything) is done here.
   const inApp = hw.source === "Classroom" || hw.source === "Other";
 
-  return (
-    <article
-      className="card stack rise subject-card"
-      style={{ ...subjectVars(hw.course), animationDelay: `${delay}s` }}
-    >
-      <div className="between">
+  const setDone = async (done: boolean) => {
+    replaceHomework({ ...hw, done });
+    try {
+      await data.setDone(hw, done);
+      if (done) {
+        progress.add(5);
+        weekLog.add("hw", 1);
+        toast(`${data.labels.ticked} +5 XP`);
+      }
+    } catch (err) {
+      replaceHomework(hw);
+      handleError(err);
+    }
+  };
+
+  const body = (
+    <article className="card task subject-card" style={subjectVars(hw.course)}>
+      <div className="between" style={{ gap: 8 }}>
         <span className="chip subject" title={hw.course}>
           {hw.course}
         </span>
-        <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>
-          <Icon name="clock" size={14} />
-          {dueLabel(hw.due)}
+        <span className={`chip${isUrgent(hw.due) && !hw.done ? " magenta" : ""}`}>
+          {isUrgent(hw.due) && !hw.done && <Icon name="clock" size={14} />}
+          {dueChip(hw)}
         </span>
       </div>
       <div className="task-title">{hw.title}</div>
-      <div className="row" style={{ flexWrap: "wrap" }}>
+      <div className="row" style={{ gap: 8 }}>
         <button
-          className="btn small violet"
+          className="btn violet"
           onClick={() =>
             openAi({
               context: `Homework: "${hw.title}" (${hw.course}, ${hw.source}). ${hw.description}`,
@@ -247,44 +303,39 @@ function HomeworkCard({ hw, delay }: { hw: Homework; delay: number }) {
             })
           }
         >
-          <Icon name="sparkle" size={14} />
+          <Icon name="sparkle" size={18} />
           Help me
         </button>
-        {inApp ? (
-          <button className="btn small primary" onClick={() => openAssignment(hw)}>
-            Do it here
-          </button>
-        ) : (
-          <a className="btn small" href={hw.link} target="_blank" rel="noopener noreferrer">
-            <Icon name="link" size={14} />
+        {!inApp && (
+          <a className="btn" href={hw.link} target="_blank" rel="noopener noreferrer">
+            <Icon name="external" size={18} />
             {hw.source}
           </a>
         )}
-        <button
-          className="btn small"
-          style={{ marginLeft: "auto" }}
-          onClick={async () => {
-            const done = !hw.done;
-            replaceHomework({ ...hw, done });
-            try {
-              await data.setDone(hw, done);
-              if (done) {
-                progress.add(5);
-                weekLog.add("hw", 1);
-                toast(`${data.labels.ticked} +5 XP`);
-              }
-            } catch (err) {
-              replaceHomework(hw);
-              handleError(err);
-            }
-          }}
-        >
-          <Icon name={hw.done ? "sync" : "check"} size={14} />
-          {hw.done ? "Not done yet" : "Done"}
-        </button>
+        {inApp && !hw.done && (
+          <button
+            className="btn"
+            style={{ marginLeft: "auto", color: "var(--accent-t)" }}
+            onClick={() => openAssignment(hw)}
+          >
+            Do it here
+          </button>
+        )}
+        {hw.done && (
+          <button
+            className="btn"
+            style={{ marginLeft: "auto" }}
+            aria-label="Mark not done"
+            onClick={() => void setDone(false)}
+          >
+            <Icon name="again" size={18} />
+            Undo
+          </button>
+        )}
       </div>
     </article>
   );
+  return hw.done ? body : <SwipeDone onDone={() => void setDone(true)}>{body}</SwipeDone>;
 }
 
 function AddHomework({ onClose }: { onClose: () => void }) {

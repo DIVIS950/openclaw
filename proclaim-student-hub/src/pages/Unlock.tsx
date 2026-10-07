@@ -15,7 +15,7 @@ export function UnlockCard() {
   return (
     <form
       className="card stack rise"
-      style={{ gap: 10, borderColor: "var(--accent)" }}
+      style={{ gap: 10, borderColor: "color-mix(in oklab, var(--cyan) 40%, transparent)" }}
       onSubmit={(e) => {
         e.preventDefault();
         const key = keyFromText(text);
@@ -28,15 +28,15 @@ export function UnlockCard() {
         window.location.reload();
       }}
     >
-      <div className="row" style={{ gap: 10 }}>
-        <span className="lab-cta-icon" aria-hidden="true">
-          <Icon name="link" size={20} />
+      <div className="row" style={{ gap: 12 }}>
+        <span className="ico cyan r40" aria-hidden="true">
+          <Icon name="lock" size={18} />
         </span>
-        <strong style={{ flex: 1 }}>Unlock your timetable and homework</strong>
+        <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+          <strong>Your private website</strong>
+          <span className="s12 muted">Paste your private link once to unlock your data here</span>
+        </span>
       </div>
-      <span className="muted" style={{ fontSize: 13 }}>
-        They're locked on this device. Paste your private link (the one with #k= at the end) once.
-      </span>
       <input
         className="field"
         value={text}

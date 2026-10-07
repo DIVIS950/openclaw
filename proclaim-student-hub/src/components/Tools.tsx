@@ -25,7 +25,7 @@ const TOOLS: Tool[] = [
     id: "translate",
     label: "Translate",
     sub: "EN ↔ ES / CZ",
-    icon: "book",
+    icon: "translate",
     tint: "var(--amber)",
     placeholder: "Paste a sentence or a word list…",
     languages: ["Spanish", "Czech", "English"],
@@ -36,7 +36,7 @@ const TOOLS: Tool[] = [
     id: "summarise",
     label: "Summarise",
     sub: "Long text → key points",
-    icon: "doc",
+    icon: "lines",
     tint: "var(--cyan)",
     placeholder: "Paste the text, notes or an article…",
     prompt: (t) =>
@@ -46,7 +46,7 @@ const TOOLS: Tool[] = [
     id: "questions",
     label: "Make questions",
     sub: "Text → practice questions",
-    icon: "flag",
+    icon: "question",
     tint: "var(--violet)",
     placeholder: "Paste the notes or a textbook page…",
     prompt: (t) =>
@@ -66,7 +66,7 @@ const TOOLS: Tool[] = [
     id: "fix",
     label: "Fix my writing",
     sub: "Spelling, grammar, flow",
-    icon: "wand",
+    icon: "pen",
     tint: "var(--lime)",
     placeholder: "Paste your paragraph or essay…",
     prompt: (t) =>
@@ -76,7 +76,7 @@ const TOOLS: Tool[] = [
     id: "essay",
     label: "Plan an essay",
     sub: "Title → structure",
-    icon: "note",
+    icon: "essay",
     tint: "var(--coral)",
     placeholder: "The essay title or question…",
     prompt: (t) =>
@@ -94,47 +94,40 @@ export function Tools() {
     .toSorted((a, b) => a.date.localeCompare(b.date))[0];
   const days = nextTest ? daysBetween(today, nextTest.date) : null;
   return (
-    <section className="stack" style={{ gap: 10 }}>
-      <div className="between">
+    <section className="stack rise" style={{ gap: 8 }}>
+      <div className="between" style={{ paddingLeft: 4 }}>
         <h2 className="eyebrow" style={{ margin: 0 }}>
           Tools
         </h2>
-        {!ai && <span className="sub">Needs an AI key (Apps › AI key)</span>}
+        {!ai && <span className="s11 muted">Needs an AI key (below)</span>}
       </div>
       <div className="tool-grid">
         {TOOLS.map((t) => (
           <button
             key={t.id}
             className="tool"
-            style={{ "--tile": t.tint } as React.CSSProperties}
             onClick={() => setOpen(t)}
             disabled={!ai}
             aria-label={t.label}
           >
-            <span className="ico">
-              <Icon name={t.icon} size={18} />
-            </span>
+            <Icon name={t.icon} size={15} />
             {t.label}
           </button>
         ))}
         <button
           className="tool"
-          style={{ "--tile": "var(--coral)" } as React.CSSProperties}
           onClick={() => go("tests")}
           aria-label="Countdown to the next test"
         >
-          <span className="ico num" style={{ fontSize: 15 }}>
-            {days === null ? "–" : days}
-          </span>
+          <Icon name="daysTo" size={15} />
           {days === null
-            ? "No test set"
+            ? "Days to test"
             : days === 0
               ? "Test today"
               : `${days} day${days === 1 ? "" : "s"} to test`}
         </button>
         <Calculator />
       </div>
-
       {open && <ToolSheet tool={open} onClose={() => setOpen(null)} />}
     </section>
   );
@@ -292,15 +285,8 @@ function Calculator() {
   const result = calc(expr);
   return (
     <>
-      <button
-        className="tool"
-        style={{ "--tile": "var(--cyan)" } as React.CSSProperties}
-        onClick={() => setOpen(true)}
-        aria-label="Calculator"
-      >
-        <span className="ico num" style={{ fontSize: 18 }}>
-          =
-        </span>
+      <button className="tool" onClick={() => setOpen(true)} aria-label="Calculator">
+        <Icon name="calculator" size={15} />
         Calculator
       </button>
       {open &&
@@ -353,91 +339,76 @@ function Calculator() {
 /** Automatic saves: today's snapshot, export to a file, import, restore. */
 export function BackupCard() {
   const { toast, handleError } = useApp();
-  const [list, setList] = useState(() => backups.list());
+  const [list] = useState(() => backups.list());
   const file = useRef<HTMLInputElement>(null);
   const latest = list[0];
   return (
-    <section className="card stack" style={{ gap: 10 }}>
-      <div className="row" style={{ gap: 10 }}>
-        <span
-          className="tile-icon"
-          style={{ "--tile": "#0f9d58", width: 40, height: 40 } as React.CSSProperties}
-          aria-hidden="true"
-        >
-          <Icon name="sync" size={20} />
+    <div className="crow" style={{ alignItems: "flex-start" }}>
+      <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+        <span style={{ fontWeight: 700 }}>Backups</span>
+        <span className="s11 muted">
+          {latest
+            ? `Daily on this phone · last ${new Date(latest.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).replace(/ /g, "\u00a0")}`
+            : "Daily on this phone · keeps 5"}
         </span>
-        <div className="stack" style={{ gap: 2, flex: 1 }}>
-          <strong>Automatic saves</strong>
-          <span className="muted">
-            Everything saves as you go.{" "}
-            {latest
-              ? `Last snapshot ${new Date(latest.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).replace(/ /g, "\u00a0")}.`
-              : "A snapshot is kept once a day."}
-          </span>
-        </div>
-      </div>
-      <div className="row" style={{ flexWrap: "wrap" }}>
-        <button
-          className="btn small"
-          onClick={() => {
-            const blob = new Blob([exportAll()], { type: "application/json" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `student-hub-${dayOf(new Date())}.json`;
-            a.click();
-            URL.revokeObjectURL(a.href);
-          }}
-        >
-          Export file
-        </button>
-        <button className="btn small" onClick={() => file.current?.click()}>
-          Import file
-        </button>
-        {latest && (
+        <span className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
           <button
-            className="btn small"
+            className="btn sm"
             onClick={() => {
-              if (
-                window.confirm(
-                  `Put everything back to how it was on ${latest.day}? Today's changes since then will be undone.`,
-                )
-              ) {
-                backups.restore(latest.day);
-                toast("Restored. Reloading…");
-                window.setTimeout(() => window.location.reload(), 800);
-              }
+              // Download the JSON export as a file.
+              const blob = new Blob([exportAll()], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `student-hub-${dayOf(new Date())}.json`;
+              a.click();
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
             }}
           >
-            Restore{" "}
-            {new Date(`${latest.day}T12:00:00`).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-            })}
+            Export file
           </button>
-        )}
-      </div>
-      <input
-        ref={file}
-        type="file"
-        accept="application/json,.json"
-        hidden
-        onChange={async (e) => {
-          const f = e.target.files?.[0];
-          if (!f) {
-            return;
-          }
-          try {
-            const n = importAll(await f.text());
-            toast(`Imported ${n} parts. Reloading…`);
-            setList(backups.list());
-            window.setTimeout(() => window.location.reload(), 800);
-          } catch (err) {
-            handleError(err);
-          } finally {
-            e.target.value = "";
-          }
-        }}
-      />
-    </section>
+          <button className="btn sm" onClick={() => file.current?.click()}>
+            Import file
+          </button>
+          <input
+            ref={file}
+            type="file"
+            accept="application/json"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) {
+                void f.text().then(
+                  (text) => {
+                    const n = importAll(text);
+                    toast(`Imported ${n} things. Reloading…`);
+                    window.setTimeout(() => window.location.reload(), 800);
+                  },
+                  (err: unknown) => handleError(err),
+                );
+              }
+              e.target.value = "";
+            }}
+          />
+        </span>
+      </span>
+      {latest && (
+        <button
+          className="btn sm"
+          onClick={() => {
+            if (
+              window.confirm(
+                `Go back to the snapshot from ${latest.day}? Today's changes are lost.`,
+              )
+            ) {
+              backups.restore(latest.day);
+              window.location.reload();
+            }
+          }}
+        >
+          Restore
+        </button>
+      )}
+    </div>
   );
 }

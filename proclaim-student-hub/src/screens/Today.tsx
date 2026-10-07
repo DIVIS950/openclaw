@@ -1,106 +1,35 @@
-import { useEffect, useState } from "react";
-import { AskButton } from "../components/AskButton.tsx";
-import { DaySummary } from "../components/DaySummary.tsx";
-import { HomeworkRow } from "../components/HomeworkRow.tsx";
+import { useState } from "react";
+import { Briefing } from "../components/Briefing.tsx";
+import { CountUp } from "../components/CountUp.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { NowCard } from "../components/NowCard.tsx";
 import { WeeklyReport } from "../components/WeeklyReport.tsx";
-import { WeekPlan } from "../components/WeekPlan.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
-import { planEvening, upcomingLessons, type Lesson, type PlanStep } from "../lib/aiFeatures.ts";
-import { greeting, timeLabel } from "../lib/format.ts";
+import { upcomingLessons, type Lesson } from "../lib/aiFeatures.ts";
+import { greeting } from "../lib/format.ts";
 import { level, progress, timetable } from "../lib/store.ts";
-import { tutoring } from "../lib/study.ts";
-import { subjectVars } from "../lib/subjects.ts";
-import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
-import type { CalEvent } from "../lib/types.ts";
 import { gmailLink } from "../pages/gmailLink.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 import { AiKeyCard } from "../pages/WebVersion.tsx";
 
-// Today: one glanceable dashboard. The dark hero holds the AI summary and the
-// two AI planners; six yellow tiles open everything else in one tap.
+// Today, as on the canvas: greeting, the AI briefing, the lesson on now with
+// its countdown ring, what's next, four tiles, the week's report card.
 
-// Each tile gets its own tint so the grid reads at a glance.
-const TILES: {
-  screen: Screen;
-  label: string;
-  sub: string;
-  icon: IconName;
-  tint: string;
-  needsAi?: boolean;
-}[] = [
-  {
-    screen: "call",
-    label: "Talk",
-    sub: "Voice study buddy",
-    icon: "mic",
-    tint: "var(--accent)",
-    needsAi: true,
-  },
-  {
-    screen: "revise",
-    label: "Revision Lab",
-    sub: "Scan → flashcards",
-    icon: "camera",
-    tint: "var(--warm)",
-  },
-  { screen: "inbox", label: "Inbox", sub: "School email", icon: "mail", tint: "#22ff77" },
-  { screen: "tutoring", label: "Tutoring", sub: "Tutors & lessons", icon: "book", tint: "#b026ff" },
-  {
-    screen: "timetable",
-    label: "Timetable",
-    sub: "Lessons & calendar",
-    icon: "calendar",
-    tint: "var(--accent)",
-  },
-  { screen: "apps", label: "Apps", sub: "Classroom, Dr Frost…", icon: "apps", tint: "#ff2ec4" },
+const TILES: { screen: Screen; label: string; icon: IconName; tint: string }[] = [
+  { screen: "revise", label: "Revise", icon: "flask", tint: "violet" },
+  { screen: "inbox", label: "Inbox", icon: "mail", tint: "cyan" },
+  { screen: "tutoring", label: "Tutoring", icon: "video", tint: "magenta" },
+  { screen: "todo", label: "To-do", icon: "checkSquare", tint: "lime" },
 ];
-
-const TILE_NAMES: Partial<Record<Screen, string>> = {
-  call: "Talk to your study buddy",
-  apps: "All apps",
-};
 
 export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const app = useApp();
-  const { data, homework, profile, ai, go } = app;
-  const [events, setEvents] = useState<CalEvent[] | null>(null);
-  const [summaryVersion] = useState(0);
-  const [plan, setPlan] = useState<PlanStep[] | "loading" | null>(null);
-  const [week, setWeek] = useState(false);
+  const { homework, profile, go } = app;
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
   const upcoming = upcomingLessons(lessons);
   const lvl = level(stats.xp);
-  const [nextTutor] = useState(() => upcomingTutoring(tutoring.tutors())[0]);
-
-  const makePlan = async () => {
-    if (!ai) {
-      app.toast("The AI needs you signed in.");
-      return;
-    }
-    setPlan("loading");
-    try {
-      const steps = await planEvening(ai, homework ?? []);
-      setPlan(steps.length > 0 ? steps : null);
-      if (steps.length === 0) {
-        app.toast("Nothing to plan. Add some homework first!");
-      }
-    } catch (err) {
-      setPlan(null);
-      app.handleError(err);
-    }
-  };
-
-  useEffect(() => {
-    data.events().then(setEvents, (err: unknown) => {
-      setEvents([]);
-      app.handleError(err);
-    });
-    // Only when the data source changes.
-  }, [data]);
 
   const open = (homework ?? []).filter((h) => !h.done);
   useAiContext(
@@ -109,9 +38,11 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
         .map((h) => `${h.title} (${h.course}, due ${h.due?.slice(0, 10) ?? "no date"})`)
         .join("; "),
   );
+  // "Next": the rest of today, or the next school day when today is over.
+  const next = upcoming.lessons.slice(0, upcoming.label === "Today" ? 3 : 2);
 
   return (
-    <main className="screen">
+    <main className="screen g20">
       {demoBanner}
       <header className="between rise" style={{ alignItems: "flex-end", gap: 12 }}>
         <div className="stack" style={{ gap: 6, minWidth: 0 }}>
@@ -122,214 +53,81 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
               month: "long",
             })}
           </div>
-          <h1 className="h1">{profile?.name ? `Hey ${profile.name}` : greeting()}</h1>
+          <h1 className="h1">{profile?.name ? `Hey ${profile.name.split(" ")[0]}` : greeting()}</h1>
         </div>
         <div className="head-chips">
           <button
-            className="level-pill"
-            aria-label={`Level ${lvl.level}, ${stats.xp} XP${stats.streak ? `, ${stats.streak} day streak` : ""}`}
-            onClick={() => go("apps")}
+            className="chip violet"
+            aria-label={`Level ${lvl.level}, ${stats.xp} XP`}
+            onClick={() => go("revise")}
           >
-            <span
-              className="level-ring"
-              style={{ "--p": `${lvl.percent}%` } as React.CSSProperties}
-            >
-              {lvl.level}
-            </span>
-            {stats.xp} XP
+            LV {lvl.level}
           </button>
-          {stats.streak > 0 && (
-            <span className="chip accent">
-              <Icon name="flame" size={14} />
-              {stats.streak} {stats.streak === 1 ? "day" : "days"}
-            </span>
-          )}
-          <AskButton />
+          <span className="chip lime" aria-label={`${stats.streak} day streak`}>
+            <Icon name="flame" size={14} className={stats.streak > 0 ? "flame" : undefined} />
+            <CountUp n={stats.streak} /> {stats.streak === 1 ? "day" : "days"}
+          </span>
         </div>
       </header>
 
-      <UnlockCard />
+      <Briefing />
+
       <NowCard />
-      <AiKeyCard />
 
-      <section className="stack" style={{ gap: 10 }}>
-        <div className="between">
-          <h2 className="h2">Your day</h2>
-          <span className="eyebrow">{ai && !data.demo ? "AI sorted" : "By due date"}</span>
-        </div>
-        <DaySummary key={summaryVersion} />
-        {ai && (
-          <div className="row" style={{ gap: 10 }}>
+      {next.length > 0 && (
+        <section className="stack rise d3" style={{ gap: 10 }}>
+          <div className="between" style={{ alignItems: "center" }}>
+            <h2 className="h2">{upcoming.label === "Today" ? "Next" : upcoming.label}</h2>
             <button
-              className="btn primary"
-              style={{ flex: 1 }}
-              disabled={plan === "loading"}
-              onClick={() => void makePlan()}
+              className="btn link s12"
+              style={{ minHeight: 28 }}
+              onClick={() => go("timetable")}
             >
-              <Icon
-                name={plan === "loading" ? "loader" : "sparkle"}
-                size={16}
-                className={plan === "loading" ? "spin" : undefined}
-              />
-              Plan tonight
-            </button>
-            <button
-              className="btn"
-              style={{ flex: 1 }}
-              disabled={week}
-              onClick={() => setWeek(true)}
-            >
-              <Icon name="calendar" size={16} />
-              Plan my week
+              Full day
             </button>
           </div>
-        )}
-      </section>
-
-      {Array.isArray(plan) && (
-        <section className="ai-card pop" aria-label="Your plan for this evening">
-          <div className="between">
-            <h3>
-              <Icon name="sparkle" size={16} />
-              Tonight · {plan.reduce((n, s) => n + s.minutes, 0)} min
-            </h3>
-            <button className="link-btn" style={{ minHeight: 32 }} onClick={() => setPlan(null)}>
-              Hide
-            </button>
-          </div>
-          {plan.map((s, i) => (
-            <div
-              key={i}
-              className="row rise"
-              style={{ alignItems: "flex-start", gap: 10, animationDelay: `${i * 0.06}s` }}
-            >
-              <span className="chip accent" style={{ minWidth: 58, justifyContent: "center" }}>
-                {s.minutes} min
-              </span>
-              <div>
-                <div style={{ fontWeight: 600 }}>{s.title}</div>
-                {s.tip && <div className="muted">{s.tip}</div>}
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {week && <WeekPlan onClose={() => setWeek(false)} />}
-
-      <WeeklyReport />
-
-      <nav className="tiles-grid rise" style={{ animationDelay: "0.1s" }} aria-label="Shortcuts">
-        {TILES.filter((t) => !t.needsAi || ai).map((t, i) => (
-          <button
-            key={t.screen}
-            className="quick-tile pop"
-            style={
-              { "--tile": t.tint, animationDelay: `${0.12 + i * 0.04}s` } as React.CSSProperties
-            }
-            aria-label={TILE_NAMES[t.screen] ?? t.label}
-            onClick={() =>
-              go(t.screen === "inbox" && PAGES && !gmailLink.granted ? "todo" : t.screen)
-            }
-          >
-            <span className="quick-tile-icon" aria-hidden="true">
-              <Icon name={t.icon} size={22} />
-            </span>
-            <strong>{t.label}</strong>
-            <span>
-              {t.screen === "tutoring" && nextTutor
-                ? `${nextTutor.tutor.name} ${lessonLabel(nextTutor.start)}`
-                : t.sub}
-            </span>
-          </button>
-        ))}
-      </nav>
-
-      {upcoming.lessons.length > 0 ? (
-        <section className="stack rise" style={{ animationDelay: "0.18s" }}>
-          <div className="between">
-            <h2 className="h2">Next lessons · {upcoming.label}</h2>
-            <button className="link-btn" onClick={() => go("timetable")}>
-              Timetable ›
-            </button>
-          </div>
-          <div className="lesson-strip">
-            {upcoming.lessons.slice(0, 6).map((l, i) => (
-              <button
-                key={i}
-                className="lesson-chip pop"
-                style={{ ...subjectVars(l.subject), animationDelay: `${0.2 + i * 0.05}s` }}
-                onClick={() => go("timetable")}
-              >
-                <strong>{l.subject}</strong>
-                <span>
+          <div className="card rows">
+            {next.map((l, i) => (
+              <button key={`${l.day}-${l.start}`} className="crow" onClick={() => go("timetable")}>
+                <span className={`tl${i === 0 ? " live" : ""}`} aria-hidden="true" />
+                <span className="num s13" style={{ width: 48, flex: "none" }}>
                   {l.start}
-                  {l.room ? ` · ${l.room}` : ""}
                 </span>
+                <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                  <span style={{ fontWeight: 700 }}>{l.subject}</span>
+                  <span className="s12 muted">
+                    {[l.room ? `Room ${l.room}` : "", l.end ? `until ${l.end}` : ""]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                {i === 0 && <span className="chip lime">Next</span>}
               </button>
             ))}
           </div>
         </section>
-      ) : (
-        lessons.length === 0 && (
+      )}
+
+      <nav className="tiles-grid quad rise d4" aria-label="Shortcuts">
+        {TILES.map((t) => (
           <button
-            className="btn big block rise"
-            style={{ justifyContent: "flex-start", animationDelay: "0.18s" }}
-            onClick={() => go("timetable")}
+            key={t.screen}
+            className="tile"
+            onClick={() =>
+              go(t.screen === "inbox" && PAGES && !gmailLink.granted ? "todo" : t.screen)
+            }
           >
-            <Icon name="calendar" size={18} />
-            <span style={{ flex: 1, textAlign: "left" }}>Add your timetable</span>›
+            <span className={`ico ${t.tint}`} aria-hidden="true">
+              <Icon name={t.icon} size={18} />
+            </span>
+            <span>{t.label}</span>
           </button>
-        )
-      )}
+        ))}
+      </nav>
 
-      {events && events.length > 0 && (
-        <section className="stack rise" style={{ animationDelay: "0.2s" }}>
-          <h2 className="h2">Coming up</h2>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}
-          >
-            {events.slice(0, 3).map((e) => (
-              <div key={e.id} className="card" style={{ padding: 12 }}>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {e.start.length > 10 ? timeLabel(e.start) : "All day"}
-                </div>
-                <div className="clip" style={{ fontWeight: 600 }}>
-                  {e.title}
-                </div>
-                {e.location && (
-                  <div className="muted clip" style={{ fontSize: 12 }}>
-                    {e.location}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="stack rise" style={{ animationDelay: "0.24s" }}>
-        <div className="between">
-          <h2 className="h2">Due soon</h2>
-          <button className="link-btn" onClick={() => go("homework")}>
-            See all ›
-          </button>
-        </div>
-        {homework === null ? (
-          <div className="card stack">
-            <div className="skeleton light" />
-            <div className="skeleton light" style={{ width: "60%" }} />
-          </div>
-        ) : open.length === 0 ? (
-          <div className="card empty">All done. Nothing due!</div>
-        ) : (
-          <div className="list">
-            {open.slice(0, 3).map((hw) => (
-              <HomeworkRow key={hw.id} hw={hw} />
-            ))}
-          </div>
-        )}
-      </section>
+      <WeeklyReport />
+      <UnlockCard />
+      <AiKeyCard />
     </main>
   );
 }

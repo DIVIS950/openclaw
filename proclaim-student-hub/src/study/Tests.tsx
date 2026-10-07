@@ -46,10 +46,13 @@ const countdown = (date: string, today: string) => {
 export function Tests({
   onOpenNote,
   header,
+  view = "tests",
 }: {
   onOpenNote: (id: string) => void;
   /** Shown above the list, but not over an open test. */
   header?: ReactNode;
+  /** Tests list, or just the grades. */
+  view?: "tests" | "grades";
 }) {
   const { homework, ai, toast } = useApp();
   const today = dayOf(new Date());
@@ -94,22 +97,22 @@ export function Tests({
     <>
       {header}
       {suggestions.length > 0 && (
-        <section className="ai-card rise">
-          <h3>
-            <Icon name="sparkle" size={16} />
-            Spotted in your classes and homework
-          </h3>
+        <section className="card stack rise" style={{ gap: 10 }}>
+          <span className="chip violet">
+            <Icon name="sparkle" size={14} />
+            Spotted in your classes
+          </span>
           {suggestions.map((s) => (
             <div key={s.topic} className="between" style={{ gap: 10 }}>
               <span style={{ minWidth: 0 }}>
                 <strong>{s.topic}</strong>
-                <span className="muted" style={{ display: "block" }}>
+                <span className="muted s12" style={{ display: "block" }}>
                   {s.subject}
                   {s.date ? ` · ${dayLabel(s.date, today)}` : " · date unknown"}
                 </span>
               </span>
-              <button className="btn small primary" onClick={() => setAdding(s)}>
-                <Icon name="plus" size={14} />
+              <button className="btn primary sm" onClick={() => setAdding(s)}>
+                <Icon name="plus" size={16} />
                 Plan it
               </button>
             </div>
@@ -117,47 +120,48 @@ export function Tests({
         </section>
       )}
 
-      <button
-        className="btn block"
-        onClick={() => setAdding({ subject: "", topic: "", date: "", from: "" })}
-      >
-        <Icon name="plus" size={16} />
-        Add a test
-      </button>
-
-      {upcoming.length === 0 && suggestions.length === 0 && (
+      {view === "tests" && upcoming.length === 0 && suggestions.length === 0 && (
         <div className="card empty">
-          No tests yet. Add one and you'll get a plan for every day until it.
+          No tests yet. Tap + and paste the test date, and you'll get a plan for every day until it.
         </div>
       )}
 
-      {upcoming.length > 0 && (
+      {view === "tests" && upcoming.length > 0 && (
         <NextTest test={upcoming[0]} today={today} onOpen={() => setOpen(upcoming[0].id)} />
       )}
 
-      {upcoming.length > 1 && (
+      {view === "tests" && upcoming.length > 1 && (
         <section className="card rows rise" aria-label="More tests">
           {upcoming.slice(1).map((t) => (
             <button
               key={t.id}
-              className="test-row test-card"
+              className="crow test-row test-card"
               style={subjectVars(t.subject)}
               onClick={() => setOpen(t.id)}
             >
               <span className="chip subject">{t.subject}</span>
               <span className="row-text">
                 <strong>{cleanTopic(t.subject, t.topic)}</strong>
-                <span>{dayLabel(t.date, today)}</span>
               </span>
-              <span className={`num${daysBetween(today, t.date) <= 2 ? " soon" : ""}`}>
-                {daysBetween(today, t.date)} d
-              </span>
+              <span className="when">{dayLabel(t.date, today)}</span>
+              <span className="num">{daysBetween(today, t.date)} d</span>
             </button>
           ))}
         </section>
       )}
 
-      {past.length > 0 && (
+      {view === "tests" && (
+        <button
+          className="btn ghost"
+          aria-label="Add a test"
+          onClick={() => setAdding({ subject: "", topic: "", date: "", from: "" })}
+        >
+          <Icon name="plus" size={16} />
+          Add a test
+        </button>
+      )}
+
+      {view === "tests" && past.length > 0 && (
         <details className="card">
           <summary className="muted">Past tests ({past.length})</summary>
           <div className="stack" style={{ marginTop: 10 }}>
@@ -178,7 +182,7 @@ export function Tests({
         </details>
       )}
 
-      <GradesSection tests={past} />
+      {(view === "grades" || upcoming.length <= 2) && <GradesSection tests={past} />}
 
       {adding && (
         <AddTest
@@ -204,27 +208,31 @@ function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOp
   const todayStep = plan.find((d) => d.date === today);
   const todayIndex = plan.findIndex((d) => d.date === today);
   const days = daysBetween(today, test.date);
+  const pack = labPacks.all().find((p) => p.id === test.packId) ?? null;
+  const cards = pack?.items.length ?? 0;
   return (
     <button
-      className="card test-hero test-card rise"
+      className="card hero magenta test-hero test-card rise"
       style={subjectVars(test.subject)}
       onClick={onOpen}
     >
       <div className="between" style={{ alignItems: "center", gap: 12 }}>
         <div className="stack" style={{ gap: 6, minWidth: 0 }}>
-          <span className="eyebrow">
-            Next test · {test.subject} · {dayLabel(test.date, today)}
+          <span className="eyebrow" style={{ color: "var(--magenta-t)" }}>
+            Next test · {dayLabel(test.date, today)}
           </span>
           <strong className="h2" style={{ fontSize: 18, lineHeight: 1.25 }}>
-            {cleanTopic(test.subject, test.topic)}
+            {test.subject} · {cleanTopic(test.subject, test.topic)}
           </strong>
-          <span className="sub">
-            Prep plan: {plan.length} {plan.length === 1 ? "day" : "days"}, about 10 min each
+          <span className="s12 muted">
+            Prep plan: 10 min a day, {plan.length} {plan.length === 1 ? "day" : "days"}
           </span>
         </div>
         <span className="test-count">
           <span className="num">{days}</span>
-          <span className="eyebrow">{days === 1 ? "day" : "days"}</span>
+          <span className="eyebrow" style={{ letterSpacing: "0.1em" }}>
+            {days === 1 ? "day" : "days"}
+          </span>
         </span>
       </div>
       <div className="steps" aria-label={`${test.done.length} of ${plan.length} prep days done`}>
@@ -239,15 +247,42 @@ function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOp
         <div className="row" style={{ gap: 10 }}>
           <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
             <strong>
-              {test.done.includes(today) ? "Done for today ✓" : `Today, step ${todayIndex + 1}`}
+              {test.done.includes(today)
+                ? "Done for today"
+                : `Today, step ${todayIndex + 1} of ${plan.length}`}
             </strong>
-            <span className="sub">
-              {todayStep.title} · {todayStep.minutes} min
+            <span className="s12 muted">
+              {todayStep.title}
+              {cards ? ` · ${cards} cards` : ""} · {todayStep.minutes} min
             </span>
           </span>
-          <span className="btn primary small">Open</span>
+          <span className="btn primary">Start</span>
         </div>
       )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+        <span className="pack">
+          <span className="num" style={{ color: "var(--cyan-t)" }}>
+            {cards}
+          </span>
+          <span>Flashcards</span>
+        </span>
+        <span className="pack">
+          <span className="num" style={{ color: "var(--violet-t)" }}>
+            {Math.min(cards, 12)}
+          </span>
+          <span>Quiz Qs</span>
+        </span>
+        <span className="pack">
+          <span className="num" style={{ color: "var(--lime-t)" }}>
+            {pack ? 1 : 0}
+          </span>
+          <span>Notes page</span>
+        </span>
+      </div>
+      <span className="btn" style={{ alignSelf: "stretch" }}>
+        <Icon name="timer" size={18} />
+        Exam mode · timed
+      </span>
     </button>
   );
 }

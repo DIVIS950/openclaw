@@ -327,6 +327,7 @@ function Shell({
           question: request?.question,
           context: request?.context ?? aiContext,
         }),
+      aiContext,
       setAiContext,
       askTutor: (text: string, mode: TutorMode = "explain", images?: ImageInput[]) => {
         setTutorSeed({ text, mode, images, key: Date.now() });
@@ -413,6 +414,16 @@ function Shell({
         {current === "tests" && <TestsScreen />}
         {current === "notes" && <NotesScreen />}
         {current === "tutoring" && <TutoringScreen />}
+        {(current === "homework" || current === "todo" || current === "inbox") && (
+          <button
+            className="ask"
+            aria-label="Ask AI about this screen"
+            onClick={() => setAiSheet({ key: Date.now(), context: aiContext })}
+          >
+            <Icon name="sparkle" size={16} />
+            Ask AI
+          </button>
+        )}
         {aiSheet && (
           <AskAi
             key={aiSheet.key}
@@ -421,7 +432,7 @@ function Shell({
             onClose={() => setAiSheet(null)}
           />
         )}
-        <NavBar screen={current} go={go} />
+        {current !== "assignment" && <NavBar screen={current} go={go} />}
         {toastMsg?.includes("XP") && <Confetti key={toastMsg} />}
         {toastMsg && (
           <div className="toast" role="status">
@@ -446,7 +457,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
   return (
     <nav className="nav" aria-label="Main">
       <button className="nav-item" aria-current={active(["today"])} onClick={() => go("today")}>
-        <Icon name="home" />
+        <Icon name="sun" />
         Today
       </button>
       <button
@@ -454,7 +465,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         aria-current={active(["homework", "assignment", "classes"])}
         onClick={() => go("homework")}
       >
-        <Icon name="homework" />
+        <Icon name="bookClosed" />
         Homework
       </button>
       {/* The big centre button: paste, photo, voice or type and the AI files it. */}
@@ -464,7 +475,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         aria-current={active(["tutor", "call"])}
         onClick={() => go("tutor")}
       >
-        <Icon name="sparkle" />
+        <Icon name="sparkles" />
         AI help
       </button>
       <button
@@ -482,7 +493,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
         ])}
         onClick={() => go("apps")}
       >
-        <Icon name="apps" />
+        <Icon name="grid" />
         More
       </button>
     </nav>

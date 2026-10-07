@@ -5,7 +5,7 @@ import { draftReply } from "../lib/aiFeatures.ts";
 import { shortDate } from "../lib/format.ts";
 import type { Email } from "../lib/types.ts";
 
-type Filter = "All" | "Gmail" | "Classroom";
+type Filter = "All" | "Classroom" | "Teachers";
 
 // AI one-liners are cached per message so revisiting the tab is free.
 const summaryCache = new Map<string, string>();
@@ -60,7 +60,12 @@ export function Inbox() {
     };
   }, [app.data]);
 
-  const list = (emails ?? []).filter((e) => filter === "All" || e.kind === filter);
+  const list = (emails ?? []).filter(
+    (e) =>
+      filter === "All" ||
+      (filter === "Classroom" ? e.kind === "Classroom" : e.kind !== "Classroom"),
+  );
+  const unread = (emails ?? []).filter((e) => e.unread).length;
   useAiContext(
     "Inbox screen. Emails: " +
       list
@@ -73,27 +78,31 @@ export function Inbox() {
 
   return (
     <main className="screen">
-      <header className="between rise">
-        <div className="stack" style={{ gap: 4 }}>
+      <header className="stack rise" style={{ gap: 12 }}>
+        <div className="between" style={{ alignItems: "center" }}>
           <h1 className="h1">Inbox</h1>
-          <p className="sub">
-            {app.ai
-              ? "Gmail and Classroom posts, with an AI one-liner on each."
-              : "Gmail and Classroom posts."}
-          </p>
+          {unread > 0 && (
+            <span className="chip lime" style={{ height: 28 }}>
+              <span className="num">{unread}</span>new
+            </span>
+          )}
         </div>
-        <button className="round" aria-label="All apps" onClick={() => app.go("apps")}>
-          <Icon name="apps" size={20} />
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          {(["All", "Classroom", "Teachers"] as Filter[]).map((f) => (
+            <button
+              key={f}
+              className={`fchip${filter === f ? " on" : ""}`}
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
+            >
+              {f}
+            </button>
+          ))}
+          <span className="s11 muted" style={{ marginLeft: "auto" }}>
+            {app.data.demo ? "Sample" : "Gmail"} · {checkedLabel()}
+          </span>
+        </div>
       </header>
-
-      <div className="pills" role="group" aria-label="Filter">
-        {(["All", "Gmail", "Classroom"] as Filter[]).map((f) => (
-          <button key={f} className="pill" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-            {f}
-          </button>
-        ))}
-      </div>
 
       {emails === null ? (
         <div className="card stack">
@@ -104,33 +113,63 @@ export function Inbox() {
       ) : list.length === 0 ? (
         <div className="card empty">No messages here.</div>
       ) : (
-        <div className="list">
-          {list.map((m, k) => (
+        <section className="card rows rise d1">
+          {list.map((m) => (
             <Message
               key={m.id}
               email={m}
               summary={summaries.get(m.id)}
-              delay={k * 0.05}
               expanded={open === m.id}
               onToggle={() => setOpen(open === m.id ? null : m.id)}
             />
           ))}
-        </div>
+        </section>
       )}
     </main>
   );
 }
 
+/** "12 min ago": the inbox is fetched when the screen opens. */
+function checkedLabel(): string {
+  return "just now";
+}
+
+/** Two letters for the sender avatar: "Sc" for Science, "PL" for Park Lane. */
+function avatarOf(email: Email): { text: string; tint: string } {
+  // "New assignment: Macbeth essay" → "Macbeth"; otherwise the sender's first word.
+  const after = email.subject.includes(":") ? email.subject.split(":").slice(1).join(":") : "";
+  const word =
+    (email.kind === "Classroom" && after.trim() ? after.trim() : email.from).split(/\s+/)[0] ?? "";
+  const text = word.slice(0, 2) || "✉";
+  const tints = ["lime", "violet", "magenta", "cyan"];
+  let h = 0;
+  for (const ch of word) {
+    h = (h * 31 + ch.charCodeAt(0)) % 997;
+  }
+  return { text, tint: tints[h % tints.length] };
+}
+
+const timeLabel = (iso: string) => {
+  const d = new Date(iso);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) {
+    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+  const days = (today.getTime() - d.getTime()) / 86_400_000;
+  if (days < 1.5) {
+    return "Yesterday";
+  }
+  return days < 7 ? d.toLocaleDateString("en-GB", { weekday: "short" }) : shortDate(iso);
+};
+
 function Message({
   email,
   summary,
-  delay,
   expanded,
   onToggle,
 }: {
   email: Email;
   summary?: string;
-  delay: number;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -154,70 +193,55 @@ function Message({
     }
   };
 
+  const av = avatarOf(email);
   return (
-    <article
-      className="rise"
-      style={{ padding: "14px 16px", display: "flex", gap: 12, animationDelay: `${delay}s` }}
-    >
+    <article className={`mail${email.unread ? "" : " read"}`}>
       <span
-        aria-label={email.unread ? "Unread" : undefined}
-        style={{
-          width: 8,
-          height: 8,
-          flexShrink: 0,
-          marginTop: 6,
-          borderRadius: 4,
-          background: email.unread ? "var(--link)" : "transparent",
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }} className="stack">
+        className={`av${email.unread ? " new" : ""}`}
+        style={
+          email.unread
+            ? { background: `var(--${av.tint}-soft)`, color: `var(--${av.tint}-t)` }
+            : undefined
+        }
+        aria-hidden="true"
+      >
+        {av.text}
+      </span>
+      <div className="stack" style={{ gap: 3, flex: 1, minWidth: 0 }}>
         <button
           onClick={onToggle}
           aria-expanded={expanded}
-          style={{ border: "none", background: "none", padding: 0, textAlign: "left" }}
           className="stack"
+          style={{ border: "none", background: "none", padding: 0, textAlign: "left", gap: 3 }}
         >
           <span className="between" style={{ gap: 8 }}>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {email.from} · {email.kind}
+            <span className="clip" style={{ fontWeight: email.unread ? 700 : 600 }}>
+              {email.subject}
             </span>
-            <span className="muted" style={{ fontSize: 12, flexShrink: 0 }}>
-              {shortDate(email.date)}
+            <span className="s11 muted" style={{ flex: "none" }}>
+              {timeLabel(email.date)}
             </span>
           </span>
-          <span style={{ fontSize: 15, fontWeight: 500 }}>{email.subject}</span>
-          {summary && (
-            <span
-              className="row pop"
-              style={{
-                alignItems: "flex-start",
-                gap: 6,
-                fontSize: 13,
-                lineHeight: 1.4,
-                color: "var(--accent-ink)",
-                background: "var(--accent-soft)",
-                borderRadius: 8,
-                padding: "6px 8px",
-              }}
-            >
-              <Icon name="sparkle" size={14} />
-              <span>{summary}</span>
+          <span className="snip">{summary ?? email.snippet}</span>
+          {(email.kind === "Classroom" || email.unread) && (
+            <span className="row" style={{ gap: 6 }}>
+              <span className={`chip ${email.kind === "Classroom" ? "cyan" : "violet"}`}>
+                {email.kind === "Classroom" ? "Classroom" : "Teacher"}
+              </span>
+              {summary && (
+                <span className="chip violet">
+                  <Icon name="sparkle" size={12} />
+                  AI
+                </span>
+              )}
             </span>
           )}
         </button>
 
         {expanded && (
           <div className="stack rise" style={{ gap: 10 }}>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--muted)" }}>
-              {email.snippet}
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+              {email.from} · {email.snippet}
             </p>
             {ai && (
               <div className="row" style={{ flexWrap: "wrap" }}>
@@ -313,6 +337,7 @@ function Message({
           </div>
         )}
       </div>
+      {email.unread && <span className="unread" aria-label="Unread" />}
     </article>
   );
 }

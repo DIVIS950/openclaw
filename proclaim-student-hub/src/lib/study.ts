@@ -88,6 +88,15 @@ export interface Note {
   updatedAt: string;
   /** The revision pack this note belongs to, if any. */
   packId: string;
+  /** Where it came from; missing on older notes (treated as written, or pack when packId is set). */
+  kind?: NoteKind;
+}
+
+export type NoteKind = "written" | "ai" | "pack" | "photo";
+
+/** The chip on a note card: what made it. */
+export function noteKind(n: Note): NoteKind {
+  return n.kind ?? (n.packId ? "pack" : "written");
 }
 
 export const notes = {
@@ -532,6 +541,7 @@ export function packToNote(pack: LabPack, existing?: Note): Note {
     body: lines.join("\n"),
     updatedAt: new Date().toISOString(),
     packId: pack.id,
+    kind: "pack",
   };
 }
 

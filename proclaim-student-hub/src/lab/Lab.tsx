@@ -527,158 +527,161 @@ function LabHome({
   );
 
   const done = daily.get(today).count;
-  const goalPct = Math.min(100, Math.round((done / DAILY_GOAL) * 100));
   const reviewPool = (): LabPack[] => {
     // Due cards first; if none are due, the weakest ones so there's always something to do.
     const dueOnly = packs.map((p) => ({ ...p, items: p.items.filter((i) => isDue(i, today)) }));
     return due > 0 ? dueOnly : packs;
   };
 
+  const total = packs.reduce((n, p) => n + p.items.length, 0);
+  const duePacks = packs.filter((p) => p.items.some((i) => isDue(i, today))).length;
+  const weakItems = packs
+    .flatMap((p) => p.items.filter(isWeak))
+    .toSorted((a, b) => b.wrong - a.wrong)
+    .slice(0, 6);
+  const recent = packs.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3);
+  const mixMinutes = Math.max(2, Math.round((due > 0 ? due : Math.min(total, 12)) / 3));
+
   return (
     <main className="screen">
-      <header className="between rise">
-        <div className="stack" style={{ gap: 4 }}>
-          <span className="eyebrow">Revision Lab</span>
-          <h1 className="h1">Level {lvl.level}</h1>
+      <header className="stack rise" style={{ gap: 10 }}>
+        <div className="between" style={{ alignItems: "center", gap: 10 }}>
+          <h1 className="h1">Revision Lab</h1>
+          <div className="row" style={{ gap: 6 }}>
+            <span className="chip lime">
+              <Icon name="flame" size={14} className={stats.streak > 0 ? "wiggle" : undefined} />
+              {stats.streak} {stats.streak === 1 ? "day" : "days"}
+            </span>
+            <button
+              className="round"
+              style={{ width: 36, height: 36 }}
+              aria-label="Lab settings"
+              onClick={() => go({ name: "settings" })}
+            >
+              <Icon name="settings" size={16} />
+            </button>
+          </div>
         </div>
-        <div className="row">
-          <span className={stats.streak > 0 ? "chip warm" : "chip"}>
-            <Icon name="flame" size={16} className={stats.streak > 0 ? "wiggle" : undefined} />
-            {stats.streak} {stats.streak === 1 ? "day" : "days"}
+        <div className="row" style={{ gap: 10 }}>
+          <span className="num s13" style={{ color: "var(--accent-t)" }}>
+            LV {lvl.level}
           </span>
-          <button
-            className="round"
-            aria-label="Lab settings"
-            onClick={() => go({ name: "settings" })}
+          <div
+            className="bar xp-bar"
+            aria-label={`${lvl.into} of ${lvl.span} XP to level ${lvl.level + 1}`}
           >
-            <Icon name="apps" size={18} />
-          </button>
+            <i style={{ width: `${(lvl.into / lvl.span) * 100}%` }} />
+          </div>
+          <span className="s12 muted" style={{ fontWeight: 600 }}>
+            {lvl.into.toLocaleString("en-GB")} / {lvl.span.toLocaleString("en-GB")} XP
+          </span>
         </div>
       </header>
-      <div className="stack" style={{ gap: 4 }}>
-        <div className="bar" aria-label={`${lvl.into} of ${lvl.span} XP to level ${lvl.level + 1}`}>
-          <div style={{ width: `${(lvl.into / lvl.span) * 100}%` }} />
-        </div>
-        <span className="muted" style={{ fontSize: 12 }}>
-          {stats.xp} XP · {lvl.span - lvl.into} to level {lvl.level + 1}
-        </span>
-      </div>
 
       {!online && (
         <div className="banner">Offline: practice works; scanning needs the internet.</div>
       )}
 
-      {onSnap && <QuickSnap prefs={settings.get()} online={online} onSaved={onSnap} />}
+      {onSnap && (
+        <QuickSnap
+          prefs={settings.get()}
+          online={online}
+          onSaved={onSnap}
+          onSample={packs.length === 0 ? onSample : undefined}
+          onOptions={() => go({ name: "scan" })}
+        />
+      )}
+
       {packs.length === 0 ? (
-        <>
-          <button className="btn big rise" onClick={() => go({ name: "scan" })}>
-            <Icon name="camera" size={20} />
-            Scan with options
-          </button>
-          <div className="card stack empty">
-            <strong>No packs yet</strong>
-            <span>
-              Scan a marked test, class notes, a worksheet or a diagram. You'll get flashcards,
-              quizzes and games made from it.
-            </span>
-            <button className="btn" onClick={onSample}>
+        <div className="card stack empty">
+          <strong>No packs yet</strong>
+          <span>
+            Scan a marked test, class notes, a worksheet or a diagram. You'll get flashcards,
+            quizzes and games made from it.
+          </span>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn" style={{ flex: 1 }} onClick={onSample}>
               Try a sample pack
             </button>
+            <button className="btn" style={{ flex: 1 }} onClick={() => go({ name: "scan" })}>
+              Scan with options
+            </button>
           </div>
-        </>
+        </div>
       ) : (
         <>
-          <section className="card-dark stack rise daily" style={{ gap: 12 }}>
-            <div className="row" style={{ gap: 16 }}>
-              <div
-                className="goal-ring"
-                style={{ "--p": `${goalPct}%` } as React.CSSProperties}
-                role="img"
-                aria-label={`${done} of ${DAILY_GOAL} cards today`}
-              >
-                <span>
-                  <strong>{done}</strong>/{DAILY_GOAL}
-                </span>
-              </div>
-              <div className="stack" style={{ gap: 4, flex: 1 }}>
-                <strong style={{ fontSize: 19 }}>
-                  {done >= DAILY_GOAL ? "Daily goal done! 🎉" : "Review today"}
-                </strong>
-                <span style={{ opacity: 0.8, fontSize: 13 }}>
-                  {due > 0
-                    ? `${due} card${due === 1 ? "" : "s"} due. A 5-minute mix of quiz, typing${packs.some((p) => canHear(p)) ? ", listening" : ""} and flashcards.`
-                    : "Nothing due: practise your weakest cards to stay sharp."}
-                </span>
-              </div>
+          <section className="card row rise d2 mix-card" style={{ padding: "14px 16px", gap: 12 }}>
+            <div className="stack" style={{ gap: 3, flex: 1, minWidth: 0 }}>
+              <span className="h2" style={{ fontSize: 15 }}>
+                {done >= DAILY_GOAL ? "Daily goal done 🎉" : "Daily review mix"}
+              </span>
+              <span className="s12 muted">
+                {due > 0
+                  ? `${due} card${due === 1 ? "" : "s"} due across ${duePacks} pack${duePacks === 1 ? "" : "s"} · about ${mixMinutes} min`
+                  : `Nothing due · ${done}/${DAILY_GOAL} today · weakest cards instead`}
+              </span>
             </div>
-            <button
-              className="btn primary big"
-              onClick={() => onPlay("review", reviewPool(), null)}
-            >
-              <Icon name="flame" size={18} />
-              {done >= DAILY_GOAL ? "Keep going" : "Start daily review"}
+            <button className="btn magenta" onClick={() => onPlay("review", reviewPool(), null)}>
+              {done >= DAILY_GOAL ? "Keep going" : "Start mix"}
             </button>
           </section>
 
-          <div className="lab-actions rise">
-            <button
-              className="quick-tile"
-              style={{ "--tile": "#ff5a00" } as React.CSSProperties}
-              aria-label="Scan a test or notes"
-              onClick={() => go({ name: "scan" })}
-            >
-              <span className="quick-tile-icon" aria-hidden="true">
-                <Icon name="camera" size={20} />
+          {weakItems.length > 0 && (
+            <section className="stack rise d3" style={{ gap: 8 }}>
+              <span className="eyebrow" style={{ paddingLeft: 4 }}>
+                Weak spots
               </span>
-              <strong>Scan</strong>
-              <span>Test or notes</span>
-            </button>
-            <button
-              className="quick-tile"
-              style={{ "--tile": "#ff2e7a" } as React.CSSProperties}
-              aria-label={`${weak} weak spots`}
-              onClick={() => go({ name: "weak" })}
-            >
-              <span className="quick-tile-icon" aria-hidden="true">
-                <Icon name="flame" size={20} />
-              </span>
-              <strong>{weak} weak</strong>
-              <span>Fix them</span>
-            </button>
-            <button
-              className="quick-tile"
-              aria-label={nextTest ? `Next test: ${nextTest.topic}` : "Tests"}
-              onClick={() => appGo("tests")}
-            >
-              <span className="quick-tile-icon" aria-hidden="true">
-                <Icon name="flag" size={20} />
-              </span>
-              <strong>
-                {nextTest
-                  ? nextTest.days === 0
-                    ? "Test today"
-                    : `${nextTest.days} day${nextTest.days === 1 ? "" : "s"}`
-                  : "Tests"}
-              </strong>
-              <span className="clip">{nextTest ? nextTest.topic : "Add a date"}</span>
-            </button>
-          </div>
+              <div className="fchips">
+                {weakItems.map((it) => (
+                  <button
+                    key={it.id}
+                    className="weak"
+                    onClick={() => go({ name: "weak" })}
+                    aria-label={`Practise ${it.prompt}`}
+                  >
+                    {it.prompt.length > 28 ? `${it.prompt.slice(0, 26)}…` : it.prompt}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <div className="row rise" style={{ gap: 8 }}>
+          <section className="stack rise d4" style={{ gap: 8 }}>
+            <div className="between" style={{ alignItems: "center", paddingLeft: 4 }}>
+              <span className="eyebrow">Your packs</span>
+              <button
+                className="btn link"
+                style={{ minHeight: 28 }}
+                onClick={() => go({ name: "library" })}
+              >
+                {recent.length} of {packs.length} ›
+              </button>
+            </div>
+            <div className="card rows">
+              {recent.map((p) => (
+                <PackRow
+                  key={p.id}
+                  pack={p}
+                  today={today}
+                  onOpen={() => go({ name: "pack", id: p.id })}
+                />
+              ))}
+            </div>
+          </section>
+
+          <div className="row rise d5" style={{ gap: 8 }}>
             <button
-              className="btn big block exam-btn"
+              className="btn"
               style={{ flex: 1 }}
-              disabled={packs.reduce((n, p) => n + p.items.length, 0) < 3}
+              disabled={total < 3}
               onClick={() => onPlay("exam", packs, null)}
             >
-              ⏱ Exam mode
-              <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-                Timed · no hints
-              </span>
+              <Icon name="timer" size={18} />
+              Exam mode · timed
             </button>
             {canListen() && packs.some((p) => canHear(p)) && (
               <button
-                className="btn big block"
+                className="btn"
                 style={{ flex: 1 }}
                 onClick={() =>
                   onPlay(
@@ -690,54 +693,65 @@ function LabHome({
               >
                 <Icon name="mic" size={18} />
                 Say it
-                <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-                  Spanish · Czech
-                </span>
+              </button>
+            )}
+            {nextTest && (
+              <button className="btn" style={{ flex: 1 }} onClick={() => appGo("tests")}>
+                <Icon name="flag" size={18} />
+                {nextTest.days === 0 ? "Test today" : `Test in ${nextTest.days}d`}
               </button>
             )}
           </div>
-
-          {subjects.length > 0 && (
-            <section className="stack rise" style={{ gap: 8 }}>
-              <h2 className="h2">Mastery</h2>
-              <div className="mastery-grid">
-                {subjects.map((s) => (
-                  <div key={s.subject} className="mastery-cell" style={subjectVars(s.subject)}>
-                    <div
-                      className="mini-ring"
-                      style={{ "--p": `${s.mastery}%` } as React.CSSProperties}
-                    >
-                      {s.mastery}%
-                    </div>
-                    <span>{s.subject}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="stack">
-            <div className="between">
-              <h2 className="h2">Recent packs</h2>
-              <button className="link-btn" onClick={() => go({ name: "library" })}>
-                Library ›
-              </button>
-            </div>
-            {packs
-              .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
-              .slice(0, 4)
-              .map((p) => (
-                <PackCard
-                  key={p.id}
-                  pack={p}
-                  today={today}
-                  onOpen={() => go({ name: "pack", id: p.id })}
-                />
-              ))}
-          </section>
         </>
       )}
     </main>
+  );
+}
+
+/** A pack row: mastery ring, "Subject · topic", what it is, a Due / Strong chip. */
+function PackRow({ pack, today, onOpen }: { pack: LabPack; today: string; onOpen: () => void }) {
+  const due = pack.items.filter((i) => isDue(i, today)).length;
+  const pct = mastery(pack.items);
+  const r = 17;
+  const c = 2 * Math.PI * r;
+  return (
+    <button className="crow" style={subjectVars(pack.subject)} onClick={onOpen}>
+      <span className="mini-ring" role="img" aria-label={`${pct}% learned`}>
+        <svg viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx="20" cy="20" r={r} fill="none" stroke="var(--surface2)" strokeWidth="4" />
+          <circle
+            cx="20"
+            cy="20"
+            r={r}
+            fill="none"
+            stroke="var(--neon, var(--accent))"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - pct / 100)}
+          />
+        </svg>
+        <span className="num">{pct}</span>
+      </span>
+      <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+        <span className="clip" style={{ fontWeight: 700 }}>
+          {pack.subject} · {pack.topic}
+        </span>
+        <span className="s12 muted clip">
+          {pack.items.length} cards
+          {pack.testScore
+            ? ` · test ${pack.testScore}`
+            : pack.docType !== "auto"
+              ? ` · ${pack.docType}`
+              : ""}
+        </span>
+      </span>
+      {due > 0 ? (
+        <span className="chip magenta">Due</span>
+      ) : pct >= 80 ? (
+        <span className="chip lime">Strong</span>
+      ) : null}
+    </button>
   );
 }
 

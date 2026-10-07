@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { AgendaList } from "../components/Agenda.tsx";
-import { AskButton } from "../components/AskButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson, type Weekday } from "../lib/aiFeatures.ts";
 import { timetable } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
-import { lessonProgress, lessonsOn, nowAndNext, schoolDays, weekdayOf } from "../lib/timetable.ts";
+import { lessonsOn, nowAndNext, schoolDays, weekdayOf } from "../lib/timetable.ts";
 import type { Homework } from "../lib/types.ts";
 
 const DAY_NAMES: Record<Weekday, string> = {
@@ -30,13 +29,6 @@ function useNow(): Date {
   return now;
 }
 
-/** The day of the month for this weekday in the current week. */
-const dateOf = (d: Weekday, now: Date) => {
-  const date = new Date(now);
-  date.setDate(now.getDate() + WEEKDAYS.indexOf(d) - ((now.getDay() + 6) % 7));
-  return date.getDate();
-};
-
 const inMinutes = (n: number) =>
   n < 60 ? `${n} min` : `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ""}`;
 
@@ -47,17 +39,61 @@ function homeworkFor(lesson: Lesson, homework: Homework[]): Homework[] {
     : homework.filter((h) => !h.done && `${h.course} ${h.title}`.toLowerCase().includes(key));
 }
 
+/** Monday of the week `offset` weeks from now. */
+function mondayOf(now: Date, offset: number): Date {
+  const d = new Date(now);
+  d.setHours(12, 0, 0, 0);
+  d.setDate(now.getDate() - ((now.getDay() + 6) % 7) + offset * 7);
+  return d;
+}
+
+/** "6 – 10 October" or "29 Sept – 3 Oct" for the school week starting on `monday`. */
+function weekLabel(monday: Date): string {
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const month = (d: Date) => d.toLocaleDateString("en-GB", { month: "long" });
+  return monday.getMonth() === friday.getMonth()
+    ? `${monday.getDate()} – ${friday.getDate()} ${month(friday)}`
+    : `${monday.getDate()} ${monday.toLocaleDateString("en-GB", { month: "short" })} – ${friday.getDate()} ${friday.toLocaleDateString("en-GB", { month: "short" })}`;
+}
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** Breaks between lessons: a gap of 20 minutes or more; around midday it is lunch. */
+type Row = { kind: "lesson"; lesson: Lesson } | { kind: "break"; label: string };
+function withBreaks(list: Lesson[]): Row[] {
+  const rows: Row[] = [];
+  list.forEach((l, i) => {
+    const prev = list[i - 1];
+    if (prev?.end) {
+      const gap = toMinutes(l.start) - toMinutes(prev.end);
+      if (gap >= 20) {
+        const lunch = toMinutes(prev.end) >= 11 * 60 + 30 && toMinutes(prev.end) <= 14 * 60;
+        rows.push({ kind: "break", label: `${lunch ? "Lunch" : "Break"} · ${prev.end}` });
+      }
+    }
+    rows.push({ kind: "lesson", lesson: l });
+  });
+  return rows;
+}
+
 export function Timetable() {
-  const { ai, homework, go } = useApp();
+  const { ai, homework } = useApp();
   const now = useNow();
   const [lessons, setLessons] = useState<Lesson[]>(timetable.get);
   const days = schoolDays(lessons);
   const today = weekdayOf(now);
   const [day, setDay] = useState<Weekday>(days.includes(today) ? today : "Mon");
+  const [week, setWeek] = useState(0);
   const [editing, setEditing] = useState<{ lesson: Lesson; index: number } | null>(null);
   const [importing, setImporting] = useState(false);
-  const { current, left, next, until } = nowAndNext(lessons, now);
+  const { current, left, next } = nowAndNext(lessons, now);
   const list = lessonsOn(lessons, day);
+  const monday = mondayOf(now, week);
+  const thisWeek = week === 0;
   useAiContext(
     `Timetable. ${DAY_NAMES[day]}: ` +
       (list
@@ -70,23 +106,49 @@ export function Timetable() {
     timetable.save(next);
   };
 
+  const dateOf = (d: Weekday) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + WEEKDAYS.indexOf(d));
+    return date.getDate();
+  };
+
+  // A lesson is past once it has ended today, or on an earlier day of this week.
+  const state = (l: Lesson): "now" | "next" | "past" | "" => {
+    if (!thisWeek) {
+      return "";
+    }
+    if (day === today) {
+      if (current === l) {
+        return "now";
+      }
+      if (next === l) {
+        return "next";
+      }
+      const t = now.getHours() * 60 + now.getMinutes();
+      return toMinutes(l.end || l.start) + (l.end ? 0 : 60) <= t ? "past" : "";
+    }
+    return WEEKDAYS.indexOf(day) < WEEKDAYS.indexOf(today) ? "past" : "";
+  };
+
   return (
     <main className="screen">
-      <header className="between rise">
+      <header className="between rise" style={{ alignItems: "center", gap: 10 }}>
         <div className="stack" style={{ gap: 4 }}>
-          <button
-            className="link-btn"
-            style={{ alignSelf: "flex-start" }}
-            onClick={() => go("today")}
-          >
-            ‹ Today
-          </button>
           <h1 className="h1">Timetable</h1>
+          <span className="s12 muted" style={{ fontWeight: 600 }}>
+            {weekLabel(monday)}
+            {thisWeek ? " · This week" : week === 1 ? " · Next week" : ""}
+          </span>
         </div>
-        <div className="head-chips">
-          <AskButton />
+        <div className="row" style={{ gap: 6 }}>
+          <button className="round" aria-label="Previous week" onClick={() => setWeek(week - 1)}>
+            <Icon name="chevronLeft" size={18} />
+          </button>
+          <button className="round" aria-label="Next week" onClick={() => setWeek(week + 1)}>
+            <Icon name="chevron" size={18} />
+          </button>
           <button
-            className="round dark"
+            className="round"
             aria-label="Add a lesson"
             onClick={() =>
               setEditing({
@@ -95,7 +157,7 @@ export function Timetable() {
               })
             }
           >
-            <Icon name="plus" size={20} />
+            <Icon name="plus" size={18} />
           </button>
         </div>
       </header>
@@ -121,65 +183,17 @@ export function Timetable() {
         </section>
       ) : (
         <>
-          {(current || next) && (
-            <section
-              className="now-card pop"
-              style={subjectVars((current ?? next)?.subject ?? "")}
-              aria-live="polite"
-            >
-              {current ? (
-                <>
-                  <span className="now-label">
-                    <span className="subject-dot" /> Now
-                  </span>
-                  <div className="row" style={{ gap: 12 }}>
-                    <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-                      <strong style={{ fontSize: 22 }}>{current.subject}</strong>
-                      <span>
-                        {current.room ? `Room ${current.room} · ` : ""}ends in {inMinutes(left)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="now-bar">
-                    <div style={{ width: `${lessonProgress(current, now) * 100}%` }} />
-                  </div>
-                  {next && (
-                    <span style={{ opacity: 0.85 }}>
-                      Next: {next.subject} at {next.start}
-                      {next.room ? ` · ${next.room}` : ""}
-                    </span>
-                  )}
-                </>
-              ) : (
-                next && (
-                  <>
-                    <span className="now-label">Next up · in {inMinutes(until ?? 0)}</span>
-                    <div className="row" style={{ gap: 12 }}>
-                      <div className="stack" style={{ gap: 2 }}>
-                        <strong style={{ fontSize: 22 }}>{next.subject}</strong>
-                        <span>
-                          {next.start}
-                          {next.room ? ` · Room ${next.room}` : ""}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )
-              )}
-            </section>
-          )}
-
-          <div className="day-tabs" role="tablist" aria-label="Day">
+          <div className="day-tabs rise d1" role="tablist" aria-label="Day">
             {days.map((d) => (
               <button
                 key={d}
                 role="tab"
                 aria-selected={day === d}
-                className={d === today ? "is-today" : undefined}
+                className={d === today && thisWeek ? "is-today" : undefined}
                 onClick={() => setDay(d)}
               >
-                {d}
-                <b>{dateOf(d, now)}</b>
+                <span>{d}</span>
+                <b>{dateOf(d)}</b>
               </button>
             ))}
           </div>
@@ -187,48 +201,60 @@ export function Timetable() {
           {list.length === 0 ? (
             <div className="card empty">No lessons on {DAY_NAMES[day]}.</div>
           ) : (
-            <div className="stack" style={{ gap: 10 }}>
-              {list.map((l, i) => {
-                const isNow = day === today && current === l;
+            <section className="stack rise d2" style={{ gap: 6 }}>
+              {withBreaks(list).map((row, i) => {
+                if (row.kind === "break") {
+                  return (
+                    <div key={`b${i}`} className="lesson brk">
+                      {row.label}
+                    </div>
+                  );
+                }
+                const l = row.lesson;
+                const st = state(l);
                 const hw = homeworkFor(l, homework ?? []);
+                const detail = [
+                  l.room ? `Room ${l.room}` : "",
+                  st === "now" ? `${inMinutes(left)} left` : "",
+                  hw.length > 0 ? `${hw.length} homework` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
                 return (
                   <button
                     key={`${l.start}-${l.subject}`}
-                    className={`lesson rise${isNow ? " now" : ""}`}
-                    style={{ ...subjectVars(l.subject), animationDelay: `${i * 0.05}s` }}
+                    className={`lesson${st ? ` ${st}` : ""}`}
+                    style={subjectVars(l.subject)}
                     onClick={() => setEditing({ lesson: l, index: lessons.indexOf(l) })}
                     aria-label={`${l.subject} ${l.start} to ${l.end}${l.room ? `, room ${l.room}` : ""}. Edit`}
                   >
-                    <span className="lesson-time">
-                      <strong>{l.start}</strong>
-                      <span>{l.end}</span>
+                    <span className="ltime">{l.start}</span>
+                    <span className="sub" aria-hidden="true" />
+                    <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+                      <span className="lesson-name">{l.subject}</span>
+                      {detail && <span className="lesson-room">{detail}</span>}
                     </span>
-                    <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
-                      <strong className="lesson-name">{l.subject}</strong>
-                      <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                        {(l.room || hw.length > 0) && (
-                          <span className="lesson-room">
-                            {[
-                              l.room ? `Room ${l.room}` : "",
-                              hw.length > 0 ? `${hw.length} homework` : "",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        )}
+                    {st === "now" && (
+                      <span className="chip lime" style={{ gap: 6 }}>
+                        <span className="dot" />
+                        Now
                       </span>
-                    </span>
-                    {isNow && <span className="now-dot" aria-label="Now" />}
+                    )}
+                    {st === "next" && <span className="chip cyan">Next</span>}
                   </button>
                 );
               })}
-            </div>
+            </section>
           )}
 
           {ai && (
-            <button className="btn block" onClick={() => setImporting(true)}>
-              <Icon name="camera" size={16} />
-              Scan a new timetable
+            <button
+              className="btn rise d3"
+              style={{ alignSelf: "center" }}
+              onClick={() => setImporting(true)}
+            >
+              <Icon name="camera" size={18} />
+              Import from a photo
             </button>
           )}
         </>

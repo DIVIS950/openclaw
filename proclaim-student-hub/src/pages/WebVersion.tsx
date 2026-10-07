@@ -204,17 +204,32 @@ export function AiKeyCard() {
   if (!PAGES || hasKey === null || (hasKey && dismissed)) {
     return null;
   }
+  // The canvas keeps Today clean: once the key is in, it lives on More.
+  if (hasKey) {
+    return null;
+  }
   return (
-    <section className="card stack rise ai-key-card" style={{ gap: 10 }} aria-label="Set up the AI">
-      <h2 className="h2 row" style={{ gap: 6 }}>
-        <Icon name="sparkle" size={18} />
-        Set up the AI on this phone
-      </h2>
-      <p className="muted" style={{ margin: 0 }}>
-        {hasKey
-          ? "A key is saved. Tap Test the AI to check it really works, then Done."
-          : "The AI needs a Claude API key (from console.anthropic.com › API keys, it starts with sk-ant-). Paste it below. It stays on this phone only."}
-      </p>
+    <section className="card stack rise" style={{ gap: 10 }} aria-label="Set up the AI">
+      <div className="row" style={{ gap: 12 }}>
+        <span className="ico lime r40" aria-hidden="true">
+          <Icon name="key" size={18} />
+        </span>
+        <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+          <span className="row" style={{ gap: 6, fontWeight: 700 }}>
+            Claude AI key
+            {hasKey && (
+              <span className="chip lime" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>
+                Connected
+              </span>
+            )}
+          </span>
+          <span className="s12 muted">
+            {hasKey
+              ? "Powers Add anything, study buddy, packs"
+              : "From console.anthropic.com › API keys (starts with sk-ant-). Stays on this phone."}
+          </span>
+        </span>
+      </div>
       <AiKeyForm compact onSaved={(ok) => setHasKey(ok)} />
       {hasKey && (
         <button
@@ -233,6 +248,36 @@ export function AiKeyCard() {
         </button>
       )}
     </section>
+  );
+}
+
+/** On More (website only): the AI key as a settings row; expands to the form. */
+export function AiKeyRow() {
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    void aiKey.get().then((k) => setHasKey(Boolean(k)));
+  }, []);
+  return (
+    <div className="crow" style={{ flexWrap: "wrap" }}>
+      <span className="ico lime r40" aria-hidden="true">
+        <Icon name="key" size={18} />
+      </span>
+      <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+        <span style={{ fontWeight: 700 }}>Claude AI key</span>
+        <span className="s11 muted">
+          {hasKey === null ? "Checking…" : hasKey ? "Connected · stays on this phone" : "Not set"}
+        </span>
+      </span>
+      <button className="btn sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? "Close" : hasKey ? "Change" : "Add key"}
+      </button>
+      {open && (
+        <div style={{ flexBasis: "100%" }}>
+          <AiKeyForm compact onSaved={(ok) => setHasKey(ok)} />
+        </div>
+      )}
+    </div>
   );
 }
 

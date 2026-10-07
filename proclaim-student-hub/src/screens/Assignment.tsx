@@ -21,11 +21,12 @@ type SaveState = "loading" | "saved" | "saving" | "error";
 const SAVE_DELAY_MS = 1200;
 
 export function Assignment({ hw }: { hw: Homework }) {
-  const { data, go, ai, handleError, toast } = useApp();
+  const { data, go, ai, handleError, toast, openAi } = useApp();
   const [text, setText] = useState("");
   const [state, setState] = useState<SaveState>("loading");
   const [link, setLink] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [polish, setPolish] = useState<"handin" | "only" | null>(null);
   const fileId = useRef<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -59,6 +60,7 @@ export function Assignment({ hw }: { hw: Homework }) {
         setLink(draft.link);
         if (latest.current === snapshot) {
           setState("saved");
+          setSavedAt(Date.now());
         }
       } catch (err) {
         setState("error");
@@ -96,42 +98,76 @@ export function Assignment({ hw }: { hw: Homework }) {
     }
   };
 
+  const saveText =
+    state === "loading"
+      ? "Loading…"
+      : state === "saving"
+        ? "Saving…"
+        : state === "error"
+          ? "Not saved"
+          : `Autosaved${savedAgo(savedAt)}`;
+
   return (
     <main className="screen" style={{ gap: 14, position: "static" }}>
-      <div className="between rise">
-        <button className="link-btn" onClick={() => go("homework")}>
-          ‹ Homework
+      <header className="row rise" style={{ gap: 10, alignItems: "center" }}>
+        <button className="round" aria-label="Back to homework" onClick={() => go("homework")}>
+          <Icon name="chevronLeft" size={20} />
         </button>
-        <SaveChip state={state} savedLabel={data.labels.saved} />
-      </div>
-
-      <header className="stack rise" style={{ gap: 6, animationDelay: "0.05s" }}>
-        <div className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-          {hw.course} · {hw.source === "Classroom" ? "Google Classroom" : hw.source}
-        </div>
-        <h1 className="h1" style={{ fontSize: 26 }}>
-          {hw.title}
-        </h1>
-        <div className="row">
-          <span className="chip">{dueLabel(hw.due)}</span>
-          {hw.source === "Classroom" && (
-            <a
-              href={hw.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: 13, fontWeight: 600 }}
+        <div className="stack" style={{ gap: 5, flex: 1, minWidth: 0 }}>
+          <h1 className="h1" style={{ fontSize: 24 }}>
+            {hw.title}
+          </h1>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+            <span className="chip violet">{hw.course}</span>
+            <span
+              className={`chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " magenta" : ""}`}
             >
-              Open in Classroom
-            </a>
-          )}
+              <Icon name="clock" size={14} />
+              {dueLabel(hw.due)}
+            </span>
+            {hw.source === "Classroom" && (
+              <a
+                className="chip"
+                href={hw.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none" }}
+              >
+                <Icon name="external" size={14} />
+                Classroom
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
+      <div className="between rise d1 s12 muted" style={{ alignItems: "center" }}>
+        <span className="row" style={{ gap: 8 }}>
+          <span
+            className="save-dot"
+            style={
+              state === "error" ? { background: "var(--magenta-t)", boxShadow: "none" } : undefined
+            }
+            aria-hidden="true"
+          />
+          <span role="status">{saveText}</span>
+        </span>
+        <span>
+          {words} {words === 1 ? "word" : "words"}
+          {link && (
+            <>
+              {" · "}
+              <a href={link} target="_blank" rel="noopener noreferrer">
+                Open Doc
+              </a>
+            </>
+          )}
+        </span>
+      </div>
+
       {hw.description && (
-        <section className="card stack rise" style={{ gap: 6, animationDelay: "0.1s" }}>
-          <h2 className="muted" style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
-            Instructions from your teacher
-          </h2>
+        <section className="card stack rise d1" style={{ gap: 6 }}>
+          <span className="eyebrow">From your teacher</span>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
             {hw.description}
           </p>
@@ -144,38 +180,13 @@ export function Assignment({ hw }: { hw: Homework }) {
         onInsert={(outline) => onChange(text.trim() ? `${text.trimEnd()}\n\n${outline}` : outline)}
       />
 
-      <section className="card stack rise" style={{ animationDelay: "0.15s" }}>
-        <div className="row" style={{ gap: 10 }}>
-          <span
-            className="tile-icon"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "var(--accent-soft)",
-              color: "var(--accent-ink)",
-            }}
-          >
-            <Icon name="doc" size={20} />
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Your work</div>
-            <div className="muted" style={{ fontSize: 12 }}>
-              {data.labels.workNote}
-            </div>
-          </div>
-          {link && (
-            <a className="btn small" href={link} target="_blank" rel="noopener noreferrer">
-              Open Doc
-            </a>
-          )}
-        </div>
-        <label htmlFor="work" className="sr-only">
-          Your work
+      <section className="card stack rise d1" style={{ padding: 18, gap: 10 }}>
+        <label className="eyebrow" htmlFor="work">
+          Your answer
         </label>
         <textarea
           id="work"
-          className="field"
+          className="field ans"
           rows={9}
           value={text}
           disabled={state === "loading"}
@@ -190,65 +201,48 @@ export function Assignment({ hw }: { hw: Homework }) {
             }
           }}
         />
-        <div className="muted" style={{ fontSize: 12 }}>
-          {words} words
-        </div>
       </section>
 
       {feedback && feedback !== "loading" && (
-        <section className="ai-card pop" aria-label="Writing coach feedback">
-          <div className="between">
-            <h3>
-              <Icon name="sparkle" size={16} />
-              Writing coach
-            </h3>
-            <button
-              className="link-btn"
-              style={{ minHeight: 32 }}
-              onClick={() => setFeedback(null)}
-            >
-              Hide
-            </button>
+        <section
+          className="card hero violet pop"
+          style={{ padding: "14px 16px", gap: 10 }}
+          aria-label="AI feedback"
+        >
+          <div className="row" style={{ gap: 8 }}>
+            <span className="chip violet">
+              <Icon name="sparkle" size={14} />
+              AI feedback
+            </span>
+            <span className="s12 muted">on your answer</span>
           </div>
           {feedback.good.length > 0 && (
-            <div>
-              <strong style={{ fontSize: 13, color: "var(--good)" }}>What works</strong>
-              <ul className="ai-list">
-                {feedback.good.map((g, i) => (
-                  <li key={i}>{g}</li>
-                ))}
-              </ul>
+            <div style={{ fontSize: 14, lineHeight: 1.45 }}>
+              <strong className="ok-text">Works: </strong>
+              {feedback.good.join(" ")}
             </div>
           )}
-          {feedback.improve.length > 0 && (
-            <div>
-              <strong style={{ fontSize: 13, color: "var(--warm)" }}>To make it better</strong>
-              <ul className="ai-list">
-                {feedback.improve.map((f, i) => (
-                  <li key={i}>
-                    <strong>{f.point}</strong>
-                    {f.hint ? ` Hint: ${f.hint}` : ""}
-                  </li>
-                ))}
-              </ul>
+          {feedback.improve.map((f, i) => (
+            <div key={i} style={{ fontSize: 14, lineHeight: 1.45 }}>
+              <strong>{f.point}</strong>
+              {f.hint ? ` ${f.hint}` : ""}
             </div>
-          )}
+          ))}
           {feedback.spelling.length > 0 && (
             <div className="stack" style={{ gap: 6 }}>
-              <strong style={{ fontSize: 13 }}>Spelling and grammar</strong>
-              {feedback.spelling.map((s, i) => (
-                <div key={i} className="between">
+              {feedback.spelling.map((sp, i) => (
+                <div key={i} className="between" style={{ fontSize: 14 }}>
                   <span>
-                    <s style={{ color: "var(--warm)" }}>{s.wrong}</s> → <strong>{s.right}</strong>
+                    <s className="fix-text">{sp.wrong}</s> → <strong>{sp.right}</strong>
                   </span>
-                  {text.includes(s.wrong) && (
+                  {text.includes(sp.wrong) && (
                     <button
-                      className="btn small"
+                      className="btn sm"
                       onClick={() => {
-                        onChange(text.replace(s.wrong, s.right));
+                        onChange(text.replace(sp.wrong, sp.right));
                         setFeedback({
                           ...feedback,
-                          spelling: feedback.spelling.filter((x) => x !== s),
+                          spelling: feedback.spelling.filter((x) => x !== sp),
                         });
                       }}
                     >
@@ -260,46 +254,71 @@ export function Assignment({ hw }: { hw: Homework }) {
             </div>
           )}
           {feedback.next && (
-            <div style={{ background: "var(--card)", borderRadius: 12, padding: 12, fontSize: 14 }}>
-              <strong>Next step:</strong> {feedback.next}
+            <div style={{ fontSize: 14, lineHeight: 1.45 }}>
+              <strong>Next: </strong>
+              {feedback.next}
             </div>
           )}
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              className="btn sm"
+              style={{ color: "var(--violet-t)" }}
+              onClick={() =>
+                openAi({
+                  question:
+                    "Explain why the feedback on my answer is right, simply, with one example.",
+                })
+              }
+            >
+              Show me why
+            </button>
+            <button
+              className="btn sm"
+              style={{ marginLeft: "auto" }}
+              onClick={() => setFeedback(null)}
+            >
+              Fixed it
+            </button>
+          </div>
         </section>
       )}
 
-      <div className="row rise" style={{ animationDelay: "0.2s" }}>
+      <div className="row rise d2" style={{ gap: 8, flexWrap: "wrap" }}>
+        <FocusButton title={hw.title} />
+        <CheckPhotoButton title={hw.title} course={hw.course} />
         <button
-          className="btn big"
-          style={{ flex: 1, borderColor: "var(--ink)" }}
-          disabled={!text.trim()}
+          className="btn sm"
+          disabled={!text.trim() || state === "loading"}
+          onClick={() => setPolish("only")}
+        >
+          <Icon name="wand" size={14} />
+          Polish
+        </button>
+      </div>
+
+      <div className="bottom-bar">
+        <button
+          className="btn"
+          style={{ flex: 1 }}
+          disabled={!text.trim() || feedback === "loading"}
           onClick={() => void getFeedback()}
         >
           <Icon
             name={feedback === "loading" ? "loader" : "sparkle"}
-            size={16}
+            size={18}
             className={feedback === "loading" ? "spin" : undefined}
           />
-          Writing coach
+          Feedback
         </button>
         <button
-          className="btn big primary"
-          style={{ flex: 1 }}
+          className="btn primary"
+          style={{ flex: 1.3 }}
           disabled={state === "loading"}
           onClick={() => (text.trim() ? setPolish("handin") : setSheet(true))}
         >
           Hand in
         </button>
       </div>
-      <FocusButton title={hw.title} />
-      <CheckPhotoButton title={hw.title} course={hw.course} />
-      <button
-        className="btn block rise"
-        disabled={!text.trim() || state === "loading"}
-        onClick={() => setPolish("only")}
-      >
-        <Icon name="wand" size={16} />
-        Polish my work
-      </button>
 
       {polish && (
         <PolishSheet
@@ -342,27 +361,15 @@ export function Assignment({ hw }: { hw: Homework }) {
   );
 }
 
-function SaveChip({ state, savedLabel }: { state: SaveState; savedLabel: string }) {
-  if (state === "saving" || state === "loading") {
-    return (
-      <span className="chip saving">
-        <Icon name="loader" size={13} className="spin" />
-        {state === "loading" ? "Loading…" : "Saving…"}
-      </span>
-    );
+/** " just now" / " 2 min ago" after "Autosaved". */
+function savedAgo(at: number | null): string {
+  if (!at) {
+    return "";
   }
-  if (state === "error") {
-    return <span className="chip warm">Not saved</span>;
-  }
-  return (
-    <span className="chip good pop">
-      <Icon name="check" size={14} />
-      {savedLabel}
-    </span>
-  );
+  const mins = Math.round((Date.now() - at) / 60_000);
+  return mins < 1 ? " just now" : ` ${mins} min ago`;
 }
 
-/** Photo of written answers → the tutor marks them, question by question. */
 function CheckPhotoButton({ title, course }: { title: string; course: string }) {
   const { ai, askTutor, handleError, toast } = useApp();
   const input = useRef<HTMLInputElement>(null);
@@ -373,13 +380,13 @@ function CheckPhotoButton({ title, course }: { title: string; course: string }) 
   return (
     <>
       <button
-        className="btn block rise"
+        className="btn sm"
         disabled={busy}
         onClick={() => input.current?.click()}
         aria-label="Check my answers from a photo"
       >
-        <Icon name={busy ? "loader" : "camera"} size={16} className={busy ? "spin" : undefined} />
-        Check my answers (photo)
+        <Icon name={busy ? "loader" : "camera"} size={14} className={busy ? "spin" : undefined} />
+        Check from photo
       </button>
       <input
         ref={input}

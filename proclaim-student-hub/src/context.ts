@@ -66,6 +66,7 @@ export interface AppContext {
   /** Opens the AI helper over the current screen. */
   openAi: (request?: { question?: string; context?: string }) => void;
   /** Screens describe what's on them so the AI helper knows what "this" means. */
+  aiContext: string;
   setAiContext: (context: string) => void;
   handleError: (err: unknown) => void;
   toast: (message: string) => void;

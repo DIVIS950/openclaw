@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Icon, type IconName } from "../components/Icon.tsx";
+import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { courses, type Course, type CoursePost } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
@@ -7,33 +7,43 @@ import { subjectVars } from "../lib/subjects.ts";
 // The student's Classroom classes, as imported (Classroom itself is blocked for
 // outside apps at school). Go through the posts, get help, add work to homework.
 
-type Filter = "All" | "Assignments" | "Materials" | "Posts";
-
-const KIND_ICON: Record<CoursePost["kind"], IconName> = {
-  assignment: "homework",
-  material: "book",
-  announcement: "mail",
-};
-
 const KIND_LABEL: Record<CoursePost["kind"], string> = {
   assignment: "Assignment",
   material: "Material",
   announcement: "Post",
 };
 
-const dayLabel = (day: string) =>
-  new Date(`${day}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const dateLabel = (day: string) => {
+  const d = new Date(`${day}T12:00:00`);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) {
+    return "Today";
+  }
+  const days = (today.getTime() - d.getTime()) / 86_400_000;
+  if (days < 1.5) {
+    return "Yesterday";
+  }
+  return days < 7
+    ? d.toLocaleDateString("en-GB", { weekday: "short" })
+    : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+};
 
-const matches = (post: CoursePost, filter: Filter) =>
-  filter === "All" ||
-  (filter === "Assignments" && post.kind === "assignment") ||
-  (filter === "Materials" && post.kind === "material") ||
-  (filter === "Posts" && post.kind === "announcement");
+/** Two letters for the class mark: "Ma" for Maths, "Ar" for Art History. */
+const markOf = (name: string) => {
+  const word = name.trim().split(/\s+/)[0] ?? "";
+  return word.slice(0, 2);
+};
+
+/** Posts from the last 7 days count as new. */
+const newCount = (c: Course) => {
+  const cutoff = Date.now() - 7 * 86_400_000;
+  return c.posts.filter((p) => p.date && new Date(`${p.date}T12:00:00`).getTime() >= cutoff).length;
+};
 
 export function Classes() {
-  const { go } = useApp();
   const [list] = useState<Course[]>(courses.get);
-  const [open, setOpen] = useState<Course | null>(null);
+  const [openName, setOpenName] = useState<string | null>(() => list[0]?.name ?? null);
+  const open = list.find((c) => c.name === openName) ?? null;
   useAiContext(
     open
       ? `Class "${open.name}" (${open.subject}). Posts: ` +
@@ -43,22 +53,15 @@ export function Classes() {
       : `Classes: ${list.map((c) => c.name).join(", ") || "none imported yet"}.`,
   );
 
-  if (open) {
-    return <ClassPage course={open} onBack={() => setOpen(null)} />;
-  }
-
   return (
     <main className="screen">
-      <header className="stack rise" style={{ gap: 4 }}>
-        <button
-          className="link-btn"
-          style={{ alignSelf: "flex-start" }}
-          onClick={() => go("homework")}
-        >
-          ‹ Homework
-        </button>
+      <header className="between rise" style={{ alignItems: "center" }}>
         <h1 className="h1">Classes</h1>
-        <p className="sub">Everything from your Classroom classes, in one place.</p>
+        {list.length > 0 && (
+          <span className="chip" style={{ height: 28 }}>
+            {list.length} from Classroom
+          </span>
+        )}
       </header>
 
       {list.length === 0 ? (
@@ -72,46 +75,62 @@ export function Classes() {
           </span>
         </section>
       ) : (
-        <div className="stack">
-          {list.map((c, i) => {
-            const work = c.posts.filter((p) => p.kind === "assignment").length;
-            const latest = c.posts.find((p) => p.date)?.date;
-            return (
-              <button
-                key={c.name}
-                className="card subject-card class-row rise"
-                style={{ ...subjectVars(c.subject), animationDelay: `${i * 0.03}s` }}
-                onClick={() => setOpen(c)}
-              >
-                <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-                  <strong className="class-name">{c.name}</strong>
-                  <span className="muted">
-                    {work > 0 ? `${work} assignments · ` : ""}
-                    {c.posts.length} posts
-                    {latest ? ` · latest ${dayLabel(latest)}` : ""}
-                  </span>
-                </span>
-                <span className="muted" aria-hidden="true" style={{ fontSize: 20 }}>
-                  ›
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <>
+          {open && <ClassCard key={open.name} course={open} />}
+          {list.filter((c) => c !== open).length > 0 && (
+            <section className="card rows rise d2">
+              {list
+                .filter((c) => c !== open)
+                .map((c) => {
+                  const fresh = newCount(c);
+                  const latest = c.posts.find((p) => p.date) ?? c.posts[0];
+                  return (
+                    <button
+                      key={c.name}
+                      className="crow"
+                      style={subjectVars(c.subject)}
+                      onClick={() => {
+                        setOpenName(c.name);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      <span className="mark" aria-hidden="true">
+                        {markOf(c.name)}
+                      </span>
+                      <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700 }}>{c.name}</span>
+                        <span className="s12 muted clip">
+                          {latest ? latest.title : `${c.posts.length} posts`}
+                        </span>
+                      </span>
+                      {fresh > 0 && <span className="chip subject">{fresh} new</span>}
+                    </button>
+                  );
+                })}
+            </section>
+          )}
+        </>
       )}
     </main>
   );
 }
 
-function ClassPage({ course, onBack }: { course: Course; onBack: () => void }) {
+type Tab = "Posts" | "Materials" | "Assignments";
+const TAB_KIND: Record<Tab, CoursePost["kind"] | null> = {
+  Posts: null,
+  Materials: "material",
+  Assignments: "assignment",
+};
+
+/** The open class: its posts, with help and "add to homework" on each. */
+function ClassCard({ course }: { course: Course }) {
   const { openAi, askTutor, data, homework, addHomeworkItem, handleError, toast } = useApp();
-  const [filter, setFilter] = useState<Filter>("All");
+  const [tab, setTab] = useState<Tab>("Posts");
   const [adding, setAdding] = useState<string | null>(null);
   const titles = new Set((homework ?? []).map((h) => h.title.trim().toLowerCase()));
-  const posts = course.posts.filter((p) => matches(p, filter));
-  const filters: Filter[] = ["All", "Assignments", "Materials", "Posts"].filter(
-    (f) => f === "All" || course.posts.some((p) => matches(p, f as Filter)),
-  ) as Filter[];
+  const kind = TAB_KIND[tab];
+  const posts = course.posts.filter((p) => !kind || p.kind === kind);
+  const fresh = newCount(course);
 
   const add = async (post: CoursePost) => {
     setAdding(post.title);
@@ -128,99 +147,94 @@ function ClassPage({ course, onBack }: { course: Course; onBack: () => void }) {
   };
 
   return (
-    <main className="screen">
-      <header className="stack rise" style={{ gap: 4, ...subjectVars(course.subject) }}>
-        <button className="link-btn" style={{ alignSelf: "flex-start" }} onClick={onBack}>
-          ‹ Classes
-        </button>
-        <span className="eyebrow row" style={{ gap: 6 }}>
-          <span className="subject-dot" /> {course.subject}
+    <section
+      className="card stack rise d1 class-open"
+      style={{ ...subjectVars(course.subject), gap: 12, padding: 16 }}
+    >
+      <div className="row" style={{ gap: 12 }}>
+        <span className="mark" aria-hidden="true">
+          {markOf(course.name)}
         </span>
-        <h1 className="h1">{course.name}</h1>
-      </header>
-
-      {filters.length > 2 && (
-        <div className="pills" role="group" aria-label="Show">
-          {filters.map((f) => (
-            <button
-              key={f}
-              className="pill"
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
-            >
-              {f}
-            </button>
-          ))}
+        <div className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+          <h2 className="h2">{course.name}</h2>
+          <span className="s12 muted">
+            {course.subject} · {course.posts.length} posts
+          </span>
         </div>
-      )}
-
-      <div className="stack">
+        {fresh > 0 && <span className="chip subject">{fresh} new</span>}
+      </div>
+      <div className="seg" role="tablist" aria-label="Show">
+        {(["Posts", "Materials", "Assignments"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            className={tab === t ? "on" : undefined}
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <div className="stack" style={{ gap: 0 }}>
+        {posts.length === 0 && <span className="muted s12">Nothing here yet.</span>}
         {posts.map((p, i) => {
           const context =
             `${course.name} (${course.subject}): ${KIND_LABEL[p.kind]} "${p.title}"` +
             `${p.date ? `, posted ${p.date}` : ""}. ${p.text}`;
+          const old = i > 1;
           return (
-            <article
+            <div
               key={`${p.date}-${p.title}`}
-              className="card stack rise"
-              style={{ animationDelay: `${i * 0.03}s`, gap: 8 }}
+              className="post"
+              style={old ? { opacity: 0.7 } : undefined}
             >
-              <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
-                <span className={`post-icon ${p.kind}`} aria-hidden="true">
-                  <Icon name={KIND_ICON[p.kind]} size={18} />
-                </span>
-                <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
-                  <strong style={{ lineHeight: 1.3 }}>{p.title}</strong>
-                  <span className="muted">
-                    {KIND_LABEL[p.kind]}
-                    {p.date ? ` · ${dayLabel(p.date)}` : ""}
-                  </span>
-                </div>
-              </div>
-              {p.text && <p style={{ margin: 0, lineHeight: 1.5 }}>{p.text}</p>}
-              <div className="row" style={{ flexWrap: "wrap" }}>
+              <span className="post-dot" style={old ? { background: "var(--line)" } : undefined} />
+              <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
                 <button
-                  className="btn small"
-                  onClick={() => openAi({ context, question: `Help me with "${p.title}".` })}
+                  className="link-btn"
+                  style={{ fontWeight: 600, textAlign: "left", color: "inherit" }}
+                  onClick={() =>
+                    p.kind === "material"
+                      ? askTutor(
+                          `Teach me the key points of "${p.title}" (${course.subject}, Year 9) simply, then quiz me with 3 questions.`,
+                          "explain",
+                        )
+                      : openAi({ context, question: `Help me with "${p.title}".` })
+                  }
                 >
-                  <Icon name="sparkle" size={14} />
-                  Help me
+                  {p.title}
                 </button>
-                {p.kind === "material" && (
+                <span className="s12 muted">
+                  {[
+                    p.date ? dateLabel(p.date) : "",
+                    KIND_LABEL[p.kind],
+                    p.text ? p.text.slice(0, 60) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </span>
+              {p.kind === "assignment" &&
+                (titles.has(p.title.toLowerCase()) ? (
+                  <span className="chip lime">
+                    <Icon name="check" size={12} />
+                    Added
+                  </span>
+                ) : (
                   <button
-                    className="btn small"
-                    onClick={() =>
-                      askTutor(
-                        `Teach me the key points of "${p.title}" (${course.subject}, Year 9) simply, then quiz me with 3 questions.`,
-                        "explain",
-                      )
-                    }
+                    className="btn sm"
+                    disabled={adding === p.title}
+                    onClick={() => void add(p)}
                   >
-                    <Icon name="book" size={14} />
-                    Revise this
+                    <Icon name="plus" size={14} />
+                    Add
                   </button>
-                )}
-                {p.kind === "assignment" &&
-                  (titles.has(p.title.toLowerCase()) ? (
-                    <span className="chip good">
-                      <Icon name="check" size={12} />
-                      In homework
-                    </span>
-                  ) : (
-                    <button
-                      className="btn small primary"
-                      disabled={adding === p.title}
-                      onClick={() => void add(p)}
-                    >
-                      <Icon name="plus" size={14} />
-                      Add to homework
-                    </button>
-                  ))}
-              </div>
-            </article>
+                ))}
+            </div>
           );
         })}
       </div>
-    </main>
+    </section>
   );
 }

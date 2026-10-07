@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { AddAnythingButton } from "../components/AddAnything.tsx";
-import { AskButton } from "../components/AskButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { progress, weekLog } from "../lib/store.ts";
@@ -13,24 +11,18 @@ import { Tutoring } from "./Tutoring.tsx";
 // taskbar; Tutoring opens from Today. They hand work to each other (a note
 // opened from a test or a tutor goes through noteHandoff) and to the Revision Lab.
 
-function ScreenHead({ title, sub, back }: { title: string; sub: string; back?: boolean }) {
-  const { go } = useApp();
+function ScreenHead({
+  title,
+  right,
+}: {
+  title: string;
+  /** Whatever sits at the right of the title: a chip, a segmented control. */
+  right?: React.ReactNode;
+}) {
   return (
-    <header className="between rise" style={{ alignItems: "flex-start" }}>
-      <div className="stack" style={{ gap: 4, minWidth: 0 }}>
-        {back && (
-          <button
-            className="link-btn"
-            style={{ alignSelf: "flex-start", minHeight: 28 }}
-            onClick={() => go("today")}
-          >
-            ‹ Today
-          </button>
-        )}
-        <h1 className="h1">{title}</h1>
-        <p className="sub">{sub}</p>
-      </div>
-      <AskButton />
+    <header className="between rise" style={{ alignItems: "center", gap: 10 }}>
+      <h1 className="h1">{title}</h1>
+      {right}
     </header>
   );
 }
@@ -45,23 +37,44 @@ function useOpenNote() {
 }
 
 export function TodoScreen() {
-  const [version, setVersion] = useState(0);
   return (
     <main className="screen">
-      <ScreenHead title="To-do" sub="Everything to get done, by due date." />
-      <AddAnythingButton big label="Add anything" onSaved={() => setVersion((v) => v + 1)} />
-      <TodoList key={version} />
+      <TodoList />
     </main>
   );
 }
 
 export function TestsScreen() {
   const openNote = useOpenNote();
+  const [view, setView] = useState<"tests" | "grades">("tests");
   return (
     <main className="screen">
       <Tests
         onOpenNote={openNote}
-        header={<ScreenHead title="Tests" sub="A little preparation every day until the test." />}
+        view={view}
+        header={
+          <ScreenHead
+            title="Tests"
+            right={
+              <div className="segmented" role="tablist" style={{ width: 170 }}>
+                <button
+                  role="tab"
+                  aria-selected={view === "tests"}
+                  onClick={() => setView("tests")}
+                >
+                  Tests
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={view === "grades"}
+                  onClick={() => setView("grades")}
+                >
+                  Grades
+                </button>
+              </div>
+            }
+          />
+        }
       />
     </main>
   );
@@ -75,7 +88,7 @@ export function NotesScreen() {
         key={noteId ?? "list"}
         openId={noteId}
         onClose={() => setNoteId(null)}
-        header={<ScreenHead title="Notes" sub="Your notes, vocab lists and class material." />}
+        header={<h1 className="h1 rise">Notes</h1>}
       />
     </main>
   );
@@ -85,16 +98,7 @@ export function TutoringScreen() {
   const openNote = useOpenNote();
   return (
     <main className="screen">
-      <Tutoring
-        onOpenNote={openNote}
-        header={
-          <ScreenHead
-            back
-            title="Tutoring"
-            sub="Your tutors, their material and lesson homework."
-          />
-        }
-      />
+      <Tutoring onOpenNote={openNote} />
     </main>
   );
 }
@@ -115,6 +119,7 @@ function TodoList() {
   const [list, setList] = useState<Todo[]>(todos.all);
   const [text, setText] = useState("");
   const [due, setDue] = useState("");
+  void setDue;
   const today = dayOf(new Date());
   const groups = groupTodos(list, today);
   useAiContext(
@@ -140,59 +145,114 @@ function TodoList() {
     save(list.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)));
   };
 
+  const sourceChip = (t: Todo) => {
+    const from = t.from.toLowerCase();
+    const cls = from.startsWith("tutoring")
+      ? "magenta"
+      : from.includes("inbox") || from.includes("email")
+        ? "cyan"
+        : from.includes("note")
+          ? "violet"
+          : "";
+    const label = from.startsWith("tutoring")
+      ? "Tutor"
+      : from.includes("inbox") || from.includes("email")
+        ? "Inbox"
+        : from.includes("note")
+          ? "Note"
+          : t.from || "Me";
+    return <span className={`chip ${cls}`.trim()}>{label}</span>;
+  };
+
   const section = (title: string, items: Todo[], warm = false) =>
     items.length > 0 && (
-      <section className="stack" style={{ gap: 6 }}>
-        <h2 className={`eyebrow${warm ? " warm-text" : ""}`}>{title}</h2>
-        <div className="list">
+      <section className="stack" style={{ gap: 8 }}>
+        <h2 className={`eyebrow${warm ? " fix-text" : ""}`} style={{ paddingLeft: 4 }}>
+          {title}
+        </h2>
+        <div className="card rows">
           {items.map((t) => (
-            <div key={t.id} className={`hw-row${t.done ? " hw-done" : ""}`}>
+            <label key={t.id} className="item">
               <input
+                className="cb"
                 type="checkbox"
                 checked={t.done}
                 onChange={() => toggle(t)}
                 aria-label={`Mark "${t.text}" done`}
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="hw-title">{t.text}</div>
-                {(t.from || t.subject) && (
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {[t.subject, t.from].filter(Boolean).join(" · ")}
-                  </div>
-                )}
-              </div>
-              {t.due && (
-                <span className={`chip${t.due < today && !t.done ? " warm" : ""}`}>
-                  {dueText(t.due, today)}
+              <span className="stack" style={{ gap: 3, flex: 1, minWidth: 0 }}>
+                <span className={t.done ? "done" : undefined} style={{ fontWeight: 600 }}>
+                  {t.text}
                 </span>
+                <span className="row" style={{ gap: 6 }}>
+                  {sourceChip(t)}
+                  {(t.from || t.due) && (
+                    <span className="s11 muted">
+                      {[
+                        t.from && !t.from.toLowerCase().startsWith("tutoring") && t.from !== "Me"
+                          ? ""
+                          : t.from.toLowerCase().startsWith("tutoring")
+                            ? `from ${t.from.replace(/^Tutoring with /i, "")}`
+                            : "",
+                        t.due ? dueText(t.due, today) : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
+                </span>
+              </span>
+              {!t.done && (
+                <button
+                  type="button"
+                  className="round"
+                  style={{ width: 32, height: 32 }}
+                  aria-label={`Delete "${t.text}"`}
+                  onClick={() => save(list.filter((x) => x.id !== t.id))}
+                >
+                  <Icon name="close" size={14} />
+                </button>
               )}
-              <button
-                className="round"
-                style={{ width: 32, height: 32 }}
-                aria-label={`Delete "${t.text}"`}
-                onClick={() => save(list.filter((x) => x.id !== t.id))}
-              >
-                <Icon name="close" size={14} />
-              </button>
-            </div>
+            </label>
           ))}
         </div>
       </section>
     );
 
+  const openCount = list.filter((t) => !t.done).length;
+  const [todayDue, setTodayDue] = useState(false);
+
   return (
     <>
+      <header className="between rise" style={{ alignItems: "center" }}>
+        <h1 className="h1">To-do</h1>
+        <span className="chip">
+          <span className="num" style={{ color: "var(--accent-t)" }}>
+            {openCount}
+          </span>
+          open
+        </span>
+      </header>
       <form
-        className="card stack rise"
+        className="row rise todo-form"
+        style={{ gap: 8 }}
         onSubmit={(e) => {
           e.preventDefault();
           if (text.trim()) {
             save([
               ...list,
-              { id: newId("t"), text: text.trim(), due, subject: "", from: "", done: false },
+              {
+                id: newId("t"),
+                text: text.trim(),
+                due: todayDue ? today : due,
+                subject: "",
+                from: "",
+                done: false,
+              },
             ]);
             setText("");
             setDue("");
+            setTodayDue(false);
           }
         }}
       >
@@ -203,21 +263,23 @@ function TodoList() {
           placeholder="Add a to-do…"
           aria-label="New to-do"
         />
-        <div className="row">
-          <input
-            className="field"
-            type="date"
-            lang="en-GB"
-            value={due}
-            onChange={(e) => setDue(e.target.value)}
-            aria-label="Due date (optional)"
-            style={{ flex: 1 }}
-          />
-          <button className="btn primary" type="submit" disabled={!text.trim()}>
-            <Icon name="plus" size={16} />
-            Add
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`btn${todayDue ? " primary" : ""}`}
+          aria-pressed={todayDue}
+          onClick={() => setTodayDue((v) => !v)}
+        >
+          <Icon name="calendar" size={18} />
+          Today
+        </button>
+        <button
+          className="round r48 primary"
+          type="submit"
+          aria-label="Add"
+          disabled={!text.trim()}
+        >
+          <Icon name="plus" size={20} />
+        </button>
       </form>
 
       {list.length === 0 && (
@@ -227,7 +289,7 @@ function TodoList() {
       )}
       {section("Overdue", groups.overdue, true)}
       {section("Today", groups.today)}
-      {section("Coming up", groups.later)}
+      {section("This week", groups.later)}
       {section("Any time", groups.someday)}
       {groups.done.length > 0 && (
         <>

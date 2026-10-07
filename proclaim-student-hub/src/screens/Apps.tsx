@@ -1,10 +1,16 @@
-import { AskButton } from "../components/AskButton.tsx";
+import { useState } from "react";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
 import { useApp, type Screen } from "../context.ts";
 import { PAGES } from "../pages/runtime.ts";
-import { CLAUDE_PAGE, GmailCard, PagesSettings, SendToWeb } from "../pages/WebVersion.tsx";
+import {
+  AiKeyRow,
+  CLAUDE_PAGE,
+  GmailCard,
+  PagesSettings,
+  SendToWeb,
+} from "../pages/WebVersion.tsx";
 
 interface AppTile {
   name: string;
@@ -17,12 +23,12 @@ const GOOGLE: AppTile[] = [
   {
     name: "Classroom",
     url: "https://classroom.google.com",
-    icon: "classroom",
+    icon: "cap",
     tint: "var(--mint)",
   },
   { name: "Gmail", url: "https://mail.google.com", icon: "mail", tint: "var(--coral)" },
-  { name: "Drive", url: "https://drive.google.com", icon: "drive", tint: "var(--amber)" },
-  { name: "Docs", url: "https://docs.google.com", icon: "doc", tint: "var(--cyan)" },
+  { name: "Drive", url: "https://drive.google.com", icon: "driveLogo", tint: "var(--amber)" },
+  { name: "Docs", url: "https://docs.google.com", icon: "file", tint: "var(--cyan)" },
   {
     name: "Calendar",
     url: "https://calendar.google.com",
@@ -60,61 +66,36 @@ const OTHERS: AppTile[] = [
   { name: "Canva", url: "https://www.canva.com", icon: "palette", tint: "var(--violet)" },
 ];
 
-function Tiles({ apps, start }: { apps: AppTile[]; start: number }) {
-  return (
-    <div className="tiles">
-      {apps.map((a, i) => (
-        <a
-          key={a.name}
-          className="tile"
-          href={a.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ animationDelay: `${start + i * 0.05}s` }}
-        >
-          <span className="tile-icon" style={{ "--tile": a.tint } as React.CSSProperties}>
-            <Icon name={a.icon} size={18} />
-          </span>
-          <span className="tile-label">{a.name}</span>
-        </a>
-      ))}
-    </div>
-  );
-}
-
 const HUB: { screen: Screen; label: string; icon: IconName; tint: string }[] = [
-  { screen: "todo", label: "To-do", icon: "todo", tint: "var(--cyan)" },
-  { screen: "tests", label: "Tests", icon: "flag", tint: "var(--coral)" },
-  { screen: "notes", label: "Notes", icon: "note", tint: "var(--amber)" },
-  { screen: "revise", label: "Revise", icon: "camera", tint: "var(--lime)" },
+  { screen: "todo", label: "To-do", icon: "checkSquare", tint: "var(--cyan)" },
+  { screen: "tests", label: "Tests", icon: "timer", tint: "var(--coral)" },
+  { screen: "notes", label: "Notes", icon: "pen", tint: "var(--amber)" },
+  { screen: "revise", label: "Revise", icon: "flask", tint: "var(--lime)" },
   { screen: "timetable", label: "Timetable", icon: "calendar", tint: "var(--violet)" },
-  { screen: "tutoring", label: "Tutoring", icon: "book", tint: "var(--mint)" },
+  { screen: "tutoring", label: "Tutoring", icon: "video", tint: "var(--mint)" },
   { screen: "inbox", label: "Inbox", icon: "mail", tint: "var(--cyan)" },
   { screen: "call", label: "Talk", icon: "mic", tint: "var(--coral)" },
 ];
 
+const HUB_TINT = ["lime", "magenta", "cyan", "violet"] as const;
+
 export function Apps() {
   const { profile, data, signOut, go } = useApp();
+  const [moreApps, setMoreApps] = useState(false);
   return (
-    <main className="screen" style={{ gap: 18 }}>
-      <header className="between rise">
+    <main className="screen" style={{ gap: 12 }}>
+      <header className="between rise" style={{ alignItems: "center" }}>
         <h1 className="h1">More</h1>
-        <div className="head-chips">
-          {profile?.name && <span className="chip">{profile.name} · Park Lane</span>}
-          <AskButton />
-        </div>
+        <span className="chip">
+          {profile?.name ? `${profile.name.split(" ")[0]} · Park Lane` : "Park Lane"}
+        </span>
       </header>
 
       <nav className="hub-grid rise" aria-label="Hub">
         {HUB.map((h, i) => (
-          <button
-            key={h.screen}
-            className="hub-tile pop"
-            style={{ "--tile": h.tint, animationDelay: `${i * 0.04}s` } as React.CSSProperties}
-            onClick={() => go(h.screen)}
-          >
-            <span className="hub-icon" aria-hidden="true">
-              <Icon name={h.icon} size={20} />
+          <button key={h.screen} className="tile" onClick={() => go(h.screen)}>
+            <span className={`ico ${HUB_TINT[i % 4]}`} aria-hidden="true">
+              <Icon name={h.icon} size={18} />
             </span>
             {h.label}
           </button>
@@ -123,59 +104,76 @@ export function Apps() {
 
       <Tools />
 
-      <section className="stack">
-        <h2 className="eyebrow" style={{ margin: 0 }}>
-          Google
-        </h2>
-        <Tiles apps={GOOGLE} start={0.05} />
-      </section>
-
-      <section className="stack">
-        <h2 className="eyebrow" style={{ margin: 0 }}>
-          Maths, languages &amp; design
-        </h2>
-        <Tiles apps={OTHERS} start={0.35} />
-      </section>
-
-      <LookCard />
-      <BackupCard />
-      {PAGES && <GmailCard />}
-      {PAGES && <PagesSettings />}
-      {CLAUDE_PAGE && !data.demo && <SendToWeb />}
-
-      <div className="card row rise" style={{ gap: 12, animationDelay: "0.6s" }}>
-        <span style={{ color: "var(--ink)" }}>
-          <Icon name="link" size={22} />
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>
-            {PAGES
-              ? "Web version"
-              : data.demo
-                ? "Demo mode"
-                : data.hasClassroom
-                  ? "Google account connected"
-                  : "Connected through Claude"}
-          </div>
-          <div
-            className="muted"
-            style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis" }}
+      <section className="stack rise" style={{ gap: 8 }}>
+        <div className="between" style={{ paddingLeft: 4 }}>
+          <h2 className="eyebrow" style={{ margin: 0 }}>
+            Google apps
+          </h2>
+          <button
+            className="btn link s11"
+            style={{ minHeight: 28 }}
+            onClick={() => setMoreApps((v) => !v)}
           >
-            {PAGES
-              ? "Saved on this phone. AI with your own key."
-              : data.demo
-                ? "Sample data. Sign in to see your own."
-                : data.hasClassroom
-                  ? profile?.email
-                  : "Gmail and the AI study buddy use your Claude account."}
-          </div>
-        </div>
-        {signOut && (
-          <button className="btn small dark" onClick={signOut}>
-            {data.demo ? "Sign in" : "Sign out"}
+            {moreApps ? "− Maths · Languages · Design" : "+ Maths · Languages · Design"}
           </button>
+        </div>
+        <div className="gapps">
+          {GOOGLE.map((a) => (
+            <a key={a.name} className="gapp" href={a.url} target="_blank" rel="noopener noreferrer">
+              <span>
+                <Icon name={a.icon} size={20} />
+              </span>
+              {a.name}
+            </a>
+          ))}
+        </div>
+        {moreApps && (
+          <div className="gapps">
+            {OTHERS.map((a) => (
+              <a
+                key={a.name}
+                className="gapp"
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span>
+                  <Icon name={a.icon} size={20} />
+                </span>
+                {a.name}
+              </a>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
+
+      <section className="card rows rise settings-card">
+        <LookCard />
+        {PAGES && <AiKeyRow />}
+        {PAGES && <GmailCard />}
+        {PAGES && <PagesSettings />}
+        {CLAUDE_PAGE && !data.demo && <SendToWeb />}
+        <BackupCard />
+      </section>
+
+      {signOut && (
+        <button
+          className="btn ghost magenta-text rise"
+          style={{ alignSelf: "center" }}
+          onClick={signOut}
+        >
+          {data.demo ? "Sign in" : "Sign out"}
+        </button>
+      )}
+      <p className="muted s12" style={{ textAlign: "center", margin: 0 }}>
+        {PAGES
+          ? "Web version · saved on this phone"
+          : data.demo
+            ? "Demo mode · sample data"
+            : data.hasClassroom
+              ? profile?.email
+              : "Connected through Claude"}
+      </p>
     </main>
   );
 }

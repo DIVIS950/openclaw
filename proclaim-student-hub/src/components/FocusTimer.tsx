@@ -18,8 +18,8 @@ export function FocusButton({ title }: { title: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="btn block rise" onClick={() => setOpen(true)}>
-        <Icon name="flame" size={16} />
+      <button className="btn sm" onClick={() => setOpen(true)}>
+        <Icon name="timer" size={14} />
         Focus timer
       </button>
       {open &&

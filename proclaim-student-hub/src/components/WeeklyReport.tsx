@@ -16,24 +16,73 @@ export function WeeklyReport() {
   const [open, setOpen] = useState(false);
   const [stats] = useState(() => weekStats(weekLog.all(), dayOf(new Date())));
   const quiet = stats.xp === 0 && stats.homework === 0 && stats.cards === 0;
+  const wins = [
+    stats.activeDays >= 7
+      ? "Streak kept all 7 days"
+      : stats.activeDays > 0
+        ? `Active ${stats.activeDays} of 7 days`
+        : "",
+    stats.cards > 0 ? `${stats.cards} cards practised` : "",
+    stats.homework > 0 ? `${stats.homework} homework done` : "",
+    stats.focus > 0 ? `${stats.focus} min of focus` : "",
+  ].filter(Boolean);
+  const fixes = [
+    stats.homework === 0 ? "No homework ticked off yet" : "",
+    stats.cards === 0 ? "No revision yet this week" : "",
+    stats.todos === 0 ? "No to-dos ticked" : "",
+  ].filter(Boolean);
+  const goal = 10;
   return (
     <>
-      <button className="card week-card rise" onClick={() => setOpen(true)} aria-label="Your week">
-        <span className="stack" style={{ gap: 2, flex: 1, alignItems: "flex-start" }}>
-          <span className="eyebrow">Your week</span>
-          {quiet ? (
-            <strong>Nothing logged yet. Do one thing and it shows here.</strong>
-          ) : (
-            <span className="row week-nums" style={{ flexWrap: "wrap", gap: 10 }}>
-              <strong>{stats.xp} XP</strong>
-              <span>{stats.homework} homework</span>
-              <span>{stats.cards} cards</span>
-              {stats.focus > 0 && <span>{stats.focus} min focus</span>}
+      <section className="card stack rise week-card" style={{ gap: 12, padding: "16px 18px" }}>
+        <div className="between">
+          <h2 className="h2">This week</h2>
+          <button className="chip violet" onClick={() => setOpen(true)} aria-label="Weekly report">
+            Report card
+          </button>
+        </div>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="between s12" style={{ fontWeight: 700 }}>
+            <span className="eyebrow" style={{ letterSpacing: "0.08em" }}>
+              Homework handed in
             </span>
-          )}
-        </span>
-        <span className="muted">Report ›</span>
-      </button>
+            <span className="num s13">
+              {stats.homework} / {Math.max(goal, stats.homework)}
+            </span>
+          </div>
+          <div className="bar">
+            <i
+              style={{
+                width: `${Math.min(100, (stats.homework / Math.max(goal, stats.homework)) * 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+        {quiet ? (
+          <span className="s13 t2">Nothing logged yet. Do one thing and it shows here.</span>
+        ) : (
+          <div
+            style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
+          >
+            <div className="stack" style={{ gap: 6 }}>
+              <div className="eyebrow ok-text" style={{ letterSpacing: "0.08em" }}>
+                Went well
+              </div>
+              <div className="s13 t2 stack" style={{ gap: 4 }}>
+                {wins.length ? wins.map((w) => <span key={w}>{w}</span>) : <span>Keep going</span>}
+              </div>
+            </div>
+            <div className="stack" style={{ gap: 6 }}>
+              <div className="eyebrow fix-text" style={{ letterSpacing: "0.08em" }}>
+                To fix
+              </div>
+              <div className="s13 t2 stack" style={{ gap: 4 }}>
+                {fixes.length ? fixes.map((w) => <span key={w}>{w}</span>) : <span>Nothing</span>}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
       {open && <WeekSheet stats={stats} onClose={() => setOpen(false)} />}
     </>
   );

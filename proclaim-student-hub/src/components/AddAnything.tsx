@@ -19,14 +19,6 @@ import { Icon } from "./Icon.tsx";
 // The "Add anything" sheet: paste or photograph whatever you got, the AI sorts
 // it into homework, tests, to-dos, calendar and notes, you check, then save.
 
-const KIND_ICON = {
-  homework: "homework",
-  test: "flag",
-  todo: "todo",
-  event: "calendar",
-  note: "note",
-} as const;
-
 export function AddAnythingButton({
   label = "Add anything",
   big = false,
@@ -141,6 +133,21 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
     }
   };
 
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const pasteText = async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (clip.trim()) {
+        setText((t) => (t.trim() ? `${t.trimEnd()}\n${clip}` : clip));
+        return;
+      }
+    } catch {
+      // No clipboard access: the box is there to paste into.
+    }
+    textarea.current?.focus();
+  };
+  const first = items?.[0];
+
   return (
     <div className="backdrop" onClick={busy ? undefined : onClose}>
       <div
@@ -149,24 +156,52 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
         aria-label="Add anything"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          Add anything
-        </h2>
+        <div className="between" style={{ alignItems: "center" }}>
+          <div className="stack" style={{ gap: 4 }}>
+            <h2 className="h1" style={{ fontSize: 24 }}>
+              Add anything
+            </h2>
+            <span className="s13 muted">The AI sorts it. You confirm. It saves.</span>
+          </div>
+          <button className="round" aria-label="Close" disabled={busy} onClick={onClose}>
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+
         {items === null ? (
           <>
-            <p className="muted" style={{ margin: 0 }}>
-              Paste a Classroom post, a message from a teacher or your own words (“Spanish test
-              Friday, bring PE kit tomorrow”), or take a photo. The AI sorts it into homework,
-              tests, to-dos, calendar and notes.
-            </p>
-            <textarea
-              className="field"
-              rows={6}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste or type here…"
-              aria-label="What to add"
-            />
+            <div className="src-grid">
+              <button className="src" disabled={busy} onClick={() => void pasteText()}>
+                <span className="ico cyan" aria-hidden="true">
+                  <Icon name="clipboard" size={20} />
+                </span>
+                Paste text
+              </button>
+              <button className="src" disabled={busy} onClick={() => camera.current?.click()}>
+                <span className="ico magenta" aria-hidden="true">
+                  <Icon name="camera" size={20} />
+                </span>
+                Take a photo
+              </button>
+              <button className="src" disabled={busy} onClick={() => textarea.current?.focus()}>
+                <span className="ico violet" aria-hidden="true">
+                  <Icon name="keyboard" size={20} />
+                </span>
+                Type
+              </button>
+            </div>
+            <label className="stack" style={{ gap: 6 }}>
+              <span className="eyebrow">What is it?</span>
+              <textarea
+                ref={textarea}
+                className="field"
+                rows={2}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Science hw: finish respiration Qs 1–8 for Thursday"
+                aria-label="What is it?"
+              />
+            </label>
             {photos.length > 0 && (
               <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
                 {photos.map((p, i) => (
@@ -176,7 +211,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
                     style={{
                       width: 64,
                       height: 64,
-                      borderRadius: 12,
+                      borderRadius: 14,
                       overflow: "hidden",
                       padding: 0,
                     }}
@@ -203,11 +238,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
                 e.target.value = "";
               }}
             />
-            <div className="row">
-              <button className="btn" onClick={() => camera.current?.click()} disabled={busy}>
-                <Icon name="camera" size={16} />
-                Photo
-              </button>
+            <div className="row" style={{ gap: 10 }}>
               <button
                 className="btn primary"
                 style={{ flex: 1 }}
@@ -216,7 +247,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
               >
                 <Icon
                   name={busy ? "loader" : "sparkle"}
-                  size={16}
+                  size={18}
                   className={busy ? "spin" : undefined}
                 />
                 {busy ? "Sorting…" : "Sort it for me"}
@@ -225,99 +256,121 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
           </>
         ) : (
           <>
-            <p className="muted" style={{ margin: 0 }}>
-              Check it's right. Tap a type to change it.
-            </p>
-            <div className="stack" style={{ gap: 10 }}>
-              {items.map((it, i) => {
-                const problem = missing(it, today);
-                return (
-                  <div key={i} className="card stack sorted-item" style={{ gap: 8, padding: 12 }}>
-                    <div className="kind-row" role="radiogroup" aria-label="Type">
-                      {SORT_KINDS.map((k) => (
-                        <button
-                          key={k}
-                          role="radio"
-                          aria-checked={it.kind === k}
-                          className="kind-chip"
-                          onClick={() => change(i, { kind: k })}
-                        >
-                          <Icon name={KIND_ICON[k]} size={13} />
-                          {KIND_LABEL[k]}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      className="field"
-                      value={it.title}
-                      onChange={(e) => change(i, { title: e.target.value })}
-                      aria-label="Title"
-                    />
-                    <div className="row">
+            {items.map((it, i) => {
+              const problem = missing(it, today);
+              return (
+                <div key={i} className="stack pop sorted-item" style={{ gap: 10 }}>
+                  <div className="between" style={{ alignItems: "center" }}>
+                    <span className="eyebrow row" style={{ color: "var(--accent-t)", gap: 6 }}>
+                      <Icon name="sparkle" size={14} />
+                      AI sorted it as
+                    </span>
+                    <span className="s12 muted">Tap to change</span>
+                  </div>
+                  <div
+                    className="row"
+                    role="radiogroup"
+                    aria-label="Type"
+                    style={{ gap: 8, overflowX: "auto" }}
+                  >
+                    {SORT_KINDS.map((k) => (
+                      <button
+                        key={k}
+                        role="radio"
+                        aria-checked={it.kind === k}
+                        className="kind"
+                        onClick={() => change(i, { kind: k })}
+                      >
+                        {KIND_LABEL[k] === "Calendar" ? "Event" : KIND_LABEL[k]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="card kv-card">
+                    <div className="kv">
+                      <span className="k">Title</span>
                       <input
-                        className="field"
-                        type="date"
-                        lang="en-GB"
-                        value={it.date}
-                        onChange={(e) => change(i, { date: e.target.value })}
-                        aria-label={it.kind === "homework" ? "Due date" : "Date"}
-                        style={{ flex: 1 }}
+                        className="v"
+                        value={it.title}
+                        onChange={(e) => change(i, { title: e.target.value })}
+                        aria-label="Title"
                       />
+                    </div>
+                    <div className="kv">
+                      <span className="k">Subject</span>
                       <input
-                        className="field"
+                        className="v chip subject"
                         value={it.subject}
                         onChange={(e) => change(i, { subject: e.target.value })}
                         placeholder="Class"
                         aria-label="Class"
-                        style={{ flex: 1 }}
+                        style={{ flex: "none", width: 120, textAlign: "center" }}
                       />
-                      <button
-                        className="round"
-                        style={{ width: 36, height: 36, flex: "none" }}
-                        aria-label={`Remove "${it.title}"`}
-                        onClick={() => setItems((list) => list?.filter((_, j) => j !== i) ?? null)}
-                      >
-                        <Icon name="close" size={14} />
-                      </button>
                     </div>
-                    {it.details && it.kind !== "todo" && (
-                      <div
-                        className="muted"
-                        style={{
-                          fontSize: 13,
-                          whiteSpace: "pre-wrap",
-                          maxHeight: 90,
-                          overflow: "auto",
-                        }}
-                      >
-                        {it.details}
+                    {it.kind !== "note" && (
+                      <div className="kv">
+                        <span className="k">{it.kind === "homework" ? "Due" : "Date"}</span>
+                        <input
+                          className="v"
+                          type="date"
+                          lang="en-GB"
+                          value={it.date}
+                          onChange={(e) => change(i, { date: e.target.value })}
+                          aria-label={it.kind === "homework" ? "Due date" : "Date"}
+                        />
                       </div>
                     )}
-                    {problem && (
-                      <div className="warm-text" style={{ fontSize: 13, fontWeight: 600 }}>
-                        {problem}
+                    {it.details && it.kind !== "todo" && (
+                      <div className="kv" style={{ alignItems: "flex-start" }}>
+                        <span className="k">Details</span>
+                        <span
+                          className="v s12 clip"
+                          style={{ fontWeight: 500, whiteSpace: "normal" }}
+                        >
+                          {it.details.slice(0, 140)}
+                        </span>
                       </div>
                     )}
                   </div>
-                );
-              })}
+                  {problem && (
+                    <div className="fix-text" style={{ fontSize: 13, fontWeight: 600 }}>
+                      {problem}
+                    </div>
+                  )}
+                  {items.length > 1 && (
+                    <button
+                      className="btn link"
+                      style={{ alignSelf: "flex-end" }}
+                      onClick={() => setItems((list) => list?.filter((_, j) => j !== i) ?? null)}
+                    >
+                      Remove this one
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            <div className="row" style={{ gap: 10 }}>
+              <button
+                className="btn"
+                style={{ flex: 1 }}
+                disabled={busy}
+                onClick={() => setItems(null)}
+              >
+                Change
+              </button>
+              <button
+                className="btn primary"
+                style={{ flex: 1.3 }}
+                disabled={busy || ready.length === 0}
+                onClick={() => void save()}
+              >
+                {busy
+                  ? "Saving…"
+                  : items.length === 1 && first
+                    ? `Save to ${KIND_LABEL[first.kind]}`
+                    : `Save ${ready.length === items.length ? "all" : ready.length}`}
+              </button>
             </div>
-            <button
-              className="btn big primary"
-              disabled={busy || ready.length === 0}
-              onClick={() => void save()}
-            >
-              {busy ? "Saving…" : `Save ${ready.length === items.length ? "all" : ready.length}`}
-            </button>
-            <button className="btn ghost" disabled={busy} onClick={() => setItems(null)}>
-              ‹ Back
-            </button>
           </>
-        )}
-        {items === null && (
-          <button className="btn ghost" disabled={busy} onClick={onClose}>
-            Cancel
-          </button>
         )}
       </div>
     </div>

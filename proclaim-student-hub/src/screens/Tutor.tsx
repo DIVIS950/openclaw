@@ -3,15 +3,22 @@ import type { ChatTurn, ImageInput, TutorMode } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
+import { newId, notes } from "../lib/study.ts";
 import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/voice.ts";
 
 const MODES: { id: TutorMode; label: string }[] = [
   { id: "explain", label: "Explain" },
-  { id: "check", label: "Check" },
+  { id: "check", label: "Check my answer" },
   { id: "quiz", label: "Quiz me" },
-  { id: "eli10", label: "Simpler" },
+  { id: "eli10", label: "Like I'm 10" },
   { id: "summary", label: "Summary" },
 ];
+
+/** The chip in the header: what this chat can "see" (the screen you came from). */
+function seesLabel(context: string): string {
+  const first = context.split(/[.;:]/)[0]?.trim() ?? "";
+  return first.replace(/ screen$/i, "").slice(0, 40) || "this screen";
+}
 
 // The conversation survives switching tabs (but not closing the app).
 let savedChat: { mode: TutorMode; turns: ChatTurn[] } = { mode: "explain", turns: [] };
@@ -138,43 +145,33 @@ export function Tutor() {
   };
 
   const last = turns[turns.length - 1];
+  const saveToNotes = (text: string) => {
+    const id = newId("n");
+    notes.upsert({
+      id,
+      title: text.split(/[.\n]/)[0]?.slice(0, 60) || "From study buddy",
+      subject: "",
+      body: text,
+      updatedAt: new Date().toISOString(),
+      packId: "",
+      kind: "ai",
+    });
+    app.toast("Saved to Notes.");
+  };
 
   return (
     <>
       <header className="stack buddy-head">
-        <div className="between">
-          <h1 className="h1" style={{ whiteSpace: "nowrap" }}>
-            Study buddy
-          </h1>
-          <div className="head-chips">
-            {app.ai && (
-              <button
-                className="round"
-                onClick={() => app.go("call")}
-                aria-label="Voice call with your study buddy"
-              >
-                <Icon name="mic" size={18} />
-              </button>
-            )}
-            {turns.length > 0 && (
-              <button
-                className="btn small"
-                onClick={() => {
-                  abort.current?.abort();
-                  setTurns([]);
-                }}
-              >
-                New
-              </button>
-            )}
-          </div>
+        <div className="between" style={{ gap: 10 }}>
+          <h1 className="h1">Study buddy</h1>
+          {app.aiContext && (
+            <span className="chip cyan" style={{ maxWidth: "58%" }}>
+              <Icon name="eye" size={14} />
+              <span className="clip">Sees: {seesLabel(app.aiContext)}</span>
+            </span>
+          )}
         </div>
-        <div
-          className="segmented"
-          role="tablist"
-          aria-label="Mode"
-          style={{ gridTemplateColumns: `repeat(${MODES.length}, minmax(0, 1fr))` }}
-        >
+        <div className="segmented" role="tablist" aria-label="Mode">
           {MODES.map((m) => (
             <button
               key={m.id}
@@ -185,9 +182,20 @@ export function Tutor() {
               {m.label}
             </button>
           ))}
+          {turns.length > 0 && (
+            <button
+              type="button"
+              className="mode"
+              onClick={() => {
+                abort.current?.abort();
+                setTurns([]);
+              }}
+            >
+              New chat
+            </button>
+          )}
         </div>
       </header>
-
       <main className="screen buddy-body" style={{ gap: 12, paddingTop: 8 }} aria-live="polite">
         {turns.length === 0 && (
           <div className="stack rise" style={{ gap: 8 }}>
@@ -217,6 +225,17 @@ export function Tutor() {
             </div>
           ) : (
             <div key={i} className={`bubble ${t.role === "user" ? "me" : "ai"}`}>
+              {t.role === "assistant" && (
+                <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                  <span className="chip violet">
+                    <Icon name="sparkle" size={14} />
+                    {MODES.find((m) => m.id === mode)?.label ?? "Explain"}
+                  </span>
+                  {turns[i - 1]?.images?.length ? (
+                    <span className="s12 muted">from your photo</span>
+                  ) : null}
+                </div>
+              )}
               {t.images?.map((img, j) => (
                 <img key={j} src={imageSrc(img)} alt="Your photo" />
               ))}
@@ -240,22 +259,23 @@ export function Tutor() {
             </div>
           ),
         )}
-        {!busy && last?.role === "assistant" && last.text && mode === "explain" && (
-          <div className="row pop" style={{ flexWrap: "wrap" }}>
-            <button
-              className="btn small"
-              onClick={() => void send("Give me a similar question to try.", [], mode)}
-            >
-              Give me a similar one
-            </button>
-            <button className="btn small" onClick={() => void send("Quiz me on this.", [], "quiz")}>
-              Quiz me on this
+        {!busy && last?.role === "assistant" && last.text && (
+          <div className="row pop" style={{ flexWrap: "wrap", gap: 6 }}>
+            <button className="btn" onClick={() => saveToNotes(last.text)}>
+              <Icon name="save" size={18} />
+              Save to Notes
             </button>
             <button
-              className="btn small soft"
-              onClick={() => void send("Explain that again like I'm 10.", [], "eli10")}
+              className="btn"
+              onClick={() => void send("Make 3 practice questions on this.", [], "quiz")}
             >
-              Like I'm 10
+              Make 3 questions
+            </button>
+            <button
+              className="btn"
+              onClick={() => void send("Explain that again, simpler.", [], "eli10")}
+            >
+              Simpler
             </button>
           </div>
         )}
@@ -299,20 +319,10 @@ export function Tutor() {
           hidden
           onChange={(e) => void addPhotos(e.target.files)}
         />
-        {canListen() && (
-          <button
-            type="button"
-            className={`round${listening ? " dark" : ""}`}
-            aria-label={listening ? "Stop listening" : "Talk"}
-            onClick={talk}
-          >
-            <Icon name="mic" size={20} className={listening ? "wiggle" : undefined} />
-          </button>
-        )}
         <button
           type="button"
           className="round"
-          aria-label="Add a photo"
+          aria-label="Photo of a question"
           onClick={() => fileInput.current?.click()}
         >
           <Icon name="camera" size={20} />
@@ -324,13 +334,7 @@ export function Tutor() {
           id="ask"
           className="field"
           rows={1}
-          style={{
-            borderRadius: 22,
-            minHeight: 44,
-            maxHeight: 120,
-            padding: "11px 16px",
-            resize: "none",
-          }}
+          style={{ minHeight: 48, maxHeight: 120, padding: "13px 16px", resize: "none" }}
           value={input}
           placeholder="Ask anything…"
           onChange={(e) => setInput(e.target.value)}
@@ -341,13 +345,23 @@ export function Tutor() {
             }
           }}
         />
+        {canListen() && (
+          <button
+            type="button"
+            className={`round${listening ? " mic" : ""}`}
+            aria-label={listening ? "Stop listening" : "Talk"}
+            onClick={talk}
+          >
+            <Icon name="mic" size={20} />
+          </button>
+        )}
         <button
           type="submit"
           className="round dark"
           aria-label="Send"
           disabled={busy || (!input.trim() && images.length === 0)}
         >
-          <Icon name="send" size={18} />
+          <Icon name="arrowUp" size={20} />
         </button>
       </form>
     </>
