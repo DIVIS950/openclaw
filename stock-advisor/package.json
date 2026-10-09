@@ -1,0 +1,25 @@
+{
+  "name": "stock-advisor",
+  "version": "0.1.0",
+  "description": "Type a company, product or person: get the stock, Polymarket odds and a Claude-explained invest/hold/avoid view.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --watch --env-file-if-exists=.env server.js",
+    "test": "node --test"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "@ethersproject/wallet": "^5.8.0",
+    "@polymarket/clob-client": "^5.8.1",
+    "express": "^4.22.3",
+    "yahoo-finance2": "^4.0.3",
+    "zod": "^4.6.5"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.9"
+  }
+}
