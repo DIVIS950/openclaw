@@ -6978,3 +6978,124 @@ textarea.field.ans {
     filter: none !important;
   }
 }
+
+/* ==========================================================================
+   Smooth on phones. Same look as the canvas, but every ambient effect runs as
+   a composited transform or opacity: iPhone 11 Safari stuttered and flickered
+   when cards animated a blur filter, the orbs drifted while blurred live, the
+   AI card repainted its gradient border every frame and the Add button
+   animated its shadow.
+   ========================================================================== */
+
+/* Orbs: a soft radial gradient instead of a live blur, so drifting is cheap. */
+.app::before,
+.app::after {
+  filter: none;
+  width: 520px;
+  height: 520px;
+  will-change: transform;
+  background: radial-gradient(
+    circle,
+    var(--orb-c) 0%,
+    color-mix(in oklab, var(--orb-c) 60%, transparent) 30%,
+    color-mix(in oklab, var(--orb-c) 20%, transparent) 50%,
+    transparent 70%
+  );
+}
+.app::before {
+  --orb-c: var(--accent);
+  right: -230px;
+  top: -250px;
+}
+.app::after {
+  --orb-c: var(--violet);
+  left: -270px;
+  top: 190px;
+}
+
+/* The reveal: rise and fade only (the blur was the expensive part). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.w {
+  filter: none;
+  transform: translateY(3px);
+}
+@keyframes wordin {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* AI briefing border: a conic gradient on a turning layer under the card face. */
+.card.ai {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: transparent;
+  border-color: transparent;
+  animation: rise 0.8s cubic-bezier(0.2, 0.9, 0.2, 1) 0.1s both;
+}
+.card.ai::before {
+  content: "";
+  position: absolute;
+  inset: -100%;
+  z-index: -2;
+  background: conic-gradient(from 135deg, var(--violet), var(--accent), var(--cyan), var(--violet));
+  animation: turn 10s linear 1s infinite;
+  will-change: transform;
+}
+.card.ai::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: 23px;
+  background: var(--surface);
+}
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add button: the pulse is a ring that scales, not an animated shadow. */
+.nav-fab {
+  position: relative;
+  animation: none;
+  box-shadow: 0 10px 30px color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.nav-fab::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 6px solid color-mix(in oklab, var(--accent) 22%, transparent);
+  animation: fab-ring 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes fab-ring {
+  50% {
+    transform: scale(1.22);
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card.ai::before,
+  .nav-fab::before {
+    animation: none !important;
+  }
+  .app::before,
+  .app::after {
+    filter: none !important;
+  }
+}
