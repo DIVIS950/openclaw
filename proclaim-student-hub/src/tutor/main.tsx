@@ -1,3 +1,4 @@
+import "../polyfills.ts";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { trackKeyboard } from "../lib/keyboard.ts";
