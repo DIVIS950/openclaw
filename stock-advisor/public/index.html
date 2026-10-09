@@ -25,7 +25,7 @@
     <section id="tab-analyze" class="panel">
       <div class="hero">
         <h1>What are you thinking of investing in?</h1>
-        <p class="sub">Type a company, a product or a person. Claude finds the stock, reads the numbers and prediction markets, and explains it in plain words.</p>
+        <p class="sub">Type a company, a product or a person. Your AI advisor finds the stock, reads the numbers and prediction markets, and tells you what it would do, in plain words.</p>
       </div>
       <form id="search" class="composer">
         <input id="query" name="query" autocomplete="off" placeholder="e.g. Nvidia, iPhone, Elon Musk, Coca-Cola" maxlength="200" />
@@ -33,6 +33,15 @@
           <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
         </button>
       </form>
+      <div class="profile" id="profile">
+        <span class="muted">Advice for</span>
+        <label class="pill">Risk
+          <select name="risk"><option>Low</option><option selected>Medium</option><option>High</option></select>
+        </label>
+        <label class="pill">Horizon
+          <select name="horizon"><option>Under 1 year</option><option>1-5 years</option><option selected>5+ years</option></select>
+        </label>
+      </div>
       <div class="chips" id="examples">
         <button class="chip">Nvidia</button><button class="chip">iPhone</button>
         <button class="chip">Elon Musk</button><button class="chip">Ozempic</button><button class="chip">Coca-Cola</button>
@@ -60,27 +69,8 @@
     </section>
   </main>
 
-  <dialog id="trade-dialog">
-    <form method="dialog" id="trade-form">
-      <h3>Trade on Polymarket</h3>
-      <p class="muted" id="trade-question"></p>
-      <label>Outcome<select name="tokenId" id="trade-outcome"></select></label>
-      <div class="row">
-        <label>Side<select name="side"><option>BUY</option><option>SELL</option></select></label>
-        <label>Price (0-1)<input name="price" type="number" step="0.001" min="0.001" max="0.999" required /></label>
-        <label>Shares<input name="size" type="number" step="1" min="1" value="10" required /></label>
-      </div>
-      <p class="cost">Cost: <strong id="trade-cost">$0.00</strong> <span class="muted" id="trade-limit"></span></p>
-      <label class="check"><input type="checkbox" name="confirm" required /> I understand this uses real money and I can lose it.</label>
-      <p class="error" id="trade-error" hidden></p>
-      <div class="actions">
-        <button value="cancel" formnovalidate class="ghost">Cancel</button>
-        <button id="trade-submit" class="primary" value="submit">Place order</button>
-      </div>
-    </form>
-  </dialog>
 
-  <footer>Educational tool, not financial advice. Data: Yahoo Finance, Polymarket. Analysis by Claude.</footer>
+  <footer>Advice only: this app never places trades. Educational, not financial advice. Data: Yahoo Finance, Polymarket. Analysis by Claude.</footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -11,11 +11,8 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
-    "@ethersproject/wallet": "^5.8.0",
-    "@polymarket/clob-client": "^5.8.1",
     "express": "^4.22.3",
-    "yahoo-finance2": "^4.0.3",
-    "zod": "^4.6.5"
+    "yahoo-finance2": "^4.0.3"
   },
   "private": true,
   "type": "module",

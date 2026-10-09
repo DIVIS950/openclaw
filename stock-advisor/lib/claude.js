@@ -83,7 +83,7 @@ const ANALYSIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: [
-    "verdict", "confidence", "headline", "plainExplanation", "bullCase", "bearCase",
+    "verdict", "confidence", "headline", "plainExplanation", "actionPlan", "watchFor", "bullCase", "bearCase",
     "keyRisks", "valuationTake", "polymarketTake", "tips", "whoIsItFor",
   ],
   properties: {
@@ -93,6 +93,16 @@ const ANALYSIS_SCHEMA = {
     plainExplanation: {
       type: "string",
       description: "2-4 short paragraphs in simple words a beginner understands. Paragraphs separated by blank lines.",
+    },
+    actionPlan: {
+      type: "array",
+      items: { type: "string" },
+      description: "3-5 concrete steps an advisor would suggest for THIS investor (how much, how to buy in, when to reconsider).",
+    },
+    watchFor: {
+      type: "array",
+      items: { type: "string" },
+      description: "2-4 upcoming events or signals that would change the advice.",
     },
     bullCase: { type: "array", items: { type: "string" } },
     bearCase: { type: "array", items: { type: "string" } },
@@ -114,11 +124,13 @@ export function analyzeStock({ query, resolved, stock, markets, profile }) {
   return structured({
     effort: "high",
     system:
-      "You are a careful, honest equity analyst explaining stocks to a beginner investor. Base your view on the data " +
+      "You are a careful, honest investment advisor explaining stocks to a beginner. You only advise; you never place " +
+      "trades. Speak directly to the investor (\"you\"). Base your view on the data " +
       "provided, say plainly when data is missing, and never invent numbers. Give a clear Buy / Hold / Avoid view for a " +
       "typical long-term investor, with calibrated confidence. Treat Polymarket odds as one crowd signal: explain what " +
       "they imply, but discount thin or loosely related markets. Prefer concrete reasons over generic ones. Tips should " +
-      "be practical (position sizing, diversification, time horizon, what to watch next) and specific to this stock.",
+      "be practical (position sizing, diversification, time horizon) and specific to this stock. Tailor the verdict and " +
+      "action plan to the investor profile when one is given.",
     prompt: [
       `User searched for: ${query}`,
       `Resolved: ${JSON.stringify(resolved)}`,
