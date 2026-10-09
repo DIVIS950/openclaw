@@ -1,11 +1,10 @@
 # Stock Advisor
 
-Type a **company, product or person** (for example "Nvidia", "iPhone" or "Elon Musk") and get an **AI Overview** from your advisor. The overview builds up live:
+Type a **company, product or person** (for example "Nvidia", "iPhone" or "Elon Musk") and get one clear answer from your AI advisor:
 
-1. Each step shows as it runs: finding the stock (iPhone → AAPL, plus suppliers you can switch to), reading the numbers and news from Yahoo Finance, and checking **Polymarket** odds.
-2. The price counts up, the 1-year chart draws itself, and the odds bars fill in as the data arrives.
-3. Claude's verdict appears (**Buy / Hold / Avoid**, with a confidence meter) and the explanation types out in plain English.
-4. Then come **What I'd do** (concrete steps for you), **Watch for** (events that would change the advice), bull and bear cases, risks and tips.
+- **One big answer.** The stock and its 1-year chart appear first. Then comes a large **Buy / Hold / Avoid** verdict with a confidence meter, a plain-English explanation that types out live, **What I'd do** (concrete steps), and **Watch for** (events that would change the advice).
+- **Details fold away** into tabs: Numbers, Pros & cons, Polymarket odds and News.
+- **Live and animated.** A glowing border runs around the card while the advisor works, each step ticks off as it really happens, the price counts up and the chart draws itself.
 
 Set your **risk level** and **time horizon** next to the search box. The advice is tailored to them, and your browser remembers them.
 

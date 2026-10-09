@@ -6,17 +6,19 @@
   <title>Stock Advisor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="glow" aria-hidden="true"><i></i><i></i><i></i></div>
+
   <header class="topbar">
-    <div class="brand">
+    <a class="brand" href="/">
       <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.6 6.1L19 4.6l-3.5 5.4L22 12l-6.5 2 3.5 5.4-5.4-3.5L12 22l-1.6-6.1L5 19.4l3.5-5.4L2 12l6.5-2L5 4.6l5.4 3.5z"/></svg>
-      <span>Stock Advisor</span>
-    </div>
+      Stock Advisor
+    </a>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="analyze" role="tab">Analyze</button>
+      <button class="tab active" data-tab="analyze" role="tab">Ask</button>
       <button class="tab" data-tab="ideas" role="tab">Ideas</button>
     </nav>
   </header>
@@ -24,27 +26,29 @@
   <main>
     <section id="tab-analyze" class="panel">
       <div class="hero">
-        <h1>What are you thinking of investing in?</h1>
-        <p class="sub">Type a company, a product or a person. Your AI advisor finds the stock, reads the numbers and prediction markets, and tells you what it would do, in plain words.</p>
-      </div>
-      <form id="search" class="composer">
-        <input id="query" name="query" autocomplete="off" placeholder="e.g. Nvidia, iPhone, Elon Musk, Coca-Cola" maxlength="200" />
-        <button class="send" type="submit" aria-label="Analyze">
-          <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-        </button>
-      </form>
-      <div class="profile" id="profile">
-        <span class="muted">Advice for</span>
-        <label class="pill">Risk
-          <select name="risk"><option>Low</option><option selected>Medium</option><option>High</option></select>
-        </label>
-        <label class="pill">Horizon
-          <select name="horizon"><option>Under 1 year</option><option>1-5 years</option><option selected>5+ years</option></select>
-        </label>
-      </div>
-      <div class="chips" id="examples">
-        <button class="chip">Nvidia</button><button class="chip">iPhone</button>
-        <button class="chip">Elon Musk</button><button class="chip">Ozempic</button><button class="chip">Coca-Cola</button>
+        <div class="hero-copy">
+          <h1>Should I invest in<em class="rotator"><span>Nvidia?</span></em></h1>
+          <p class="sub">Name a company, a product or a person. Your AI advisor reads the numbers, the news and the prediction markets, and tells you what it would do.</p>
+        </div>
+        <form id="search" class="composer">
+          <input id="query" name="query" autocomplete="off" placeholder="Try “iPhone” or “Elon Musk”" maxlength="200" />
+          <button class="send" type="submit" aria-label="Ask">
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </form>
+        <div class="meta-row">
+          <div class="profile" id="profile">
+            <label class="pill"><span>Risk</span>
+              <select name="risk"><option>Low</option><option selected>Medium</option><option>High</option></select>
+            </label>
+            <label class="pill"><span>Horizon</span>
+              <select name="horizon"><option>Under 1 year</option><option>1-5 years</option><option selected>5+ years</option></select>
+            </label>
+          </div>
+          <div class="chips" id="examples">
+            <button class="chip">Nvidia</button><button class="chip">iPhone</button><button class="chip">Elon Musk</button><button class="chip">Ozempic</button>
+          </div>
+        </div>
       </div>
       <div id="status" class="status" hidden></div>
       <div id="results"></div>
@@ -52,25 +56,26 @@
 
     <section id="tab-ideas" class="panel" hidden>
       <div class="hero">
-        <h1>Not sure where to start?</h1>
-        <p class="sub">Tell Claude a bit about you. It searches today's market and suggests a simple plan.</p>
+        <div class="hero-copy">
+          <h1>Not sure<br /><em>where to start?</em></h1>
+          <p class="sub">Tell your advisor a little about you. It checks today's market and suggests a simple plan.</p>
+        </div>
       </div>
       <form id="ideas-form" class="card form-grid">
         <label>Budget<input name="budget" placeholder="$1,000" maxlength="60" /></label>
         <label>Time horizon<input name="horizon" placeholder="5+ years" maxlength="60" /></label>
-        <label>Risk tolerance
+        <label>Risk
           <select name="risk"><option>Low</option><option selected>Medium</option><option>High</option></select>
         </label>
-        <label class="wide">Interests<input name="interests" placeholder="AI, clean energy, healthcare..." maxlength="300" /></label>
-        <button class="primary wide" type="submit">Get ideas</button>
+        <label class="wide">Interests<input name="interests" placeholder="AI, clean energy, healthcare…" maxlength="300" /></label>
+        <button class="primary wide" type="submit">Get my plan</button>
       </form>
       <div id="ideas-status" class="status" hidden></div>
       <article id="ideas-out" class="card prose" hidden></article>
     </section>
   </main>
 
-
-  <footer>Advice only: this app never places trades. Educational, not financial advice. Data: Yahoo Finance, Polymarket. Analysis by Claude.</footer>
+  <footer>Advice only. This app never places trades. Educational, not financial advice.</footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>

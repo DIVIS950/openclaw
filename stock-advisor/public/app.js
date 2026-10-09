@@ -76,6 +76,16 @@ profileEl.addEventListener("change", () => {
 });
 const profile = () => ({ risk: $("[name=risk]", profileEl).value, horizon: $("[name=horizon]", profileEl).value });
 
+// ---------- Rotating example word in the headline ----------
+const rotator = $(".rotator");
+const WORDS = ["Nvidia?", "the iPhone?", "Elon Musk?", "Coca-Cola?", "Ozempic?", "Tesla?"];
+let wordIdx = 0;
+if (!reducedMotion) setInterval(() => {
+  if (document.body.classList.contains("searched")) return;
+  wordIdx = (wordIdx + 1) % WORDS.length;
+  rotator.innerHTML = `<span>${esc(WORDS[wordIdx])}</span>`;
+}, 2400);
+
 // ---------- Analyze ----------
 const results = $("#results");
 const statusEl = $("#status");
@@ -92,33 +102,65 @@ $("#search").addEventListener("submit", (e) => {
   e.preventDefault();
   analyze($("#query").value.trim());
 });
+$(".brand").addEventListener("click", (e) => {
+  e.preventDefault();
+  source?.close();
+  document.body.classList.remove("searched");
+  results.innerHTML = "";
+  $("#query").value = "";
+});
 
 const STEPS = [
   ["resolve", (q) => `Finding the stock behind “${q}”`],
   ["data", () => "Reading price, financials and news"],
   ["markets", () => "Checking Polymarket odds"],
-  ["think", () => "Weighing it up for your profile"],
+  ["think", () => "Weighing it up for you"],
 ];
+const DETAIL_TABS = [["numbers", "Numbers"], ["pros", "Pros & cons"], ["odds", "Polymarket"], ["news", "News"]];
 
 function analyze(query, symbol) {
   if (!query) return;
   lastQuery = query;
   source?.close();
   setStatus(statusEl, "");
+  document.body.classList.add("searched");
   const btn = $("#search .send");
   btn.disabled = true;
+  const p = profile();
 
   results.innerHTML = `
-    <div class="card overview working reveal" id="ov">
-      <div class="ov-head"><svg class="spark-icon" viewBox="0 0 24 24"><path d="${SPARK_PATH}"/></svg>AI Overview<span class="muted">${esc(profile().risk)} risk · ${esc(profile().horizon)}</span></div>
+    <article class="card answer working reveal" id="ov">
+      <div class="quote-row" id="quote"><div class="skeleton" style="flex:1;margin:0"><i style="width:40%"></i><i style="width:60%"></i></div></div>
+      <div id="chart"></div>
+      <div class="ai-label"><svg viewBox="0 0 24 24"><path d="${SPARK_PATH}"/></svg>AI Overview<span class="muted">${esc(p.risk)} risk · ${esc(p.horizon)}</span></div>
       <ul class="steps">${STEPS.map(([id, label]) => `<li data-step="${id}"><span class="dot"></span>${esc(label(query))}</li>`).join("")}</ul>
-      <div class="skeleton"><i></i><i></i><i></i><i></i></div>
-      <div class="ov-body" hidden></div>
-    </div>
-    <div id="slot-alts"></div><div id="slot-stock"></div><div id="slot-details"></div><div id="slot-markets"></div><div id="slot-news"></div><div id="slot-disclaimer"></div>`;
+      <div class="skeleton" id="think-skel"><i></i><i></i><i></i></div>
+      <div class="ov-body"></div>
+      <div class="also" id="also" hidden></div>
+    </article>
+    <section class="card details reveal" id="details" style="animation-delay:.15s">
+      <nav class="dtabs" role="tablist">${DETAIL_TABS.map(([id, label], i) => `<button class="dtab${i ? "" : " active"}" data-dtab="${id}" disabled>${label}</button>`).join("")}</nav>
+      <div id="dpanel"></div>
+    </section>
+    <p class="disclaimer" id="disclaimer" hidden></p>`;
 
-  const state = { query, resolved: null, stock: null, markets: [], analysis: null };
-  const params = new URLSearchParams({ query, ...profile(), ...(symbol ? { symbol } : {}) });
+  const panels = {};
+  let activeTab = "numbers";
+  const setPanel = (id, html) => {
+    panels[id] = html;
+    $(`[data-dtab="${id}"]`, results).disabled = false;
+    if (id === activeTab) showPanel(id);
+  };
+  const showPanel = (id) => {
+    activeTab = id;
+    $$(".dtab", results).forEach((t) => t.classList.toggle("active", t.dataset.dtab === id));
+    $("#dpanel").innerHTML = `<div class="dpanel">${panels[id] ?? '<div class="skeleton"><i></i><i></i></div>'}</div>`;
+  };
+  showPanel("numbers");
+  $$(".dtab", results).forEach((t) => t.addEventListener("click", () => showPanel(t.dataset.dtab)));
+
+  const state = { resolved: null, analysis: null, markets: [] };
+  const params = new URLSearchParams({ query, ...p, ...(symbol ? { symbol } : {}) });
   source = new EventSource(`/api/analyze?${params}`);
   const on = (name, fn) => source.addEventListener(name, (e) => fn(JSON.parse(e.data)));
 
@@ -128,21 +170,25 @@ function analyze(query, symbol) {
   });
   on("resolved", (r) => {
     state.resolved = r;
-    renderAlternatives(r);
+    renderAlso(r);
   });
   on("stock", (s) => {
-    state.stock = s;
-    renderStock(s);
+    renderQuote(s);
+    setPanel("numbers", numbersHtml(s));
+    setPanel("news", newsHtml(s.news));
   });
   on("markets", (m) => {
     state.markets = m;
-    renderMarkets(m, null);
+    setPanel("odds", oddsHtml(m, null));
   });
   on("analysis", (a) => {
     state.analysis = a;
-    renderOverview(a);
-    renderDetails(a);
-    renderMarkets(state.markets, a.polymarketTake);
+    renderAnswer(a);
+    setPanel("pros", prosHtml(a));
+    setPanel("odds", oddsHtml(state.markets, a.polymarketTake));
+    const d = $("#disclaimer");
+    d.textContent = a.disclaimer;
+    d.hidden = false;
   });
   on("fail", ({ error }) => fail(error));
   on("done", () => {
@@ -150,7 +196,7 @@ function analyze(query, symbol) {
     if (state.resolved && !state.resolved.symbol) fail(state.resolved.note || "No listed stock found for that.");
   });
   source.onerror = () => {
-    if (source.readyState === EventSource.CLOSED || !state.analysis) fail("Connection lost. Try again.");
+    if (!state.analysis) fail("Connection lost. Try again.");
   };
 
   function finish() {
@@ -160,47 +206,56 @@ function analyze(query, symbol) {
   }
   function fail(msg) {
     finish();
-    const ov = $("#ov");
-    if (!ov) return setStatus(statusEl, esc(msg), true);
-    $(".skeleton", ov)?.remove();
-    const body = $(".ov-body", ov);
-    body.hidden = false;
-    body.innerHTML = `<p class="error">${esc(msg)}</p>`;
+    $("#think-skel")?.remove();
+    $("#ov .ov-body").innerHTML = `<p class="error" style="margin-top:16px">${esc(msg)}</p>`;
+    if (!state.analysis) $("#details")?.remove();
   }
 }
 
-function renderAlternatives(r) {
+function renderAlso(r) {
   const others = (r.tickers ?? []).filter((t) => t.symbol !== r.symbol);
-  if (!r.note && !others.length) return;
-  $("#slot-alts").innerHTML = `<div class="card reveal"><p class="muted" style="margin:0">${esc(r.note || `Other stocks linked to ${r.entityName}:`)}</p>
-    ${others.length ? `<div class="chips" style="justify-content:flex-start">${others.map((t) => `<button class="chip" data-symbol="${esc(t.symbol)}" title="${esc(t.relation)}">${esc(t.symbol)} · ${esc(t.name)}</button>`).join("")}</div>` : ""}</div>`;
-  $("#slot-alts").querySelectorAll("[data-symbol]").forEach((b) => b.addEventListener("click", () => analyze(lastQuery, b.dataset.symbol)));
+  if (!others.length) return;
+  const el = $("#also");
+  el.hidden = false;
+  el.innerHTML = `<span>Also linked:</span>${others.map((t) => `<button class="chip" data-symbol="${esc(t.symbol)}" title="${esc(t.relation)}">${esc(t.symbol)} · ${esc(t.name)}</button>`).join("")}`;
+  $$("[data-symbol]", el).forEach((b) => b.addEventListener("click", () => analyze(lastQuery, b.dataset.symbol)));
 }
 
-async function renderOverview(a) {
-  const ov = $("#ov");
-  $(".skeleton", ov)?.remove();
-  $(".steps", ov).classList.add("compact");
+function renderQuote(stock) {
+  const up = (stock.changePercent ?? 0) >= 0;
+  $("#quote").innerHTML = `
+    <div class="reveal"><div class="ticker">${esc(stock.symbol)} · ${esc(stock.exchange)}</div><h2>${esc(stock.name)}</h2></div>
+    <div class="reveal"><div class="price"></div>
+      <div class="change ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${fmtPct(Math.abs(stock.changePercent ?? NaN))} today · <span class="${(stock.oneYearReturnPercent ?? 0) >= 0 ? "up" : "down"}">${fmtPct(stock.oneYearReturnPercent)} 1y</span></div></div>`;
+  countUp($("#quote .price"), stock.price, (n) => fmtMoney(n, stock.currency));
+  $("#chart").innerHTML = sparkline(stock.history);
+  const line = $("#chart .line");
+  if (line) line.style.setProperty("--len", Math.ceil(line.getTotalLength() * 1.5));
+}
+
+async function renderAnswer(a) {
+  $("#think-skel")?.remove();
+  $("#ov .steps").classList.add("gone");
   const level = { Low: 1, Medium: 2, High: 3 }[a.confidence] ?? 0;
-  const body = $(".ov-body", ov);
-  body.hidden = false;
+  const body = $("#ov .ov-body");
   body.innerHTML = `
-    <div class="verdict"><span class="badge reveal ${esc(a.verdict)}">${esc(a.verdict)}</span>
-      <span class="muted small">Confidence <span class="meter"><b></b><b></b><b></b></span> ${esc(a.confidence)}</span></div>
-    <div class="headline"></div>
+    <div class="verdict"><div class="big-verdict ${esc(a.verdict)}">${esc(a.verdict)}</div>
+      <div class="conf"><span>Confidence · ${esc(a.confidence)}</span><span class="meter"><b></b><b></b><b></b></span></div></div>
+    <p class="headline"></p>
     <div class="explain"></div>
     <div class="advice" hidden>
-      <div class="sub-h">What I’d do</div><ol class="plan"></ol>
-      <div class="sub-h">Watch for</div><ul class="list watch"></ul>
-      <p class="muted small" style="margin-top:12px"><strong>Who it fits:</strong> ${esc(a.whoIsItFor)}</p>
-    </div>`;
-  $$(".meter b", body).forEach((b, i) => setTimeout(() => b.classList.toggle("on", i < level), reducedMotion ? 0 : 250 + i * 180));
+      <div class="box"><h3>What I’d do</h3><ol class="plan"></ol></div>
+      <div class="box"><h3>Watch for</h3><ul class="list watch"></ul></div>
+    </div>
+    <p class="fit" hidden><strong>Fits:</strong> ${esc(a.whoIsItFor)}</p>`;
+  $$(".meter b", body).forEach((b, i) => setTimeout(() => b.classList.toggle("on", i < level), reducedMotion ? 0 : 500 + i * 200));
 
-  await typeText($(".headline", body), a.headline, 90);
+  await sleep(350);
+  await typeText($(".headline", body), a.headline, 80);
   for (const para of String(a.plainExplanation).split(/\n\s*\n/)) {
-    const p = document.createElement("p");
-    $(".explain", body).append(p);
-    await typeText(p, para);
+    const el = document.createElement("p");
+    $(".explain", body).append(el);
+    await typeText(el, para);
   }
   const advice = $(".advice", body);
   advice.hidden = false;
@@ -211,13 +266,15 @@ async function renderOverview(a) {
       li.className = "reveal";
       li.textContent = t;
       $(sel, body).append(li);
-      await sleep(140);
+      await sleep(120);
     }
   }
+  $(".fit", body).hidden = false;
 }
+
 function sparkline(history) {
   if (history.length < 2) return "";
-  const w = 800, h = 110, pad = 4;
+  const w = 800, h = 70, pad = 3;
   const closes = history.map((p) => p.close);
   const min = Math.min(...closes), max = Math.max(...closes);
   const x = (i) => (i / (closes.length - 1)) * w;
@@ -226,77 +283,57 @@ function sparkline(history) {
   const color = closes.at(-1) >= closes[0] ? "var(--good)" : "var(--bad)";
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="1 year price chart">
     <path class="area" d="${line}L${w},${h}L0,${h}Z" fill="${color}"/>
-    <path class="line" d="${line}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
-    <div class="muted small" style="display:flex;justify-content:space-between"><span>${esc(history[0].date)}</span><span>1 year</span><span>${esc(history.at(-1).date)}</span></div>`;
+    <path class="line" d="${line}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke"/></svg>
+    <div class="muted small" style="display:flex;justify-content:space-between"><span>${esc(history[0].date)}</span><span>${esc(history.at(-1).date)}</span></div>`;
 }
 
-const stat = (label, value) => `<div class="stat reveal"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
-
-function renderStock(stock) {
-  const up = (stock.changePercent ?? 0) >= 0;
-  const f = stock.financials, v = stock.valuation;
-  const slot = $("#slot-stock");
-  slot.innerHTML = `<div class="card reveal">
-    <div class="stock-head">
-      <div><div class="ticker">${esc(stock.symbol)} · ${esc(stock.exchange)}</div><h2 style="margin:2px 0 0">${esc(stock.name)}</h2>
-        <div class="muted small">${esc([stock.profile.sector, stock.profile.industry].filter(Boolean).join(" · "))}</div></div>
-      <div style="text-align:right"><div class="price"></div>
-        <div class="change ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${fmtPct(Math.abs(stock.changePercent ?? NaN))} today · ${fmtPct(stock.oneYearReturnPercent)} 1y</div></div>
-    </div>
-    ${sparkline(stock.history)}
-    <div class="stats">
-      ${stat("Market cap", fmtMoney(stock.marketCap, stock.currency))}
-      ${stat("P/E (trailing)", fmtNum(v.trailingPE))}
-      ${stat("P/E (forward)", fmtNum(v.forwardPE))}
-      ${stat("Revenue growth", fmtPct(f.revenueGrowth, true))}
-      ${stat("Profit margin", fmtPct(f.profitMargins, true))}
-      ${stat("Dividend yield", fmtPct(v.dividendYield, true))}
-      ${stat("52w range", `${fmtMoney(stock.fiftyTwoWeekLow, stock.currency)} – ${fmtMoney(stock.fiftyTwoWeekHigh, stock.currency)}`)}
-      ${stat("Analyst target", fmtMoney(f.targetMeanPrice, stock.currency))}
-    </div></div>`;
-  $$(".stat", slot).forEach((el, i) => (el.style.animationDelay = `${150 + i * 60}ms`));
-  const line = $(".spark .line", slot);
-  if (line) line.style.setProperty("--len", Math.ceil(line.getTotalLength() * 1.5));
-  countUp($(".price", slot), stock.price, (n) => fmtMoney(n, stock.currency));
-
-  if (stock.news.length) {
-    $("#slot-news").innerHTML = `<div class="card reveal"><h3>Recent news</h3><ul class="list">${stock.news
-      .map((n) => `<li><a href="${safeUrl(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a> <span class="muted small">${esc(n.publisher)}</span></li>`)
-      .join("")}</ul></div>`;
-  }
-}
-
+const stat = (label, value) => `<div class="stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
 const list = (items) => `<ul class="list">${(items ?? []).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`;
 
-function renderDetails(a) {
-  const slot = $("#slot-details");
-  slot.innerHTML = `
-    <div class="two">
-      <div class="card bull reveal"><h3>Reasons to be bullish</h3>${list(a.bullCase)}</div>
-      <div class="card bear reveal"><h3>Reasons to be careful</h3>${list(a.bearCase)}</div>
-    </div>
-    <div class="card reveal"><h3>Valuation</h3><p>${esc(a.valuationTake)}</p><h3>Key risks</h3>${list(a.keyRisks)}</div>
-    <div class="card reveal"><h3>Tips</h3>${list(a.tips)}</div>`;
-  $("#slot-disclaimer").innerHTML = `<p class="disclaimer">${esc(a.disclaimer)}</p>`;
-  // Hold these back until the overview has had a moment to type out.
-  $$(".reveal", slot).forEach((el, i) => (el.style.animationDelay = `${1200 + i * 120}ms`));
+function numbersHtml(stock) {
+  const f = stock.financials, v = stock.valuation;
+  return `<div class="stats">
+    ${stat("Market cap", fmtMoney(stock.marketCap, stock.currency))}
+    ${stat("P/E (trailing)", fmtNum(v.trailingPE))}
+    ${stat("P/E (forward)", fmtNum(v.forwardPE))}
+    ${stat("Revenue growth", fmtPct(f.revenueGrowth, true))}
+    ${stat("Profit margin", fmtPct(f.profitMargins, true))}
+    ${stat("Dividend yield", fmtPct(v.dividendYield, true))}
+    ${stat("52-week range", `${fmtMoney(stock.fiftyTwoWeekLow, stock.currency)} – ${fmtMoney(stock.fiftyTwoWeekHigh, stock.currency)}`)}
+    ${stat("Analyst target", fmtMoney(f.targetMeanPrice, stock.currency))}
+  </div>
+  <p class="muted small" style="margin:12px 0 0">${esc([stock.profile.sector, stock.profile.industry].filter(Boolean).join(" · "))}</p>`;
 }
 
-function renderMarkets(markets, take) {
-  $("#slot-markets").innerHTML = `<div class="card reveal"><h3>Polymarket odds</h3>
-    <p class="muted small" style="margin-top:-4px">What prediction-market traders are betting. For information only.</p>
+function prosHtml(a) {
+  return `<div class="two"><div class="bull"><h3>Reasons to like it</h3>${list(a.bullCase)}</div>
+    <div class="bear"><h3>Reasons to be careful</h3>${list(a.bearCase)}</div></div>
+    <h3 style="margin-top:18px">Valuation</h3><p style="margin:0">${esc(a.valuationTake)}</p>
+    <h3 style="margin-top:18px">Key risks</h3>${list(a.keyRisks)}
+    <h3 style="margin-top:18px">Tips</h3>${list(a.tips)}`;
+}
+
+function oddsHtml(markets, take) {
+  return `<p class="muted small" style="margin:0 0 8px">What prediction-market traders are betting. For information only.</p>
     ${take ? `<p>${esc(take)}</p>` : ""}
-    ${markets.length ? markets.map(marketHtml).join("") : `<p class="muted">No open prediction markets found.</p>`}</div>`;
+    ${markets.length ? markets.map(marketHtml).join("") : `<p class="muted">No open prediction markets found.</p>`}`;
 }
 
 function marketHtml(m) {
   return `<div class="market">
-    <div class="market-q"><div>${m.url ? `<a href="${safeUrl(m.url)}" target="_blank" rel="noopener">${esc(m.question)}</a>` : esc(m.question)}
-      <div class="muted small">Volume ${fmtMoney(m.volume)}${m.endDate ? ` · ends ${esc(m.endDate.slice(0, 10))}` : ""}</div></div></div>
+    ${m.url ? `<a href="${safeUrl(m.url)}" target="_blank" rel="noopener">${esc(m.question)}</a>` : esc(m.question)}
+    <div class="muted small">Volume ${fmtMoney(m.volume)}${m.endDate ? ` · ends ${esc(m.endDate.slice(0, 10))}` : ""}</div>
     ${m.outcomes.map((o) => {
       const pct = o.probability == null ? null : Math.round(o.probability * 100);
       return `<div class="outcome"><span>${esc(o.name)}</span><div class="bar"><i style="width:${pct ?? 0}%"></i></div><strong>${pct == null ? "–" : pct + "%"}</strong></div>`;
     }).join("")}</div>`;
+}
+
+function newsHtml(news) {
+  if (!news.length) return `<p class="muted">No recent news found.</p>`;
+  return `<ul class="list news">${news
+    .map((n) => `<li><a href="${safeUrl(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a> <span class="muted small">${esc(n.publisher)}</span></li>`)
+    .join("")}</ul>`;
 }
 
 // ---------- Ideas ----------
@@ -307,13 +344,13 @@ $("#ideas-form").addEventListener("submit", async (e) => {
   const out = $("#ideas-out");
   btn.disabled = true;
   out.hidden = true;
-  setStatus($("#ideas-status"), `${SPINNER}<span>Your advisor is searching today's market…</span>`);
+  setStatus($("#ideas-status"), `${SPINNER}<span>Checking today's market…</span>`);
   try {
     const res = await fetch("/api/ideas", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     setStatus($("#ideas-status"), "");
-    out.innerHTML = markdown(data.markdown) + `<p class="disclaimer">${esc(data.disclaimer)}</p>`;
+    out.innerHTML = markdown(data.markdown) + `<p class="disclaimer" style="text-align:left">${esc(data.disclaimer)}</p>`;
     out.hidden = false;
     $$(":scope > *", out).forEach((el, i) => {
       el.classList.add("reveal");
