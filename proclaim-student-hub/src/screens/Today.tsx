@@ -8,8 +8,6 @@ import { useAiContext, useApp, type Screen } from "../context.ts";
 import { upcomingLessons, type Lesson } from "../lib/aiFeatures.ts";
 import { greeting } from "../lib/format.ts";
 import { level, progress, timetable } from "../lib/store.ts";
-import { gmailLink } from "../pages/gmailLink.ts";
-import { PAGES } from "../pages/runtime.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 import { AiKeyCard } from "../pages/WebVersion.tsx";
 
@@ -110,13 +108,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
 
       <nav className="tiles-grid quad rise d4" aria-label="Shortcuts">
         {TILES.map((t) => (
-          <button
-            key={t.screen}
-            className="tile"
-            onClick={() =>
-              go(t.screen === "inbox" && PAGES && !gmailLink.granted ? "todo" : t.screen)
-            }
-          >
+          <button key={t.screen} className="tile" onClick={() => go(t.screen)}>
             <span className={`ico ${t.tint}`} aria-hidden="true">
               <Icon name={t.icon} size={18} />
             </span>

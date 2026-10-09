@@ -4,6 +4,8 @@ import { useAiContext, useApp } from "../context.ts";
 import { draftReply } from "../lib/aiFeatures.ts";
 import { shortDate } from "../lib/format.ts";
 import type { Email } from "../lib/types.ts";
+import { gmailLink } from "../pages/gmailLink.ts";
+import { PAGES } from "../pages/runtime.ts";
 
 type Filter = "All" | "Classroom" | "Teachers";
 
@@ -16,6 +18,8 @@ export function Inbox() {
   const [summaries, setSummaries] = useState<Map<string, string>>(summaryCache);
   const [filter, setFilter] = useState<Filter>("All");
   const [open, setOpen] = useState<string | null>(null);
+  // On the website, emails only exist once Gmail is connected (More › Google apps).
+  const needsGmail = PAGES && !app.data.demo && !gmailLink.granted;
 
   useEffect(() => {
     let cancelled = false;
@@ -99,12 +103,24 @@ export function Inbox() {
             </button>
           ))}
           <span className="s11 muted" style={{ marginLeft: "auto" }}>
-            {app.data.demo ? "Sample" : "Gmail"} · {checkedLabel()}
+            {app.data.demo ? "Sample" : needsGmail ? "Gmail not connected" : "Gmail"}
+            {needsGmail ? "" : ` · ${checkedLabel()}`}
           </span>
         </div>
       </header>
 
-      {emails === null ? (
+      {needsGmail ? (
+        <section className="card hero cyan rise d1 stack" style={{ gap: 10 }}>
+          <span className="eyebrow">Connect Gmail</span>
+          <h2 className="h2">School emails show up here</h2>
+          <p className="muted">
+            Connect Gmail once in More and this tab fills with Classroom posts and teacher messages.
+          </p>
+          <button className="btn primary" onClick={() => app.go("apps")}>
+            Open More
+          </button>
+        </section>
+      ) : emails === null ? (
         <div className="card stack">
           <div className="skeleton light" />
           <div className="skeleton light" style={{ width: "70%" }} />
