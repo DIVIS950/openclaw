@@ -52,8 +52,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
     }
   };
 
-  private restoreDay = () => {
-    const day = backups.list()[0];
+  private restoreDay = (day: { day: string; at: string } | null) => {
     if (
       day &&
       window.confirm(
@@ -70,7 +69,14 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
       return this.props.children;
     }
     const link = backups.lastLink();
-    const day = backups.list()[0];
+    // Today's save, unless it was taken after the link (a link brought in just
+    // before midnight): then the day before's. The same moment twice shows once.
+    const saves = backups.list();
+    const day = link && saves[0] && saves[0].at > link.at ? (saves[1] ?? null) : (saves[0] ?? null);
+    const sameMoment =
+      !!link &&
+      !!day &&
+      Math.abs(new Date(day.at).getTime() - new Date(link.at).getTime()) < 60_000;
     const body = (
       <main className="screen" style={{ gap: 16 }}>
         <h1 className="h1">Something went wrong</h1>
@@ -91,8 +97,8 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
                   Undo the last link ({savedAt(link.at)})
                 </button>
               )}
-              {day && (
-                <button className="btn" onClick={this.restoreDay}>
+              {day && !sameMoment && (
+                <button className="btn" onClick={() => this.restoreDay(day)}>
                   Back to the save from {savedAt(day.at)}
                 </button>
               )}

@@ -342,7 +342,8 @@ export function cleanImported(key: string, incoming: unknown): unknown {
             (g.outOf as number) > 0 &&
             (g.outOf as number) <= 1000 &&
             (g.score as number) >= 0 &&
-            (g.score as number) <= (g.outOf as number),
+            // Bonus marks up to double, the same as typing a grade in the app.
+            (g.score as number) <= (g.outOf as number) * 2,
         )
         .map((g) => withText(g, TEXT_FIELDS[key]))
     );
@@ -445,7 +446,9 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
       course: typeof hw.course === "string" ? hw.course : "",
       description: typeof hw.description === "string" ? hw.description : "",
       // Only a real date: anything else would show as "Invalid Date".
-      ...(typeof hw.due === "string" && hw.due && !Number.isNaN(Date.parse(hw.due))
+      ...(typeof hw.due === "string" &&
+      realDay(hw.due.slice(0, 10)) &&
+      !Number.isNaN(Date.parse(hw.due))
         ? { due: hw.due }
         : {}),
       done: hw.done === true,

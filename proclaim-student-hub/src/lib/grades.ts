@@ -56,7 +56,8 @@ export const grades = {
       ...read().filter((g) => !fields.testId || g.testId !== fields.testId),
     ];
     grades.save(next);
-    return next;
+    // The list as it reads back, so what shows now is what shows after a reload.
+    return read();
   },
 };
 
@@ -106,11 +107,15 @@ export function parseScore(text: string): { score: number; outOf: number } | nul
   const t = text.trim();
   const frac = t.match(/^(\d+(?:\.\d+)?)\s*(?:\/|out of|of|z)\s*(\d+(?:\.\d+)?)$/i);
   if (frac) {
-    return { score: Number(frac[1]), outOf: Number(frac[2]) };
+    const score = Number(frac[1]);
+    const outOf = Number(frac[2]);
+    // "18/0" isn't a mark; bonus marks up to double are fine.
+    return outOf > 0 && outOf <= 1000 && score <= outOf * 2 ? { score, outOf } : null;
   }
   const pct = t.match(/^(\d+(?:\.\d+)?)\s*%$/);
   if (pct) {
-    return { score: Number(pct[1]), outOf: 100 };
+    const score = Number(pct[1]);
+    return score <= 200 ? { score, outOf: 100 } : null;
   }
   return null;
 }

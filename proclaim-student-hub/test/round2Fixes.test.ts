@@ -159,3 +159,14 @@ describe("round-7 link checks", () => {
     expect(packs.map((p) => p.id)).toEqual(["f"]);
   });
 });
+
+describe("typed grades", () => {
+  it("refuses marks out of 0 and keeps bonus marks", async () => {
+    const { parseScore } = await import("../src/lib/grades.ts");
+    expect(parseScore("18/0")).toBeNull();
+    expect(parseScore("0/0")).toBeNull();
+    expect(parseScore("45/40")).toEqual({ score: 45, outOf: 40 });
+    expect(parseScore("18/20")).toEqual({ score: 18, outOf: 20 });
+    expect(parseScore("85%")).toEqual({ score: 85, outOf: 100 });
+  });
+});
