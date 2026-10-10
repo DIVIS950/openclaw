@@ -80,6 +80,8 @@ export const todos = {
   all: (): Todo[] =>
     readList<Todo>("psh.todos", ["id", "text", "due", "subject", "from"]).map((t) => ({
       ...t,
+      // A due date is a day (YYYY-MM-DD) or nothing.
+      due: /^\d{4}-\d{2}-\d{2}$/.test(t.due) ? t.due : "",
       done: t.done === true,
     })),
   save(list: Todo[]): boolean {

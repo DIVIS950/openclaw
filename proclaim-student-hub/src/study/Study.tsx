@@ -125,7 +125,7 @@ export function TutoringScreen() {
 }
 
 function dueText(due: string, today: string): string {
-  if (!due) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) {
     return "";
   }
   if (due === today) {

@@ -342,7 +342,13 @@ export function cleanImported(key: string, incoming: unknown): unknown {
   if (TEXT_FIELDS[key]) {
     return list.map((r) => {
       const out = withText(r, TEXT_FIELDS[key]);
-      return key === "psh.todos" ? { ...out, done: r.done === true } : out;
+      return key === "psh.todos"
+        ? {
+            ...out,
+            due: /^\d{4}-\d{2}-\d{2}$/.test(String(out.due)) ? out.due : "",
+            done: r.done === true,
+          }
+        : out;
     });
   }
   if (key === "psh.prep") {

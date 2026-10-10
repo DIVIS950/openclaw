@@ -235,6 +235,10 @@ const matches = (n: Note, f: Filter) => f === "All" || noteKind(n) === FILTER_KI
 /** "Today · Maths" under a note card. */
 function noteMeta(n: Note): string {
   const d = new Date(n.updatedAt);
+  if (Number.isNaN(d.getTime())) {
+    // A damaged date: just the subject.
+    return n.subject;
+  }
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
   const days = (today.getTime() - d.getTime()) / 86_400_000;

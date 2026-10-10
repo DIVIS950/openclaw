@@ -1,5 +1,5 @@
 import { SAMPLE_PACK, type RevisionPack } from "../../shared/pack.ts";
-import { dayString, newItem, SUBJECTS, type LabPack, type Subject } from "./model.ts";
+import { dayString, DOC_TYPES, newItem, SUBJECTS, type LabPack, type Subject } from "./model.ts";
 
 // Packs and settings live on this device (browser storage), so practice works
 // offline. Photos are stored small; export/import moves packs between devices.
@@ -112,6 +112,7 @@ function cleanPack(p: LabPack): LabPack {
   return {
     ...p,
     subject: SUBJECTS.includes(p.subject) ? p.subject : "Science",
+    docType: DOC_TYPES.includes(p.docType) ? p.docType : "auto",
     topic: text(p.topic),
     testScore: text(p.testScore),
     insight: text(p.insight),
@@ -137,12 +138,16 @@ export const labPacks = {
     const packs = read<unknown>(PACKS_KEY, null);
     if (Array.isArray(packs)) {
       // Damaged entries (not a pack with cards) are left out.
-      return packs
-        .filter(
-          (p): p is LabPack =>
-            !!p && typeof p === "object" && typeof p.id === "string" && Array.isArray(p.items),
-        )
-        .map(cleanPack);
+      return (
+        packs
+          .filter(
+            (p): p is LabPack =>
+              !!p && typeof p === "object" && typeof p.id === "string" && Array.isArray(p.items),
+          )
+          .map(cleanPack)
+          // A pack with no usable cards can't be practised.
+          .filter((p) => p.items.length > 0)
+      );
     }
     // First run: bring over the pack made on the old revision screen, if any.
     const old = read<{ pack: RevisionPack } | null>(OLD_PACK_KEY, null);
