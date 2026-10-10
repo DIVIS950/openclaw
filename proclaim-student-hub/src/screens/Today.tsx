@@ -7,7 +7,7 @@ import { useAiContext, useApp, type Screen } from "../context.ts";
 import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
 import { dueLabel, greeting, isUrgent } from "../lib/format.ts";
 import { level, progress, timetable } from "../lib/store.ts";
-import { addDays, dayOf, daysBetween, prepTests } from "../lib/study.ts";
+import { addDays, dayOf, daysBetween, groupTodos, prepTests, todos } from "../lib/study.ts";
 import type { Homework } from "../lib/types.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 
@@ -97,6 +97,17 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
 
   const open = (homework ?? []).filter((h) => !h.done);
   const next3 = dueNext(open);
+  // Open to-dos, most urgent first: overdue, today, this week, any time.
+  const today = dayOf(new Date());
+  const todoGroups = groupTodos(todos.all(), today);
+  const todoList = [
+    ...todoGroups.overdue,
+    ...todoGroups.today,
+    ...todoGroups.later,
+    ...todoGroups.someday,
+  ];
+  const todoOpen = todoList.length;
+  const todoNext = todoList.slice(0, 3);
   useAiContext(
     "Today screen. Homework still to do: " +
       open
@@ -105,7 +116,6 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   );
 
   // The two big numbers: homework due today, and days to the next test.
-  const today = dayOf(new Date());
   const weekEnd = addDays(today, 7);
   const dueDay = (iso?: string) => (iso ? dayOf(new Date(iso)) : "");
   const dueToday = open.filter((h) => dueDay(h.due) <= today && h.due).length;
@@ -206,6 +216,29 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
               <span className={`s13 due-when${isUrgent(h.due) ? " urgent" : ""}`}>
                 {dueLabel(h.due)}
               </span>
+            </button>
+          ))}
+        </section>
+      )}
+
+      {todoNext.length > 0 && (
+        <section className="card rows today-due rise d4" aria-label="To-do">
+          <div className="between" style={{ padding: "14px 16px 4px" }}>
+            <h2 className="h2">To-do</h2>
+            <button className="text-link" onClick={() => go("todo")}>
+              All {todoOpen}
+            </button>
+          </div>
+          {todoNext.map((t) => (
+            <button key={t.id} className="li" onClick={() => go("todo")}>
+              <span className="stack li-main" style={{ gap: 1 }}>
+                <span className="li-title">{t.text}</span>
+              </span>
+              {t.due && (
+                <span className={`s13 due-when${t.due <= today ? " urgent" : ""}`}>
+                  {t.due < today ? "Overdue" : t.due === today ? "Today" : dueLabel(t.due)}
+                </span>
+              )}
             </button>
           ))}
         </section>

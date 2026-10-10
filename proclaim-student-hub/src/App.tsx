@@ -35,15 +35,11 @@ import { reloadToUpdate, watchForUpdates } from "./lib/updates.ts";
 import { gmailLink, withGmail } from "./pages/gmailLink.ts";
 import { PAGES } from "./pages/runtime.ts";
 import { pagesImport } from "./pages/runtime.ts";
-import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
-import { Notifications } from "./screens/Notifications.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
-import { Timetable } from "./screens/Timetable.tsx";
 import { Today } from "./screens/Today.tsx";
 import { Tutor } from "./screens/Tutor.tsx";
-import { NotesScreen, TestsScreen, TodoScreen, TutoringScreen } from "./study/Study.tsx";
 
 type Mode = "loading" | "signin" | "google" | "demo" | "web";
 
@@ -149,6 +145,18 @@ const Lab = lazy(() => import("./lab/Lab.tsx").then((m) => ({ default: m.Lab }))
 const Call = lazy(() => import("./screens/Call.tsx").then((m) => ({ default: m.Call })));
 const Classes = lazy(() => import("./screens/Classes.tsx").then((m) => ({ default: m.Classes })));
 const Inbox = lazy(() => import("./screens/Inbox.tsx").then((m) => ({ default: m.Inbox })));
+const Apps = lazy(() => import("./screens/Apps.tsx").then((m) => ({ default: m.Apps })));
+const Timetable = lazy(() =>
+  import("./screens/Timetable.tsx").then((m) => ({ default: m.Timetable })),
+);
+const Notifications = lazy(() =>
+  import("./screens/Notifications.tsx").then((m) => ({ default: m.Notifications })),
+);
+const study = () => import("./study/Study.tsx");
+const TodoScreen = lazy(() => study().then((m) => ({ default: m.TodoScreen })));
+const TestsScreen = lazy(() => study().then((m) => ({ default: m.TestsScreen })));
+const NotesScreen = lazy(() => study().then((m) => ({ default: m.NotesScreen })));
+const TutoringScreen = lazy(() => study().then((m) => ({ default: m.TutoringScreen })));
 
 /** iPad landscape and bigger: Homework opens tasks beside the list (bento.css .split). */
 const WIDE = "(min-width: 1000px) and (min-height: 600px)";
@@ -433,6 +441,37 @@ function Shell({
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // Keyboard (laptop, iPad keyboard): 1–4 switch tabs, N adds something, / asks
+  // the AI. Ignored while typing, with modifier keys, or when a sheet is open.
+  useEffect(() => {
+    const TABS: Screen[] = ["today", "homework", "tutor", "apps"];
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        e.defaultPrevented ||
+        e.altKey ||
+        e.ctrlKey ||
+        e.metaKey ||
+        el?.closest("input, textarea, select, [contenteditable='true']") ||
+        document.querySelector("[role='dialog'], .backdrop, .tour")
+      ) {
+        return;
+      }
+      if (e.key >= "1" && e.key <= "4") {
+        go(TABS[Number(e.key) - 1]);
+      } else if (e.key === "n" || e.key === "N") {
+        document.querySelector<HTMLButtonElement>(".nav-fab")?.click();
+      } else if (e.key === "/") {
+        go("tutor");
+      } else {
+        return;
+      }
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go]);
+
   // The tour: once on a new device, when Today has drawn; again from More.
   const [touring, setTouring] = useState(false);
   useEffect(() => {
@@ -602,8 +641,15 @@ function Shell({
             <Inbox />
           </Suspense>
         )}
-        {current === "apps" && <Apps />}
-        {current === "timetable" && <Timetable />}
+        <Suspense fallback={null}>
+          {current === "apps" && <Apps />}
+          {current === "timetable" && <Timetable />}
+          {current === "todo" && <TodoScreen />}
+          {current === "tests" && <TestsScreen />}
+          {current === "notes" && <NotesScreen />}
+          {current === "tutoring" && <TutoringScreen />}
+          {current === "notifications" && <Notifications />}
+        </Suspense>
         {current === "classes" && (
           <Suspense fallback={null}>
             <Classes />
@@ -614,11 +660,6 @@ function Shell({
             <Call />
           </Suspense>
         )}
-        {current === "todo" && <TodoScreen />}
-        {current === "tests" && <TestsScreen />}
-        {current === "notes" && <NotesScreen />}
-        {current === "tutoring" && <TutoringScreen />}
-        {current === "notifications" && <Notifications />}
         {showAsk && (
           <button
             className="ask"

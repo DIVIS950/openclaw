@@ -74,3 +74,17 @@ button.tick::before {
   flex: 1;
   min-width: 0;
 }
+
+/* iPad split: the Focus / Hand in bar sits on the bottom edge of the task
+   pane. Sticky offsets count from inside the pane's padding, so the pane
+   drops its bottom padding and the bar carries the space itself. */
+@media (min-width: 768px) and (min-height: 600px) {
+  .split > .screen:has(> .dock) {
+    padding-bottom: 0;
+  }
+  .split .dock {
+    bottom: 0;
+    margin: 8px -32px 0 -16px;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 18px);
+  }
+}

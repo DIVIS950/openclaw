@@ -323,7 +323,26 @@ export function transferPreview(t: Transfer, storage: Storage): string[] {
       continue;
     }
     const label = LABELS[key];
-    if (label && Array.isArray(value)) {
+    if (key === "psh.tutors" && Array.isArray(value)) {
+      // Tutors can send work later, so say exactly who is being added.
+      let mine: { id?: string }[] = [];
+      try {
+        const parsed: unknown = JSON.parse(storage.getItem("psh.tutors") ?? "[]");
+        mine = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // Damaged list: every tutor in the link counts as new.
+      }
+      const known = new Set(mine.map((t) => t?.id));
+      const names = value
+        .filter((t) => t && typeof t === "object" && !known.has((t as { id?: string }).id))
+        .map((t) => String((t as { name?: unknown }).name ?? "").trim() || "A tutor")
+        .slice(0, 4);
+      if (names.length) {
+        lines.push(
+          `New tutor${names.length === 1 ? "" : "s"} who can send you work: ${names.join(", ")}`,
+        );
+      }
+    } else if (label && Array.isArray(value)) {
       if (value.length) {
         lines.push(`${value.length} ${label[value.length === 1 ? 0 : 1]}`);
       }

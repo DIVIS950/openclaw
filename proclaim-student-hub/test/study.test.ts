@@ -80,7 +80,7 @@ describe("spotting tests", () => {
     ];
     const courses: Course[] = [
       {
-        name: "Y9P Český jazyk",
+        name: "Y8X Český jazyk",
         subject: "Czech",
         posts: [
           { kind: "material", title: "PŘÍPRAVA K TESTU 6. 10.", date: "2026-09-24", text: "" },
@@ -128,9 +128,9 @@ describe("links and subjects", () => {
   });
 
   it("maps class subjects to Revision Lab subjects", () => {
-    expect(labSubject("Y9 Český dějepis")).toBe("History");
+    expect(labSubject("Y8 Český dějepis")).toBe("History");
     expect(labSubject("Czech Geography")).toBe("Geography");
-    expect(labSubject("Y9P Český jazyk a literatura")).toBe("Czech");
+    expect(labSubject("Y8X Český jazyk a literatura")).toBe("Czech");
     expect(labSubject("9I Computer Science 26-27")).toBe("Computer Science");
     expect(labSubject("Y9 Spanish")).toBe("Spanish");
     expect(labSubject("Tutoring")).toBe("Other");

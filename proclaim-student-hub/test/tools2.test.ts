@@ -77,13 +77,13 @@ describe("Classroom emails as they really arrive", () => {
     const material = {
       subject: 'New material: "Test 6.10. - opakování látky"',
       snippet:
-        "Notification settings Y9 Q - Český jazyk 2026/2027 New material Test 6.10. - opakování látky Dobrý den",
+        "Notification settings Y9 Z - Český jazyk 2030/2031 New material Test 6.10. - opakování látky Dobrý den",
     };
     expect(parseClassroomEmail(material, now)).toBeNull();
     expect(parseTestNotice(material, "2026-10-04")).toEqual({
       topic: "Test 6.10. - opakování látky",
       date: "2026-10-06",
-      course: "Y9 Q - Český jazyk 2026/2027",
+      course: "Y9 Z - Český jazyk 2030/2031",
     });
     expect(
       parseTestNotice(
