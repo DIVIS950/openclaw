@@ -56,7 +56,7 @@ export function LookCard() {
           <Icon name="palette" size={18} />
         </span>
         <span className="label">Accent</span>
-        <div className="row" style={{ gap: 10 }} role="radiogroup" aria-label="Accent colour">
+        <div className="row" style={{ gap: 16 }} role="radiogroup" aria-label="Accent colour">
           {ACCENTS.map((a) => (
             <button
               key={a}

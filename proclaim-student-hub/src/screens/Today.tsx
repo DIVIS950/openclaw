@@ -112,6 +112,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
     app.toast("To-do done.", {
       label: "Undo",
       run: () => {
+        setSettling((s) => s.filter((x) => x !== id));
         todoXp.undo(id);
         todos.save(todos.all().map((t) => (t.id === id ? { ...t, done: false } : t)));
         setTodoAll(todos.all());

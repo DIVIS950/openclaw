@@ -81,6 +81,57 @@ export function samplePack(): LabPack {
   return { ...fromRevisionPack(SAMPLE_PACK), id: "sample", topic: "Photosynthesis (sample)" };
 }
 
+const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
+
+/** A saved pack with every field the Lab reads in the right shape; bad cards are left out. */
+function cleanPack(p: LabPack): LabPack {
+  const today = dayString(new Date());
+  const items = (p.items as unknown[])
+    .filter((i): i is Record<string, unknown> => !!i && typeof i === "object")
+    .map((i) =>
+      newItem(
+        {
+          ...(typeof i.id === "string" ? { id: i.id } : {}),
+          prompt: text(i.prompt),
+          answer: text(i.answer),
+          kind: i.kind === "qa" ? "qa" : "term",
+          origin: i.origin === "ai" ? "ai" : "photo",
+          markedWrong: i.markedWrong === true,
+          studentAnswer: text(i.studentAnswer),
+          explanation: text(i.explanation),
+          box: count(i.box),
+          due: typeof i.due === "string" && i.due ? i.due : today,
+          right: count(i.right),
+          wrong: count(i.wrong),
+        },
+        today,
+      ),
+    )
+    .filter((i) => i.prompt && i.answer);
+  return {
+    ...p,
+    subject: SUBJECTS.includes(p.subject) ? p.subject : "Science",
+    topic: text(p.topic),
+    testScore: text(p.testScore),
+    insight: text(p.insight),
+    createdAt: text(p.createdAt),
+    photo: text(p.photo),
+    steps: Array.isArray(p.steps) ? p.steps.filter((s) => typeof s === "string") : [],
+    labels: Array.isArray(p.labels)
+      ? p.labels.filter(
+          (l) =>
+            !!l &&
+            typeof l === "object" &&
+            typeof l.text === "string" &&
+            typeof l.x === "number" &&
+            typeof l.y === "number",
+        )
+      : [],
+    items,
+  };
+}
+
 export const labPacks = {
   all(): LabPack[] {
     const packs = read<unknown>(PACKS_KEY, null);
@@ -91,16 +142,16 @@ export const labPacks = {
           (p): p is LabPack =>
             !!p && typeof p === "object" && typeof p.id === "string" && Array.isArray(p.items),
         )
-        .map((p) => ({
-          ...p,
-          topic: String(p.topic ?? ""),
-          steps: Array.isArray(p.steps) ? p.steps : [],
-          items: p.items.filter((i) => !!i && typeof i === "object"),
-        }));
+        .map(cleanPack);
     }
     // First run: bring over the pack made on the old revision screen, if any.
     const old = read<{ pack: RevisionPack } | null>(OLD_PACK_KEY, null);
-    const start = old?.pack ? [fromRevisionPack(old.pack)] : [];
+    let start: LabPack[] = [];
+    try {
+      start = old?.pack ? [fromRevisionPack(old.pack)] : [];
+    } catch {
+      // A damaged old pack: start with none rather than break Revise.
+    }
     write(PACKS_KEY, start);
     return start;
   },

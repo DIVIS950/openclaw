@@ -38,7 +38,9 @@ describe("lesson link label", () => {
 describe("import cleaning", () => {
   it("drops non-records and keeps tutors safe", async () => {
     const { cleanImported } = await import("../src/lib/transfer.ts");
-    expect(cleanImported("psh.todos", [null, 3, "x", [1], { id: "t1" }])).toEqual([{ id: "t1" }]);
+    expect(cleanImported("psh.todos", [null, 3, "x", [1], { id: "t1" }])).toEqual([
+      { id: "t1", text: "", due: "", subject: "", from: "", done: false },
+    ]);
     const tutors = cleanImported("psh.tutors", [
       null,
       { name: "No id" },
@@ -75,8 +77,8 @@ describe("damaged import values", () => {
       streak: 1,
       lastDay: "",
     });
-    expect(cleanImported("psh.grades", [null])).toBeUndefined();
-    expect(cleanImported("psh.lab.packs", [null])).toBeUndefined();
+    expect(cleanImported("psh.grades", [null])).toEqual([]);
+    expect(cleanImported("psh.lab.packs", [null])).toEqual([]);
     expect(cleanImported("psh.schedule", 7)).toBeUndefined();
   });
 
@@ -85,5 +87,51 @@ describe("damaged import values", () => {
     expect(progress.get()).toEqual({ xp: 0, streak: 0, lastDay: "" });
     localStorage.setItem("psh.progress", JSON.stringify({ xp: "a", streak: -3 }));
     expect(progress.get()).toEqual({ xp: 0, streak: 0, lastDay: "" });
+  });
+});
+
+describe("round-6 link checks", () => {
+  it("keeps good records next to bad ones and refuses absurd values", async () => {
+    const { cleanImported } = await import("../src/lib/transfer.ts");
+    expect(cleanImported("psh.progress", { xp: 1e308, streak: 1 })).toBeUndefined();
+    expect(cleanImported("psh.progress", { xp: 10, streak: 1e9 })).toBeUndefined();
+    const grades = cleanImported("psh.grades", [
+      null,
+      { id: "g1", subject: "Maths", score: 7, outOf: 10 },
+      { id: "g2", score: "x", outOf: 10 },
+    ]) as { id: string }[];
+    expect(grades.map((g) => g.id)).toEqual(["g1"]);
+    const todos = cleanImported("psh.todos", [{ id: "t", text: { a: 1 }, done: "yes" }]) as {
+      text: string;
+      done: boolean;
+    }[];
+    expect(todos[0].text).toBe("");
+    expect(todos[0].done).toBe(false);
+    expect(cleanImported("psh.pack", { pack: 5 })).toBeUndefined();
+  });
+
+  it("keeps this morning's save when a link is brought in", async () => {
+    const { backups } = await import("../src/lib/backup.ts");
+    const map = new Map<string, string>();
+    const storage = {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } as Storage;
+    storage.setItem("psh.todos", JSON.stringify([{ id: "a" }]));
+    backups.beforeLink(storage);
+    storage.setItem("psh.todos", JSON.stringify([{ id: "a" }, { id: "bad" }]));
+    backups.beforeLink(storage);
+    expect(backups.list(storage)).toHaveLength(1);
+    expect(backups.get(backups.list(storage)[0].day, storage)?.data["psh.todos"]).toEqual([
+      { id: "a" },
+    ]);
+    expect(backups.undoLink(storage)).toBe(true);
+    expect(JSON.parse(storage.getItem("psh.todos") ?? "[]")).toHaveLength(2);
   });
 });

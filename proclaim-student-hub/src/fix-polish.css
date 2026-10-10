@@ -613,3 +613,9 @@ body:not(.tutor-page),
     radial-gradient(55% 40% at 104% 8%, rgba(122, 76, 255, 0.16), transparent 70%),
     radial-gradient(60% 40% at 50% 108%, rgba(255, 138, 92, 0.07), transparent 70%), var(--bg);
 }
+
+/* Round-6: with 16px between the dots, each one's hit area is 44px wide and
+   none overlaps its neighbour. */
+.accent-swatch::before {
+  inset: -8px;
+}

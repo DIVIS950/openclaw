@@ -3,6 +3,7 @@ import { backups } from "../lib/backup.ts";
 
 // One damaged list (a bad link, a broken saved copy) must never leave the
 // student with a blank app: they get a way back without clearing anything.
+// Two ways back: undo just the last link, or go back to today's first save.
 
 const savedAt = (iso: string) => {
   const d = new Date(iso);
@@ -13,11 +14,11 @@ const savedAt = (iso: string) => {
 
 interface State {
   failed: boolean;
-  restored: string | null;
+  restored: boolean;
 }
 
 export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: boolean }, State> {
-  state: State = { failed: false, restored: null };
+  state: State = { failed: false, restored: false };
 
   static getDerivedStateFromError(): Partial<State> {
     return { failed: true };
@@ -27,18 +28,34 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
     console.error("Student Hub crashed", err);
   }
 
-  private restoreLatest = () => {
-    // The newest automatic save: taken each day, and again right before a link is brought in.
-    const latest = backups.list()[0];
+  private done = () => {
+    this.setState({ restored: true });
+    window.setTimeout(() => window.location.reload(), 600);
+  };
+
+  private undoLink = () => {
+    const link = backups.lastLink();
     if (
-      latest &&
+      link &&
       window.confirm(
-        `Go back to how everything was at ${savedAt(latest.at)}? Anything added after that is removed.`,
+        `Undo the last link you brought in (${savedAt(link.at)})? Anything added after it is removed.`,
       ) &&
-      backups.restore(latest.day)
+      backups.undoLink()
     ) {
-      this.setState({ restored: latest.day });
-      window.setTimeout(() => window.location.reload(), 600);
+      this.done();
+    }
+  };
+
+  private restoreDay = () => {
+    const day = backups.list()[0];
+    if (
+      day &&
+      window.confirm(
+        `Go back to how everything was at ${savedAt(day.at)}? Anything added after that is removed.`,
+      ) &&
+      backups.restore(day.day)
+    ) {
+      this.done();
     }
   };
 
@@ -46,24 +63,34 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
     if (!this.state.failed) {
       return this.props.children;
     }
-    const latest = backups.list()[0];
+    const link = backups.lastLink();
+    const day = backups.list()[0];
     const body = (
       <main className="screen" style={{ gap: 16 }}>
         <h1 className="h1">Something went wrong</h1>
         <div className="card stack" role="alert" style={{ gap: 12, padding: 16 }}>
           <p style={{ margin: 0 }}>
             This screen hit a problem, often from a damaged link. Nothing has been deleted. Reload
-            to try again, or go back to the last automatic save.
+            to try again, or go back to an automatic save.
           </p>
-          <button className="btn primary" onClick={() => window.location.reload()}>
-            Reload
-          </button>
-          {latest && (
-            <button className="btn" onClick={this.restoreLatest}>
-              {this.state.restored
-                ? "Restored. Reloading…"
-                : `Go back to the automatic save (${savedAt(latest.at)})`}
-            </button>
+          {this.state.restored ? (
+            <p style={{ margin: 0, fontWeight: 700 }}>Restored. Reloading…</p>
+          ) : (
+            <>
+              <button className="btn primary" onClick={() => window.location.reload()}>
+                Reload
+              </button>
+              {link && (
+                <button className="btn" onClick={this.undoLink}>
+                  Undo the last link ({savedAt(link.at)})
+                </button>
+              )}
+              {day && (
+                <button className="btn" onClick={this.restoreDay}>
+                  Back to the save from {savedAt(day.at)}
+                </button>
+              )}
+            </>
           )}
         </div>
       </main>

@@ -7,7 +7,16 @@ import { mergeValue } from "./transfer.ts";
 
 const PREFIX = "psh.backup.";
 const KEEP = 5;
-const SKIP = ["psh.backup.", "psh.ai.key", "psh.token", "psh.seed.", "psh.db/", "tutorhub."];
+const LINK_KEY = "psh.undo.link";
+const SKIP = [
+  "psh.backup.",
+  "psh.undo.",
+  "psh.ai.key",
+  "psh.token",
+  "psh.seed.",
+  "psh.db/",
+  "tutorhub.",
+];
 
 export interface Snapshot {
   at: string;
@@ -82,14 +91,41 @@ export const backups = {
     return true;
   },
 
-  /** Today's save, taken again now: right before a link changes anything. */
+  /**
+   * Right before a link changes anything: today's first save stays as it is
+   * ("back to this morning") and a separate save of this moment lets the
+   * student undo just this link.
+   */
   beforeLink(storage: Storage = localStorage, now = new Date()) {
-    try {
-      storage.removeItem(PREFIX + dayOf(now));
-    } catch {
-      // Nothing to replace.
-    }
     backups.daily(storage, now);
+    try {
+      storage.setItem(
+        LINK_KEY,
+        JSON.stringify({ at: now.toISOString(), data: collectAll(storage) }),
+      );
+    } catch {
+      // Out of space: the day's save is still there.
+    }
+  },
+
+  /** The save taken right before the last link, if any. */
+  lastLink(storage: Storage = localStorage): Snapshot | null {
+    try {
+      return JSON.parse(storage.getItem(LINK_KEY) ?? "null") as Snapshot | null;
+    } catch {
+      return null;
+    }
+  },
+
+  /** Undoes the last link: puts back the save taken right before it. */
+  undoLink(storage: Storage = localStorage): boolean {
+    const snap = backups.lastLink(storage);
+    if (!snap?.data) {
+      return false;
+    }
+    putBack(snap, storage);
+    storage.removeItem(LINK_KEY);
+    return true;
   },
 
   get(day: string, storage: Storage = localStorage): Snapshot | null {
@@ -106,15 +142,19 @@ export const backups = {
     if (!snap) {
       return false;
     }
-    for (const key of Object.keys(collectAll(storage))) {
-      storage.removeItem(key);
-    }
-    for (const [key, value] of Object.entries(snap.data)) {
-      storage.setItem(key, JSON.stringify(value));
-    }
+    putBack(snap, storage);
     return true;
   },
 };
+
+function putBack(snap: Snapshot, storage: Storage) {
+  for (const key of Object.keys(collectAll(storage))) {
+    storage.removeItem(key);
+  }
+  for (const [key, value] of Object.entries(snap.data)) {
+    storage.setItem(key, JSON.stringify(value));
+  }
+}
 
 /** The export file: everything, as JSON. */
 export function exportAll(storage: Storage = localStorage): string {

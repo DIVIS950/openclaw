@@ -249,6 +249,8 @@ const RECORD_LISTS = new Set([
   "psh.tutor.messages",
   "psh.tutor.sessions",
   "psh.tutor.materials",
+  "psh.grades",
+  "psh.lab.packs",
 ]);
 const isRecord = (x: unknown): x is Record<string, unknown> =>
   x !== null && typeof x === "object" && !Array.isArray(x);
@@ -259,21 +261,48 @@ const isRecord = (x: unknown): x is Record<string, unknown> =>
  * fields, and lesson links that are Meet, Zoom or Teams.
  */
 const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+const int = (v: unknown, max: number) =>
+  typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= max;
+/** Text from a link: numbers become text, objects and lists become "". */
+const text = (v: unknown) =>
+  typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
 /** Values that aren't lists of records: what each must look like to be brought in. */
 const SHAPES: Record<string, (v: unknown) => boolean> = {
-  "psh.progress": (v) => isRecord(v) && num(v.xp) && num(v.streak) && (v.xp as number) >= 0,
+  "psh.progress": (v) => isRecord(v) && int(v.xp, 1_000_000) && int(v.streak, 3660),
   "psh.schedule": (v) =>
     isRecord(v) && Array.isArray(v.tests) && Array.isArray(v.days) && Array.isArray(v.done),
-  "psh.grades": (v) =>
-    Array.isArray(v) && v.every((g) => isRecord(g) && num(g.score) && num(g.outOf)),
-  "psh.lab.packs": (v) =>
-    Array.isArray(v) &&
-    v.every((p) => isRecord(p) && typeof p.id === "string" && Array.isArray(p.items)),
   "psh.lab.settings": isRecord,
-  "psh.pack": isRecord,
+  "psh.pack": (v) =>
+    isRecord(v) &&
+    isRecord(v.pack) &&
+    typeof v.pack.subject === "string" &&
+    typeof v.pack.topic === "string" &&
+    ["match", "flashcards", "quiz"].every((k) =>
+      Array.isArray((v.pack as Record<string, unknown>)[k]),
+    ),
   "psh.tour": (v) => typeof v === "string",
   "psh.theme": (v) => typeof v === "string",
   "psh.accent": (v) => typeof v === "string",
+};
+/** The text fields each list's records must have (missing or odd ones become ""). */
+const TEXT_FIELDS: Record<string, string[]> = {
+  "psh.todos": ["id", "text", "due", "subject", "from"],
+  "psh.notes": ["id", "title", "subject", "body", "updatedAt", "packId"],
+  "psh.timetable": ["day", "start", "end", "subject", "room"],
+  "psh.events": ["id", "title", "date", "time", "subject", "details"],
+  "psh.tutor.messages": ["id", "tutorId", "from", "text", "at"],
+  "psh.tutor.sessions": ["id", "tutorId", "date", "topic", "notes"],
+  "psh.tutor.materials": ["id", "tutorId", "title", "text", "photo", "date"],
+  "psh.weeklog": ["day", "kind"],
+  "psh.grades": ["id", "subject", "topic", "date", "testId"],
+};
+
+const withText = (r: Record<string, unknown>, fields: string[]) => {
+  const out = { ...r };
+  for (const f of fields) {
+    out[f] = text(r[f]);
+  }
+  return out;
 };
 
 export function cleanImported(key: string, incoming: unknown): unknown {
@@ -300,6 +329,21 @@ export function cleanImported(key: string, incoming: unknown): unknown {
         whatsapp: String(t.whatsapp ?? ""),
         meet: allowedMeet(String(t.meet ?? "")),
       }));
+  }
+  if (key === "psh.grades") {
+    // Record by record: one bad grade doesn't drop the good ones.
+    return list
+      .filter((g) => num(g.score) && num(g.outOf) && (g.outOf as number) > 0)
+      .map((g) => withText(g, TEXT_FIELDS[key]));
+  }
+  if (key === "psh.lab.packs") {
+    return list.filter((p) => typeof p.id === "string" && Array.isArray(p.items));
+  }
+  if (TEXT_FIELDS[key]) {
+    return list.map((r) => {
+      const out = withText(r, TEXT_FIELDS[key]);
+      return key === "psh.todos" ? { ...out, done: r.done === true } : out;
+    });
   }
   if (key === "psh.prep") {
     return list
