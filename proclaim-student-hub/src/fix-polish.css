@@ -1,0 +1,621 @@
+/* Jury round 1 fixes (polish). Loaded after bento.css. */
+
+/* ---------- Today ---------- */
+
+/* No school today: a small card saying when it starts again (NowCard). */
+.next-day-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+}
+.next-day-card .ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  flex: none;
+}
+.next-day-title {
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Due next: the three open homework items due soonest. */
+.today-due .li {
+  min-height: 56px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.today-due .li-main {
+  display: flex;
+  white-space: normal;
+}
+.today-due .li-title {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-due .li-course {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-due .due-when {
+  flex: none;
+  font-weight: 800;
+  color: var(--muted);
+}
+.today-due .due-when.urgent {
+  color: var(--orange-t);
+}
+
+/* iPad and laptop: the whole day, not just the first three lessons. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .today-day .li.extra {
+    display: flex;
+  }
+  .screen.today > .bento-tiles {
+    align-self: start;
+  }
+}
+
+/* ---------- Back button on screens opened from More ---------- */
+.screen > .back-btn {
+  align-self: flex-start;
+  width: 44px;
+  margin: -34px 0 -4px;
+}
+.screen > header > .back-btn {
+  margin: 0 0 4px;
+  align-self: flex-start;
+}
+@media (min-width: 768px) and (min-height: 600px) {
+  /* Less room above the title on the iPad layout: no pull-up. */
+  .screen > .back-btn {
+    margin-top: 0;
+  }
+}
+
+/* ---------- Contrast (WCAG AA) ---------- */
+
+/* Tests: a deeper pink so white text reads (6:1), in both themes. */
+.test-hero,
+.hero.magenta.test-hero {
+  background: #b8285c;
+  box-shadow: 0 18px 34px -18px #6e1636;
+}
+.test-hero .btn.primary {
+  background: #fff;
+  color: #b8285c;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
+}
+.test-hero .btn:not(.primary) {
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  box-shadow: none;
+}
+/* The top of the card opens the plan; the two buttons below act directly. */
+.test-open {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* Inbox "Connect Gmail" and other green heroes: a deeper green (5:1). */
+.hero.cyan {
+  background: #0b7f55;
+  box-shadow: 0 18px 34px -18px #064631;
+}
+.hero.cyan .muted {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Timetable: past lessons fade by colour, not opacity, so text stays readable. */
+.les.past {
+  opacity: 1;
+}
+.les.past .t,
+.les.past .blk {
+  color: var(--muted);
+}
+.les.past .blk {
+  background: var(--card);
+}
+.les.past .blk .r {
+  opacity: 1;
+}
+
+/* Disabled buttons: muted text on the soft fill (5:1) instead of half opacity. */
+.btn:disabled {
+  opacity: 1;
+  background: var(--card-2);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.btn.ghost:disabled,
+.btn.link:disabled {
+  background: transparent;
+}
+
+/* ---------- One form style ---------- */
+
+/* Field labels: the small-caps eyebrow everywhere (some forms used big headings). */
+label.stack > .h2:first-child,
+label > span.h2:first-child {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Switches use the app accent, like every other "on". */
+.sw.on {
+  background: var(--accent);
+}
+
+/* ---------- Layout ---------- */
+
+/* Long words (Czech compounds, links) wrap instead of running out of the card. */
+.todo-text {
+  overflow-wrap: anywhere;
+}
+
+/* AI help: the start card sits below the header, never under it. Auto margins
+   keep it low on a tall screen without pushing it off the top on a short one. */
+.screen.buddy-body,
+.buddy-body:has(.buddy-hint) {
+  justify-content: flex-start;
+}
+.screen.buddy-body > :first-child {
+  margin-top: auto;
+}
+.buddy-body:has(.buddy-hint) > .buddy-empty {
+  margin-bottom: auto;
+}
+.bubble.err {
+  background: var(--orange-s);
+  color: var(--ink);
+}
+
+/* Notes: on iPad and laptop the New note / From photo bar stays inside the
+   content column, at the bottom of the screen. */
+@media (min-width: 768px) and (min-height: 600px) {
+  .notes-actions {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 24px);
+    margin-top: auto;
+  }
+}
+
+/* ---------- Motion ---------- */
+
+/* Buttons press with transform only; the lip changes without animating. */
+.btn {
+  transition:
+    transform 0.12s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Round-2 jury: every tap target at least 44px (the hit area grows, not the
+   drawing), and small text without opacity so it keeps 4.5:1. */
+.sw::before,
+.accent-swatch::before {
+  content: "";
+  position: absolute;
+  inset: -8px -6px;
+}
+.accent-swatch {
+  position: relative;
+}
+.accent-swatch::before {
+  inset: -8px;
+  border-radius: 12px;
+}
+.seg3 button {
+  min-height: 44px;
+}
+button.tick::before {
+  inset: -10px;
+  border-radius: 12px;
+}
+.search {
+  min-height: 44px;
+}
+.search input {
+  min-height: 40px;
+}
+.les .blk .r {
+  opacity: 1;
+}
+.les .blk:not(.now) .r {
+  color: var(--ink2);
+}
+.hero.cyan .eyebrow,
+.hero.cyan .muted {
+  color: #fff;
+  opacity: 1;
+}
+
+/* AI help before a key is added. */
+.no-key-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card-2);
+  color: var(--ink2);
+}
+.no-key-note .link-btn {
+  color: var(--accent-t);
+  font-weight: 700;
+  min-height: 0;
+}
+
+/* Round-3 jury: the last small tap targets get a 44px hit area without
+   changing how they look. */
+.cb::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 12px;
+}
+.text-link,
+.link-btn,
+.item .round,
+button.chip {
+  position: relative;
+}
+.text-link::before,
+.link-btn::before,
+.item .round::before,
+button.chip::before {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+}
+
+/* Round-3 contrast: the selected AI mode, the Inbox hero label and the class
+   badge (now large text, so its bright subject colour stays readable). */
+.modes .mode.on {
+  background: #6a45f0;
+  color: #fff;
+}
+.card.hero.cyan .eyebrow {
+  color: #fff;
+}
+.mark {
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+
+/* Today's To-do card: a tick circle, then the text (opens the To-do list). */
+.today-due .todo-li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.today-due .todo-li .tick {
+  flex: none;
+}
+.todo-li-open {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+@media (min-width: 768px) and (min-height: 600px) {
+  .app.no-nav:not(.tutor-hub) {
+    padding-left: 0;
+  }
+}
+
+/* The due-date chip on a task opens the date picker (the input covers it). */
+.date-chip {
+  position: relative;
+  cursor: pointer;
+}
+.date-chip input {
+  position: absolute;
+  inset: -6px -2px;
+  opacity: 0;
+  cursor: pointer;
+  width: auto;
+  min-height: 44px;
+}
+
+/* Ask AI while scrolling: a 44px round button, label hidden. */
+.ask.mini {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.ask.mini .ask-label {
+  display: none;
+}
+
+/* The shortcut line only where there is a keyboard and a mouse. */
+@media (hover: none), (pointer: coarse) {
+  .key-hint {
+    display: none;
+  }
+}
+
+/* Round-4 jury: the last controls under 44px. */
+.link-btn::before {
+  inset: -12px -4px;
+}
+.item .round::before {
+  inset: -8px;
+}
+.qrb,
+.segmented button,
+.opt {
+  min-height: 44px;
+}
+
+/* Round-5 jury: Homework's To do / Done tabs and the short text links. */
+.seg2 button {
+  min-height: 44px;
+}
+.text-link::before {
+  inset: -8px -10px;
+}
+/* A to-do just ticked on Today: struck through for a moment before it goes. */
+.todo-li.ticked .li-title {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+/* Round-5 experts: the last small controls, and text on the blue Tutoring card. */
+.seg button {
+  min-height: 44px;
+}
+.sw::before {
+  inset: -8px -4px;
+}
+.accent-swatch::before {
+  inset: -9px;
+}
+.search {
+  min-height: 46px;
+}
+.search input {
+  min-height: 44px;
+}
+.card.hero .s12.muted,
+.card.hero .muted {
+  color: #fff;
+  opacity: 1;
+}
+.card.hero .btn:not(.primary) {
+  background: rgba(8, 18, 70, 0.32);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* ---------- The daily brief: the one "wow" card ----------
+   A deep violet-to-blue card with two slow aurora glows drifting behind the
+   text, a shimmer across the "Daily brief" label and the words fading in one
+   after another. Motion is transform/opacity only; reduced motion keeps it still. */
+
+.card.ai.brief-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
+  background: linear-gradient(135deg, #2a1fb8 0%, #4a26d6 38%, #6a2fe8 70%, #2448e0 100%);
+  box-shadow:
+    0 24px 48px -24px rgba(74, 38, 214, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  padding: 18px 18px 16px;
+  gap: 12px;
+}
+
+/* Two soft glows (pink top-right, cyan bottom-left), drifting slowly. */
+.card.ai.brief-card::before,
+.card.ai.brief-card::after {
+  content: "";
+  display: block;
+  position: absolute;
+  z-index: -1;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.card.ai.brief-card::before {
+  top: -45%;
+  right: -22%;
+  background: radial-gradient(circle, rgba(255, 110, 199, 0.42), transparent 66%);
+  animation: brief-drift-a 14s ease-in-out infinite alternate;
+}
+.card.ai.brief-card::after {
+  bottom: -50%;
+  left: -25%;
+  background: radial-gradient(circle, rgba(64, 214, 255, 0.36), transparent 66%);
+  animation: brief-drift-b 18s ease-in-out infinite alternate;
+}
+@keyframes brief-drift-a {
+  to {
+    transform: translate(-18%, 22%) scale(1.15);
+  }
+}
+@keyframes brief-drift-b {
+  to {
+    transform: translate(20%, -18%) scale(1.2);
+  }
+}
+
+/* "✦ Daily brief": frosted glass with a light sweep every few seconds. */
+:root .card.ai.brief-card .chip.violet {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.brief-card .chip.violet svg {
+  animation: brief-twinkle 2.8s ease-in-out infinite;
+}
+.brief-card .chip.violet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: brief-sweep 4.5s ease-in-out 1.2s infinite;
+}
+@keyframes brief-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  40%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+@keyframes brief-twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25) rotate(18deg);
+    opacity: 0.85;
+  }
+}
+.brief-card .s12.muted {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* The sentence: bigger, white, key words marked with a warm highlighter. */
+.card.ai.brief-card .brief {
+  font-size: 19px;
+  line-height: 1.42;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.card.ai.brief-card .brief b {
+  color: #fff;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 200, 87, 0.9);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 5px;
+  text-decoration-skip-ink: none;
+}
+/* Words fade in one after another (each span carries its --i). */
+.brief-card .brief > span {
+  opacity: 0;
+  animation: brief-word 0.5s ease-out forwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 150ms);
+}
+@keyframes brief-word {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Chips: glass, the most urgent one solid white. */
+.brief-card .brief-chip {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 700;
+}
+.brief-card .brief-chip.due {
+  background: #fff;
+  color: #2a1fb8;
+  border-color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.45);
+}
+.brief-card .brief-chip:active {
+  transform: scale(0.96);
+}
+.brief-card .btn.link {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.brief-card .skeleton.light {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card.ai.brief-card::before,
+  .card.ai.brief-card::after,
+  .brief-card .chip.violet svg,
+  .brief-card .chip.violet::after {
+    animation: none;
+  }
+  .brief-card .brief > span {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- Background: a soft glow, not a light show ----------
+   Three faint colour washes over the plain ground, still and behind everything. */
+body:not(.tutor-page),
+.app:not(.tutor-hub) {
+  background:
+    radial-gradient(70% 45% at 8% -6%, rgba(47, 91, 255, 0.13), transparent 70%),
+    radial-gradient(55% 40% at 104% 8%, rgba(122, 76, 255, 0.11), transparent 70%),
+    radial-gradient(60% 40% at 50% 108%, rgba(255, 138, 92, 0.08), transparent 70%), var(--bg);
+}
+:root[data-theme="dark"] body:not(.tutor-page),
+:root[data-theme="dark"] .app:not(.tutor-hub) {
+  background:
+    radial-gradient(70% 45% at 8% -6%, rgba(47, 91, 255, 0.2), transparent 70%),
+    radial-gradient(55% 40% at 104% 8%, rgba(122, 76, 255, 0.16), transparent 70%),
+    radial-gradient(60% 40% at 50% 108%, rgba(255, 138, 92, 0.07), transparent 70%), var(--bg);
+}
+
+/* Round-6: with 16px between the dots, each one's hit area is 44px wide and
+   none overlaps its neighbour. */
+.accent-swatch::before {
+  inset: -8px;
+}

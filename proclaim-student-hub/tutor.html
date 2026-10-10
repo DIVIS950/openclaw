@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Only what the Tutor Hub talks to. Inline styles stay allowed (React style
+      props); scripts only from this site and Google sign-in.
+      Firebase and Google hosts are listed for the coming Google sign-in.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; img-src 'self' data: blob: https://*.googleusercontent.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://api.anthropic.com https://generativelanguage.googleapis.com https://*.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; frame-src https://accounts.google.com https://*.firebaseapp.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#EEF0F4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0D12" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Tutor Hub: your student's lessons, homework and materials." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Tutor Hub" />
+    <title>Tutor Hub</title>
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-180.png" />
+    <style>
+      /* Loading shell, replaced when the app draws. */
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #eef0f4;
+        color: #0b7f55;
+        font: 800 20px/1.2 system-ui, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        .boot {
+          background: #0b0d12;
+          color: #34d399;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div class="boot" role="status">Tutor Hub</div></div>
+    <script type="module" src="/src/tutor/main.tsx"></script>
+  </body>
+</html>

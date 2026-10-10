@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Only what the hub talks to. Inline styles stay allowed (React style props,
+      the loading shell below); scripts only from this site and Google sign-in.
+      Firebase and Google hosts are listed for the coming Google sign-in.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; img-src 'self' data: blob: https://*.googleusercontent.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://api.anthropic.com https://generativelanguage.googleapis.com https://*.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; frame-src https://accounts.google.com https://*.firebaseapp.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#EEF0F4" />
+    <meta name="description" content="All your school apps in one place, with an AI study buddy." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Student Hub" />
+    <title>Proclaim Student Hub</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+      /* Loading shell: drawn before any script runs, replaced when the app
+         renders. Bento ground, the date line, two cards and the tab bar. Only
+         applies until the app sets data-theme on <html>. */
+      html:not([data-theme]),
+      html:not([data-theme]) body {
+        margin: 0;
+        height: 100%;
+        background: #eef0f4;
+      }
+      .boot {
+        --b-bg: #eef0f4;
+        --b-card: #ffffff;
+        --b-fill: #e3e6ec;
+        --b-ink: #0e1116;
+        position: fixed;
+        inset: 0;
+        background: var(--b-bg);
+        padding: calc(env(safe-area-inset-top) + 58px) 18px 0;
+        box-sizing: border-box;
+      }
+      .boot-col {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        max-width: 780px;
+        margin: 0 auto;
+      }
+      .boot-line {
+        height: 12px;
+        width: 46%;
+        border-radius: 6px;
+        background: var(--b-fill);
+      }
+      .boot-title {
+        font: 800 13px/12px system-ui, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5b6372;
+      }
+      .boot-line.big {
+        height: 34px;
+        width: 58%;
+        border-radius: 12px;
+        margin-bottom: 4px;
+      }
+      .boot-card {
+        height: 168px;
+        border-radius: 26px;
+        background: var(--b-card);
+        box-shadow: 0 12px 28px -14px rgba(14, 17, 22, 0.22);
+      }
+      .boot-card.short {
+        height: 112px;
+      }
+      .boot-line,
+      .boot-card {
+        animation: boot-pulse 1.4s ease-in-out infinite alternate;
+      }
+      .boot-nav {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        bottom: calc(env(safe-area-inset-bottom) + 14px);
+        height: 68px;
+        border-radius: 34px;
+        background: var(--b-ink);
+      }
+      @keyframes boot-pulse {
+        to {
+          opacity: 0.55;
+        }
+      }
+      @media (min-width: 768px) and (min-height: 600px) {
+        .boot {
+          padding-left: 136px;
+          padding-right: 32px;
+        }
+        .boot-nav {
+          top: calc(env(safe-area-inset-top) + 16px);
+          right: auto;
+          width: 88px;
+          height: auto;
+          border-radius: 30px;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme]),
+        html:not([data-theme]) body {
+          background: #0b0d12;
+        }
+        .boot {
+          --b-bg: #0b0d12;
+          --b-card: #161a22;
+          --b-fill: #1f2430;
+          --b-ink: #f2f4f8;
+        }
+        .boot-card {
+          box-shadow: none;
+        }
+        .boot-title {
+          color: #9aa3b2;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-line,
+        .boot-card {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot" role="status" aria-label="Loading your hub">
+        <div class="boot-col">
+          <div class="boot-title">Student Hub</div>
+          <div class="boot-line big"></div>
+          <div class="boot-card"></div>
+          <div class="boot-card short"></div>
+        </div>
+        <div class="boot-nav"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
