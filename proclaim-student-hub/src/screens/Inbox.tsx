@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BackButton } from "../components/BackButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { draftReply } from "../lib/aiFeatures.ts";
@@ -82,6 +83,7 @@ export function Inbox() {
 
   return (
     <main className="screen">
+      <BackButton />
       <header className="stack rise" style={{ gap: 12 }}>
         <div className="between" style={{ alignItems: "center" }}>
           <h1 className="h1" style={{ fontSize: 36 }}>

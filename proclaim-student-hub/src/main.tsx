@@ -28,7 +28,7 @@ async function start() {
     // GitHub Pages version: Gemini + phone storage stand in for claude.ai, and
     // data sent from the claude.ai link arrives in the address.
     installPagesRuntime();
-    // Only for notifications from the Home Screen (public/sw.js caches nothing).
+    // Keeps the app opening offline and lets Home Screen reminders work (public/sw.js).
     navigator.serviceWorker?.register("sw.js").catch(() => undefined);
     // The student's own timetable/classes/homework, if their private link unlocked it.
     await unlockSeed();

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AgendaList } from "../components/Agenda.tsx";
-import { Icon } from "../components/Icon.tsx";
 import { BackButton } from "../components/BackButton.tsx";
+import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson, type Weekday } from "../lib/aiFeatures.ts";

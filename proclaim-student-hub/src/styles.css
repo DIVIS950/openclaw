@@ -1503,7 +1503,6 @@ textarea.field {
   animation: spin 3s linear infinite;
 }
 
-
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -1526,7 +1525,6 @@ textarea.field {
     transform: scale(1);
   }
 }
-
 
 @keyframes flipIn {
   from {

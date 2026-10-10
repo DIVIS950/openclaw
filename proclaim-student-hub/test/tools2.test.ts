@@ -32,62 +32,62 @@ describe("Classroom emails as they really arrive", () => {
   it("reads the class from the notification snippet", () => {
     expect(
       parseCourse(
-        "Notification settings Y9 SPANISH-ACU New assignment Y9 1.1d Vocab TEST Las habitaciones de mi casa Due Oct 9 See details",
+        "Notification settings Y9 SPANISH-QRS New assignment Y9 2.3b Vocab TEST La comida de mi familia Due Oct 9 See details",
       ),
-    ).toBe("Y9 SPANISH-ACU");
+    ).toBe("Y9 SPANISH-QRS");
     expect(
       parseCourse(
-        "Notification settings 9I Geography New material L8 - Measuring Earthquakes See details",
+        "Notification settings 9Z Geography New material L3 - Mapping Rivers See details",
       ),
-    ).toBe("9I Geography");
+    ).toBe("9Z Geography");
     expect(
       parseCourse(
-        "Notification settings Y9 Math 26/27 Mr Fitz Due tomorrow HW due Thursday 10/1 Complete the packet",
+        "Notification settings Y9 Math 26/27 Mr Example Due tomorrow HW due Thursday 10/1 Complete the packet",
       ),
-    ).toBe("Y9 Math 26/27 Mr Fitz");
+    ).toBe("Y9 Math 26/27 Mr Example");
   });
 
   it("recovers a title Gmail cut short", () => {
     expect(
       fullTitle(
-        "Y9 1.1d Vocab TEST Las habitaciones de…",
-        "Notification settings Y9 SPANISH-ACU New assignment Y9 1.1d Vocab TEST Las habitaciones de mi casa Due Oct 9 See details Posted on",
+        "Y9 2.3b Vocab TEST La comida de…",
+        "Notification settings Y9 SPANISH-QRS New assignment Y9 2.3b Vocab TEST La comida de mi familia Due Oct 9 See details Posted on",
       ),
-    ).toBe("Y9 1.1d Vocab TEST Las habitaciones de mi casa");
-    expect(fullTitle("Bookopoly", "whatever")).toBe("Bookopoly");
+    ).toBe("Y9 2.3b Vocab TEST La comida de mi familia");
+    expect(fullTitle("Wordsmith Quest", "whatever")).toBe("Wordsmith Quest");
   });
 
-  it("turns the Spanish vocab test email into homework with its class and due date", () => {
+  it("turns a Spanish vocab test email into homework with its class and due date", () => {
     const task = parseClassroomEmail(
       {
-        subject: 'New assignment: "Y9 1.1d Vocab TEST Las habitaciones de…"',
+        subject: 'New assignment: "Y9 2.3b Vocab TEST La comida de…"',
         snippet:
-          "Notification settings Y9 SPANISH-ACU New assignment Y9 1.1d Vocab TEST Las habitaciones de mi casa Due Oct 9 See details Posted on 8:32 AM, Oct 2 (CEST) by Andrea Corongiu",
+          "Notification settings Y9 SPANISH-QRS New assignment Y9 2.3b Vocab TEST La comida de mi familia Due Oct 9 See details Posted on 8:32 AM, Oct 2 (CEST) by Sam Sample",
       },
       now,
     );
     expect(task).toEqual({
-      title: "Y9 1.1d Vocab TEST Las habitaciones de mi casa",
+      title: "Y9 2.3b Vocab TEST La comida de mi familia",
       due: "2026-10-09",
-      course: "Y9 SPANISH-ACU",
+      course: "Y9 SPANISH-QRS",
     });
   });
 
   it("skips materials and announcements but spots a test notice with a Czech date", () => {
     const material = {
-      subject: 'New material: "Test 6.10. - organizace výuky"',
+      subject: 'New material: "Test 6.10. - opakování látky"',
       snippet:
-        "Notification settings Y9 P - Český jazyk a literatura 2026/2027 New material Test 6.10. - organizace výuky Dobrý den",
+        "Notification settings Y9 Q - Český jazyk 2026/2027 New material Test 6.10. - opakování látky Dobrý den",
     };
     expect(parseClassroomEmail(material, now)).toBeNull();
     expect(parseTestNotice(material, "2026-10-04")).toEqual({
-      topic: "Test 6.10. - organizace výuky",
+      topic: "Test 6.10. - opakování látky",
       date: "2026-10-06",
-      course: "Y9 P - Český jazyk a literatura 2026/2027",
+      course: "Y9 Q - Český jazyk 2026/2027",
     });
     expect(
       parseTestNotice(
-        { subject: 'New material: "L8 - Measuring Earthquakes"', snippet: "" },
+        { subject: 'New material: "L3 - Mapping Rivers"', snippet: "" },
         "2026-10-04",
       ),
     ).toBeNull();
@@ -173,7 +173,7 @@ describe("due tomorrow", () => {
         id: "e1",
         subject: 'Due tomorrow: "HW due Thursday 10/1"',
         snippet:
-          "Notification settings Y9 Math 26/27 Mr Fitz Due tomorrow HW due Thursday 10/1 Complete the packet Due Oct 1 View assignment",
+          "Notification settings Y9 Math 26/27 Mr Example Due tomorrow HW due Thursday 10/1 Complete the packet Due Oct 1 View assignment",
         sender: "no-reply@classroom.google.com",
         date: "2026-09-30T21:55:16Z",
         viewUrl: "",

@@ -51,32 +51,35 @@ export function TestsScreen() {
   const [view, setView] = useState<"tests" | "grades">("tests");
   return (
     <main className="screen">
-      <BackButton />
       <Tests
         onOpenNote={openNote}
         view={view}
         header={
-          <ScreenHead
-            title="Tests"
-            right={
-              <div className="segmented" role="tablist" style={{ width: 170 }}>
-                <button
-                  role="tab"
-                  aria-selected={view === "tests"}
-                  onClick={() => setView("tests")}
-                >
-                  Tests
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={view === "grades"}
-                  onClick={() => setView("grades")}
-                >
-                  Grades
-                </button>
-              </div>
-            }
-          />
+          // Only over the list: an open test plan has its own "‹ Tests".
+          <>
+            <BackButton />
+            <ScreenHead
+              title="Tests"
+              right={
+                <div className="segmented" role="tablist" style={{ width: 170 }}>
+                  <button
+                    role="tab"
+                    aria-selected={view === "tests"}
+                    onClick={() => setView("tests")}
+                  >
+                    Tests
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={view === "grades"}
+                    onClick={() => setView("grades")}
+                  >
+                    Grades
+                  </button>
+                </div>
+              }
+            />
+          </>
         }
       />
     </main>
@@ -221,7 +224,11 @@ function TodoList() {
                   className="round"
                   style={{ width: 32, height: 32 }}
                   aria-label={`Delete "${t.text}"`}
-                  onClick={() => save(list.filter((x) => x.id !== t.id))}
+                  onClick={() => {
+                    const before = list;
+                    save(list.filter((x) => x.id !== t.id));
+                    toast("To-do deleted.", { label: "Undo", run: () => save(before) });
+                  }}
                 >
                   <Icon name="close" size={14} />
                 </button>

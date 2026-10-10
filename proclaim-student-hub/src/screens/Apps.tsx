@@ -7,7 +7,6 @@ import { useApp, type Screen } from "../context.ts";
 import { notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
 import { PAGES } from "../pages/runtime.ts";
-import { alertsLabel } from "./Notifications.tsx";
 import {
   AiKeyRow,
   CLAUDE_PAGE,
@@ -16,6 +15,7 @@ import {
   PrivateLinkRow,
   SendToWeb,
 } from "../pages/WebVersion.tsx";
+import { alertsLabel } from "./Notifications.tsx";
 
 interface AppTile {
   name: string;

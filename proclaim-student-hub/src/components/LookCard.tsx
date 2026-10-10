@@ -23,7 +23,7 @@ const SWATCH: Record<Accent, string> = {
   violet: "#7B5CFF",
 };
 
-/** More › Look: light (default), dark or follow the phone, plus the accent colour. */
+/** More › Look: follow the phone (default), light or dark, plus the accent colour. */
 export function LookCard() {
   const [pref, setPref] = useState<ThemePref>(() => themePref());
   const [accent, setAccent] = useState<Accent>(() => accentPref());

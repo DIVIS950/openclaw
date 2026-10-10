@@ -242,7 +242,11 @@ function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOp
 
   return (
     <section className="card hero magenta test-hero test-card rise">
-      <button className="test-open" onClick={onOpen} aria-label={`Open the plan for ${test.subject}`}>
+      <button
+        className="test-open"
+        onClick={onOpen}
+        aria-label={`Open the plan for ${test.subject}`}
+      >
         <div className="between" style={{ alignItems: "flex-start", gap: 12 }}>
           <div className="stack" style={{ gap: 6, minWidth: 0 }}>
             <span className="now-eyebrow">Next test · {dayLabel(test.date, today)}</span>

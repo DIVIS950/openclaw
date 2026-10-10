@@ -211,8 +211,8 @@ export function Notifications() {
         </p>
       ) : perm === "denied" ? (
         <p className="card s13 rise d3" style={{ margin: 0, color: "var(--ink2)" }}>
-          <b>Notifications are blocked for this site.</b> To get reminders, open your browser's
-          site settings (the icon next to the address, or Settings › Notifications on iPhone), allow
+          <b>Notifications are blocked for this site.</b> To get reminders, open your browser's site
+          settings (the icon next to the address, or Settings › Notifications on iPhone), allow
           notifications for the hub, then come back here.
         </p>
       ) : (

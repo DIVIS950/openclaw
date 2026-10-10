@@ -1,1 +1,218 @@
 /* Jury round 1 fixes (polish). Loaded after bento.css. */
+
+/* ---------- Today ---------- */
+
+/* No school today: a small card saying when it starts again (NowCard). */
+.next-day-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+}
+.next-day-card .ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  flex: none;
+}
+.next-day-title {
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Due next: the three open homework items due soonest. */
+.today-due .li {
+  min-height: 56px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.today-due .li-main {
+  display: flex;
+  white-space: normal;
+}
+.today-due .li-title {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-due .li-course {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-due .due-when {
+  flex: none;
+  font-weight: 800;
+  color: var(--muted);
+}
+.today-due .due-when.urgent {
+  color: var(--orange-t);
+}
+
+/* iPad and laptop: the whole day, not just the first three lessons. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .today-day .li.extra {
+    display: flex;
+  }
+  .screen.today > .bento-tiles {
+    align-self: start;
+  }
+}
+
+/* ---------- Back button on screens opened from More ---------- */
+.screen > .back-btn {
+  align-self: flex-start;
+  width: 44px;
+  margin: -34px 0 -4px;
+}
+.screen > header > .back-btn {
+  margin: 0 0 4px;
+  align-self: flex-start;
+}
+@media (min-width: 768px) and (min-height: 600px) {
+  /* Less room above the title on the iPad layout: no pull-up. */
+  .screen > .back-btn {
+    margin-top: 0;
+  }
+}
+
+/* ---------- Contrast (WCAG AA) ---------- */
+
+/* Tests: a deeper pink so white text reads (6:1), in both themes. */
+.test-hero,
+.hero.magenta.test-hero {
+  background: #b8285c;
+  box-shadow: 0 18px 34px -18px #6e1636;
+}
+.test-hero .btn.primary {
+  background: #fff;
+  color: #b8285c;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
+}
+.test-hero .btn:not(.primary) {
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  box-shadow: none;
+}
+/* The top of the card opens the plan; the two buttons below act directly. */
+.test-open {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* Inbox "Connect Gmail" and other green heroes: a deeper green (5:1). */
+.hero.cyan {
+  background: #0b7f55;
+  box-shadow: 0 18px 34px -18px #064631;
+}
+.hero.cyan .muted {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Timetable: past lessons fade by colour, not opacity, so text stays readable. */
+.les.past {
+  opacity: 1;
+}
+.les.past .t,
+.les.past .blk {
+  color: var(--muted);
+}
+.les.past .blk {
+  background: var(--card);
+}
+.les.past .blk .r {
+  opacity: 1;
+}
+
+/* Disabled buttons: muted text on the soft fill (5:1) instead of half opacity. */
+.btn:disabled {
+  opacity: 1;
+  background: var(--card-2);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.btn.ghost:disabled,
+.btn.link:disabled {
+  background: transparent;
+}
+
+/* ---------- One form style ---------- */
+
+/* Field labels: the small-caps eyebrow everywhere (some forms used big headings). */
+label.stack > .h2:first-child,
+label > span.h2:first-child {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Switches use the app accent, like every other "on". */
+.sw.on {
+  background: var(--accent);
+}
+
+/* ---------- Layout ---------- */
+
+/* Long words (Czech compounds, links) wrap instead of running out of the card. */
+.todo-text {
+  overflow-wrap: anywhere;
+}
+
+/* AI help: the start card sits below the header, never under it. Auto margins
+   keep it low on a tall screen without pushing it off the top on a short one. */
+.screen.buddy-body,
+.buddy-body:has(.buddy-hint) {
+  justify-content: flex-start;
+}
+.screen.buddy-body > :first-child {
+  margin-top: auto;
+}
+.buddy-body:has(.buddy-hint) > .buddy-empty {
+  margin-bottom: auto;
+}
+.bubble.err {
+  background: var(--orange-s);
+  color: var(--ink);
+}
+
+/* Notes: on iPad and laptop the New note / From photo bar stays inside the
+   content column, at the bottom of the screen. */
+@media (min-width: 768px) and (min-height: 600px) {
+  .notes-actions {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 24px);
+    margin-top: auto;
+  }
+}
+
+/* ---------- Motion ---------- */
+
+/* Buttons press with transform only; the lip changes without animating. */
+.btn {
+  transition:
+    transform 0.12s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}

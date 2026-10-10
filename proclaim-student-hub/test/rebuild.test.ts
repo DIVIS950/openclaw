@@ -17,7 +17,7 @@ describe("all class assignments become homework", () => {
     ],
     courses: [
       {
-        name: "Y9 Math 26/27",
+        name: "Y9 Algebra 26/27",
         posts: [
           { kind: "assignment", title: "HW due Thursday 10/1", date: "2026-09-23" },
           { kind: "assignment", title: "Homework due Thursday 9/24", date: "2026-09-17" },
@@ -25,10 +25,10 @@ describe("all class assignments become homework", () => {
         ],
       },
       {
-        name: "9i English",
+        name: "9z English",
         posts: [
-          { kind: "assignment", title: "Poetry Competition", date: "2026-09-25" },
-          { kind: "assignment", title: "Music Journalist", date: "2026-09-10" },
+          { kind: "assignment", title: "Story Contest", date: "2026-09-25" },
+          { kind: "assignment", title: "Science Reporter", date: "2026-09-10" },
         ],
       },
     ],
@@ -38,15 +38,15 @@ describe("all class assignments become homework", () => {
     expect(seedTasks(seed, TODAY).map((t) => [t.title, t.due ?? "", t.done])).toEqual([
       ["Maths homework (due Thursday 1 Oct)", "2026-10-01", false],
       ["Homework due Thursday 9/24", "2026-09-24", true],
-      ["Poetry Competition", "", false],
-      ["Music Journalist", "", true],
+      ["Story Contest", "", false],
+      ["Science Reporter", "", true],
     ]);
   });
 
   it("reads month names in titles", () => {
     expect(dateInTitle("HW due September 15th", "2026-09-08")).toBe("2026-09-15");
     expect(dateInTitle("Essay by 2 October", TODAY)).toBe("2026-10-02");
-    expect(dateInTitle("Group Presentations: Love in Verse", TODAY)).toBe("");
+    expect(dateInTitle("Group Presentations: Rivers and Rain", TODAY)).toBe("");
   });
 });
 

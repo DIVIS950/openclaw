@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, ImageInput, TutorMode } from "../shared/api.ts";
 import { AddAnythingButton } from "./components/AddAnything.tsx";
 import { AskAi } from "./components/AskAi.tsx";
@@ -14,7 +14,6 @@ import {
   type ToastAction,
   type TutorSeed,
 } from "./context.ts";
-import { Lab } from "./lab/Lab.tsx";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
 import { syncClassroomEmails } from "./lib/classroomSync.ts";
 import { ClaudeData } from "./lib/claudeData.ts";
@@ -36,10 +35,7 @@ import { PAGES } from "./pages/runtime.ts";
 import { pagesImport } from "./pages/runtime.ts";
 import { Apps } from "./screens/Apps.tsx";
 import { Assignment } from "./screens/Assignment.tsx";
-import { Call } from "./screens/Call.tsx";
-import { Classes } from "./screens/Classes.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
-import { Inbox } from "./screens/Inbox.tsx";
 import { Notifications } from "./screens/Notifications.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Timetable } from "./screens/Timetable.tsx";
@@ -145,6 +141,12 @@ export function App() {
     />
   );
 }
+
+// Screens opened now and then load on first use, so the first open is lighter.
+const Lab = lazy(() => import("./lab/Lab.tsx").then((m) => ({ default: m.Lab })));
+const Call = lazy(() => import("./screens/Call.tsx").then((m) => ({ default: m.Call })));
+const Classes = lazy(() => import("./screens/Classes.tsx").then((m) => ({ default: m.Classes })));
+const Inbox = lazy(() => import("./screens/Inbox.tsx").then((m) => ({ default: m.Inbox })));
 
 /** iPad landscape and bigger: Homework opens tasks beside the list (bento.css .split). */
 const WIDE = "(min-width: 1000px) and (min-height: 600px)";
@@ -575,12 +577,28 @@ function Shell({
           </div>
         )}
         {current === "tutor" && <Tutor />}
-        {(current === "revise" || current === "games") && <Lab />}
-        {current === "inbox" && <Inbox />}
+        {(current === "revise" || current === "games") && (
+          <Suspense fallback={null}>
+            <Lab />
+          </Suspense>
+        )}
+        {current === "inbox" && (
+          <Suspense fallback={null}>
+            <Inbox />
+          </Suspense>
+        )}
         {current === "apps" && <Apps />}
         {current === "timetable" && <Timetable />}
-        {current === "classes" && <Classes />}
-        {current === "call" && <Call />}
+        {current === "classes" && (
+          <Suspense fallback={null}>
+            <Classes />
+          </Suspense>
+        )}
+        {current === "call" && (
+          <Suspense fallback={null}>
+            <Call />
+          </Suspense>
+        )}
         {current === "todo" && <TodoScreen />}
         {current === "tests" && <TestsScreen />}
         {current === "notes" && <NotesScreen />}

@@ -107,13 +107,13 @@ describe("sameTopic", () => {
   it("treats differently worded titles of one test as the same", () => {
     expect(
       sameTopic(
-        "Spanish U1.1c vocabulary test: ¿Qué haces en casa?",
-        "Y9 U1.1c Vocabulary TEST: ¿Qué haces en casa?",
+        "Spanish U2.4a vocabulary test: ¿Qué comes hoy?",
+        "Y9 U2.4a Vocabulary TEST: ¿Qué comes hoy?",
       ),
     ).toBe(true);
-    expect(
-      sameTopic("Y9 M1.1b Vocab TEST: Esta es mi casa", "Y9 1.1a Vocab TEST: Donde yo vivo"),
-    ).toBe(false);
+    expect(sameTopic("Y9 M2.4b Vocab TEST: Mi barrio", "Y9 2.4c Vocab TEST: Los deportes")).toBe(
+      false,
+    );
   });
 });
 

@@ -1,5 +1,6 @@
-// Look: Bento is light by default; the student can pick dark, or "auto" to
-// follow the phone. Stored on this device only.
+// Look: follows the phone ("auto") until the student picks light or dark in
+// More › Look, so the loading shell (index.html) and the app always match.
+// Stored on this device only.
 export type ThemePref = "dark" | "light" | "auto";
 
 const KEY = "psh.theme";
@@ -7,9 +8,9 @@ const KEY = "psh.theme";
 export function themePref(): ThemePref {
   try {
     const v = localStorage.getItem(KEY);
-    return v === "dark" || v === "auto" ? v : "light";
+    return v === "dark" || v === "light" ? v : "auto";
   } catch {
-    return "light";
+    return "auto";
   }
 }
 

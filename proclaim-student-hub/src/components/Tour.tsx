@@ -152,7 +152,12 @@ export function Tour({ onClose }: { onClose: () => void }) {
       : { bottom: Math.max(vh - hole.y + 14, 24) };
 
   return (
-    <div className="tour" role="dialog" aria-modal="true" aria-label={`Tour step ${i + 1} of ${steps.length}`}>
+    <div
+      className="tour"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Tour step ${i + 1} of ${steps.length}`}
+    >
       {hole ? (
         <div
           className="tour-hole"
