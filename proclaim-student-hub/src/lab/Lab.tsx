@@ -546,9 +546,11 @@ function LabHome({
     <main className="screen">
       <header className="stack rise" style={{ gap: 10 }}>
         <div className="between" style={{ alignItems: "center", gap: 10 }}>
-          <h1 className="h1">Revise</h1>
+          <h1 className="h1" style={{ fontSize: 36 }}>
+            Revise
+          </h1>
           <div className="row" style={{ gap: 6 }}>
-            <span className="chip lime">
+            <span className="chip streak">
               <Icon name="flame" size={14} className={stats.streak > 0 ? "wiggle" : undefined} />
               {stats.streak} {stats.streak === 1 ? "day" : "days"}
             </span>
@@ -562,19 +564,19 @@ function LabHome({
             </button>
           </div>
         </div>
-        <div className="row" style={{ gap: 10 }}>
-          <span className="num s13" style={{ color: "var(--accent-t)" }}>
-            LV {lvl.level}
-          </span>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="between">
+            <span style={{ fontWeight: 800 }}>Level {lvl.level}</span>
+            <span className="s13 muted">
+              {lvl.into.toLocaleString("en-GB")} / {lvl.span.toLocaleString("en-GB")} XP
+            </span>
+          </div>
           <div
-            className="bar xp-bar"
+            className="xp-track"
             aria-label={`${lvl.into} of ${lvl.span} XP to level ${lvl.level + 1}`}
           >
-            <i style={{ width: `${(lvl.into / lvl.span) * 100}%` }} />
+            <i style={{ transform: `scaleX(${lvl.into / lvl.span})` }} />
           </div>
-          <span className="s12 muted" style={{ fontWeight: 600 }}>
-            {lvl.into.toLocaleString("en-GB")} / {lvl.span.toLocaleString("en-GB")} XP
-          </span>
         </div>
       </header>
 
@@ -610,20 +612,53 @@ function LabHome({
         </div>
       ) : (
         <>
-          <section className="card row rise d2 mix-card" style={{ padding: "14px 16px", gap: 12 }}>
-            <div className="stack" style={{ gap: 3, flex: 1, minWidth: 0 }}>
-              <span className="h2" style={{ fontSize: 15 }}>
-                {done >= DAILY_GOAL ? "Daily goal done 🎉" : "Daily review mix"}
+          <section className="card rise d2 mix-card daily-card">
+            <span
+              className="daily-ring"
+              style={{ "--p": Math.min(1, done / DAILY_GOAL) } as React.CSSProperties}
+              aria-label={`${done} of ${DAILY_GOAL} done today`}
+            >
+              <svg viewBox="0 0 80 80" width="80" height="80" aria-hidden="true">
+                <circle cx="40" cy="40" r="33" fill="none" stroke="var(--card-2)" strokeWidth="9" />
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="33"
+                  fill="none"
+                  stroke="var(--violet)"
+                  strokeWidth="9"
+                  strokeLinecap="round"
+                  strokeDasharray="207"
+                  strokeDashoffset={207 * (1 - Math.min(1, done / DAILY_GOAL))}
+                />
+              </svg>
+              <span>
+                <b>{done}</b>
+                <small>OF {DAILY_GOAL}</small>
+              </span>
+            </span>
+            <div className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}>
+              <span className="eyebrow">
+                {done >= DAILY_GOAL ? "Daily goal done 🎉" : "Daily review"}
+              </span>
+              <span className="h2" style={{ fontSize: 17 }}>
+                {due > 0
+                  ? `${due} card${due === 1 ? "" : "s"} left · ${mixMinutes} min`
+                  : "Nothing due: weakest cards"}
               </span>
               <span className="s12 muted">
                 {due > 0
-                  ? `${due} card${due === 1 ? "" : "s"} due across ${duePacks} pack${duePacks === 1 ? "" : "s"} · about ${mixMinutes} min`
-                  : `Nothing due · ${done}/${DAILY_GOAL} today · weakest cards instead`}
+                  ? `Across ${duePacks} pack${duePacks === 1 ? "" : "s"}`
+                  : `${done}/${DAILY_GOAL} today`}
               </span>
+              <button
+                className="btn primary sm"
+                style={{ alignSelf: "flex-start", marginTop: 4 }}
+                onClick={() => onPlay("review", reviewPool(), null)}
+              >
+                {done > 0 ? "Keep going" : "Start mix"}
+              </button>
             </div>
-            <button className="btn magenta" onClick={() => onPlay("review", reviewPool(), null)}>
-              {done >= DAILY_GOAL ? "Keep going" : "Start mix"}
-            </button>
           </section>
 
           {weakItems.length > 0 && (

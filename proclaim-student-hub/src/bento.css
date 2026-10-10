@@ -559,6 +559,9 @@ select.field {
 }
 
 /* ---------- Today ---------- */
+.today-head .avatar svg {
+  color: var(--muted);
+}
 .today-head .avatar {
   width: 44px;
   height: 44px;
@@ -709,6 +712,7 @@ select.field {
   .screen.today > .today-day {
     grid-column: 3;
     grid-row: 1 / span 6;
+    align-self: stretch;
   }
   .screen.today > .card.ai {
     grid-column: 1;
@@ -2017,4 +2021,325 @@ textarea.field.in {
   line-height: 1.05;
   white-space: normal;
   overflow: visible;
+}
+
+/* AI help, before the first question: one card, not an empty screen. */
+.buddy-empty {
+  padding: 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+}
+.buddy-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--violet);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.qrb {
+  min-height: 36px;
+  padding: 8px 13px;
+  border-radius: 18px;
+  border: 0;
+  background: var(--violet-s);
+  color: var(--violet-t);
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  text-align: left;
+}
+
+/* Today's shortcuts: only where there's room (iPad landscape and up). */
+.today-shortcuts {
+  display: none;
+}
+.today-shortcuts .tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+}
+.today-shortcuts .ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (min-width: 1000px) and (min-height: 600px) {
+  .screen.today > .today-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* ---------- Tests ---------- */
+.test-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  text-align: left;
+  border: 0;
+  width: 100%;
+  font: inherit;
+  background: var(--pink);
+  color: #fff;
+  box-shadow: 0 18px 34px -18px color-mix(in oklab, var(--pink) 80%, #000);
+}
+.hero.magenta.test-hero {
+  background: var(--pink);
+}
+.test-title {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.test-days {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1;
+  flex: none;
+}
+.test-days b {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 48px;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+.test-days span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+.pbar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+.pbar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #fff;
+  transform-origin: left;
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.test-hero .btn.primary {
+  color: var(--pink-t);
+}
+.test-li {
+  align-items: center;
+}
+.test-date {
+  width: 44px;
+  flex: none;
+  font-size: 14px;
+  line-height: 1.05;
+  text-align: center;
+}
+.in-short {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink2);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* ---------- Timetable ---------- */
+.day-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  background: none;
+  padding: 0;
+}
+.day-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 0;
+  min-height: 64px;
+  border-radius: 18px;
+  border: 0;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font: inherit;
+}
+.day-tabs button b {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.day-tabs button span {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.day-tabs button[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+.day-tabs button[aria-selected="true"] span {
+  color: var(--bg);
+  opacity: 0.7;
+}
+.day-tabs button.is-today:not([aria-selected="true"]) b {
+  color: var(--accent-t);
+}
+.les {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+.les .t {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 14px;
+  padding-top: 12px;
+  color: var(--muted);
+}
+.les .blk {
+  border-radius: 18px;
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+}
+.les .blk .n {
+  font-weight: 800;
+}
+.les .blk .r {
+  font-size: 13px;
+  opacity: 0.8;
+}
+.les .blk.now {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 12px 24px -14px var(--accent);
+}
+.les .blk .chip {
+  background: rgba(255, 255, 255, 0.55);
+  color: inherit;
+}
+.les .blk.now .chip {
+  background: rgba(255, 255, 255, 0.2);
+}
+.les.past {
+  opacity: 0.5;
+}
+.les-brk {
+  margin-left: 60px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.les-brk::before,
+.les-brk::after {
+  content: "";
+  flex: 1;
+  border-top: 1.5px dashed var(--line);
+}
+
+/* ---------- Revise ---------- */
+.xp-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--card-2);
+  overflow: hidden;
+}
+.xp-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--yellow);
+  transform-origin: left;
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.daily-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+}
+.daily-ring {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex: none;
+}
+.daily-ring svg {
+  transform: rotate(-90deg);
+}
+.daily-ring > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.daily-ring b {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 24px;
+}
+.daily-ring small {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.weak {
+  background: var(--orange-s);
+  color: var(--orange-t);
+  border: 0;
+}
+.test-hero .btn {
+  white-space: nowrap;
+  padding: 0 12px;
 }

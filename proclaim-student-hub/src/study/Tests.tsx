@@ -23,7 +23,7 @@ import {
   type PrepTest,
   type TestSuggestion,
 } from "../lib/study.ts";
-import { subjectVars } from "../lib/subjects.ts";
+import { subjectTone, subjectVars } from "../lib/subjects.ts";
 import { GradesSection } from "./Grades.tsx";
 
 // Tests coming up, each with a plan for every day until the test: get the
@@ -132,19 +132,26 @@ export function Tests({
 
       {view === "tests" && upcoming.length > 1 && (
         <section className="card rows rise" aria-label="More tests">
+          <div className="between" style={{ padding: "14px 16px 4px" }}>
+            <h2 className="h2">Coming up</h2>
+            <span className="muted s13">{upcoming.length - 1}</span>
+          </div>
           {upcoming.slice(1).map((t) => (
-            <button
-              key={t.id}
-              className="crow test-row test-card"
-              style={subjectVars(t.subject)}
-              onClick={() => setOpen(t.id)}
-            >
-              <span className="chip subject">{t.subject}</span>
-              <span className="row-text">
-                <strong>{cleanTopic(t.subject, t.topic)}</strong>
+            <button key={t.id} className="li test-li" onClick={() => setOpen(t.id)}>
+              <span className="test-date num">
+                {new Date(`${t.date}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short" })}
+                <br />
+                {Number(t.date.slice(8, 10))}
               </span>
-              <span className="when">{dayLabel(t.date, today)}</span>
-              <span className="num">{daysBetween(today, t.date)} d</span>
+              <span className="stack" style={{ flex: 1, minWidth: 0, gap: 1 }}>
+                <span className="li-main">{cleanTopic(t.subject, t.topic)}</span>
+                <span className="muted s13">{t.subject}</span>
+              </span>
+              <span
+                className={`chip ${daysBetween(today, t.date) <= 3 ? "magenta" : `tone-${subjectTone(t.subject)}`}`}
+              >
+                {daysBetween(today, t.date)} {daysBetween(today, t.date) === 1 ? "day" : "days"}
+              </span>
             </button>
           ))}
         </section>
@@ -206,83 +213,49 @@ export function Tests({
 function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOpen: () => void }) {
   const plan = prepPlan(test, today);
   const todayStep = plan.find((d) => d.date === today);
-  const todayIndex = plan.findIndex((d) => d.date === today);
   const days = daysBetween(today, test.date);
+  const ready = plan.length ? Math.round((test.done.length / plan.length) * 100) : 0;
   const pack = labPacks.all().find((p) => p.id === test.packId) ?? null;
   const cards = pack?.items.length ?? 0;
   return (
-    <button
-      className="card hero magenta test-hero test-card rise"
-      style={subjectVars(test.subject)}
-      onClick={onOpen}
-    >
-      <div className="between" style={{ alignItems: "center", gap: 12 }}>
+    <button className="card hero magenta test-hero test-card rise" onClick={onOpen}>
+      <div className="between" style={{ alignItems: "flex-start", gap: 12 }}>
         <div className="stack" style={{ gap: 6, minWidth: 0 }}>
-          <span className="eyebrow" style={{ color: "var(--magenta-t)" }}>
-            Next test · {dayLabel(test.date, today)}
-          </span>
-          <strong className="h2" style={{ fontSize: 18, lineHeight: 1.25 }}>
+          <span className="now-eyebrow">Next test · {dayLabel(test.date, today)}</span>
+          <strong className="test-title">
             {test.subject} · {cleanTopic(test.subject, test.topic)}
           </strong>
-          <span className="s12 muted">
-            Prep plan: 10 min a day, {plan.length} {plan.length === 1 ? "day" : "days"}
-          </span>
         </div>
-        <span className="test-count">
-          <span className="num">{days}</span>
-          <span className="eyebrow" style={{ letterSpacing: "0.1em" }}>
-            {days === 1 ? "day" : "days"}
-          </span>
+        <span className="test-days">
+          <b>{days}</b>
+          <span>{days === 1 ? "DAY" : "DAYS"}</span>
         </span>
       </div>
-      <div className="steps" aria-label={`${test.done.length} of ${plan.length} prep days done`}>
-        {plan.map((d, i) => (
-          <span
-            key={d.date}
-            className={test.done.includes(d.date) ? "done" : i === todayIndex ? "now" : ""}
-          />
-        ))}
-      </div>
-      {todayStep && (
-        <div className="row" style={{ gap: 10 }}>
-          <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-            <strong>
-              {test.done.includes(today)
-                ? "Done for today"
-                : `Today, step ${todayIndex + 1} of ${plan.length}`}
-            </strong>
-            <span className="s12 muted">
-              {todayStep.title}
-              {cards ? ` · ${cards} cards` : ""} · {todayStep.minutes} min
-            </span>
-          </span>
-          <span className="btn primary">Start</span>
+      <div className="stack" style={{ gap: 6 }}>
+        <div className="between s13" style={{ fontWeight: 800 }}>
+          <span>Ready</span>
+          <span>{ready}%</span>
         </div>
-      )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-        <span className="pack">
-          <span className="num" style={{ color: "var(--cyan-t)" }}>
-            {cards}
-          </span>
-          <span>Flashcards</span>
-        </span>
-        <span className="pack">
-          <span className="num" style={{ color: "var(--violet-t)" }}>
-            {Math.min(cards, 12)}
-          </span>
-          <span>Quiz Qs</span>
-        </span>
-        <span className="pack">
-          <span className="num" style={{ color: "var(--lime-t)" }}>
-            {pack ? 1 : 0}
-          </span>
-          <span>Notes page</span>
+        <div className="pbar" aria-hidden="true">
+          <i style={{ transform: `scaleX(${ready / 100})` }} />
+        </div>
+        <span className="s13" style={{ opacity: 0.9 }}>
+          {todayStep
+            ? test.done.includes(today)
+              ? "Done for today. Nice."
+              : `Today: ${todayStep.title}${cards ? ` · ${cards} cards` : ""} · ${todayStep.minutes} min`
+            : `Plan: 10 minutes a day, ${plan.length} ${plan.length === 1 ? "day" : "days"}.`}
         </span>
       </div>
-      <span className="btn" style={{ alignSelf: "stretch" }}>
-        <Icon name="timer" size={18} />
-        Exam mode · timed
-      </span>
+      <div className="row" style={{ gap: 10 }}>
+        <span className="btn primary" style={{ flex: 1.4 }}>
+          Revise now · {todayStep?.minutes ?? 10} min
+        </span>
+        <span className="btn" style={{ flex: 1 }}>
+          <Icon name="timer" size={18} />
+          Exam mode
+        </span>
+      </div>
     </button>
   );
 }

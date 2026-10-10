@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Briefing } from "../components/Briefing.tsx";
 import { CountUp } from "../components/CountUp.tsx";
-import { Icon } from "../components/Icon.tsx";
+import { Icon, type IconName } from "../components/Icon.tsx";
 import { NowCard } from "../components/NowCard.tsx";
-import { useAiContext, useApp } from "../context.ts";
+import { useAiContext, useApp, type Screen } from "../context.ts";
 import { upcomingLessons, type Lesson } from "../lib/aiFeatures.ts";
 import { greeting } from "../lib/format.ts";
 import { level, progress, timetable } from "../lib/store.ts";
@@ -15,6 +15,13 @@ import { AiKeyCard } from "../pages/WebVersion.tsx";
 // the daily brief, two big numbers (due today, next test) and the rest of the
 // day. On a wide screen the same blocks become a grid with the day down the
 // right-hand side (bento.css). The week's report lives in More.
+
+const SHORTCUTS: { screen: Screen; label: string; icon: IconName; tone: string }[] = [
+  { screen: "revise", label: "Revise", icon: "flask", tone: "violet" },
+  { screen: "tests", label: "Tests", icon: "timer", tone: "pink" },
+  { screen: "tutoring", label: "Tutoring", icon: "users", tone: "orange" },
+  { screen: "inbox", label: "Inbox", icon: "mail", tone: "blue" },
+];
 
 /** "Morning," over "Honza" when the name is known, else "Good morning". */
 function Hello({ name }: { name: string | undefined }) {
@@ -89,7 +96,11 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
             aria-label={`Level ${lvl.level}, ${stats.xp} XP. Open More`}
             onClick={() => go("apps")}
           >
-            {(profile?.name?.trim()[0] ?? "J").toUpperCase()}
+            {profile?.name?.trim() ? (
+              profile.name.trim()[0].toUpperCase()
+            ) : (
+              <Icon name="user" size={20} />
+            )}
           </button>
           <span className="chip streak" aria-label={`${stats.streak} day streak`}>
             <Icon name="flame" size={14} className={stats.streak > 0 ? "flame" : undefined} />
@@ -149,6 +160,18 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
           ))}
         </section>
       )}
+
+      {/* iPad and bigger only (bento.css): shortcuts fill the space under the brief. */}
+      <nav className="tiles-grid quad today-shortcuts rise d5" aria-label="Shortcuts">
+        {SHORTCUTS.map((t) => (
+          <button key={t.screen} className="tile" onClick={() => go(t.screen)}>
+            <span className={`ic tone-${t.tone}`} aria-hidden="true">
+              <Icon name={t.icon} size={20} />
+            </span>
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </nav>
 
       <UnlockCard />
       <AiKeyCard />

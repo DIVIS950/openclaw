@@ -285,15 +285,19 @@ function HomeworkItem({ hw }: { hw: Homework }) {
 
   const urgent = isUrgent(hw.due) && !hw.done;
   const body = (
-    <div className="hw">
+    <article className="hw">
       <button
         className={hw.done ? "tick done" : "tick"}
-        aria-label={hw.done ? `Mark ${hw.title} not done` : `Tick off ${hw.title}`}
+        aria-label={hw.done ? `Mark not done: ${hw.title}` : `Tick off ${hw.title}`}
         onClick={() => void setDone(!hw.done)}
       >
         <Icon name="check" size={15} />
       </button>
-      <button className="hw-main" onClick={() => openAssignment(hw)}>
+      <button
+        className="hw-main"
+        aria-label={`Do it here: ${hw.title}`}
+        onClick={() => openAssignment(hw)}
+      >
         <span className={hw.done ? "hw-title done" : "hw-title"}>{hw.title}</span>
         <span className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           {hw.course && <span className={`chip tone-${subjectTone(hw.course)}`}>{hw.course}</span>}
@@ -303,7 +307,7 @@ function HomeworkItem({ hw }: { hw: Homework }) {
           )}
         </span>
       </button>
-    </div>
+    </article>
   );
   return hw.done ? body : <SwipeDone onDone={() => void setDone(true)}>{body}</SwipeDone>;
 }

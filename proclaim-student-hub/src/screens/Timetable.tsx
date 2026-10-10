@@ -5,7 +5,7 @@ import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson, type Weekday } from "../lib/aiFeatures.ts";
 import { timetable } from "../lib/store.ts";
-import { subjectVars } from "../lib/subjects.ts";
+import { subjectTone } from "../lib/subjects.ts";
 import { lessonsOn, nowAndNext, schoolDays, weekdayOf } from "../lib/timetable.ts";
 import type { Homework } from "../lib/types.ts";
 
@@ -134,11 +134,13 @@ export function Timetable() {
     <main className="screen">
       <header className="between rise" style={{ alignItems: "center", gap: 10 }}>
         <div className="stack" style={{ gap: 4 }}>
-          <h1 className="h1">Timetable</h1>
-          <span className="s12 muted" style={{ fontWeight: 600 }}>
+          <span className="s13 muted" style={{ fontWeight: 700 }}>
             {weekLabel(monday)}
             {thisWeek ? " · This week" : week === 1 ? " · Next week" : ""}
           </span>
+          <h1 className="h1" style={{ fontSize: 36 }}>
+            Timetable
+          </h1>
         </div>
         <div className="row" style={{ gap: 6 }}>
           <button className="round" aria-label="Previous week" onClick={() => setWeek(week - 1)}>
@@ -205,7 +207,7 @@ export function Timetable() {
               {withBreaks(list).map((row, i) => {
                 if (row.kind === "break") {
                   return (
-                    <div key={`b${i}`} className="lesson brk">
+                    <div key={`b${i}`} className="les-brk">
                       {row.label}
                     </div>
                   );
@@ -223,24 +225,21 @@ export function Timetable() {
                 return (
                   <button
                     key={`${l.start}-${l.subject}`}
-                    className={`lesson${st ? ` ${st}` : ""}`}
-                    style={subjectVars(l.subject)}
+                    className={`les${st ? ` ${st}` : ""}`}
                     onClick={() => setEditing({ lesson: l, index: lessons.indexOf(l) })}
                     aria-label={`${l.subject} ${l.start} to ${l.end}${l.room ? `, room ${l.room}` : ""}. Edit`}
                   >
-                    <span className="ltime">{l.start}</span>
-                    <span className="sub" aria-hidden="true" />
-                    <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
-                      <span className="lesson-name">{l.subject}</span>
-                      {detail && <span className="lesson-room">{detail}</span>}
-                    </span>
-                    {st === "now" && (
-                      <span className="chip lime" style={{ gap: 6 }}>
-                        <span className="dot" />
-                        Now
+                    <span className="t">{l.start}</span>
+                    <span
+                      className={`blk tone-${subjectTone(l.subject)}${st === "now" ? " now" : ""}`}
+                    >
+                      <span className="stack" style={{ gap: 1, minWidth: 0 }}>
+                        <span className="n">{l.subject}</span>
+                        {detail && <span className="r">{detail}</span>}
                       </span>
-                    )}
-                    {st === "next" && <span className="chip cyan">Next</span>}
+                      {st === "now" && <span className="chip">Now</span>}
+                      {st === "next" && <span className="chip">Next</span>}
+                    </span>
                   </button>
                 );
               })}

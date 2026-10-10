@@ -25,6 +25,10 @@ let savedChat: { mode: TutorMode; turns: ChatTurn[] } = { mode: "explain", turns
 
 export function Tutor() {
   const app = useApp();
+  // The next open homework, offered as the first thing to ask about.
+  const nextHw = (app.homework ?? [])
+    .filter((h) => !h.done && h.due)
+    .toSorted((a, b) => (a.due ?? "").localeCompare(b.due ?? ""))[0];
   const [mode, setMode] = useState<TutorMode>(savedChat.mode);
   const [turns, setTurns] = useState<ChatTurn[]>(savedChat.turns);
   const [input, setInput] = useState("");
@@ -201,23 +205,29 @@ export function Tutor() {
       </header>
       <main className="screen buddy-body" style={{ gap: 12, paddingTop: 8 }} aria-live="polite">
         {turns.length === 0 && (
-          <div className="stack rise" style={{ gap: 8 }}>
-            <p className="sub buddy-hint">Ask about any homework, or snap a photo of a question.</p>
-            {[
-              "Explain how to solve 3x + 7 = 22",
-              "Quiz me on the causes of World War One",
-              "What makes a good essay introduction?",
-            ].map((q) => (
-              <button
-                key={q}
-                className="btn"
-                style={{ justifyContent: "flex-start", textAlign: "left" }}
-                onClick={() => void send(q, [], mode)}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+          <section className="card buddy-empty rise" aria-label="Start">
+            <span className="buddy-badge" aria-hidden="true">
+              <Icon name="sparkles" size={28} />
+            </span>
+            <h2 className="h2" style={{ fontSize: 24, fontWeight: 800 }}>
+              What are you stuck on?
+            </h2>
+            <p className="muted buddy-hint" style={{ margin: 0 }}>
+              Ask about any homework, snap a photo of a question, or pick one below.
+            </p>
+            <div className="qr">
+              {[
+                ...(nextHw ? [`Help me start "${nextHw.title}"`] : []),
+                "Explain how to solve 3x + 7 = 22",
+                "Quiz me on the causes of World War One",
+                "What makes a good essay introduction?",
+              ].map((q) => (
+                <button key={q} className="qrb" onClick={() => void send(q, [], mode)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          </section>
         )}
         {turns.map((t, i) =>
           t.role === "assistant" && !t.text ? (

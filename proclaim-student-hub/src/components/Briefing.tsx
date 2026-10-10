@@ -32,7 +32,12 @@ interface Word {
 
 const fewWords = (text: string, n = 5) => {
   const words = text.split(/\s+/);
-  return (words.length > n ? `${words.slice(0, n).join(" ")}…` : text).replace(/[,;:]$/, "");
+  return words.length > n
+    ? `${words
+        .slice(0, n)
+        .join(" ")
+        .replace(/[,;:.\-–]+$/, "")}…`
+    : text.replace(/[,;:]$/, "");
 };
 
 /** "CAL: Summative test (…)" → subject "CAL", rest "Summative test (…)". */
@@ -301,8 +306,14 @@ export function Briefing() {
 
 /** "Worksheet · 16:00": a few words of the item and its time or why. */
 function shortLabel(item: DayItem): string {
-  const head =
-    itemName(item).split(/\s+/).length > 3 ? fewWords(itemName(item), 2) : itemName(item);
+  // A chip name: the part before a comma or bracket, at most three whole words, no "…".
+  const name = itemName(item).replace(/…$/, "");
+  const lead = name.split(/\s*[,(–]\s*/)[0] || name;
+  const head = lead
+    .split(/\s+/)
+    .slice(0, 3)
+    .join(" ")
+    .replace(/[,;:.-]+$/, "");
   const time = item.sub.match(/\b\d{1,2}:\d{2}\b/)?.[0];
   const minutes = item.kind === "test" ? item.sub.match(/\d+\s*min/)?.[0] : undefined;
   const when =

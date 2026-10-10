@@ -84,12 +84,16 @@ export function Inbox() {
     <main className="screen">
       <header className="stack rise" style={{ gap: 12 }}>
         <div className="between" style={{ alignItems: "center" }}>
-          <h1 className="h1">Inbox</h1>
-          {unread > 0 && (
-            <span className="chip lime" style={{ height: 28 }}>
-              <span className="num">{unread}</span>new
-            </span>
-          )}
+          <h1 className="h1" style={{ fontSize: 36 }}>
+            Inbox
+          </h1>
+          <span className={needsGmail ? "chip" : "chip cyan"}>
+            {app.data.demo
+              ? "Sample"
+              : needsGmail
+                ? "Gmail not connected"
+                : `Gmail · ${checkedLabel()}`}
+          </span>
         </div>
         <div className="row" style={{ gap: 8 }}>
           {(["All", "Classroom", "Teachers"] as Filter[]).map((f) => (
@@ -102,10 +106,11 @@ export function Inbox() {
               {f}
             </button>
           ))}
-          <span className="s11 muted" style={{ marginLeft: "auto" }}>
-            {app.data.demo ? "Sample" : needsGmail ? "Gmail not connected" : "Gmail"}
-            {needsGmail ? "" : ` · ${checkedLabel()}`}
-          </span>
+          {unread > 0 && (
+            <span className="chip lime" style={{ marginLeft: "auto" }}>
+              {unread} new
+            </span>
+          )}
         </div>
       </header>
 
@@ -129,20 +134,52 @@ export function Inbox() {
       ) : list.length === 0 ? (
         <div className="card empty">No messages here.</div>
       ) : (
-        <section className="card rows rise d1">
-          {list.map((m) => (
-            <Message
-              key={m.id}
-              email={m}
-              summary={summaries.get(m.id)}
-              expanded={open === m.id}
-              onToggle={() => setOpen(open === m.id ? null : m.id)}
-            />
-          ))}
-        </section>
+        <>
+          <section className="card in-short rise d1">
+            <span className="chip violet" style={{ alignSelf: "flex-start" }}>
+              <Icon name="sparkle" size={14} />
+              In short
+            </span>
+            <span>{inShort(emails ?? [])}</span>
+          </section>
+          <section className="card rows rise d2">
+            {list.map((m) => (
+              <Message
+                key={m.id}
+                email={m}
+                summary={summaries.get(m.id)}
+                expanded={open === m.id}
+                onToggle={() => setOpen(open === m.id ? null : m.id)}
+              />
+            ))}
+          </section>
+        </>
       )}
     </main>
   );
+}
+
+/** The "In short" line: what's new, from whom, and what looks like work. */
+function inShort(emails: Email[]): string {
+  const fresh = emails.filter((e) => e.unread);
+  const pool = fresh.length > 0 ? fresh : emails;
+  const classroom = pool.filter((e) => e.kind === "Classroom");
+  const work = classroom.filter((e) =>
+    /^(fwd:\s*)?(new assignment|new question|due (today|tomorrow)|missing)/i.test(e.subject),
+  );
+  const teachers = pool.length - classroom.length;
+  const parts = [
+    work.length ? `${work.length} new ${work.length === 1 ? "piece" : "pieces"} of work` : "",
+    classroom.length - work.length
+      ? `${classroom.length - work.length} Classroom ${classroom.length - work.length === 1 ? "post" : "posts"}`
+      : "",
+    teachers ? `${teachers} from teachers and school` : "",
+  ].filter(Boolean);
+  if (parts.length === 0) {
+    return "Nothing new. You're up to date.";
+  }
+  const urgent = pool.some((e) => /due (today|tomorrow)/i.test(e.subject));
+  return `${fresh.length > 0 ? "New" : "Lately"}: ${parts.join(", ")}. ${urgent ? "Something is due soon." : "Nothing urgent."}`;
 }
 
 /** "12 min ago": the inbox is fetched when the screen opens. */

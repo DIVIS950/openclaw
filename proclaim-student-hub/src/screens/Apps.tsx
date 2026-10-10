@@ -96,7 +96,7 @@ export function Apps() {
 
       <section className="card profile-card rise d1">
         <span className="me" aria-hidden="true">
-          {name[0].toUpperCase()}
+          {profile?.name?.trim() ? name[0].toUpperCase() : <Icon name="user" size={26} />}
         </span>
         <span className="stack" style={{ flex: 1, minWidth: 0, gap: 0 }}>
           <span className="h2">{name}</span>
