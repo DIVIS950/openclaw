@@ -569,7 +569,7 @@ function LabHome({
             </span>
             <button
               className="round"
-              style={{ width: 36, height: 36 }}
+              style={{ width: 44, height: 44 }}
               aria-label="Lab settings"
               onClick={() => go({ name: "settings" })}
             >

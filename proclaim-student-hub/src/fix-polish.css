@@ -396,3 +396,220 @@ button.chip::before {
   text-decoration: line-through;
   opacity: 0.55;
 }
+
+/* Round-5 experts: the last small controls, and text on the blue Tutoring card. */
+.seg button {
+  min-height: 44px;
+}
+.sw::before {
+  inset: -8px -4px;
+}
+.accent-swatch::before {
+  inset: -9px;
+}
+.search {
+  min-height: 46px;
+}
+.search input {
+  min-height: 44px;
+}
+.card.hero .s12.muted,
+.card.hero .muted {
+  color: #fff;
+  opacity: 1;
+}
+.card.hero .btn:not(.primary) {
+  background: rgba(8, 18, 70, 0.32);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* ---------- The daily brief: the one "wow" card ----------
+   A deep violet-to-blue card with two slow aurora glows drifting behind the
+   text, a shimmer across the "Daily brief" label and the words fading in one
+   after another. Motion is transform/opacity only; reduced motion keeps it still. */
+
+.card.ai.brief-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
+  background: linear-gradient(135deg, #2a1fb8 0%, #4a26d6 38%, #6a2fe8 70%, #2448e0 100%);
+  box-shadow:
+    0 24px 48px -24px rgba(74, 38, 214, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  padding: 18px 18px 16px;
+  gap: 12px;
+}
+
+/* Two soft glows (pink top-right, cyan bottom-left), drifting slowly. */
+.card.ai.brief-card::before,
+.card.ai.brief-card::after {
+  content: "";
+  display: block;
+  position: absolute;
+  z-index: -1;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.card.ai.brief-card::before {
+  top: -45%;
+  right: -22%;
+  background: radial-gradient(circle, rgba(255, 110, 199, 0.42), transparent 66%);
+  animation: brief-drift-a 14s ease-in-out infinite alternate;
+}
+.card.ai.brief-card::after {
+  bottom: -50%;
+  left: -25%;
+  background: radial-gradient(circle, rgba(64, 214, 255, 0.36), transparent 66%);
+  animation: brief-drift-b 18s ease-in-out infinite alternate;
+}
+@keyframes brief-drift-a {
+  to {
+    transform: translate(-18%, 22%) scale(1.15);
+  }
+}
+@keyframes brief-drift-b {
+  to {
+    transform: translate(20%, -18%) scale(1.2);
+  }
+}
+
+/* "✦ Daily brief": frosted glass with a light sweep every few seconds. */
+:root .card.ai.brief-card .chip.violet {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.brief-card .chip.violet svg {
+  animation: brief-twinkle 2.8s ease-in-out infinite;
+}
+.brief-card .chip.violet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: brief-sweep 4.5s ease-in-out 1.2s infinite;
+}
+@keyframes brief-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  40%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+@keyframes brief-twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25) rotate(18deg);
+    opacity: 0.85;
+  }
+}
+.brief-card .s12.muted {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* The sentence: bigger, white, key words marked with a warm highlighter. */
+.card.ai.brief-card .brief {
+  font-size: 19px;
+  line-height: 1.42;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.card.ai.brief-card .brief b {
+  color: #fff;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 200, 87, 0.9);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 5px;
+  text-decoration-skip-ink: none;
+}
+/* Words fade in one after another (each span carries its --i). */
+.brief-card .brief > span {
+  opacity: 0;
+  animation: brief-word 0.5s ease-out forwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 150ms);
+}
+@keyframes brief-word {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Chips: glass, the most urgent one solid white. */
+.brief-card .brief-chip {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 700;
+}
+.brief-card .brief-chip.due {
+  background: #fff;
+  color: #2a1fb8;
+  border-color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.45);
+}
+.brief-card .brief-chip:active {
+  transform: scale(0.96);
+}
+.brief-card .btn.link {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.brief-card .skeleton.light {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card.ai.brief-card::before,
+  .card.ai.brief-card::after,
+  .brief-card .chip.violet svg,
+  .brief-card .chip.violet::after {
+    animation: none;
+  }
+  .brief-card .brief > span {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- Background: a soft glow, not a light show ----------
+   Three faint colour washes over the plain ground, still and behind everything. */
+body:not(.tutor-page),
+.app:not(.tutor-hub) {
+  background:
+    radial-gradient(70% 45% at 8% -6%, rgba(47, 91, 255, 0.13), transparent 70%),
+    radial-gradient(55% 40% at 104% 8%, rgba(122, 76, 255, 0.11), transparent 70%),
+    radial-gradient(60% 40% at 50% 108%, rgba(255, 138, 92, 0.08), transparent 70%), var(--bg);
+}
+:root[data-theme="dark"] body:not(.tutor-page),
+:root[data-theme="dark"] .app:not(.tutor-hub) {
+  background:
+    radial-gradient(70% 45% at 8% -6%, rgba(47, 91, 255, 0.2), transparent 70%),
+    radial-gradient(55% 40% at 104% 8%, rgba(122, 76, 255, 0.16), transparent 70%),
+    radial-gradient(60% 40% at 50% 108%, rgba(255, 138, 92, 0.07), transparent 70%), var(--bg);
+}

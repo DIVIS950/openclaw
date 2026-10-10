@@ -21,6 +21,8 @@ try {
   document.documentElement.dataset.theme = "light";
 }
 document.documentElement.dataset.accent = "green";
+// The student app's background glow is not for the Tutor Hub.
+document.body.classList.add("tutor-page");
 document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#EEF0F4");
 import { TutorApp } from "./TutorApp.tsx";
 

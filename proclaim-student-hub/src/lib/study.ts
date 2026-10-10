@@ -195,10 +195,11 @@ export const prepTests = {
         .filter((t) => t && typeof t.id === "string")
         .map((t) => ({
           ...t,
-          subject: t.subject ?? "",
-          topic: t.topic ?? "",
-          start: t.start ?? t.date ?? "",
-          packId: t.packId ?? "",
+          subject: String(t.subject ?? ""),
+          topic: String(t.topic ?? ""),
+          date: String(t.date ?? ""),
+          start: String(t.start ?? t.date ?? ""),
+          packId: String(t.packId ?? ""),
           done: Array.isArray(t.done) ? t.done : [],
         }));
     }

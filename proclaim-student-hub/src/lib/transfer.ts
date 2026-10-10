@@ -261,7 +261,7 @@ const isRecord = (x: unknown): x is Record<string, unknown> =>
 const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
 /** Values that aren't lists of records: what each must look like to be brought in. */
 const SHAPES: Record<string, (v: unknown) => boolean> = {
-  "psh.progress": (v) => isRecord(v) && num(v.xp) && num(v.streak),
+  "psh.progress": (v) => isRecord(v) && num(v.xp) && num(v.streak) && (v.xp as number) >= 0,
   "psh.schedule": (v) =>
     isRecord(v) && Array.isArray(v.tests) && Array.isArray(v.days) && Array.isArray(v.done),
   "psh.grades": (v) =>
@@ -299,6 +299,19 @@ export function cleanImported(key: string, incoming: unknown): unknown {
         when: String(t.when ?? ""),
         whatsapp: String(t.whatsapp ?? ""),
         meet: allowedMeet(String(t.meet ?? "")),
+      }));
+  }
+  if (key === "psh.prep") {
+    return list
+      .filter((t) => typeof t.id === "string")
+      .map((t) => ({
+        ...t,
+        subject: String(t.subject ?? ""),
+        topic: String(t.topic ?? ""),
+        date: String(t.date ?? ""),
+        start: String(t.start ?? t.date ?? ""),
+        packId: String(t.packId ?? ""),
+        done: Array.isArray(t.done) ? t.done.filter((d) => typeof d === "string") : [],
       }));
   }
   if (key === "psh.courses") {
@@ -391,6 +404,11 @@ const LABELS: Record<string, [string, string]> = {
   "psh.courses": ["class", "classes"],
   "psh.prep": ["test", "tests"],
   "psh.tutors": ["tutor", "tutors"],
+  "psh.grades": ["grade", "grades"],
+  "psh.lab.packs": ["revision pack", "revision packs"],
+  "psh.tutor.messages": ["tutor message", "tutor messages"],
+  "psh.tutor.sessions": ["lesson note", "lesson notes"],
+  "psh.tutor.materials": ["tutor material", "tutor materials"],
   "psh.events": ["calendar event", "calendar events"],
 };
 

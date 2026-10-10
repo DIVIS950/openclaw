@@ -151,13 +151,22 @@ export interface SavedSchedule {
 
 export const schedule = {
   get: (): SavedSchedule => {
+    // Damaged parts (not objects, numbers for text) are dropped or turned into text.
     const s = read<Partial<SavedSchedule> | null>("psh.schedule", null);
-    const isObj = (x: unknown) => !!x && typeof x === "object";
+    const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object";
+    const text = (v: unknown) => (typeof v === "string" ? v : "");
     return {
-      tests: Array.isArray(s?.tests) ? s.tests.filter(isObj) : [],
-      days: Array.isArray(s?.days)
-        ? s.days.filter(isObj).map((d) => ({ ...d, items: Array.isArray(d.items) ? d.items : [] }))
-        : [],
+      tests: (Array.isArray(s?.tests) ? s.tests : [])
+        .filter(isObj)
+        .map((t) => ({ topic: text(t.topic), date: text(t.date) })),
+      days: (Array.isArray(s?.days) ? s.days : []).filter(isObj).map((d) => ({
+        date: text(d.date),
+        items: (Array.isArray(d.items) ? d.items : []).filter(isObj).map((i) => ({
+          topic: text(i.topic),
+          activity: text(i.activity),
+          minutes: typeof i.minutes === "number" && Number.isFinite(i.minutes) ? i.minutes : 0,
+        })),
+      })),
       done: Array.isArray(s?.done) ? s.done.filter((x) => typeof x === "string") : [],
     };
   },

@@ -116,7 +116,7 @@ export function QuickSnap({
         {onSample ? (
           <button
             className="btn link"
-            style={{ marginLeft: "auto", padding: "0 6px" }}
+            style={{ marginLeft: "auto", padding: "0 6px", minHeight: 44 }}
             onClick={onSample}
           >
             Sample pack
