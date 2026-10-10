@@ -4,6 +4,7 @@ import { useApp } from "../context.ts";
 import { bySubject, grades, letter, parseScore, percent, type Grade } from "../lib/grades.ts";
 import { dayOf, type PrepTest } from "../lib/study.ts";
 import { subjectVars } from "../lib/subjects.ts";
+import { useEscape } from "../lib/useEscape.ts";
 
 // Grades: real marks from tests, per subject, with the weakest subject first so
 // it's obvious where the next revision should go.
@@ -126,6 +127,7 @@ function AddGrade({
   const [topic, setTopic] = useState(start.topic ?? "");
   const [date, setDate] = useState(start.date ?? dayOf(new Date()));
   const [score, setScore] = useState("");
+  useEscape(onClose);
   const parsed = parseScore(score);
   return (
     <div className="backdrop" onClick={onClose}>

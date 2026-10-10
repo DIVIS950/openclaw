@@ -53,14 +53,14 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
     setBusy(true);
     try {
       if (pending.kind === "import") {
-        const added = await applyTransfer(pending.transfer, localStorage, localDb);
+        await applyTransfer(pending.transfer, localStorage, localDb);
         if (app) {
           app.reloadHomework();
           // The same list the sheet showed, so the message says what really came in.
           close(`Brought in: ${pending.lines.join(", ")}.`);
         } else {
           // App.tsx shows its usual "Brought over from claude.ai" message.
-          pagesImport.added = added;
+          pagesImport.lines = pending.lines;
           close(null);
         }
       } else if (pending.kind === "tutor") {

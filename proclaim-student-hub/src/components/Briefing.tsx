@@ -15,6 +15,7 @@ import { dayOf, prepPlan, prepTests, testHandoff, todos, tutoring } from "../lib
 import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
 import type { Email } from "../lib/types.ts";
 import { NoKeyError } from "../pages/gemini.ts";
+import { keyHandoff } from "../pages/keyHandoff.ts";
 import { Icon } from "./Icon.tsx";
 
 // The AI briefing on Today: the app gathers the day, the AI (when it's there)
@@ -294,8 +295,11 @@ export function Briefing() {
       {smart === "nokey" && (
         <button
           className="btn link s12"
-          style={{ alignSelf: "flex-start", minHeight: 32, padding: 0 }}
-          onClick={() => go("apps")}
+          style={{ alignSelf: "flex-start", minHeight: 44, padding: 0 }}
+          onClick={() => {
+            keyHandoff.set();
+            go("apps");
+          }}
         >
           Add the AI key for a smarter brief ›
         </button>

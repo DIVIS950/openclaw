@@ -164,7 +164,9 @@ function TodoList() {
   };
 
   const toggle = (t: Todo) => {
-    if (!t.done) {
+    if (t.done) {
+      todoXp.undo(t.id);
+    } else {
       todoXp.tick(t.id);
     }
     save(list.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)));

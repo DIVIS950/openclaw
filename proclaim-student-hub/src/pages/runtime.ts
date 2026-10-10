@@ -84,4 +84,5 @@ export function installPagesRuntime() {
 }
 
 /** How many homework items the last import brought (null when none happened). */
-export const pagesImport: { added: number | null } = { added: null };
+/** What a link brought in before the app drew: the lines its sheet showed. */
+export const pagesImport: { lines: string[] | null } = { lines: null };

@@ -6,6 +6,7 @@ import { labPacks } from "../lab/store.ts";
 import { bySubject, grades } from "../lib/grades.ts";
 import { progress, weekLog } from "../lib/store.ts";
 import { daysBetween, dayOf, prepTests } from "../lib/study.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { weeklyReport, weekStats, type WeekReport, type WeekStats } from "../lib/weekly.ts";
 import { Icon } from "./Icon.tsx";
 
@@ -89,6 +90,7 @@ export function WeeklyReport() {
 }
 
 function WeekSheet({ stats, onClose }: { stats: WeekStats; onClose: () => void }) {
+  useEscape(onClose);
   const { ai, profile, handleError } = useApp();
   const [report, setReport] = useState<WeekReport | "loading" | null>(ai ? "loading" : null);
   const today = dayOf(new Date());

@@ -34,3 +34,33 @@ describe("lesson link label", () => {
     expect(callName("https://notzoom.us/j/1")).toBe("the call");
   });
 });
+
+describe("import cleaning", () => {
+  it("drops non-records and keeps tutors safe", async () => {
+    const { cleanImported } = await import("../src/lib/transfer.ts");
+    expect(cleanImported("psh.todos", [null, 3, "x", [1], { id: "t1" }])).toEqual([{ id: "t1" }]);
+    const tutors = cleanImported("psh.tutors", [
+      null,
+      { name: "No id" },
+      { id: "u1", name: "Ana", meet: "https://evil.example/login" },
+    ]) as { id: string; meet: string; when: string }[];
+    expect(tutors).toHaveLength(1);
+    expect(tutors[0].meet).toBe("");
+    expect(tutors[0].when).toBe("");
+    expect(
+      cleanImported("psh.courses", [{ name: "Maths", posts: [null, { title: "a" }] }]),
+    ).toEqual([{ name: "Maths", subject: "", posts: [{ title: "a" }] }]);
+    expect(cleanImported("psh.theme", "dark")).toBe("dark");
+  });
+});
+
+describe("to-do XP undo", () => {
+  it("takes the XP back once", () => {
+    const start = progress.get().xp;
+    todoXp.tick("a");
+    todoXp.undo("a");
+    todoXp.undo("a");
+    expect(progress.get().xp).toBe(start);
+    expect(todoXp.tick("a")).toBe(true);
+  });
+});

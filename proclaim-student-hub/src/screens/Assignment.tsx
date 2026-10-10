@@ -192,10 +192,14 @@ export function Assignment({ hw }: { hw: Homework }) {
                   value={hw.due ? dayOf(new Date(hw.due)) : ""}
                   onChange={(e) => {
                     const day = e.target.value;
-                    if (day && data.setDue) {
+                    // An empty pick clears the date again.
+                    if (data.setDue) {
                       data
                         .setDue(hw, day)
-                        .then((due) => replaceHomework({ ...hw, due }), handleError);
+                        .then(
+                          (due) => replaceHomework({ ...hw, due: due || undefined }),
+                          handleError,
+                        );
                     }
                   }}
                 />

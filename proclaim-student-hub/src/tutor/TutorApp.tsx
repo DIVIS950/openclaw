@@ -718,7 +718,7 @@ function NextLessonCard({
             {when || "No regular time yet"}
           </strong>
           <span className="now-sub">
-            {link ? callName(link).replace(/^the call$/, "Video call") : "No Meet link yet"}
+            {link ? callName(link).replace(/^the call$/, "Video call") : "No lesson link yet"}
           </span>
         </div>
         {start && (
@@ -745,7 +745,7 @@ function NextLessonCard({
         ) : (
           <button className="btn primary" style={{ flex: 1 }} onClick={() => setEdit(true)}>
             <Icon name="link" size={16} />
-            Add Meet link
+            Add lesson link
           </button>
         )}
         <button className="btn" style={{ flex: 1 }} onClick={() => setEdit((v) => !v)}>

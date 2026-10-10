@@ -2,6 +2,7 @@ import "./polyfills.ts";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
 import { LinkConfirm } from "./components/LinkConfirm.tsx";
 import { backups } from "./lib/backup.ts";
 import { trackKeyboard } from "./lib/keyboard.ts";
@@ -60,7 +61,9 @@ async function start() {
     applyLocalSeed();
     reactRoot.render(
       <StrictMode>
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </StrictMode>,
     );
   };

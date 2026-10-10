@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, ImageInput, TutorMode } from "../shared/api.ts";
 import { AddAnythingButton } from "./components/AddAnything.tsx";
+import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
 import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
@@ -295,14 +296,10 @@ function Shell({
 
   // Data just brought over from the claude.ai link (GitHub Pages version).
   useEffect(() => {
-    const added = pagesImport.added;
-    if (added !== null) {
-      pagesImport.added = null;
-      toast(
-        added > 0
-          ? `Brought over from claude.ai: ${added} new homework, plus your timetable, notes and to-dos.`
-          : "Up to date with claude.ai: timetable, notes and to-dos brought over.",
-      );
+    const lines = pagesImport.lines;
+    if (lines !== null) {
+      pagesImport.lines = null;
+      toast(`Brought in: ${lines.join(", ")}.`);
     }
   }, [toast]);
 
@@ -568,8 +565,11 @@ function Shell({
       profile,
       homework,
       reloadHomework,
-      replaceHomework: (hw) =>
-        setHomework((list) => list?.map((h) => (h.id === hw.id ? hw : h)) ?? null),
+      replaceHomework: (hw) => {
+        setHomework((list) => list?.map((h) => (h.id === hw.id ? hw : h)) ?? null);
+        // The open task shows the change too (a new due date, a tick).
+        setAssignment((a) => (a?.id === hw.id ? hw : a));
+      },
       addHomeworkItem: (hw) => setHomework((list) => [...(list ?? []), hw]),
       screen,
       go,
@@ -681,55 +681,58 @@ function Shell({
             </button>
           </div>
         )}
-        {current === "today" && <Today demoBanner={demoBanner} />}
-        {/* One tree for phone and iPad (.split is display: contents on a phone), so
+        {/* A crash stays inside the screen it happened on: switching screens starts fresh. */}
+        <AppErrorBoundary key={current === "assignment" ? "homework" : current} inline>
+          {current === "today" && <Today demoBanner={demoBanner} />}
+          {/* One tree for phone and iPad (.split is display: contents on a phone), so
             turning the iPad never remounts the open task and loses typing. */}
-        {(current === "homework" || current === "assignment") && (
-          <div className="split">
-            {(split || current === "homework") && <HomeworkScreen />}
-            {current === "assignment" && assignment ? (
-              <Assignment key={assignment.id} hw={assignment} />
-            ) : split ? (
-              <div className="split-empty">
-                <Icon name="bookClosed" size={28} />
-                <strong className="h2" style={{ color: "var(--ink)" }}>
-                  Pick a homework
-                </strong>
-                <span className="s13">It opens here, next to your list.</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-        {current === "tutor" && <Tutor />}
-        {(current === "revise" || current === "games") && (
+          {(current === "homework" || current === "assignment") && (
+            <div className="split">
+              {(split || current === "homework") && <HomeworkScreen />}
+              {current === "assignment" && assignment ? (
+                <Assignment key={assignment.id} hw={assignment} />
+              ) : split ? (
+                <div className="split-empty">
+                  <Icon name="bookClosed" size={28} />
+                  <strong className="h2" style={{ color: "var(--ink)" }}>
+                    Pick a homework
+                  </strong>
+                  <span className="s13">It opens here, next to your list.</span>
+                </div>
+              ) : null}
+            </div>
+          )}
+          {current === "tutor" && <Tutor />}
+          {(current === "revise" || current === "games") && (
+            <Suspense fallback={null}>
+              <Lab />
+            </Suspense>
+          )}
+          {current === "inbox" && (
+            <Suspense fallback={null}>
+              <Inbox />
+            </Suspense>
+          )}
           <Suspense fallback={null}>
-            <Lab />
+            {current === "apps" && <Apps />}
+            {current === "timetable" && <Timetable />}
+            {current === "todo" && <TodoScreen />}
+            {current === "tests" && <TestsScreen />}
+            {current === "notes" && <NotesScreen />}
+            {current === "tutoring" && <TutoringScreen />}
+            {current === "notifications" && <Notifications />}
           </Suspense>
-        )}
-        {current === "inbox" && (
-          <Suspense fallback={null}>
-            <Inbox />
-          </Suspense>
-        )}
-        <Suspense fallback={null}>
-          {current === "apps" && <Apps />}
-          {current === "timetable" && <Timetable />}
-          {current === "todo" && <TodoScreen />}
-          {current === "tests" && <TestsScreen />}
-          {current === "notes" && <NotesScreen />}
-          {current === "tutoring" && <TutoringScreen />}
-          {current === "notifications" && <Notifications />}
-        </Suspense>
-        {current === "classes" && (
-          <Suspense fallback={null}>
-            <Classes />
-          </Suspense>
-        )}
-        {current === "call" && (
-          <Suspense fallback={null}>
-            <Call />
-          </Suspense>
-        )}
+          {current === "classes" && (
+            <Suspense fallback={null}>
+              <Classes />
+            </Suspense>
+          )}
+          {current === "call" && (
+            <Suspense fallback={null}>
+              <Call />
+            </Suspense>
+          )}
+        </AppErrorBoundary>
         {showAsk && (
           <button
             className={askMini ? "ask mini" : "ask"}

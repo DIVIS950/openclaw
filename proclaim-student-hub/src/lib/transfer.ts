@@ -237,6 +237,55 @@ export function mergeImported(key: string, local: unknown, incoming: unknown): u
 }
 
 /** Applies a transfer on this phone; returns how many homework items were new. */
+const RECORD_LISTS = new Set([
+  "psh.todos",
+  "psh.notes",
+  "psh.timetable",
+  "psh.courses",
+  "psh.prep",
+  "psh.events",
+  "psh.tutors",
+  "psh.weeklog",
+  "psh.tutor.messages",
+  "psh.tutor.sessions",
+  "psh.tutor.materials",
+]);
+const isRecord = (x: unknown): x is Record<string, unknown> =>
+  x !== null && typeof x === "object" && !Array.isArray(x);
+
+/**
+ * A link's list as it may be saved: only real records (a null or a number in
+ * a list would break the screen that shows it), tutors with an id and text
+ * fields, and lesson links that are Meet, Zoom or Teams.
+ */
+export function cleanImported(key: string, incoming: unknown): unknown {
+  if (!RECORD_LISTS.has(key)) {
+    return incoming;
+  }
+  const list = Array.isArray(incoming) ? incoming.filter(isRecord) : [];
+  if (key === "psh.tutors") {
+    return list
+      .filter((t) => typeof t.id === "string")
+      .map((t) => ({
+        ...t,
+        name: String(t.name ?? ""),
+        subject: String(t.subject ?? ""),
+        when: String(t.when ?? ""),
+        whatsapp: String(t.whatsapp ?? ""),
+        meet: allowedMeet(String(t.meet ?? "")),
+      }));
+  }
+  if (key === "psh.courses") {
+    return list.map((c) => ({
+      ...c,
+      name: String(c.name ?? ""),
+      subject: String(c.subject ?? ""),
+      posts: Array.isArray(c.posts) ? c.posts.filter(isRecord) : [],
+    }));
+  }
+  return list;
+}
+
 export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Promise<number> {
   for (const [key, incoming] of Object.entries(t.store)) {
     if (!importable(key)) {
@@ -248,15 +297,7 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
     } catch {
       local = null;
     }
-    // A link can't plant a tutor with a lesson link that isn't Meet, Zoom or Teams.
-    const value =
-      key === "psh.tutors" && Array.isArray(incoming)
-        ? incoming.map((t: unknown) =>
-            t && typeof t === "object"
-              ? { ...t, meet: allowedMeet(String((t as { meet?: unknown }).meet ?? "")) }
-              : t,
-          )
-        : incoming;
+    const value = cleanImported(key, incoming);
     try {
       storage.setItem(key, JSON.stringify(mergeImported(key, local, value)));
     } catch {
@@ -323,7 +364,12 @@ const LABELS: Record<string, [string, string]> = {
 /** What a transfer would bring in, line by line, for the student to OK first. */
 export function transferPreview(t: Transfer, storage: Storage): string[] {
   const lines: string[] = [];
-  const homework = t.homework.filter((h) => typeof h?.title === "string").length;
+  // Only what this phone doesn't have yet, so a link opened twice says "Nothing new".
+  const homework = t.homework.filter(
+    (h) =>
+      typeof h?.title === "string" &&
+      !(typeof h.id === "string" && storage.getItem(`psh.db/data/users/me/state/homework/${h.id}`)),
+  ).length;
   if (homework) {
     lines.push(`${homework} homework`);
   }
@@ -343,8 +389,8 @@ export function transferPreview(t: Transfer, storage: Storage): string[] {
         // Damaged list: every tutor in the link counts as new.
       }
       const known = new Set(mine.map((t) => t?.id));
-      const names = value
-        .filter((t) => t && typeof t === "object" && !known.has((t as { id?: string }).id))
+      const names = (cleanImported(key, value) as { id?: string; name?: unknown }[])
+        .filter((t) => !known.has(t.id))
         .map((t) => String((t as { name?: unknown }).name ?? "").trim() || "A tutor")
         .slice(0, 4);
       if (names.length) {
@@ -353,8 +399,18 @@ export function transferPreview(t: Transfer, storage: Storage): string[] {
         );
       }
     } else if (label && Array.isArray(value)) {
-      if (value.length) {
-        lines.push(`${value.length} ${label[value.length === 1 ? 0 : 1]}`);
+      let local: unknown = null;
+      try {
+        local = JSON.parse(storage.getItem(key) ?? "null");
+      } catch {
+        // Damaged local list: everything in the link counts as new.
+      }
+      const merged = mergeImported(key, local, cleanImported(key, value));
+      const fresh = Array.isArray(merged)
+        ? merged.length - (Array.isArray(local) ? local.length : 0)
+        : 0;
+      if (fresh > 0) {
+        lines.push(`${fresh} ${label[fresh === 1 ? 0 : 1]}`);
       }
     } else if (key === "psh.schedule") {
       lines.push("Study plan");

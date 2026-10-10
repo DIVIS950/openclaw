@@ -14,6 +14,25 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+/** A saved list of records: anything that isn't a plain object (a damaged entry) is left out. */
+function readList<T>(key: string, strings: string[] = []): T[] {
+  const value: unknown = read<unknown>(key, []);
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x))
+    .map((x) => {
+      // Text fields the screens read: missing or damaged ones become "".
+      const out = { ...x };
+      for (const k of strings) {
+        const v = out[k];
+        out[k] = typeof v === "string" ? v : v === null || v === undefined ? "" : String(v);
+      }
+      return out as T;
+    });
+}
+
 /** Returns false when the browser refused (storage full or blocked). */
 function write(key: string, value: unknown): boolean {
   try {
@@ -58,7 +77,11 @@ export interface Todo {
 export const TODOS_CHANGED = "psh:todos";
 
 export const todos = {
-  all: (): Todo[] => read<Todo[]>("psh.todos", []),
+  all: (): Todo[] =>
+    readList<Todo>("psh.todos", ["id", "text", "due", "subject", "from"]).map((t) => ({
+      ...t,
+      done: t.done === true,
+    })),
   save(list: Todo[]): boolean {
     const ok = write("psh.todos", list);
     // An open To-do screen redraws when the + sheet or a tutor link adds one.
@@ -112,7 +135,8 @@ export function noteKind(n: Note): NoteKind {
 }
 
 export const notes = {
-  all: (): Note[] => read<Note[]>("psh.notes", []),
+  all: (): Note[] =>
+    readList<Note>("psh.notes", ["id", "title", "subject", "body", "updatedAt", "packId"]),
   save: (list: Note[]) => write("psh.notes", list),
   upsert(note: Note): Note[] {
     const list = notes.all();
@@ -464,7 +488,8 @@ export interface TutorMessage {
 }
 
 export const tutoring = {
-  messages: (): TutorMessage[] => read<TutorMessage[]>("psh.tutor.messages", []),
+  messages: (): TutorMessage[] =>
+    readList<TutorMessage>("psh.tutor.messages", ["id", "tutorId", "from", "text", "at"]),
   saveMessages: (list: TutorMessage[]) => write("psh.tutor.messages", list),
   /** When this tutor last got a link (ISO), so unsent messages can be counted. */
   lastShared: (tutorId: string): string =>
@@ -474,11 +499,31 @@ export const tutoring = {
       ...read<Record<string, string>>("psh.tutor.shared", {}),
       [tutorId]: new Date().toISOString(),
     }),
-  tutors: (): Tutor[] => read<Tutor[]>("psh.tutors", []),
+  tutors: (): Tutor[] =>
+    readList<Partial<Tutor>>("psh.tutors")
+      .filter((t) => typeof t.id === "string")
+      .map((t) => ({
+        ...t,
+        id: String(t.id),
+        name: typeof t.name === "string" ? t.name : "",
+        subject: typeof t.subject === "string" ? t.subject : "",
+        meet: typeof t.meet === "string" ? t.meet : "",
+        whatsapp: typeof t.whatsapp === "string" ? t.whatsapp : "",
+        when: typeof t.when === "string" ? t.when : "",
+      })),
   saveTutors: (list: Tutor[]) => write("psh.tutors", list),
-  sessions: (): TutorSession[] => read<TutorSession[]>("psh.tutor.sessions", []),
+  sessions: (): TutorSession[] =>
+    readList<TutorSession>("psh.tutor.sessions", ["id", "tutorId", "date", "topic", "notes"]),
   saveSessions: (list: TutorSession[]) => write("psh.tutor.sessions", list),
-  materials: (): TutorMaterial[] => read<TutorMaterial[]>("psh.tutor.materials", []),
+  materials: (): TutorMaterial[] =>
+    readList<TutorMaterial>("psh.tutor.materials", [
+      "id",
+      "tutorId",
+      "title",
+      "text",
+      "photo",
+      "date",
+    ]),
   /** Drops photos (keeping the text) if the device runs out of space. */
   saveMaterials(list: TutorMaterial[]): boolean {
     return (

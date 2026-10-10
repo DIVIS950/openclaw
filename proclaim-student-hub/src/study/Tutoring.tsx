@@ -236,7 +236,7 @@ export function Tutoring({
                 onClick={() => setEditing(nextUp.tutor)}
               >
                 <Icon name="video" size={18} />
-                Add Meet link
+                Add lesson link
               </button>
             )}
             <button

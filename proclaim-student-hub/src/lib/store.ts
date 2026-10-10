@@ -12,6 +12,25 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+/** A saved list of records: anything that isn't a plain object (a damaged entry) is left out. */
+function readList<T>(key: string, strings: string[] = []): T[] {
+  const value: unknown = read<unknown>(key, []);
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x))
+    .map((x) => {
+      // Text fields the screens read: missing or damaged ones become "".
+      const out = { ...x };
+      for (const k of strings) {
+        const v = out[k];
+        out[k] = typeof v === "string" ? v : v === null || v === undefined ? "" : String(v);
+      }
+      return out as T;
+    });
+}
+
 function write(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -69,7 +88,7 @@ export interface WeekEvent {
 
 /** Small counters per day: XP earned, homework done, cards practised, to-dos ticked. */
 export const weekLog = {
-  all: (): WeekEvent[] => read<WeekEvent[]>("psh.weeklog", []),
+  all: (): WeekEvent[] => readList<WeekEvent>("psh.weeklog", ["day", "kind"]),
   add(kind: WeekKind, n: number, day = localDay()) {
     if (n <= 0) {
       return;
@@ -141,12 +160,24 @@ export interface Course {
 
 /** The student's Classroom classes as they imported them (Classroom itself is blocked). */
 export const courses = {
-  get: (): Course[] => read<Course[]>("psh.courses", []),
+  get: (): Course[] =>
+    readList<Course>("psh.courses", ["name", "subject"]).map((c) => ({
+      ...c,
+      posts: (Array.isArray(c.posts) ? c.posts : [])
+        .filter((x) => !!x && typeof x === "object")
+        .map((x) => ({
+          kind: x.kind,
+          title: String(x.title ?? ""),
+          date: String(x.date ?? ""),
+          text: String(x.text ?? ""),
+        })),
+    })),
   save: (value: Course[]) => write("psh.courses", value),
 };
 
 export const timetable = {
-  get: (): Lesson[] => read<Lesson[]>("psh.timetable", []),
+  get: (): Lesson[] =>
+    readList<Lesson>("psh.timetable", ["day", "start", "end", "subject", "room"]),
   save: (value: Lesson[]) => write("psh.timetable", value),
 };
 
@@ -211,5 +242,20 @@ export const todoXp = {
     progress.add(2);
     weekLog.add("todo", 1);
     return true;
+  },
+  /** Unticked again: the XP and the weekly count go back. */
+  undo(id: string) {
+    const awarded = read<string[]>(TODO_XP_KEY, []);
+    if (!awarded.includes(id)) {
+      return;
+    }
+    write(
+      TODO_XP_KEY,
+      awarded.filter((x) => x !== id),
+    );
+    const p = progress.get();
+    write("psh.progress", { ...p, xp: Math.max(0, p.xp - 2) });
+    weekLog.take("todo", 1);
+    weekLog.take("xp", 2);
   },
 };

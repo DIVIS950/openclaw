@@ -370,3 +370,16 @@ button.chip::before {
     display: none;
   }
 }
+
+/* Round-4 jury: the last controls under 44px. */
+.link-btn::before {
+  inset: -12px -4px;
+}
+.item .round::before {
+  inset: -8px;
+}
+.qrb,
+.segmented button,
+.opt {
+  min-height: 44px;
+}

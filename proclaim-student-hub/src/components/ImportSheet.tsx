@@ -9,6 +9,7 @@ import {
 } from "../lib/aiFeatures.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
 import { timetable } from "../lib/store.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { videoToFrames } from "../lib/video.ts";
 import { Icon } from "./Icon.tsx";
 
@@ -51,6 +52,7 @@ export function ImportSheet({
   const [images, setImages] = useState<ImageInput[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  useEscape(onClose, !busy);
   const [tasks, setTasks] = useState<(ImportedTask & { pick: boolean })[] | null>(null);
   const [lessons, setLessons] = useState<Lesson[] | null>(null);
   const picker = useRef<HTMLInputElement>(null);

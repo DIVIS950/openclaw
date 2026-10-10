@@ -176,7 +176,8 @@ export class ClaudeData implements DataSource {
   }
 
   async setDue(hw: Homework, day: string): Promise<string> {
-    const due = new Date(`${day}T16:00:00`).toISOString();
+    // An empty day clears the date.
+    const due = day ? new Date(`${day}T16:00:00`).toISOString() : "";
     await this.store().collection("homework").doc(hw.id).update({ due });
     return due;
   }

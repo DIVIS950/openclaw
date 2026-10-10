@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Briefing } from "../components/Briefing.tsx";
 import { CountUp } from "../components/CountUp.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
@@ -94,7 +94,13 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const [tests] = useState(prepTests.all);
   const [todoAll, setTodoAll] = useState(todos.all);
   // Ticking a to-do here: saved, XP once, and an Undo in the toast.
+  // The next row slides under the finger: a second tap right after a tick is ignored.
+  const lastTick = useRef(0);
   const tickTodo = (id: string) => {
+    if (Date.now() - lastTick.current < 450) {
+      return;
+    }
+    lastTick.current = Date.now();
     const before = todos.all();
     todos.save(before.map((t) => (t.id === id ? { ...t, done: true } : t)));
     todoXp.tick(id);
@@ -102,6 +108,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
     app.toast("To-do done.", {
       label: "Undo",
       run: () => {
+        todoXp.undo(id);
         todos.save(todos.all().map((t) => (t.id === id ? { ...t, done: false } : t)));
         setTodoAll(todos.all());
       },

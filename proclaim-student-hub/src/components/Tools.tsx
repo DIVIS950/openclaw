@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useApp } from "../context.ts";
 import { backups, exportAll, importAll } from "../lib/backup.ts";
 import { daysBetween, dayOf, newId, notes, prepTests } from "../lib/study.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { Icon, type IconName } from "./Icon.tsx";
 
 // Tools: small one-job helpers. The AI ones take a bit of text (or a pasted
@@ -134,6 +135,7 @@ export function Tools() {
 }
 
 function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
+  useEscape(onClose);
   const { ai, toast, handleError } = useApp();
   const [text, setText] = useState("");
   const [lang, setLang] = useState(tool.languages?.[0] ?? "");
@@ -349,6 +351,7 @@ export function calc(expr: string): string {
 
 function Calculator() {
   const [open, setOpen] = useState(false);
+  useEscape(() => setOpen(false), open);
   const [expr, setExpr] = useState("");
   const result = calc(expr);
   return (
