@@ -826,21 +826,26 @@ textarea.field {
 }
 
 .skeleton {
+  position: relative;
+  overflow: hidden;
   border-radius: 8px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.22),
-    rgba(255, 255, 255, 0.08)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
+  background: rgba(255, 255, 255, 0.08);
   height: 16px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.4s linear infinite;
 }
 
 .skeleton.light {
-  background: linear-gradient(90deg, var(--card-2), var(--line-soft), var(--card-2));
-  background-size: 200% 100%;
+  background: var(--card-2);
+}
+.skeleton.light::after {
+  background: linear-gradient(90deg, transparent, var(--line-soft), transparent);
 }
 
 .empty {
@@ -976,7 +981,7 @@ textarea.field {
   height: 100%;
   border-radius: 3px;
   background: var(--ink);
-  transition: width 0.4s ease;
+  transform-origin: left;
 }
 
 .xp-float {
@@ -1352,7 +1357,6 @@ textarea.field {
   border-radius: 3px;
   background: var(--neon, #fff);
   box-shadow: 0 0 10px var(--neon, #fff);
-  transition: width 1s linear;
 }
 
 .lesson {
@@ -1499,16 +1503,6 @@ textarea.field {
   animation: spin 3s linear infinite;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 
 @keyframes fadeUp {
   from {
@@ -1533,15 +1527,6 @@ textarea.field {
   }
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
 
 @keyframes flipIn {
   from {
@@ -1619,11 +1604,8 @@ textarea.field {
 }
 
 @keyframes shimmer {
-  from {
-    background-position: 200% 0;
-  }
   to {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
 
@@ -1746,7 +1728,6 @@ textarea.field {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 label.call-orb {
@@ -1760,7 +1741,16 @@ label.call-orb {
   min-height: 52px;
 }
 
-.call-orb.listening {
+.call-orb {
+  position: relative;
+}
+.call-orb.listening::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 6px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  pointer-events: none;
   animation: ring 1.4s ease-out infinite;
 }
 
@@ -1774,11 +1764,13 @@ label.call-orb {
 }
 
 @keyframes ring {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  from {
+    transform: scale(1);
+    opacity: 1;
   }
-  100% {
-    box-shadow: 0 0 0 28px color-mix(in srgb, var(--accent) 0%, transparent);
+  to {
+    transform: scale(1.38);
+    opacity: 0;
   }
 }
 
@@ -3440,24 +3432,10 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  animation: fab-pulse 2.4s ease-in-out infinite;
   transition: transform 0.25s var(--bounce);
 }
 .nav-fab:active {
   transform: scale(0.92);
-}
-@keyframes fab-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 6px color-mix(in oklab, var(--accent) 18%, transparent),
-      0 10px 30px color-mix(in oklab, var(--accent) 45%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 13px color-mix(in oklab, var(--accent) 8%, transparent),
-      0 10px 46px color-mix(in oklab, var(--accent) 75%, transparent);
-  }
 }
 /* Tablet and desktop: the tab bar is a side rail (see the iPad section above). */
 @media (min-width: 768px) and (min-height: 600px) {
@@ -3593,11 +3571,6 @@ h2 {
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
   animation: blink 1.4s ease-in-out infinite;
-}
-@keyframes blink {
-  50% {
-    opacity: 0.35;
-  }
 }
 
 /* Your day: a headline, then list rows grouped in one card. */
@@ -4172,11 +4145,12 @@ h2 {
 /* ---------- Motion ---------- */
 
 .bar-grow > span {
+  transform-origin: left;
   animation: bar-grow 1.1s var(--spring) both;
 }
 @keyframes bar-grow {
   from {
-    width: 0;
+    transform: scaleX(0);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4464,19 +4438,6 @@ input[type="date"].field::-webkit-calendar-picker-indicator {
   top: -72px;
   height: 72px;
   background: linear-gradient(to bottom, transparent, var(--bg) 65%);
-}
-@keyframes fab-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 5px color-mix(in oklab, var(--accent) 16%, transparent),
-      0 8px 24px color-mix(in oklab, var(--accent) 35%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 10px color-mix(in oklab, var(--accent) 8%, transparent),
-      0 8px 28px color-mix(in oklab, var(--accent) 40%, transparent);
-  }
 }
 
 /* Icon tints: hub and tools in the accent; brand colours only on the app links. */
@@ -5097,24 +5058,10 @@ h2 {
   height: 62px;
   margin-top: -32px;
   border-radius: 50%;
-  animation: fab-pulse 2.4s ease-in-out infinite;
 }
 .nav-fab svg {
   width: 28px;
   height: 28px;
-}
-@keyframes fab-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 6px color-mix(in oklab, var(--accent) 18%, transparent),
-      0 10px 30px color-mix(in oklab, var(--accent) 45%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 13px color-mix(in oklab, var(--accent) 8%, transparent),
-      0 10px 46px color-mix(in oklab, var(--accent) 75%, transparent);
-  }
 }
 
 /* The floating Ask AI pill (Homework, To-do, Inbox) */
@@ -5493,6 +5440,7 @@ select.field {
   background: var(--accent);
   position: relative;
   overflow: hidden;
+  transform-origin: left;
   animation: grow 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both;
 }
 .bar > i::after,
@@ -5511,7 +5459,7 @@ select.field {
 }
 @keyframes grow {
   from {
-    width: 0;
+    transform: scaleX(0);
   }
 }
 @keyframes shine {
@@ -5689,7 +5637,7 @@ select.field {
 }
 @keyframes glow {
   50% {
-    text-shadow: 0 0 40px color-mix(in oklab, var(--coral) 90%, transparent);
+    opacity: 0.86;
   }
 }
 .test-count .num {
@@ -6166,7 +6114,6 @@ select.field {
   justify-content: center;
   flex: none;
   border: 0;
-  animation: fab-pulse 2.4s ease-in-out infinite;
 }
 .snap-btn:disabled .snap-icon {
   background: var(--accent);
@@ -6547,18 +6494,6 @@ textarea.field.ans {
 .rise {
   animation: rise 0.8s cubic-bezier(0.2, 0.9, 0.2, 1) both;
 }
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.98);
-    filter: blur(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-    filter: blur(0);
-  }
-}
 .rise.d1 {
   animation-delay: 0.1s;
 }
@@ -6692,14 +6627,7 @@ textarea.field.ans {
   box-shadow:
     0 0 44px color-mix(in oklab, var(--violet) 22%, transparent),
     var(--shadow);
-  animation:
-    rise 0.8s cubic-bezier(0.2, 0.9, 0.2, 1) 0.1s both,
-    spinb 10s linear 1s infinite;
-}
-@keyframes spinb {
-  to {
-    --ang: 495deg;
-  }
+  animation: rise 0.8s cubic-bezier(0.2, 0.9, 0.2, 1) 0.1s both;
 }
 .brief {
   margin: 0;
@@ -6717,12 +6645,6 @@ textarea.field.ans {
   filter: blur(6px);
   animation: wordin 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: calc(0.9s + var(--i) * 48ms);
-}
-@keyframes wordin {
-  to {
-    opacity: 1;
-    filter: blur(0);
-  }
 }
 .cur {
   display: inline-block;
@@ -6881,16 +6803,6 @@ textarea.field.ans {
 }
 
 /* The reveal: rise and fade only (the blur was the expensive part). */
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 .w {
   filter: none;
   transform: translateY(3px);

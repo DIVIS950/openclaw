@@ -3,7 +3,7 @@ import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { dayString } from "../lab/model.ts";
 import { packFromTopic } from "../lab/scan.ts";
-import { labPacks, settings } from "../lab/store.ts";
+import { examHandoff, labPacks, settings } from "../lab/store.ts";
 import { autoPackInBackground } from "../lib/autoPack.ts";
 import { cleanTopic } from "../lib/daySummary.ts";
 import { courses } from "../lib/store.ts";
@@ -211,52 +211,77 @@ export function Tests({
 
 /** The next test as the hero card: countdown, prep steps and today's step. */
 function NextTest({ test, today, onOpen }: { test: PrepTest; today: string; onOpen: () => void }) {
+  const { go, toast } = useApp();
   const plan = prepPlan(test, today);
   const todayStep = plan.find((d) => d.date === today);
   const days = daysBetween(today, test.date);
   const ready = plan.length ? Math.round((test.done.length / plan.length) * 100) : 0;
   const pack = labPacks.all().find((p) => p.id === test.packId) ?? null;
   const cards = pack?.items.length ?? 0;
+
+  // Today's step straight away; without material yet, the plan says how to get it.
+  const reviseNow = () => {
+    const action = todayStep?.action ?? "flashcards";
+    if (!pack || action === "material") {
+      onOpen();
+      return;
+    }
+    labHandoff.set({ kind: "open", packId: pack.id, action });
+    go("revise");
+  };
+  // The Lab's timed exam on this test's pack, once there are enough items.
+  const examMode = () => {
+    if (!pack || cards < 3) {
+      toast("Exam mode needs this test's material first. Add a photo or make it from the topic.");
+      onOpen();
+      return;
+    }
+    examHandoff.set(pack.id);
+    go("revise");
+  };
+
   return (
-    <button className="card hero magenta test-hero test-card rise" onClick={onOpen}>
-      <div className="between" style={{ alignItems: "flex-start", gap: 12 }}>
-        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
-          <span className="now-eyebrow">Next test · {dayLabel(test.date, today)}</span>
-          <strong className="test-title">
-            {test.subject} · {cleanTopic(test.subject, test.topic)}
-          </strong>
+    <section className="card hero magenta test-hero test-card rise">
+      <button className="test-open" onClick={onOpen} aria-label={`Open the plan for ${test.subject}`}>
+        <div className="between" style={{ alignItems: "flex-start", gap: 12 }}>
+          <div className="stack" style={{ gap: 6, minWidth: 0 }}>
+            <span className="now-eyebrow">Next test · {dayLabel(test.date, today)}</span>
+            <strong className="test-title">
+              {test.subject} · {cleanTopic(test.subject, test.topic)}
+            </strong>
+          </div>
+          <span className="test-days">
+            <b>{days}</b>
+            <span>{days === 1 ? "DAY" : "DAYS"}</span>
+          </span>
         </div>
-        <span className="test-days">
-          <b>{days}</b>
-          <span>{days === 1 ? "DAY" : "DAYS"}</span>
-        </span>
-      </div>
-      <div className="stack" style={{ gap: 6 }}>
-        <div className="between s13" style={{ fontWeight: 800 }}>
-          <span>Ready</span>
-          <span>{ready}%</span>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="between s13" style={{ fontWeight: 800 }}>
+            <span>Ready</span>
+            <span>{ready}%</span>
+          </div>
+          <div className="pbar" aria-hidden="true">
+            <i style={{ transform: `scaleX(${ready / 100})` }} />
+          </div>
+          <span className="s13">
+            {todayStep
+              ? test.done.includes(today)
+                ? "Done for today. Nice."
+                : `Today: ${todayStep.title}${cards ? ` · ${cards} cards` : ""} · ${todayStep.minutes} min`
+              : `Plan: 10 minutes a day, ${plan.length} ${plan.length === 1 ? "day" : "days"}.`}
+          </span>
         </div>
-        <div className="pbar" aria-hidden="true">
-          <i style={{ transform: `scaleX(${ready / 100})` }} />
-        </div>
-        <span className="s13" style={{ opacity: 0.9 }}>
-          {todayStep
-            ? test.done.includes(today)
-              ? "Done for today. Nice."
-              : `Today: ${todayStep.title}${cards ? ` · ${cards} cards` : ""} · ${todayStep.minutes} min`
-            : `Plan: 10 minutes a day, ${plan.length} ${plan.length === 1 ? "day" : "days"}.`}
-        </span>
-      </div>
+      </button>
       <div className="row" style={{ gap: 10 }}>
-        <span className="btn primary" style={{ flex: 1.4 }}>
+        <button className="btn primary" style={{ flex: 1.4 }} onClick={reviseNow}>
           Revise now · {todayStep?.minutes ?? 10} min
-        </span>
-        <span className="btn" style={{ flex: 1 }}>
+        </button>
+        <button className="btn" style={{ flex: 1 }} onClick={examMode}>
           <Icon name="timer" size={18} />
           Exam mode
-        </span>
+        </button>
       </div>
-    </button>
+    </section>
   );
 }
 
@@ -301,7 +326,7 @@ function AddTest({
           Plan a test
         </h2>
         <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Subject</span>
+          <span className="eyebrow">Subject</span>
           <input
             className="field"
             list="test-subjects"
@@ -316,7 +341,7 @@ function AddTest({
           </datalist>
         </label>
         <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">What's it on?</span>
+          <span className="eyebrow">What's it on?</span>
           <input
             className="field"
             value={topic}
@@ -325,7 +350,7 @@ function AddTest({
           />
         </label>
         <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Test date</span>
+          <span className="eyebrow">Test date</span>
           <input
             className="field"
             type="date"

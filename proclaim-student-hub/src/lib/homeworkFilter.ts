@@ -5,7 +5,11 @@ import type { Homework } from "./types.ts";
  * subject that has nothing left in that list falls back to "All", so the
  * list can never be filtered by a chip that isn't there.
  */
-export function subjectChips(list: Homework[], selected: string, max = 6): {
+export function subjectChips(
+  list: Homework[],
+  selected: string,
+  max = 6,
+): {
   chips: string[];
   active: string;
 } {

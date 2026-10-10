@@ -31,6 +31,7 @@ import { Scan } from "./Scan.tsx";
 import { Session, type Entry, type Outcome } from "./Session.tsx";
 import { canHear, daily, DAILY_GOAL, hearable } from "./speech.ts";
 import {
+  examHandoff,
   exportJson,
   importJson,
   labPacks,
@@ -184,6 +185,16 @@ export function Lab() {
     }
     show({ name: "play", mode, entries, packId, key: Date.now() });
   };
+
+  // Opened from Tests › Exam mode: straight into the timed exam on that pack.
+  const [examFor] = useState(() => examHandoff.take());
+  useEffect(() => {
+    const pack = examFor ? packs.find((p) => p.id === examFor) : undefined;
+    if (pack) {
+      play("exam", [pack], pack.id);
+    }
+    // Runs once, for the exam this screen was opened with.
+  }, [examFor]);
 
   // Opened from a prep day: go straight into that day's practice.
   useEffect(() => {

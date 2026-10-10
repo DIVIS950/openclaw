@@ -1,3 +1,4 @@
+import { damagedLink, linkInbox, type PendingLink } from "./linkInbox.ts";
 import {
   newId,
   todos,
@@ -7,7 +8,6 @@ import {
   type TutorMessage,
   type TutorSession,
 } from "./study.ts";
-import { damagedLink, linkInbox, type PendingLink } from "./linkInbox.ts";
 import { packJson, PAGES_URL, unpackJson } from "./transfer.ts";
 
 // The student and their tutor swap links. Nothing goes through a server: the
@@ -137,14 +137,26 @@ function parseSession(v: unknown): TutorSession | null {
   if (!isObj(v) || !nonEmpty(v.id) || typeof v.topic !== "string") {
     return null;
   }
-  return { id: v.id, tutorId: str(v.tutorId), date: str(v.date), topic: v.topic, notes: str(v.notes) };
+  return {
+    id: v.id,
+    tutorId: str(v.tutorId),
+    date: str(v.date),
+    topic: v.topic,
+    notes: str(v.notes),
+  };
 }
 
 function parseMaterial(v: unknown): TutorPacket["materials"][number] | null {
   if (!isObj(v) || !nonEmpty(v.id) || typeof v.title !== "string") {
     return null;
   }
-  return { id: v.id, tutorId: str(v.tutorId), title: v.title, text: str(v.text), date: str(v.date) };
+  return {
+    id: v.id,
+    tutorId: str(v.tutorId),
+    title: v.title,
+    text: str(v.text),
+    date: str(v.date),
+  };
 }
 
 function parseHomework(v: unknown): TutorHomework | null {
@@ -581,8 +593,7 @@ export function hasUnsent(u: TutorUnsent, tutor: Pick<Tutor, "when" | "meet">): 
  * (Its own prefix, so tutorStore.all() never mistakes it for a student.)
  */
 export const unsentStore = {
-  key: (tutorId: string, student: string) =>
-    `tutorhub-unsent.${tutorId}.${student.toLowerCase()}`,
+  key: (tutorId: string, student: string) => `tutorhub-unsent.${tutorId}.${student.toLowerCase()}`,
   get(tutorId: string, student: string): TutorUnsent {
     let raw: unknown = null;
     try {

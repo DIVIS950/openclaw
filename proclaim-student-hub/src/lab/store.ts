@@ -145,3 +145,16 @@ export function importJson(text: string, existing: LabPack[]): { packs: LabPack[
   const ids = new Set(valid.map((p) => p.id));
   return { packs: [...existing.filter((p) => !ids.has(p.id)), ...valid], added: valid.length };
 }
+
+/** Tests › Exam mode: the pack whose timed exam the Lab starts on arrival. */
+let examPack: string | null = null;
+export const examHandoff = {
+  set: (packId: string) => {
+    examPack = packId;
+  },
+  take: (): string | null => {
+    const id = examPack;
+    examPack = null;
+    return id;
+  },
+};

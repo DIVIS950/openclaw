@@ -21,7 +21,12 @@ function seesLabel(context: string): string {
 }
 
 // The conversation survives switching tabs (but not closing the app).
-let savedChat: { mode: TutorMode; turns: ChatTurn[] } = { mode: "explain", turns: [] };
+// `failed` holds the positions of answers that are error messages, not help.
+let savedChat: { mode: TutorMode; turns: ChatTurn[]; failed: number[] } = {
+  mode: "explain",
+  turns: [],
+  failed: [],
+};
 
 export function Tutor() {
   const app = useApp();
@@ -31,6 +36,7 @@ export function Tutor() {
     .toSorted((a, b) => (a.due ?? "").localeCompare(b.due ?? ""))[0];
   const [mode, setMode] = useState<TutorMode>(savedChat.mode);
   const [turns, setTurns] = useState<ChatTurn[]>(savedChat.turns);
+  const [failed, setFailed] = useState<number[]>(savedChat.failed);
   const [input, setInput] = useState("");
   const [images, setImages] = useState<ImageInput[]>([]);
   const [busy, setBusy] = useState(false);
@@ -40,9 +46,9 @@ export function Tutor() {
   const handledSeed = useRef<number | null>(null);
 
   useEffect(() => {
-    savedChat = { mode, turns };
+    savedChat = { mode, turns, failed };
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [mode, turns]);
+  }, [mode, turns, failed]);
 
   useEffect(
     () => () => {
@@ -88,6 +94,7 @@ export function Tutor() {
 
     const ai = app.ai;
     if (!ai) {
+      setFailed((f) => [...f, history.length]);
       setTurns([
         ...history,
         {
@@ -113,6 +120,7 @@ export function Tutor() {
       );
     } catch (err) {
       if (!abort.current.signal.aborted) {
+        setFailed((f) => [...f, history.length]);
         setTurns([
           ...history,
           { role: "assistant", text: err instanceof Error ? err.message : "Something went wrong." },
@@ -149,6 +157,7 @@ export function Tutor() {
   };
 
   const last = turns[turns.length - 1];
+  const lastFailed = failed.includes(turns.length - 1);
   const saveToNotes = (text: string) => {
     const id = newId("n");
     notes.upsert({
@@ -196,6 +205,7 @@ export function Tutor() {
               onClick={() => {
                 abort.current?.abort();
                 setTurns([]);
+                setFailed([]);
               }}
             >
               New chat
@@ -237,8 +247,12 @@ export function Tutor() {
               <span />
             </div>
           ) : (
-            <div key={i} className={`bubble ${t.role === "user" ? "me" : "ai"}`}>
-              {t.role === "assistant" && (
+            <div
+              key={i}
+              className={`bubble ${t.role === "user" ? "me" : "ai"}${failed.includes(i) ? " err" : ""}`}
+              role={failed.includes(i) ? "alert" : undefined}
+            >
+              {t.role === "assistant" && !failed.includes(i) && (
                 <div className="row" style={{ gap: 8, marginBottom: 8 }}>
                   <span className="chip violet">
                     <Icon name="sparkle" size={14} />
@@ -253,26 +267,30 @@ export function Tutor() {
                 <img key={j} src={imageSrc(img)} alt="Your photo" />
               ))}
               {t.text}
-              {t.role === "assistant" && canSpeak() && !(busy && i === turns.length - 1) && (
-                <button
-                  className="link-btn"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    minHeight: 32,
-                    fontSize: 13,
-                  }}
-                  onClick={() => speak(t.text)}
-                >
-                  <Icon name="speaker" size={16} />
-                  Read aloud
-                </button>
-              )}
+              {t.role === "assistant" &&
+                !failed.includes(i) &&
+                canSpeak() &&
+                !(busy && i === turns.length - 1) && (
+                  <button
+                    className="link-btn"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      minHeight: 32,
+                      fontSize: 13,
+                    }}
+                    onClick={() => speak(t.text)}
+                  >
+                    <Icon name="speaker" size={16} />
+                    Read aloud
+                  </button>
+                )}
             </div>
           ),
         )}
-        {!busy && last?.role === "assistant" && last.text && (
+        {/* Follow-ups only after a real answer, never after an error message. */}
+        {!busy && last?.role === "assistant" && last.text && !lastFailed && (
           <div className="row pop" style={{ flexWrap: "wrap", gap: 6 }}>
             <button className="btn" onClick={() => saveToNotes(last.text)}>
               <Icon name="save" size={18} />

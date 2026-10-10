@@ -1,18 +1,17 @@
 import "./polyfills.ts";
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { LinkConfirm } from "./components/LinkConfirm.tsx";
 import { backups } from "./lib/backup.ts";
 import { trackKeyboard } from "./lib/keyboard.ts";
+import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
-import { dayOf } from "./lib/study.ts";
 import { applyAccent, applyTheme, watchTheme } from "./lib/theme.ts";
-import { importFromLocation } from "./lib/transfer.ts";
-import { tutorImport } from "./lib/tutorImport.ts";
-import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
-import { localDb } from "./pages/localDb.ts";
+import { readTransferFromLocation, transferPreview } from "./lib/transfer.ts";
+import { importReplyFromLocation } from "./lib/tutorLink.ts";
 import { unlockSeed } from "./pages/lockedSeed.ts";
-import { installPagesRuntime, pagesImport, PAGES } from "./pages/runtime.ts";
+import { installPagesRuntime, PAGES } from "./pages/runtime.ts";
 import "./styles.css";
 import "./bento.css";
 import "./fix-tutor.css";
@@ -33,30 +32,66 @@ async function start() {
     navigator.serviceWorker?.register("sw.js").catch(() => undefined);
     // The student's own timetable/classes/homework, if their private link unlocked it.
     await unlockSeed();
-    pagesImport.added = await importFromLocation(localDb).catch(() => null);
+    // Data from the claude.ai link waits for the student's OK (LinkConfirm).
+    const t = await readTransferFromLocation().catch(() => "damaged" as const);
+    if (t === "damaged") {
+      linkInbox.set(damagedLink("whoever sent it"));
+    } else if (t) {
+      linkInbox.set({ kind: "import", transfer: t, lines: transferPreview(t, localStorage) });
+    }
   }
-  // Set up the student's own timetable and classes before the first screen draws.
-  applyLocalSeed();
-  // One snapshot a day of everything, so a mistake can be undone (Apps › Automatic saves).
+  // One snapshot a day of everything (before any link is brought in), so a
+  // mistake can be undone (Apps › Automatic saves).
   try {
     backups.daily();
   } catch {
     // Storage blocked: no snapshot this time.
   }
-  // A link from a tutor: lessons, homework and materials go straight in.
-  const fromTutor = await importReplyFromLocation(dayOf(new Date())).catch(() => null);
-  if (fromTutor) {
-    tutorImport.set(appliedSummary(fromTutor));
-  }
+  // A link from a tutor: checked here, brought in once the student says yes.
+  await importReplyFromLocation().catch(() => linkInbox.set(damagedLink("your tutor")));
 
   const root = document.getElementById("root");
-  if (root) {
-    createRoot(root).render(
+  if (!root) {
+    return;
+  }
+  const reactRoot = createRoot(root);
+  const draw = () => {
+    // The student's own timetable and classes, after any link was brought in.
+    applyLocalSeed();
+    reactRoot.render(
       <StrictMode>
         <App />
       </StrictMode>,
     );
+  };
+  if (linkInbox.get()) {
+    reactRoot.render(
+      <StrictMode>
+        <LinkGate onDone={draw} />
+      </StrictMode>,
+    );
+  } else {
+    draw();
   }
+}
+
+/** "Bring this in?" before the app draws, so the app opens with the result. */
+function LinkGate({ onDone }: { onDone: () => void }) {
+  const [done, setDone] = useState(false);
+  if (done) {
+    return null;
+  }
+  return (
+    <div className="app">
+      <LinkConfirm
+        onDone={() => {
+          setDone(true);
+          // Next tick: leave the confirm's own handlers before swapping the tree.
+          window.setTimeout(onDone, 0);
+        }}
+      />
+    </div>
+  );
 }
 
 void start();

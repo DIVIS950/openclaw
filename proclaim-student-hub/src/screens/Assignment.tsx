@@ -6,6 +6,7 @@ import { StartTask } from "../components/StartTask.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
 import { makeCanvaDesign } from "../lib/canva.ts";
+import { draftCopy, pickDraft } from "../lib/draftCopy.ts";
 import { dueLabel } from "../lib/format.ts";
 import { photoToImageInput } from "../lib/image.ts";
 import {
@@ -17,6 +18,7 @@ import {
 } from "../lib/polish.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import type { HandInResult, Homework } from "../lib/types.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { makeGoogleDoc } from "../pages/googleDocs.ts";
 
 type SaveState = "loading" | "saved" | "saving" | "error";
@@ -24,7 +26,7 @@ type SaveState = "loading" | "saved" | "saving" | "error";
 const SAVE_DELAY_MS = 1200;
 
 export function Assignment({ hw }: { hw: Homework }) {
-  const { data, go, ai, handleError, toast, openAi } = useApp();
+  const { data, back, ai, handleError, toast, openAi } = useApp();
   const [text, setText] = useState("");
   const [state, setState] = useState<SaveState>("loading");
   const [link, setLink] = useState<string | null>(null);
@@ -36,30 +38,50 @@ export function Assignment({ hw }: { hw: Homework }) {
   // Saves run one at a time so the first save's new file id is used by the next.
   const saving = useRef<Promise<void>>(Promise.resolve());
   const latest = useRef("");
+  // Typing that the real save hasn't been asked to keep yet.
+  const pending = useRef(false);
 
   useEffect(() => {
     data.loadDraft(hw).then(
       (draft) => {
         fileId.current = draft.fileId;
-        latest.current = draft.text;
-        setText(draft.text);
+        // Typing that never reached the real save (closed, reloaded, rotated) wins.
+        const pick = pickDraft(draft.text, draftCopy.get(hw.id));
+        latest.current = pick.text;
+        setText(pick.text);
         setLink(draft.link);
-        setState("saved");
+        if (pick.unsaved) {
+          pending.current = true;
+          setState("saving");
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(save, 300);
+        } else {
+          setState("saved");
+        }
       },
       (err: unknown) => {
+        // Show what this device still has, so nothing typed looks lost.
+        const copy = draftCopy.get(hw.id);
+        if (copy) {
+          latest.current = copy.text;
+          setText(copy.text);
+        }
         setState("error");
         handleError(err);
       },
     );
     return () => window.clearTimeout(timer.current);
+    // `save` only reads refs and this homework.
   }, [data, hw, handleError]);
 
   const save = () => {
+    pending.current = false;
     saving.current = saving.current.then(async () => {
       const snapshot = latest.current;
       try {
         const draft = await data.saveDraft(hw, snapshot, fileId.current);
         fileId.current = draft.fileId;
+        draftCopy.saved(hw.id, snapshot);
         setLink(draft.link);
         if (latest.current === snapshot) {
           setState("saved");
@@ -73,9 +95,36 @@ export function Assignment({ hw }: { hw: Homework }) {
     return saving.current;
   };
 
+  // Save straight away when the page is hidden, closed or this screen goes away.
+  const flushRef = useRef(() => {});
+  flushRef.current = () => {
+    if (pending.current) {
+      window.clearTimeout(timer.current);
+      void save();
+    }
+  };
+  useEffect(() => {
+    const flush = () => flushRef.current();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        flush();
+      }
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+      flush();
+    };
+  }, []);
+
   const onChange = (value: string) => {
     setText(value);
     latest.current = value;
+    pending.current = true;
+    // A copy on this device on every keystroke, in case the page closes first.
+    draftCopy.set(hw.id, value);
     setState("saving");
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(save, SAVE_DELAY_MS);
@@ -114,7 +163,7 @@ export function Assignment({ hw }: { hw: Homework }) {
     <main className="screen" style={{ gap: 14, position: "static" }}>
       <header className="stack rise" style={{ gap: 12 }}>
         <div className="between">
-          <button className="round" aria-label="Back to homework" onClick={() => go("homework")}>
+          <button className="round" aria-label="Back to homework" onClick={() => back("homework")}>
             <Icon name="chevronLeft" size={20} />
           </button>
           <div className="row" style={{ gap: 8, minWidth: 0, justifyContent: "flex-end" }}>
@@ -133,7 +182,8 @@ export function Assignment({ hw }: { hw: Homework }) {
         </h1>
         <div className="do-steps" aria-label="Progress">
           {["Read brief", "Write it", "Hand in"].map((label, i) => {
-            const at = words > 0 ? 2 : 1;
+            // "Read brief" only counts as done when there was a brief to read.
+            const at = words > 0 ? 2 : hw.description ? 1 : 0;
             return (
               <div key={label} className={i < at ? "dstep done" : i === at ? "dstep now" : "dstep"}>
                 <i />
@@ -143,6 +193,30 @@ export function Assignment({ hw }: { hw: Homework }) {
           })}
         </div>
       </header>
+
+      {!hw.description && (
+        <section className="card stack rise d1 no-brief" style={{ padding: 16, gap: 8 }}>
+          <span className="eyebrow">From your teacher</span>
+          <p className="s13" style={{ margin: 0, color: "var(--ink2)", lineHeight: 1.45 }}>
+            No instructions were copied here.{" "}
+            {hw.link
+              ? `Open it in ${sourceName(hw)} to see what to do.`
+              : `Check ${sourceName(hw)} for what to do.`}
+          </p>
+          {hw.link && (
+            <a
+              className="btn sm"
+              style={{ alignSelf: "flex-start" }}
+              href={hw.link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon name="external" size={14} />
+              Open in {sourceName(hw)}
+            </a>
+          )}
+        </section>
+      )}
 
       {hw.description && (
         <section className="card stack rise d1" style={{ padding: 16, gap: 8 }}>
@@ -244,6 +318,11 @@ export function Assignment({ hw }: { hw: Homework }) {
             Polish
           </button>
         </div>
+        {!text.trim() && state !== "loading" && (
+          <p className="s12 muted" style={{ margin: 0 }}>
+            Write something first: then Get feedback, Google Doc and Polish work.
+          </p>
+        )}
       </section>
 
       <StartTask
@@ -367,6 +446,7 @@ export function Assignment({ hw }: { hw: Homework }) {
       {sheet && (
         <HandInSheet
           hw={hw}
+          empty={!text.trim()}
           flush={async () => {
             window.clearTimeout(timer.current);
             if (state === "saving" || !fileId.current) {
@@ -383,6 +463,11 @@ export function Assignment({ hw }: { hw: Homework }) {
       )}
     </main>
   );
+}
+
+/** "Classroom", "Dr Frost"… or "its app" for "Other". */
+function sourceName(hw: Homework): string {
+  return hw.source === "Other" ? "its app" : hw.source;
 }
 
 /** " just now" / " 2 min ago" after "Autosaved". */
@@ -448,17 +533,27 @@ function CheckPhotoButton({ title, course }: { title: string; course: string }) 
 
 function HandInSheet({
   hw,
+  empty,
   flush,
   onClose,
 }: {
   hw: Homework;
+  /** Nothing written: ask before marking it done, and don't talk about a Doc. */
+  empty: boolean;
   flush: () => Promise<string | null>;
   onClose: () => void;
 }) {
   const { data, replaceHomework, handleError } = useApp();
-  const [result, setResult] = useState<HandInResult | "working" | "error">("working");
+  const [result, setResult] = useState<HandInResult | "confirm" | "working" | "error">(
+    empty ? "confirm" : "working",
+  );
+  const confirmed = result !== "confirm";
+  useEscape(onClose, result !== "working");
 
   useEffect(() => {
+    if (!confirmed) {
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -478,10 +573,36 @@ function HandInSheet({
     return () => {
       cancelled = true;
     };
-    // Run once when the sheet opens.
-  }, []);
+    // Run once, when the sheet opens (or once "Mark as done" is tapped).
+  }, [confirmed]);
 
   const done = result !== "working";
+  if (result === "confirm") {
+    return (
+      <div className="backdrop" onClick={onClose}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-label="Hand in"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            Nothing written
+          </h2>
+          <p className="sub" style={{ margin: 0 }}>
+            Your answer is empty. Mark it as done anyway? If it was done on paper or somewhere else,
+            that's fine.
+          </p>
+          <button className="btn big primary" onClick={() => setResult("working")}>
+            Mark as done
+          </button>
+          <button className="btn ghost" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="backdrop" onClick={done ? onClose : undefined}>
       <div
@@ -491,7 +612,11 @@ function HandInSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="h1" style={{ fontSize: 24 }}>
-          {result === "turnedIn" ? "Handed in!" : "Handing in"}
+          {result === "turnedIn"
+            ? "Handed in!"
+            : empty && result === "openClassroom"
+              ? "Marked as done"
+              : "Handing in"}
         </h2>
         {result === "working" && (
           <div className="step">
@@ -506,9 +631,11 @@ function HandInSheet({
         )}
         {(result === "turnedIn" || result === "openClassroom") && (
           <>
-            <Step n="✓" ok delay={0.1}>
-              {data.labels.workStep}
-            </Step>
+            {!empty && (
+              <Step n="✓" ok delay={0.1}>
+                {data.labels.workStep}
+              </Step>
+            )}
             <Step n="✓" ok delay={0.3}>
               {data.labels.tickedStep}
             </Step>
@@ -516,6 +643,14 @@ function HandInSheet({
               <Step n="✓" ok delay={0.5}>
                 Turned in on Google Classroom
               </Step>
+            ) : empty ? (
+              hw.link && (
+                <Step n="2" delay={0.5}>
+                  <span>
+                    If it needs handing in, press <strong>Turn in</strong> on Classroom
+                  </span>
+                </Step>
+              )
             ) : (
               <Step n="3" delay={0.5}>
                 <span>
@@ -525,7 +660,7 @@ function HandInSheet({
             )}
           </>
         )}
-        {result !== "turnedIn" && (
+        {result !== "turnedIn" && hw.link && (
           <a
             className="btn big primary rise"
             style={{ animationDelay: "0.7s" }}
@@ -594,6 +729,7 @@ function PolishSheet({
   const [result, setResult] = useState<PolishResult | "working" | null>(null);
   const [off, setOff] = useState<Set<number>>(new Set());
   const [canva, setCanva] = useState<Record<number, string | "working">>({});
+  useEscape(onClose, result !== "working");
 
   const run = async () => {
     if (!ai) {

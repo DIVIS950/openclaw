@@ -55,13 +55,21 @@ function FocusTimer({ title, onClose }: { title: string; onClose: () => void }) 
   const left = running ? (endsAt - now) / 1000 : (pausedLeft ?? minutes * 60);
   const total = minutes * 60;
 
+  // One render a second, timed to land just as the shown second changes.
   useEffect(() => {
-    if (!running) {
+    if (endsAt === null) {
       return;
     }
-    const t = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(t);
-  }, [running]);
+    let t = 0;
+    const tick = () => {
+      const at = Date.now();
+      setNow(at);
+      const rest = (endsAt - at) % 1000;
+      t = window.setTimeout(tick, rest > 0 ? rest + 5 : 1000);
+    };
+    tick();
+    return () => window.clearTimeout(t);
+  }, [endsAt]);
 
   // Keep the screen awake while the timer runs, where the browser allows it.
   useEffect(() => {

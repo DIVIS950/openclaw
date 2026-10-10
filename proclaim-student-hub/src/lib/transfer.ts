@@ -20,8 +20,37 @@ const SKIP = [
   "psh.classroom.seen",
   "psh.brief",
 ];
-/** Keys where the claude.ai side is the source of truth. */
+/** Keys where the claude.ai side is the source of truth (backups restore them whole). */
 const REPLACE = new Set(["psh.timetable", "psh.courses", "psh.schedule"]);
+
+/**
+ * What an #import= link may write: the student's own study data. Anything else
+ * (sign-in, AI, sync, notification and backup keys, or made-up keys) is ignored,
+ * whoever made the link.
+ */
+const IMPORT_KEYS = new Set([
+  "psh.todos",
+  "psh.notes",
+  "psh.timetable",
+  "psh.courses",
+  "psh.schedule",
+  "psh.prep",
+  "psh.pack",
+  "psh.progress",
+  "psh.weeklog",
+  "psh.grades",
+  "psh.events",
+  "psh.docs",
+  "psh.tutors",
+  "psh.tour",
+  "psh.theme",
+  "psh.accent",
+]);
+const IMPORT_PREFIXES = ["psh.lab.", "psh.tutor.", "psh.done.", "psh.task."];
+
+export const importable = (key: string) =>
+  !SKIP.some((s) => key.startsWith(s)) &&
+  (IMPORT_KEYS.has(key) || IMPORT_PREFIXES.some((p) => key.startsWith(p)));
 
 export interface Transfer {
   v: 1;
@@ -137,10 +166,79 @@ export function mergeValue(key: string, local: unknown, incoming: unknown): unkn
   return local;
 }
 
+const isEmpty = (v: unknown): boolean =>
+  v === null ||
+  v === undefined ||
+  (Array.isArray(v) && v.length === 0) ||
+  (typeof v === "object" && Object.values(v as object).every(isEmpty));
+
+/** Adds the incoming items whose key isn't on the phone yet; the phone's own items stay. */
+function unionBy(local: unknown, incoming: unknown, keyOf: (x: Record<string, unknown>) => string) {
+  if (!Array.isArray(local) || !Array.isArray(incoming)) {
+    return local;
+  }
+  const objects = (list: unknown[]) =>
+    list.filter((x): x is Record<string, unknown> => !!x && typeof x === "object");
+  const have = new Set(objects(local).map(keyOf));
+  return [...local, ...objects(incoming).filter((x) => !have.has(keyOf(x)))];
+}
+
+const k = (...parts: unknown[]) => parts.map((p) => String(p ?? "")).join("|");
+
+/**
+ * How a link's value joins what's on the phone. Unlike a backup, a link never
+ * replaces the timetable, classes or study plan the student already has: new
+ * lessons, classes, posts, tests and days are added next to theirs.
+ */
+export function mergeImported(key: string, local: unknown, incoming: unknown): unknown {
+  if (!REPLACE.has(key)) {
+    return mergeValue(key, local, incoming);
+  }
+  if (isEmpty(local)) {
+    return incoming;
+  }
+  if (key === "psh.timetable") {
+    return unionBy(local, incoming, (l) => k(l.day, l.start));
+  }
+  if (key === "psh.courses") {
+    if (!Array.isArray(local) || !Array.isArray(incoming)) {
+      return local;
+    }
+    // Same class: keep the phone's, plus any posts it hasn't seen.
+    const merged = local.map((c) => {
+      const same = incoming.find(
+        (x) => x && typeof x === "object" && (x as { name?: unknown }).name === c?.name,
+      ) as { posts?: unknown } | undefined;
+      return same && c && typeof c === "object"
+        ? {
+            ...c,
+            posts: unionBy((c as { posts?: unknown }).posts ?? [], same.posts ?? [], (p) =>
+              k(p.kind, p.title, p.date),
+            ),
+          }
+        : c;
+    });
+    return unionBy(merged, incoming, (c) => k(c.name));
+  }
+  // psh.schedule: tests, days and ticks from both.
+  const l = (local ?? {}) as Record<string, unknown>;
+  const n = (incoming ?? {}) as Record<string, unknown>;
+  if (typeof l !== "object" || typeof n !== "object") {
+    return local;
+  }
+  const done = [...(Array.isArray(l.done) ? l.done : []), ...(Array.isArray(n.done) ? n.done : [])];
+  return {
+    ...l,
+    tests: unionBy(l.tests ?? [], n.tests ?? [], (t) => k(t.topic, t.date)),
+    days: unionBy(l.days ?? [], n.days ?? [], (d) => k(d.date)),
+    done: [...new Set(done.filter((d) => typeof d === "string"))],
+  };
+}
+
 /** Applies a transfer on this phone; returns how many homework items were new. */
 export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Promise<number> {
   for (const [key, incoming] of Object.entries(t.store)) {
-    if (!key.startsWith("psh.") || SKIP.some((s) => key.startsWith(s))) {
+    if (!importable(key)) {
       continue;
     }
     let local: unknown;
@@ -150,13 +248,13 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
       local = null;
     }
     try {
-      storage.setItem(key, JSON.stringify(mergeValue(key, local, incoming)));
+      storage.setItem(key, JSON.stringify(mergeImported(key, local, incoming)));
     } catch {
       // Out of space: keep going with the rest.
     }
   }
-  if (t.name && !storage.getItem("psh.name")) {
-    storage.setItem("psh.name", t.name);
+  if (typeof t.name === "string" && t.name.trim() && !storage.getItem("psh.name")) {
+    storage.setItem("psh.name", t.name.trim().slice(0, 60));
   }
   const list = db.doc("data/users/me/state").collection("homework");
   const have = new Set((await list.get()).docs.map((d) => d.id));
@@ -176,9 +274,9 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
     await ref.set({
       title: hw.title,
       source: hw.source,
-      course: hw.course,
-      description: hw.description ?? "",
-      ...(hw.due ? { due: hw.due } : {}),
+      course: typeof hw.course === "string" ? hw.course : "",
+      description: typeof hw.description === "string" ? hw.description : "",
+      ...(typeof hw.due === "string" && hw.due ? { due: hw.due } : {}),
       done: hw.done === true,
       createdAt: new Date().toISOString(),
     });
@@ -187,13 +285,58 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
   return added;
 }
 
-/** On the Pages version: reads a transfer from the address, applies it and cleans the address. */
-export async function importFromLocation(db: Db): Promise<number | null> {
+/**
+ * On the Pages version: reads a transfer from the address and cleans the
+ * address. Nothing is saved here; the student OKs it first (LinkConfirm).
+ * Null without one, "damaged" when it can't be read.
+ */
+export async function readTransferFromLocation(): Promise<Transfer | null | "damaged"> {
   const hash = window.location.hash;
   if (!hash.startsWith(TAG)) {
     return null;
   }
   history.replaceState(null, "", window.location.pathname + window.location.search);
-  const t = await decodeTransfer(hash.slice(TAG.length));
-  return t ? applyTransfer(t, localStorage, db) : null;
+  return (await decodeTransfer(hash.slice(TAG.length))) ?? "damaged";
+}
+
+const LABELS: Record<string, string> = {
+  "psh.todos": "to-dos",
+  "psh.notes": "notes",
+  "psh.timetable": "lessons in the timetable",
+  "psh.courses": "classes",
+  "psh.prep": "tests",
+  "psh.tutors": "tutors",
+  "psh.events": "calendar events",
+};
+
+/** What a transfer would bring in, line by line, for the student to OK first. */
+export function transferPreview(t: Transfer, storage: Storage): string[] {
+  const lines: string[] = [];
+  const homework = t.homework.filter((h) => typeof h?.title === "string").length;
+  if (homework) {
+    lines.push(`${homework} homework`);
+  }
+  let other = 0;
+  for (const [key, value] of Object.entries(t.store)) {
+    if (!importable(key)) {
+      continue;
+    }
+    const label = LABELS[key];
+    if (label && Array.isArray(value)) {
+      if (value.length) {
+        lines.push(`${value.length} ${label}`);
+      }
+    } else if (key === "psh.schedule") {
+      lines.push("Study plan");
+    } else {
+      other++;
+    }
+  }
+  if (other) {
+    lines.push(`${other} other ${other === 1 ? "setting" : "settings"}`);
+  }
+  if (typeof t.name === "string" && t.name.trim() && !storage.getItem("psh.name")) {
+    lines.push(`Your name: ${t.name.trim().slice(0, 60)}`);
+  }
+  return lines.length ? lines : ["Nothing new"];
 }

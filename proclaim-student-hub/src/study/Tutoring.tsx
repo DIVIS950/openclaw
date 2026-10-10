@@ -24,7 +24,13 @@ import {
 import { readMaterial } from "../lib/studyAi.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import { lessonPrep, lessonRecap, tutorContext, type LessonPrep } from "../lib/tutorAi.ts";
-import { buildPacket, packetLink, tutorHomework, TUTOR_APP_URL } from "../lib/tutorLink.ts";
+import {
+  buildPacket,
+  packetLink,
+  tutorHomework,
+  TUTOR_APP_URL,
+  type SchoolItem,
+} from "../lib/tutorLink.ts";
 import {
   LESSON_MINUTES,
   lessonLabel,
@@ -467,6 +473,16 @@ function TutorForm({
   onDelete?: () => void;
 }) {
   const [draft, setDraft] = useState(tutor);
+  // Escape closes the sheet, like the other sheets.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const parsed = parseWhen(draft.when);
   const next = parsed ? nextLesson(draft) : null;
   const field = (key: keyof Tutor, label: string, placeholder: string, type = "text") => (
@@ -495,9 +511,14 @@ function TutorForm({
           }
         }}
       >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          {onDelete ? "Edit tutor" : "Add a tutor"}
-        </h2>
+        <div className="between" style={{ alignItems: "center", gap: 12 }}>
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            {onDelete ? "Edit tutor" : "Add a tutor"}
+          </h2>
+          <button className="round" type="button" aria-label="Close" onClick={onClose}>
+            <Icon name="close" size={18} />
+          </button>
+        </div>
         {field("name", "Name", "e.g. Anna")}
         {field("subject", "Subject", "e.g. Maths")}
         {field("when", "When are lessons?", "e.g. Tuesdays 17:00, or Mon & Thu 16:30")}
@@ -976,8 +997,10 @@ function TutorMessages({ tutor }: { tutor: Tutor }) {
 
 /** The link that opens this tutor's Tutor Hub with the student's lessons and homework. */
 function ShareWithTutor({ tutor, compact = false }: { tutor: Tutor; compact?: boolean }) {
-  const { profile, toast } = useApp();
+  const { profile, homework, toast } = useApp();
   const [link, setLink] = useState<string | null>(null);
+  // The compact header button only shows the link box when sharing and copying failed.
+  const [showBox, setShowBox] = useState(false);
   const make = async () => {
     const items = labPacks
       .all()
@@ -987,11 +1010,31 @@ function ShareWithTutor({ tutor, compact = false }: { tutor: Tutor; compact?: bo
       .all()
       .filter((t) => t.subject.toLowerCase() === tutor.subject.toLowerCase())
       .toSorted((a, b) => a.date.localeCompare(b.date))[0];
+    // The tutor also sees the school homework and tests in their subject (titles and dates only).
+    const subject = tutor.subject.trim().toLowerCase().slice(0, 5);
+    const today = dayOf(new Date());
+    const school: SchoolItem[] = subject
+      ? [
+          ...prepTests
+            .all()
+            .filter((t) => t.subject.toLowerCase().includes(subject) && t.date >= today)
+            .map((t) => ({ kind: "test" as const, title: t.topic, due: t.date })),
+          ...(homework ?? [])
+            .filter((h) => !h.done && h.course.toLowerCase().includes(subject))
+            .map((h) => ({
+              kind: "homework" as const,
+              title: h.title,
+              due: h.due?.slice(0, 10) ?? "",
+            })),
+        ]
+      : [];
     const packet = buildPacket(tutor, {
-      student: profile?.name?.split(" ")[0] ?? "Student",
+      // `||`, not `??`: an empty name must not reach the tutor as "".
+      student: profile?.name?.trim().split(" ")[0] || "Student",
       studentEmail: profile?.email ?? "",
       mastery: items.length ? mastery(items) : null,
       nextTest: test ? { topic: test.topic, date: test.date } : null,
+      school,
     });
     const url = await packetLink(packet);
     tutoring.markShared(tutor.id);
@@ -1004,20 +1047,39 @@ function ShareWithTutor({ tutor, compact = false }: { tutor: Tutor; compact?: bo
       }
       await navigator.clipboard.writeText(url);
       toast("Link copied. Send it to your tutor.");
-    } catch {
+    } catch (err) {
+      // Closing the share sheet isn't a failure.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      setShowBox(true);
       toast("Copy the link below and send it to your tutor.");
     }
   };
   if (compact) {
     return (
-      <button
-        className="btn sm"
-        style={{ fontSize: 12, padding: "0 12px" }}
-        onClick={() => void make()}
-      >
-        <Icon name="send" size={14} />
-        Share with my tutor
-      </button>
+      <>
+        <button
+          className="btn sm"
+          style={{ fontSize: 12, padding: "0 12px" }}
+          onClick={() => void make()}
+        >
+          <Icon name="send" size={14} />
+          Share with my tutor
+        </button>
+        {link && showBox && (
+          <textarea
+            className="field share-box"
+            readOnly
+            rows={3}
+            value={link}
+            aria-label="Link for your tutor"
+            style={{ fontSize: 11, width: "100%", flexBasis: "100%" }}
+            autoFocus
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        )}
+      </>
     );
   }
   return (

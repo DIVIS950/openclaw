@@ -87,13 +87,17 @@ export function NotesScreen() {
   const [noteId, setNoteId] = useState<string | null>(() => noteHandoff.take());
   return (
     <main className="screen">
-      {/* An open note has its own way back to the list. */}
-      {!noteId && <BackButton />}
       <Notes
         key={noteId ?? "list"}
         openId={noteId}
         onClose={() => setNoteId(null)}
-        header={<h1 className="h1 rise">Notes</h1>}
+        header={
+          // Only over the list: an open note has its own way back to it.
+          <>
+            <BackButton />
+            <h1 className="h1 rise">Notes</h1>
+          </>
+        }
       />
     </main>
   );
@@ -187,7 +191,10 @@ function TodoList() {
                 aria-label={`Mark "${t.text}" done`}
               />
               <span className="stack" style={{ gap: 3, flex: 1, minWidth: 0 }}>
-                <span className={t.done ? "done" : undefined} style={{ fontWeight: 600 }}>
+                <span
+                  className={t.done ? "todo-text done" : "todo-text"}
+                  style={{ fontWeight: 600 }}
+                >
                   {t.text}
                 </span>
                 <span className="row" style={{ gap: 6 }}>

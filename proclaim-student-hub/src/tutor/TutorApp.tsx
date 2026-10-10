@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
 import { newId, type TutorMessage, type TutorSession } from "../lib/study.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import {
+  allowedMeet,
   calendarInviteLink,
+  hasUnsent,
   mergePacket,
   readPacketFromLocation,
   replyLink,
   tutorStore,
+  unsentStore,
   type TutorHomework,
   type TutorPacket,
   type TutorReply,
@@ -51,44 +54,147 @@ const dateLabel = (day: string) =>
 
 type Tab = "lessons" | "homework" | "materials" | "messages";
 
+type Added = {
+  sessions: TutorSession[];
+  homework: TutorHomework[];
+  materials: TutorPacket["materials"];
+  messages: TutorMessage[];
+};
+const noneAdded = (): Added => ({ sessions: [], homework: [], materials: [], messages: [] });
+
+/** The student's first name, or a stand-in when they haven't set one. */
+const nameOf = (p: Pick<TutorPacket, "student">, fallback = "your student") =>
+  p.student.trim() || fallback;
+
+/** Shown when a student's link was cut short or edited. */
+function DamagedNote({ onClose }: { onClose?: () => void }) {
+  return (
+    <div className="card stack tutor-damaged" role="alert" style={{ gap: 6 }}>
+      <div className="between" style={{ alignItems: "center", gap: 10 }}>
+        <strong>This link couldn't be read</strong>
+        {onClose && (
+          <button className="round" aria-label="Dismiss" onClick={onClose}>
+            <Icon name="close" size={16} />
+          </button>
+        )}
+      </div>
+      <span className="muted s13">
+        It may have been cut short when it was copied. Ask your student to tap Share with my tutor
+        again and send you the new link.
+      </span>
+    </div>
+  );
+}
+
 export function TutorApp() {
   const [packet, setPacket] = useState<TutorPacket | null | "loading">("loading");
   const [students, setStudents] = useState<TutorPacket[]>([]);
   const [tab, setTab] = useState<Tab>("lessons");
-  // Everything the tutor added since opening: this is what goes back.
-  const [added, setAdded] = useState<{
-    sessions: TutorSession[];
-    homework: TutorHomework[];
-    materials: TutorPacket["materials"];
-    messages: TutorMessage[];
-  }>({ sessions: [], homework: [], materials: [], messages: [] });
+  // Everything the tutor added and hasn't sent: this is what goes back. It is
+  // saved per student on every change (unsentStore), so a reload loses nothing.
+  const [added, setAdded] = useState<Added>(noneAdded);
   const [when, setWhen] = useState("");
   const [meet, setMeet] = useState("");
   const [message, setMessage] = useState("");
   const [link, setLink] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [damaged, setDamaged] = useState(false);
   // Bumped by the quick actions so the right form opens.
   const [logging, setLogging] = useState(0);
   const [setting, setSetting] = useState(0);
 
-  useEffect(() => {
-    void readPacketFromLocation().then((fresh) => {
+  /** Shows a student, with whatever the tutor hadn't sent to them yet. */
+  const open = useCallback((next: TutorPacket | null) => {
+    setPacket(next);
+    const u = next ? unsentStore.get(next.tutor.id, next.student) : null;
+    setAdded(
+      u
+        ? {
+            sessions: u.sessions,
+            homework: u.homework,
+            materials: u.materials,
+            messages: u.messages,
+          }
+        : noneAdded(),
+    );
+    setWhen(u?.when ?? next?.tutor.when ?? "");
+    setMeet(u?.meet ?? next?.tutor.meet ?? "");
+    setMessage(u?.message ?? "");
+    setLink(null);
+  }, []);
+
+  // The student's link in the address (on opening, or tapped while already open).
+  const load = useCallback(
+    async (first: boolean) => {
+      const fresh = await readPacketFromLocation();
+      if (fresh === null && !first) {
+        return;
+      }
+      if (fresh !== null) {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+      setDamaged(fresh === "damaged");
+      let current: TutorPacket | null = null;
+      if (fresh && fresh !== "damaged") {
+        current = mergePacket(tutorStore.get(fresh.tutor.id, fresh.student), fresh);
+        tutorStore.set(current);
+      }
+      // Read after saving, so a new student is in the list straight away.
       const saved = tutorStore.all();
       setStudents(saved);
-      if (fresh) {
-        const merged = mergePacket(tutorStore.get(fresh.tutor.id, fresh.student), fresh);
-        tutorStore.set(merged);
-        history.replaceState(null, "", window.location.pathname);
-        setPacket(merged);
-        setWhen(merged.tutor.when);
-        setMeet(merged.tutor.meet);
-      } else {
-        setPacket(saved[0] ?? null);
-        setWhen(saved[0]?.tutor.when ?? "");
-        setMeet(saved[0]?.tutor.meet ?? "");
+      if (current) {
+        open(current);
+      } else if (first) {
+        open(saved[0] ?? null);
       }
-    });
-  }, []);
+    },
+    [open],
+  );
+
+  useEffect(() => {
+    void load(true);
+    const onHash = () => {
+      if (window.location.hash.startsWith("#s=")) {
+        void load(false);
+      }
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [load]);
+
+  // Save the unsent pile on every change.
+  const live = packet && packet !== "loading" ? packet : null;
+  const pile = useMemo(
+    () =>
+      live
+        ? {
+            ...added,
+            when: when !== live.tutor.when ? when : null,
+            meet: meet !== live.tutor.meet ? meet : null,
+            message,
+          }
+        : null,
+    [live, added, when, meet, message],
+  );
+  const unsent = live && pile ? hasUnsent(pile, live.tutor) : false;
+  useEffect(() => {
+    if (live && pile) {
+      unsentStore.set(live.tutor.id, live.student, pile, live.tutor);
+    }
+  }, [live, pile]);
+
+  // Warn before closing the tab with something not sent yet.
+  useEffect(() => {
+    if (!unsent) {
+      return;
+    }
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsent]);
 
   const say = (text: string) => {
     setToast(text);
@@ -113,12 +219,13 @@ export function TutorApp() {
   }
   if (!packet || !all) {
     return (
-      <div className="app">
-        <main className="screen" style={{ gap: 16 }}>
+      <div className="app tutor-hub">
+        <main className="screen tutor-screen" style={{ gap: 16 }}>
           <header className="stack rise" style={{ gap: 4 }}>
             <span className="eyebrow">Tutor Hub</span>
             <h1 className="h1">No student yet</h1>
           </header>
+          {damaged && <DamagedNote />}
           <div className="card stack">
             <p style={{ margin: 0 }}>
               Ask your student to open <strong>Tutoring</strong> in their Student Hub, pick your
@@ -149,7 +256,8 @@ export function TutorApp() {
       materials: added.materials,
       homework: added.homework,
       when,
-      meet,
+      // Only a Meet, Zoom or Teams link is sent; the student's app checks again.
+      meet: allowedMeet(meet),
       message: message.trim(),
       messages: [
         ...added.messages,
@@ -179,13 +287,16 @@ export function TutorApp() {
       messages: [...(packet.messages ?? []), ...reply.messages!],
     };
     tutorStore.set(merged);
+    unsentStore.clear(tutor.id, packet.student);
     setPacket(merged);
-    setAdded({ sessions: [], homework: [], materials: [], messages: [] });
+    setStudents(tutorStore.all());
+    setAdded(noneAdded());
     setMessage("");
   };
 
   const share = async (url: string) => {
-    const text = `Hi ${packet.student}, here's today's lesson from ${tutor.name}. Open this link in your Student Hub:\n${url}`;
+    const hi = packet.student.trim() ? `Hi ${packet.student.trim()}` : "Hi";
+    const text = `${hi}, here's today's lesson from ${tutor.name || "your tutor"}. Open this link in your Student Hub:\n${url}`;
     try {
       if (navigator.share) {
         await navigator.share({ text });
@@ -202,12 +313,8 @@ export function TutorApp() {
   const thread = [...tutorMessages, ...added.messages].toSorted((a, b) => a.at.localeCompare(b.at));
   const studentEmail = packet.studentEmail ?? "";
 
-  const switchTo = (next: TutorPacket) => {
-    setPacket(next);
-    setWhen(next.tutor.when);
-    setMeet(next.tutor.meet);
-    setAdded({ sessions: [], homework: [], materials: [], messages: [] });
-  };
+  const who = nameOf(packet);
+  const school = packet.school ?? [];
   const doneCount = all.homework.filter((h) => h.done).length;
   const questions = thread.filter((m) => m.from !== "tutor" && m.text.includes("?")).slice(-3);
 
@@ -224,13 +331,13 @@ export function TutorApp() {
                   key={key}
                   className={on ? "stu on" : "stu"}
                   aria-current={on ? "true" : undefined}
-                  onClick={() => switchTo(s)}
+                  onClick={() => open(s)}
                 >
                   <span className={`av tone-${subjectTone(s.tutor.subject)}`}>
                     {s.student.trim()[0]?.toUpperCase() ?? "?"}
                   </span>
                   <span className="stack" style={{ gap: 0, minWidth: 0 }}>
-                    <b>{s.student}</b>
+                    <b>{nameOf(s, "Student")}</b>
                     <span className="muted s12">{s.tutor.subject}</span>
                   </span>
                 </button>
@@ -239,11 +346,13 @@ export function TutorApp() {
           </nav>
         )}
 
+        {damaged && <DamagedNote onClose={() => setDamaged(false)} />}
+
         <header className="between rise" style={{ alignItems: "flex-end", gap: 12 }}>
           <div className="stack" style={{ gap: 8, minWidth: 0 }}>
-            <span className="eyebrow">Tutor Hub · {tutor.name}</span>
+            <span className="eyebrow">Tutor Hub{tutor.name ? ` · ${tutor.name}` : ""}</span>
             <h1 className="h1" style={{ fontSize: 36 }}>
-              {packet.student}
+              {nameOf(packet, "Your student")}
             </h1>
             <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
               <span className={`chip tone-${subjectTone(tutor.subject)}`}>{tutor.subject}</span>
@@ -258,15 +367,24 @@ export function TutorApp() {
               )}
             </div>
           </div>
-          <span className="chip good sync-chip" title="From the last link the student sent">
-            <span className="pulse" aria-hidden="true" />
-            Synced {agoLabel(packet.sentAt)}
-          </span>
+          {unsent ? (
+            <span className="chip warm sync-chip" title="Make the link below to send it">
+              Not sent yet{changes ? ` · ${changes}` : ""}
+            </span>
+          ) : (
+            <span
+              className="chip sync-chip"
+              title="What you see is from the last link the student sent"
+            >
+              From {packet.student.trim() ? `${packet.student.trim()}'s` : "their"} link
+              {packet.sentAt ? ` · ${agoLabel(packet.sentAt)}` : ""}
+            </span>
+          )}
         </header>
 
         <div className="tutor-grid">
           <NextLessonCard
-            student={packet.student}
+            student={who}
             studentEmail={studentEmail}
             subject={tutor.subject}
             when={when}
@@ -340,6 +458,24 @@ export function TutorApp() {
             ))}
           </section>
 
+          {school.length > 0 && (
+            <section className="card rows rise d3" aria-label="School work">
+              <div className="between" style={{ padding: "14px 16px 6px" }}>
+                <h2 className="h2">School work</h2>
+                <span className="muted s13">{tutor.subject || "This subject"}</span>
+              </div>
+              {school.map((w, i) => (
+                <div key={`${w.kind}${i}`} className="li">
+                  <span className={w.kind === "test" ? "chip magenta" : "chip"}>
+                    {w.kind === "test" ? "Test" : "Homework"}
+                  </span>
+                  <span className="li-main">{w.title}</span>
+                  {w.due && <span className="muted s13">{dateLabel(w.due)}</span>}
+                </div>
+              ))}
+            </section>
+          )}
+
           {questions.length > 0 && (
             <section className="card rows rise d3">
               <div className="between" style={{ padding: "14px 16px 4px" }}>
@@ -411,8 +547,8 @@ export function TutorApp() {
           <MessageThread
             messages={thread}
             me="tutor"
-            otherName={packet.student}
-            placeholder={`Message ${packet.student}…`}
+            otherName={who}
+            placeholder={`Message ${who}…`}
             pending={added.messages.length}
             onSend={(text) =>
               setAdded((a) => ({
@@ -449,10 +585,11 @@ export function TutorApp() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="A short message for the student (optional)"
+            aria-label="Short message for the student"
           />
           <button className="btn primary big" onClick={() => void send()}>
             <Icon name="send" size={18} />
-            Make the link for {packet.student}
+            Make the link for {who}
           </button>
           {link && (
             <div className="stack" style={{ gap: 8 }}>
@@ -534,7 +671,7 @@ function NextLessonCard({
   const [time, setTime] = useState(() => (start ? start.toTimeString().slice(0, 5) : "17:00"));
   const [minutes, setMinutes] = useState(60);
   const now = new Date();
-  const link = safeMeet(meet);
+  const link = allowedMeet(meet);
   const schedule = () => {
     const at = new Date(`${date}T${time}:00`);
     if (Number.isNaN(at.getTime())) {
@@ -626,6 +763,12 @@ function NextLessonCard({
               placeholder="https://meet.google.com/…"
               inputMode="url"
             />
+            {meet.trim() && !link && (
+              <span className="warm-text s13">
+                Use a Google Meet, Zoom or Teams link starting with https://. Other links aren't
+                sent.
+              </span>
+            )}
           </label>
           <span className="eyebrow">Send a calendar invite</span>
           <div className="row" style={{ gap: 8 }}>
@@ -673,8 +816,6 @@ function NextLessonCard({
     </section>
   );
 }
-
-const safeMeet = (url: string) => (/^https:\/\/[^\s]+$/i.test(url.trim()) ? url.trim() : "");
 
 /** "1d 5h", "3h 20m" or "now". */
 function countdownLabel(start: Date, now: Date): string {

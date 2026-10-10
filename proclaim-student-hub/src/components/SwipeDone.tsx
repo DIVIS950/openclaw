@@ -1,9 +1,14 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icon.tsx";
 
+/** Horizontal movement (px) before a touch counts as a swipe rather than a tap. */
+const SLOP = 8;
+
 /**
  * Swipe right to tick something off: the card slides over a lime "Done" layer.
- * Past 40% of the width the swipe commits; buttons inside still work normally.
+ * A swipe can start anywhere on the row, buttons included; a tap still works
+ * as a tap, and only a real sideways drag swallows the click that follows.
+ * Past 40% of the width the swipe commits.
  */
 export function SwipeDone({
   onDone,
@@ -17,31 +22,39 @@ export function SwipeDone({
   const [x, setX] = useState(0);
   const [gone, setGone] = useState(false);
   const drag = useRef<{ x0: number; y0: number; id: number; live: boolean } | null>(null);
+  // Set after a swipe so the click the browser sends on release does nothing.
+  const swallowClick = useRef(false);
   const el = useRef<HTMLDivElement>(null);
 
   const start = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("button, a, input, textarea, select")) {
+    // Text fields keep their own dragging (selecting text); mouse right-clicks don't swipe.
+    if (gone || e.button > 0 || (e.target as HTMLElement).closest("input, textarea, select")) {
       return;
     }
     drag.current = { x0: e.clientX, y0: e.clientY, id: e.pointerId, live: false };
   };
   const move = (e: React.PointerEvent) => {
     const d = drag.current;
-    if (!d) {
+    if (!d || e.pointerId !== d.id) {
       return;
     }
     const dx = e.clientX - d.x0;
     const dy = e.clientY - d.y0;
     if (!d.live) {
       // A mostly-horizontal move starts the swipe; a vertical one is a scroll.
-      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) {
-        if (Math.abs(dy) > 8) {
+      if (Math.abs(dx) < SLOP || Math.abs(dx) < Math.abs(dy)) {
+        if (Math.abs(dy) > SLOP) {
           drag.current = null;
         }
         return;
       }
       d.live = true;
-      el.current?.setPointerCapture(d.id);
+      swallowClick.current = true;
+      try {
+        el.current?.setPointerCapture(d.id);
+      } catch {
+        // The pointer is already gone; the swipe ends on the next event.
+      }
     }
     setX(Math.max(0, dx));
     e.preventDefault();
@@ -52,6 +65,10 @@ export function SwipeDone({
     if (!d?.live) {
       return;
     }
+    // The click (if any) follows straight after pointerup; forget the swipe soon after.
+    window.setTimeout(() => {
+      swallowClick.current = false;
+    }, 300);
     const width = el.current?.offsetWidth ?? 300;
     if (x > width * 0.4) {
       setGone(true);
@@ -70,6 +87,13 @@ export function SwipeDone({
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
+      onClickCapture={(e) => {
+        if (swallowClick.current || gone) {
+          swallowClick.current = false;
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
     >
       <div className="under" aria-hidden="true" style={{ opacity: x > 10 ? 1 : 0 }}>
         <Icon name="check" size={18} />

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { ImageInput } from "../../shared/api.ts";
 import { useApp } from "../context.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
+import { manualItem } from "../lib/manualAdd.ts";
 import {
   KIND_LABEL,
   missing,
@@ -14,6 +15,7 @@ import {
 } from "../lib/sorter.ts";
 import { courses } from "../lib/store.ts";
 import { dayOf } from "../lib/study.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { canListen, listen } from "../lib/voice.ts";
 import { Icon } from "./Icon.tsx";
 
@@ -68,9 +70,25 @@ function summary(saved: Record<SortKind, number>): string {
   return parts.length ? `Saved ${parts.join(", ")}.` : "Nothing was saved.";
 }
 
+/** What was typed, kept while the app is open so closing the sheet doesn't lose it. */
+let keptText = "";
+
+/** The kinds that can be saved by hand, without the AI sorting them. */
+const MANUAL_KINDS: { kind: SortKind; label: string }[] = [
+  { kind: "homework", label: "Save as homework" },
+  { kind: "todo", label: "Save as to-do" },
+  { kind: "note", label: "Save as note" },
+];
+
 export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved?: () => void }) {
   const { ai, data, toast, handleError, reloadHomework } = useApp();
-  const [text, setText] = useState("");
+  const [text, setTextState] = useState(keptText);
+  const setText = (next: string | ((t: string) => string)) =>
+    setTextState((t) => {
+      keptText = typeof next === "function" ? next(t) : next;
+      return keptText;
+    });
+  const [manualDate, setManualDate] = useState("");
   const [photos, setPhotos] = useState<ImageInput[]>([]);
   const [items, setItems] = useState<SortedItem[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -117,14 +135,15 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
 
   const ready = (items ?? []).filter((it) => !missing(it, today));
 
-  const save = async () => {
+  const save = async (list = ready) => {
     setBusy(true);
     try {
-      const saved = await saveSorted(ready, data, today, ai);
+      const saved = await saveSorted(list, data, today, ai);
       if (saved.homework > 0) {
         reloadHomework();
       }
       toast(summary(saved));
+      setText("");
       onSaved?.();
       onClose();
     } catch (err) {
@@ -172,6 +191,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
     textarea.current?.focus();
   };
   const first = items?.[0];
+  useEscape(onClose, !busy);
 
   return (
     <div className="backdrop" onClick={busy ? undefined : onClose}>
@@ -199,12 +219,15 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
                 </span>
                 Paste
               </button>
-              <button className="srcb" disabled={busy} onClick={() => camera.current?.click()}>
-                <span className="ic tone-orange" aria-hidden="true">
-                  <Icon name="camera" size={19} />
-                </span>
-                Photo
-              </button>
+              {/* Photos need the AI to read them. */}
+              {ai && (
+                <button className="srcb" disabled={busy} onClick={() => camera.current?.click()}>
+                  <span className="ic tone-orange" aria-hidden="true">
+                    <Icon name="camera" size={19} />
+                  </span>
+                  Photo
+                </button>
+              )}
               <button
                 className={listening ? "srcb on" : "srcb"}
                 disabled={busy}
@@ -265,21 +288,55 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
                 e.target.value = "";
               }}
             />
-            <div className="row" style={{ gap: 10 }}>
-              <button
-                className="btn primary"
-                style={{ flex: 1 }}
-                disabled={busy || (!text.trim() && photos.length === 0)}
-                onClick={() => void sort()}
-              >
-                <Icon
-                  name={busy ? "loader" : "sparkle"}
-                  size={18}
-                  className={busy ? "spin" : undefined}
-                />
-                {busy ? "Sorting…" : "Sort it for me"}
-              </button>
-            </div>
+            {ai ? (
+              <div className="row" style={{ gap: 10 }}>
+                <button
+                  className="btn primary"
+                  style={{ flex: 1 }}
+                  disabled={busy || (!text.trim() && photos.length === 0)}
+                  onClick={() => void sort()}
+                >
+                  <Icon
+                    name={busy ? "loader" : "sparkle"}
+                    size={18}
+                    className={busy ? "spin" : undefined}
+                  />
+                  {busy ? "Sorting…" : "Sort it for me"}
+                </button>
+              </div>
+            ) : (
+              // No AI here: the student picks where it goes.
+              <div className="stack manual-save" style={{ gap: 10 }}>
+                <label className="row" style={{ gap: 10 }}>
+                  <span className="eyebrow" style={{ flex: "none" }}>
+                    Date (optional)
+                  </span>
+                  <input
+                    className="field"
+                    type="date"
+                    lang="en-GB"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    aria-label="Date (optional)"
+                  />
+                </label>
+                <div className="manual-kinds">
+                  {MANUAL_KINDS.map(({ kind, label }) => (
+                    <button
+                      key={kind}
+                      className={kind === "homework" ? "btn primary" : "btn"}
+                      disabled={busy || !text.trim()}
+                      onClick={() => void save([manualItem(kind, text, manualDate)])}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="s12 muted" style={{ margin: 0 }}>
+                  With the AI set up, it can sort things for you.
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <>

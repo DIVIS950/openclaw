@@ -1,1 +1,76 @@
 /* Jury round 1 fixes (flow). Loaded after bento.css. */
+
+/* F5: a swipe can start anywhere on a row (buttons too); vertical scrolling stays native. */
+.swipe,
+.swipe .tick,
+.swipe .hw-main {
+  touch-action: pan-y;
+}
+
+/* F30: the tick circle stays 28px, but the tappable area is 44px. */
+button.tick {
+  position: relative;
+}
+button.tick::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+/* F31: the floating Ask AI pill never hides the last rows: room to scroll them clear. */
+.app.has-ask .screen {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 180px);
+}
+
+/* The phone keeps the screen fade now that Homework sits in .split (display: contents). */
+.app > .split > .screen {
+  animation: screenIn 0.28s ease backwards;
+}
+
+/* F32: the task open beside the list is tinted in the list. */
+.hw.is-open {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+@media (min-width: 1000px) and (min-height: 600px) {
+  /* F32: the filter chips scroll inside the list column, not under the task pane. */
+  .split > .screen:first-child {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .split .fchips {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+  .app.has-ask .split > .screen {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 100px);
+  }
+}
+
+/* F24: Undo (or another action) inside the toast. */
+.toast .toast-action {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* F9: saving by hand in Add anything when there's no AI. */
+.manual-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.manual-kinds .btn {
+  flex: 1 1 140px;
+}
+.manual-save .field[type="date"] {
+  flex: 1;
+  min-width: 0;
+}

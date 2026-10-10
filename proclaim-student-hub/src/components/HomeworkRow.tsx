@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useApp } from "../context.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
-import { progress, weekLog } from "../lib/store.ts";
+import { homeworkXp } from "../lib/store.ts";
 import { subjectVars } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
 
@@ -47,8 +47,8 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
     const next = { ...hw, done: !hw.done };
     replaceHomework(next);
     if (next.done) {
-      progress.add(5);
-      weekLog.add("hw", 1);
+      // XP once per homework, however often it's ticked.
+      homeworkXp.tick(hw.id);
     }
     setBusy(true);
     try {
