@@ -272,7 +272,7 @@ export function Briefing() {
       ) : (
         <p className="brief" aria-label={things === 0 ? "Nothing urgent today" : undefined}>
           {words.map((x, k) => (
-            <span key={k}>
+            <span key={k} style={{ "--i": k } as React.CSSProperties}>
               {x.space ? " " : ""}
               {x.bold ? <b>{x.text}</b> : x.text}
             </span>
