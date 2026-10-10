@@ -5,7 +5,7 @@ import { collectStore, PAGES_URL, transferLink } from "../lib/transfer.ts";
 import { isClaudeKey } from "./aiKind.ts";
 import { geminiSample } from "./gemini.ts";
 import { gmailClientId, gmailLink, isClientId } from "./gmailLink.ts";
-import { keyHandoff } from "./keyHandoff.ts";
+import { KEY_EVENT, keyHandoff } from "./keyHandoff.ts";
 import { privateLink } from "./lockedSeed.ts";
 import { aiKey, PAGES, studentName } from "./runtime.ts";
 
@@ -194,6 +194,16 @@ export function AiKeyRow() {
   const [open, setOpen] = useState(keyHandoff.take);
   const row = useRef<HTMLDivElement>(null);
   const openedFromLink = useRef(open);
+  useEffect(() => {
+    // Asked for again while already on screen: open and bring into view.
+    const show = () => {
+      keyHandoff.take();
+      setOpen(true);
+      window.setTimeout(() => row.current?.scrollIntoView({ block: "center" }), 50);
+    };
+    window.addEventListener(KEY_EVENT, show);
+    return () => window.removeEventListener(KEY_EVENT, show);
+  }, []);
   useEffect(() => {
     void aiKey.get().then((k) => setHasKey(Boolean(k)));
     if (openedFromLink.current) {

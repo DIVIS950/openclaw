@@ -258,7 +258,33 @@ const isRecord = (x: unknown): x is Record<string, unknown> =>
  * a list would break the screen that shows it), tutors with an id and text
  * fields, and lesson links that are Meet, Zoom or Teams.
  */
+const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+/** Values that aren't lists of records: what each must look like to be brought in. */
+const SHAPES: Record<string, (v: unknown) => boolean> = {
+  "psh.progress": (v) => isRecord(v) && num(v.xp) && num(v.streak),
+  "psh.schedule": (v) =>
+    isRecord(v) && Array.isArray(v.tests) && Array.isArray(v.days) && Array.isArray(v.done),
+  "psh.grades": (v) =>
+    Array.isArray(v) && v.every((g) => isRecord(g) && num(g.score) && num(g.outOf)),
+  "psh.lab.packs": (v) =>
+    Array.isArray(v) &&
+    v.every((p) => isRecord(p) && typeof p.id === "string" && Array.isArray(p.items)),
+  "psh.lab.settings": isRecord,
+  "psh.pack": isRecord,
+  "psh.tour": (v) => typeof v === "string",
+  "psh.theme": (v) => typeof v === "string",
+  "psh.accent": (v) => typeof v === "string",
+};
+
 export function cleanImported(key: string, incoming: unknown): unknown {
+  // Nothing to bring in: the phone keeps what it has.
+  if (incoming === null || incoming === undefined) {
+    return undefined;
+  }
+  const shape = SHAPES[key];
+  if (shape) {
+    return shape(incoming) ? incoming : undefined;
+  }
   if (!RECORD_LISTS.has(key)) {
     return incoming;
   }
@@ -298,6 +324,10 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
       local = null;
     }
     const value = cleanImported(key, incoming);
+    if (value === undefined) {
+      // Damaged or empty in the link: left out, the phone's own value stays.
+      continue;
+    }
     try {
       storage.setItem(key, JSON.stringify(mergeImported(key, local, value)));
     } catch {
@@ -327,7 +357,10 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
       source: hw.source,
       course: typeof hw.course === "string" ? hw.course : "",
       description: typeof hw.description === "string" ? hw.description : "",
-      ...(typeof hw.due === "string" && hw.due ? { due: hw.due } : {}),
+      // Only a real date: anything else would show as "Invalid Date".
+      ...(typeof hw.due === "string" && hw.due && !Number.isNaN(Date.parse(hw.due))
+        ? { due: hw.due }
+        : {}),
       done: hw.done === true,
       createdAt: new Date().toISOString(),
     });
@@ -412,10 +445,23 @@ export function transferPreview(t: Transfer, storage: Storage): string[] {
       if (fresh > 0) {
         lines.push(`${fresh} ${label[fresh === 1 ? 0 : 1]}`);
       }
-    } else if (key === "psh.schedule") {
-      lines.push("Study plan");
     } else {
-      other++;
+      // A study plan or setting only counts when bringing it in would change something.
+      const cleaned = cleanImported(key, value);
+      let local: unknown = null;
+      try {
+        local = JSON.parse(storage.getItem(key) ?? "null");
+      } catch {
+        // Damaged local value: the link's counts as a change.
+      }
+      const changes =
+        cleaned !== undefined &&
+        JSON.stringify(mergeImported(key, local, cleaned)) !== JSON.stringify(local);
+      if (changes && key === "psh.schedule") {
+        lines.push("Study plan");
+      } else if (changes) {
+        other++;
+      }
     }
   }
   if (other) {

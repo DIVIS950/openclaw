@@ -8,6 +8,8 @@ import { progress, weekLog } from "../lib/store.ts";
 import { daysBetween, dayOf, prepTests } from "../lib/study.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { weeklyReport, weekStats, type WeekReport, type WeekStats } from "../lib/weekly.ts";
+import { keyHandoff } from "../pages/keyHandoff.ts";
+import { aiKey, PAGES } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
 
 // "Your week": the numbers at a glance on Today, and a full report sheet with
@@ -91,11 +93,27 @@ export function WeeklyReport() {
 
 function WeekSheet({ stats, onClose }: { stats: WeekStats; onClose: () => void }) {
   useEscape(onClose);
-  const { ai, profile, handleError } = useApp();
-  const [report, setReport] = useState<WeekReport | "loading" | null>(ai ? "loading" : null);
+  const { ai, profile, handleError, go } = useApp();
+  const [report, setReport] = useState<WeekReport | "loading" | "nokey" | null>(
+    ai ? "loading" : null,
+  );
   const today = dayOf(new Date());
 
   useEffect(() => {
+    if (!ai) {
+      return;
+    }
+    void (PAGES ? aiKey.get() : Promise.resolve("claude.ai")).then((key) => {
+      if (!key) {
+        // No key on the website: a quiet link instead of an error.
+        setReport("nokey");
+        return;
+      }
+      write();
+    });
+  }, []);
+
+  const write = () => {
     if (!ai) {
       return;
     }
@@ -114,8 +132,7 @@ function WeekSheet({ stats, onClose }: { stats: WeekStats; onClose: () => void }
       setReport(null);
       handleError(err);
     });
-    // Once per opening.
-  }, []);
+  };
 
   const host = document.querySelector(".app") ?? document.body;
   const range = `${stats.from.slice(8)}/${stats.from.slice(5, 7)} – ${stats.to.slice(8)}/${stats.to.slice(5, 7)}`;
@@ -152,7 +169,20 @@ function WeekSheet({ stats, onClose }: { stats: WeekStats; onClose: () => void }
             <div className="skeleton light" style={{ width: "70%" }} />
           </div>
         )}
-        {report && report !== "loading" && (
+        {report === "nokey" && (
+          <button
+            className="btn link s12"
+            style={{ alignSelf: "flex-start", minHeight: 44, padding: 0 }}
+            onClick={() => {
+              keyHandoff.set();
+              onClose();
+              go("apps");
+            }}
+          >
+            Add the AI key for a written summary of your week ›
+          </button>
+        )}
+        {report && report !== "loading" && report !== "nokey" && (
           <section className="ai-card pop">
             <h3>
               <Icon name="sparkle" size={16} />

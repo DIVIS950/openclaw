@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Ctx } from "../context.ts";
+import { backups } from "../lib/backup.ts";
 import { linkInbox, type PendingLink } from "../lib/linkInbox.ts";
 import { dayOf } from "../lib/study.ts";
 import { applyTransfer } from "../lib/transfer.ts";
@@ -53,6 +54,8 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
     setBusy(true);
     try {
       if (pending.kind === "import") {
+        // A save of how things were, so a bad link can always be undone.
+        backups.beforeLink();
         await applyTransfer(pending.transfer, localStorage, localDb);
         if (app) {
           app.reloadHomework();
@@ -64,6 +67,7 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
           close(null);
         }
       } else if (pending.kind === "tutor") {
+        backups.beforeLink();
         close(appliedSummary(applyReply(pending.reply, dayOf(new Date()))));
       } else {
         close(null);

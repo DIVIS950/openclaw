@@ -15,7 +15,27 @@ export interface Grade {
 
 function read(): Grade[] {
   try {
-    return JSON.parse(localStorage.getItem("psh.grades") ?? "[]") as Grade[];
+    const value: unknown = JSON.parse(localStorage.getItem("psh.grades") ?? "[]");
+    // Damaged entries (not a grade with numbers) are left out.
+    return Array.isArray(value)
+      ? (
+          value.filter(
+            (g) =>
+              !!g &&
+              typeof g === "object" &&
+              typeof g.score === "number" &&
+              typeof g.outOf === "number" &&
+              g.outOf > 0,
+          ) as Grade[]
+        ).map((g) => ({
+          ...g,
+          id: String(g.id ?? ""),
+          subject: String(g.subject ?? ""),
+          topic: String(g.topic ?? ""),
+          date: String(g.date ?? ""),
+          testId: String(g.testId ?? ""),
+        }))
+      : [];
   } catch {
     return [];
   }

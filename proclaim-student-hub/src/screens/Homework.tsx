@@ -284,7 +284,7 @@ function agoLabel(iso: string): string {
 
 /** "Today 16:00", "Tue 13 Oct", "Was due 8 Oct" or "No date". */
 function dueText(hw: Homework): string {
-  if (!hw.due) {
+  if (!hw.due || Number.isNaN(new Date(hw.due).getTime())) {
     return "No date";
   }
   const d = new Date(hw.due);

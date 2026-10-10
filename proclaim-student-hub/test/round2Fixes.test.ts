@@ -64,3 +64,26 @@ describe("to-do XP undo", () => {
     expect(todoXp.tick("a")).toBe(true);
   });
 });
+
+describe("damaged import values", () => {
+  it("drops values of the wrong shape instead of saving them", async () => {
+    const { cleanImported } = await import("../src/lib/transfer.ts");
+    expect(cleanImported("psh.progress", null)).toBeUndefined();
+    expect(cleanImported("psh.progress", "x")).toBeUndefined();
+    expect(cleanImported("psh.progress", { xp: 5, streak: 1, lastDay: "" })).toEqual({
+      xp: 5,
+      streak: 1,
+      lastDay: "",
+    });
+    expect(cleanImported("psh.grades", [null])).toBeUndefined();
+    expect(cleanImported("psh.lab.packs", [null])).toBeUndefined();
+    expect(cleanImported("psh.schedule", 7)).toBeUndefined();
+  });
+
+  it("reads damaged saved progress as no progress", () => {
+    localStorage.setItem("psh.progress", "null");
+    expect(progress.get()).toEqual({ xp: 0, streak: 0, lastDay: "" });
+    localStorage.setItem("psh.progress", JSON.stringify({ xp: "a", streak: -3 }));
+    expect(progress.get()).toEqual({ xp: 0, streak: 0, lastDay: "" });
+  });
+});

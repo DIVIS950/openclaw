@@ -83,9 +83,20 @@ export function samplePack(): LabPack {
 
 export const labPacks = {
   all(): LabPack[] {
-    const packs = read<LabPack[] | null>(PACKS_KEY, null);
-    if (packs) {
-      return packs;
+    const packs = read<unknown>(PACKS_KEY, null);
+    if (Array.isArray(packs)) {
+      // Damaged entries (not a pack with cards) are left out.
+      return packs
+        .filter(
+          (p): p is LabPack =>
+            !!p && typeof p === "object" && typeof p.id === "string" && Array.isArray(p.items),
+        )
+        .map((p) => ({
+          ...p,
+          topic: String(p.topic ?? ""),
+          steps: Array.isArray(p.steps) ? p.steps : [],
+          items: p.items.filter((i) => !!i && typeof i === "object"),
+        }));
     }
     // First run: bring over the pack made on the old revision screen, if any.
     const old = read<{ pack: RevisionPack } | null>(OLD_PACK_KEY, null);

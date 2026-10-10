@@ -383,3 +383,16 @@ button.chip::before {
 .opt {
   min-height: 44px;
 }
+
+/* Round-5 jury: Homework's To do / Done tabs and the short text links. */
+.seg2 button {
+  min-height: 44px;
+}
+.text-link::before {
+  inset: -8px -10px;
+}
+/* A to-do just ticked on Today: struck through for a moment before it goes. */
+.todo-li.ticked .li-title {
+  text-decoration: line-through;
+  opacity: 0.55;
+}

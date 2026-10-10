@@ -67,7 +67,18 @@ export function level(xp: number): { level: number; percent: number; next: numbe
 }
 
 export const progress = {
-  get: (): Progress => read<Progress>("psh.progress", { xp: 0, streak: 0, lastDay: "" }),
+  get: (): Progress => {
+    // A damaged value (null, a string…) counts as no progress yet, not a crash.
+    const p = read<Partial<Progress> | null>("psh.progress", null);
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
+    return p && typeof p === "object"
+      ? {
+          xp: num(p.xp),
+          streak: num(p.streak),
+          lastDay: typeof p.lastDay === "string" ? p.lastDay : "",
+        }
+      : { xp: 0, streak: 0, lastDay: "" };
+  },
   add(gain: number): Progress {
     const next = nextProgress(progress.get(), gain, localDay());
     write("psh.progress", next);
@@ -139,7 +150,17 @@ export interface SavedSchedule {
 }
 
 export const schedule = {
-  get: (): SavedSchedule => read<SavedSchedule>("psh.schedule", { tests: [], days: [], done: [] }),
+  get: (): SavedSchedule => {
+    const s = read<Partial<SavedSchedule> | null>("psh.schedule", null);
+    const isObj = (x: unknown) => !!x && typeof x === "object";
+    return {
+      tests: Array.isArray(s?.tests) ? s.tests.filter(isObj) : [],
+      days: Array.isArray(s?.days)
+        ? s.days.filter(isObj).map((d) => ({ ...d, items: Array.isArray(d.items) ? d.items : [] }))
+        : [],
+      done: Array.isArray(s?.done) ? s.done.filter((x) => typeof x === "string") : [],
+    };
+  },
   save: (value: SavedSchedule) => write("psh.schedule", value),
 };
 

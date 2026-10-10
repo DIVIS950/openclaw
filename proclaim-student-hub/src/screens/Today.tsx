@@ -93,14 +93,18 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const [stats] = useState(progress.get);
   const [tests] = useState(prepTests.all);
   const [todoAll, setTodoAll] = useState(todos.all);
-  // Ticking a to-do here: saved, XP once, and an Undo in the toast.
-  // The next row slides under the finger: a second tap right after a tick is ignored.
+  // Ticking a to-do here: saved, XP once, and an Undo in the toast. The row
+  // stays in place, struck through, for a moment, so a second tap lands on it
+  // (and does nothing) instead of on the next to-do.
+  const [settling, setSettling] = useState<string[]>([]);
   const lastTick = useRef(0);
   const tickTodo = (id: string) => {
-    if (Date.now() - lastTick.current < 450) {
+    if (Date.now() - lastTick.current < 450 || todos.all().find((t) => t.id === id)?.done) {
       return;
     }
     lastTick.current = Date.now();
+    setSettling((s) => [...s, id]);
+    window.setTimeout(() => setSettling((s) => s.filter((x) => x !== id)), 1400);
     const before = todos.all();
     todos.save(before.map((t) => (t.id === id ? { ...t, done: true } : t)));
     todoXp.tick(id);
@@ -121,7 +125,10 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const next3 = dueNext(open);
   // Open to-dos, most urgent first: overdue, today, this week, any time.
   const today = dayOf(new Date());
-  const todoGroups = groupTodos(todoAll, today);
+  const todoGroups = groupTodos(
+    todoAll.map((t) => (settling.includes(t.id) ? { ...t, done: false } : t)),
+    today,
+  );
   const todoList = [
     ...todoGroups.overdue,
     ...todoGroups.today,
@@ -252,10 +259,13 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
             </button>
           </div>
           {todoNext.map((t) => (
-            <div key={t.id} className="li todo-li">
+            <div
+              key={t.id}
+              className={settling.includes(t.id) ? "li todo-li ticked" : "li todo-li"}
+            >
               <button
-                className="tick"
-                aria-label={`Tick off ${t.text}`}
+                className={settling.includes(t.id) ? "tick done" : "tick"}
+                aria-label={settling.includes(t.id) ? `Done: ${t.text}` : `Tick off ${t.text}`}
                 onClick={() => tickTodo(t.id)}
               />
               <button className="todo-li-open" onClick={() => go("todo")}>

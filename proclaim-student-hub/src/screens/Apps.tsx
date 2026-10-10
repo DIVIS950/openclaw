@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
@@ -6,7 +6,7 @@ import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { useApp, type Screen } from "../context.ts";
 import { notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
-import { keyHandoff } from "../pages/keyHandoff.ts";
+import { KEY_EVENT, keyHandoff } from "../pages/keyHandoff.ts";
 import { PAGES } from "../pages/runtime.ts";
 import {
   AiKeyRow,
@@ -156,7 +156,7 @@ export function Apps() {
           </h2>
           <button
             className="btn link s11"
-            style={{ minHeight: 28 }}
+            style={{ minHeight: 44 }}
             onClick={() => setMoreApps((v) => !v)}
           >
             {moreApps ? "− Maths · Languages · Design" : "+ Maths · Languages · Design"}
@@ -229,6 +229,11 @@ export function Apps() {
  */
 function ParentSetup() {
   const [open, setOpen] = useState(keyHandoff.peek);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(KEY_EVENT, show);
+    return () => window.removeEventListener(KEY_EVENT, show);
+  }, []);
   return (
     <>
       <button className="set" aria-expanded={open} onClick={() => setOpen((v) => !v)}>

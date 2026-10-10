@@ -10,6 +10,9 @@ export function dueLabel(iso: string | undefined, now = new Date()): string {
     return "No due date";
   }
   const due = new Date(iso);
+  if (Number.isNaN(due.getTime())) {
+    return "No due date";
+  }
   const days = Math.round((startOfDay(due) - startOfDay(now)) / DAY);
   if (days < 0) {
     return "Overdue";
@@ -71,7 +74,7 @@ export function groupByDue<T extends { due?: string; title?: string }>(
   const order = (a: T, b: T) =>
     (a.due ?? "").localeCompare(b.due ?? "") || (a.title ?? "").localeCompare(b.title ?? "");
   for (const h of list.toSorted(order)) {
-    if (!h.due) {
+    if (!h.due || Number.isNaN(new Date(h.due).getTime())) {
       g.noDate.push(h);
       continue;
     }

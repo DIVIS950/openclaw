@@ -82,6 +82,16 @@ export const backups = {
     return true;
   },
 
+  /** Today's save, taken again now: right before a link changes anything. */
+  beforeLink(storage: Storage = localStorage, now = new Date()) {
+    try {
+      storage.removeItem(PREFIX + dayOf(now));
+    } catch {
+      // Nothing to replace.
+    }
+    backups.daily(storage, now);
+  },
+
   get(day: string, storage: Storage = localStorage): Snapshot | null {
     try {
       return JSON.parse(storage.getItem(PREFIX + day) ?? "null") as Snapshot | null;
