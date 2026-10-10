@@ -4,6 +4,7 @@ import { AddAnythingButton } from "./components/AddAnything.tsx";
 import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
+import { LinkConfirm } from "./components/LinkConfirm.tsx";
 import { Tour, tour } from "./components/Tour.tsx";
 import {
   Ctx,
@@ -609,6 +610,7 @@ function Shell({
             <NavBar screen={current} go={go} />
           </>
         )}
+        <LinkConfirm />
         {touring && <Tour onClose={() => setTouring(false)} />}
         {toastMsg?.text.includes("XP") && <Confetti key={toastMsg.key} />}
         {toastMsg && (
