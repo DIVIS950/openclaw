@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
+import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { useApp, type Screen } from "../context.ts";
+import { notifyPrefs } from "../lib/notify.ts";
+import { level, progress } from "../lib/store.ts";
 import { PAGES } from "../pages/runtime.ts";
 import {
   AiKeyRow,
@@ -66,41 +69,80 @@ const OTHERS: AppTile[] = [
   { name: "Canva", url: "https://www.canva.com", icon: "palette", tint: "var(--violet)" },
 ];
 
-const HUB: { screen: Screen; label: string; icon: IconName; tint: string }[] = [
-  { screen: "todo", label: "To-do", icon: "checkSquare", tint: "var(--cyan)" },
-  { screen: "tests", label: "Tests", icon: "timer", tint: "var(--coral)" },
-  { screen: "notes", label: "Notes", icon: "pen", tint: "var(--amber)" },
-  { screen: "revise", label: "Revise", icon: "flask", tint: "var(--lime)" },
-  { screen: "timetable", label: "Timetable", icon: "calendar", tint: "var(--violet)" },
-  { screen: "tutoring", label: "Tutoring", icon: "video", tint: "var(--mint)" },
-  { screen: "inbox", label: "Inbox", icon: "mail", tint: "var(--cyan)" },
-  { screen: "call", label: "Talk", icon: "mic", tint: "var(--coral)" },
+const HUB: { screen: Screen; label: string; icon: IconName; tone: string }[] = [
+  { screen: "timetable", label: "Timetable", icon: "calendar", tone: "blue" },
+  { screen: "tests", label: "Tests", icon: "timer", tone: "pink" },
+  { screen: "revise", label: "Revise", icon: "flask", tone: "violet" },
+  { screen: "tutoring", label: "Tutoring", icon: "users", tone: "orange" },
+  { screen: "inbox", label: "Inbox", icon: "mail", tone: "blue" },
+  { screen: "todo", label: "To-do", icon: "checkSquare", tone: "green" },
+  { screen: "notes", label: "Notes", icon: "pen", tone: "yellow" },
+  { screen: "call", label: "Talk", icon: "mic", tone: "grey" },
 ];
 
-const HUB_TINT = ["lime", "magenta", "cyan", "violet"] as const;
-
 export function Apps() {
-  const { profile, data, signOut, go } = useApp();
+  const { profile, data, signOut, go, startTour } = useApp();
   const [moreApps, setMoreApps] = useState(false);
+  const [stats] = useState(progress.get);
+  const [alerts] = useState(() => Object.values(notifyPrefs.get()).filter(Boolean).length);
+  const name = profile?.name?.trim() || "Student";
   return (
-    <main className="screen" style={{ gap: 12 }}>
-      <header className="between rise" style={{ alignItems: "center" }}>
-        <h1 className="h1">More</h1>
-        <span className="chip">
-          {profile?.name ? `${profile.name.split(" ")[0]} · Park Lane` : "Park Lane"}
-        </span>
+    <main className="screen">
+      <header className="rise">
+        <h1 className="h1" style={{ fontSize: 36 }}>
+          More
+        </h1>
       </header>
 
-      <nav className="hub-grid rise" aria-label="Hub">
-        {HUB.map((h, i) => (
-          <button key={h.screen} className="tile" onClick={() => go(h.screen)}>
-            <span className={`ico ${HUB_TINT[i % 4]}`} aria-hidden="true">
-              <Icon name={h.icon} size={18} />
-            </span>
-            {h.label}
-          </button>
-        ))}
-      </nav>
+      <section className="card profile-card rise d1">
+        <span className="me" aria-hidden="true">
+          {name[0].toUpperCase()}
+        </span>
+        <span className="stack" style={{ flex: 1, minWidth: 0, gap: 0 }}>
+          <span className="h2">{name}</span>
+          <span className="muted s13">Year 9 · Park Lane International</span>
+        </span>
+        <span className="chip streak">Level {level(stats.xp).level}</span>
+      </section>
+
+      <section className="card apps-card rise d2">
+        <nav className="app-grid hub-grid" aria-label="Apps">
+          {HUB.map((h) => (
+            <button key={h.screen} className="app-t" onClick={() => go(h.screen)}>
+              <span className={`ic tone-${h.tone}`} aria-hidden="true">
+                <Icon name={h.icon} size={24} />
+              </span>
+              {h.label}
+            </button>
+          ))}
+        </nav>
+      </section>
+
+      <section className="card rows rise d3 settings-card">
+        <LookCard />
+        <button className="set" onClick={() => go("notifications")}>
+          <span className="ic tone-orange" aria-hidden="true">
+            <Icon name="bell" size={18} />
+          </span>
+          <span className="label">Notifications</span>
+          <span className="muted s13">{alerts} on</span>
+          <Icon name="chevron" size={18} />
+        </button>
+        <button className="set" onClick={startTour}>
+          <span className="ic tone-violet" aria-hidden="true">
+            <Icon name="compass" size={18} />
+          </span>
+          <span className="label">Replay the tour</span>
+          <Icon name="chevron" size={18} />
+        </button>
+        {PAGES && <AiKeyRow />}
+        {PAGES && <GmailCard />}
+        {PAGES && <PagesSettings />}
+        {CLAUDE_PAGE && !data.demo && <SendToWeb />}
+        <BackupCard />
+      </section>
+
+      <WeeklyReport />
 
       <Tools />
 
@@ -145,15 +187,6 @@ export function Apps() {
             ))}
           </div>
         )}
-      </section>
-
-      <section className="card rows rise settings-card">
-        <LookCard />
-        {PAGES && <AiKeyRow />}
-        {PAGES && <GmailCard />}
-        {PAGES && <PagesSettings />}
-        {CLAUDE_PAGE && !data.demo && <SendToWeb />}
-        <BackupCard />
       </section>
 
       {signOut && (

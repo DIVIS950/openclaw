@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FocusButton } from "../components/FocusTimer.tsx";
 import { Icon } from "../components/Icon.tsx";
+import { PresentButton } from "../components/Present.tsx";
 import { StartTask } from "../components/StartTask.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
@@ -14,7 +15,9 @@ import {
   type PolishArea,
   type PolishResult,
 } from "../lib/polish.ts";
+import { subjectTone } from "../lib/subjects.ts";
 import type { HandInResult, Homework } from "../lib/types.ts";
+import { makeGoogleDoc } from "../pages/googleDocs.ts";
 
 type SaveState = "loading" | "saved" | "saving" | "error";
 
@@ -109,90 +112,82 @@ export function Assignment({ hw }: { hw: Homework }) {
 
   return (
     <main className="screen" style={{ gap: 14, position: "static" }}>
-      <header className="row rise" style={{ gap: 10, alignItems: "center" }}>
-        <button className="round" aria-label="Back to homework" onClick={() => go("homework")}>
-          <Icon name="chevronLeft" size={20} />
-        </button>
-        <div className="stack" style={{ gap: 5, flex: 1, minWidth: 0 }}>
-          <h1 className="h1" style={{ fontSize: 24 }}>
-            {hw.title}
-          </h1>
-          <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-            <span className="chip violet">{hw.course}</span>
+      <header className="stack rise" style={{ gap: 12 }}>
+        <div className="between">
+          <button className="round" aria-label="Back to homework" onClick={() => go("homework")}>
+            <Icon name="chevronLeft" size={20} />
+          </button>
+          <div className="row" style={{ gap: 8, minWidth: 0, justifyContent: "flex-end" }}>
+            {hw.course && (
+              <span className={`chip tone-${subjectTone(hw.course)}`}>{hw.course}</span>
+            )}
             <span
-              className={`chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " magenta" : ""}`}
+              className={`chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " due" : ""}`}
             >
-              <Icon name="clock" size={14} />
               {dueLabel(hw.due)}
             </span>
-            {hw.source === "Classroom" && (
-              <a
-                className="chip"
-                href={hw.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ textDecoration: "none" }}
-              >
-                <Icon name="external" size={14} />
-                Classroom
-              </a>
-            )}
           </div>
+        </div>
+        <h1 className="h1" style={{ fontSize: 30 }}>
+          {hw.title}
+        </h1>
+        <div className="do-steps" aria-label="Progress">
+          {["Read brief", "Write it", "Hand in"].map((label, i) => {
+            const at = words > 0 ? 2 : 1;
+            return (
+              <div key={label} className={i < at ? "dstep done" : i === at ? "dstep now" : "dstep"}>
+                <i />
+                {label}
+              </div>
+            );
+          })}
         </div>
       </header>
 
-      <div className="between rise d1 s12 muted" style={{ alignItems: "center" }}>
-        <span className="row" style={{ gap: 8 }}>
-          <span
-            className="save-dot"
-            style={
-              state === "error" ? { background: "var(--magenta-t)", boxShadow: "none" } : undefined
-            }
-            aria-hidden="true"
-          />
-          <span role="status">{saveText}</span>
-        </span>
-        <span>
-          {words} {words === 1 ? "word" : "words"}
-          {link && (
-            <>
-              {" · "}
-              <a href={link} target="_blank" rel="noopener noreferrer">
-                Open Doc
-              </a>
-            </>
-          )}
-        </span>
-      </div>
-
       {hw.description && (
-        <section className="card stack rise d1" style={{ gap: 6 }}>
-          <span className="eyebrow">From your teacher</span>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+        <section className="card stack rise d1" style={{ padding: 16, gap: 8 }}>
+          <div className="between">
+            <span className="eyebrow">From your teacher</span>
+            {hw.link ? (
+              <a className="s12" href={hw.link} target="_blank" rel="noopener noreferrer">
+                {hw.source} ›
+              </a>
+            ) : (
+              <span className="s12 muted">{hw.source}</span>
+            )}
+          </div>
+          <p style={{ margin: 0, color: "var(--ink2)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
             {hw.description}
           </p>
         </section>
       )}
 
-      <StartTask
-        hw={hw}
-        work={text}
-        onInsert={(outline) => onChange(text.trim() ? `${text.trimEnd()}\n\n${outline}` : outline)}
-      />
-
-      <section className="card stack rise d1" style={{ padding: 18, gap: 10 }}>
-        <label className="eyebrow" htmlFor="work">
-          Your answer
+      <section className="card stack rise d2" style={{ padding: 16, gap: 10 }}>
+        <div className="between">
+          <h2 className="h2">Your answer</h2>
+          <span className="row s12 muted" style={{ gap: 6 }} role="status">
+            <span
+              className="save-dot"
+              style={
+                state === "error" ? { background: "var(--pink)", boxShadow: "none" } : undefined
+              }
+              aria-hidden="true"
+            />
+            {saveText} · {words} {words === 1 ? "word" : "words"}
+          </span>
+        </div>
+        <label className="muted s13" htmlFor="work">
+          {link
+            ? "Write straight here. It saves as you type, into your Google Doc too."
+            : "Write straight here, it saves as you type."}
         </label>
         <textarea
           id="work"
-          className="field ans"
-          rows={9}
+          className="ans"
+          rows={7}
           value={text}
           disabled={state === "loading"}
-          placeholder={
-            state === "loading" ? "Loading your work…" : "Start typing. It saves as you go."
-          }
+          placeholder={state === "loading" ? "Loading your work…" : "Start typing."}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => {
             if (state === "saving") {
@@ -201,7 +196,61 @@ export function Assignment({ hw }: { hw: Homework }) {
             }
           }}
         />
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn sm"
+            disabled={!text.trim() || feedback === "loading"}
+            onClick={() => void getFeedback()}
+          >
+            <Icon
+              name={feedback === "loading" ? "loader" : "sparkle"}
+              size={14}
+              className={feedback === "loading" ? "spin" : undefined}
+            />
+            Get feedback
+          </button>
+          {link ? (
+            <a className="btn sm" href={link} target="_blank" rel="noopener noreferrer">
+              <Icon name="doc" size={14} />
+              Open Google Doc
+            </a>
+          ) : (
+            <button
+              className="btn sm"
+              disabled={!text.trim() || state === "loading"}
+              onClick={() =>
+                makeGoogleDoc(hw, text).then((made) => {
+                  if (made) {
+                    setLink(made);
+                    toast("Saved as a Google Doc. It keeps updating as you type.");
+                  } else {
+                    toast("Copied. Paste it into the new Google Doc.");
+                  }
+                }, handleError)
+              }
+            >
+              <Icon name="doc" size={14} />
+              Google Doc
+            </button>
+          )}
+          <CheckPhotoButton title={hw.title} course={hw.course} />
+          <PresentButton hw={hw} text={text} />
+          <button
+            className="btn sm"
+            disabled={!text.trim() || state === "loading"}
+            onClick={() => setPolish("only")}
+          >
+            <Icon name="wand" size={14} />
+            Polish
+          </button>
+        </div>
       </section>
+
+      <StartTask
+        hw={hw}
+        work={text}
+        onInsert={(outline) => onChange(text.trim() ? `${text.trimEnd()}\n\n${outline}` : outline)}
+      />
 
       {feedback && feedback !== "loading" && (
         <section
@@ -283,36 +332,11 @@ export function Assignment({ hw }: { hw: Homework }) {
         </section>
       )}
 
-      <div className="row rise d2" style={{ gap: 8, flexWrap: "wrap" }}>
-        <FocusButton title={hw.title} />
-        <CheckPhotoButton title={hw.title} course={hw.course} />
-        <button
-          className="btn sm"
-          disabled={!text.trim() || state === "loading"}
-          onClick={() => setPolish("only")}
-        >
-          <Icon name="wand" size={14} />
-          Polish
-        </button>
-      </div>
-
-      <div className="bottom-bar">
-        <button
-          className="btn"
-          style={{ flex: 1 }}
-          disabled={!text.trim() || feedback === "loading"}
-          onClick={() => void getFeedback()}
-        >
-          <Icon
-            name={feedback === "loading" ? "loader" : "sparkle"}
-            size={18}
-            className={feedback === "loading" ? "spin" : undefined}
-          />
-          Feedback
-        </button>
+      <div className="dock">
+        <FocusButton title={hw.title} label="Focus 25" className="btn" />
         <button
           className="btn primary"
-          style={{ flex: 1.3 }}
+          style={{ flex: 1 }}
           disabled={state === "loading"}
           onClick={() => (text.trim() ? setPolish("handin") : setSheet(true))}
         >

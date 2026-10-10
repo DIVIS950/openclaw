@@ -15,22 +15,13 @@ import { dayOf, prepPlan, prepTests, testHandoff, todos, tutoring } from "../lib
 import { lessonLabel, upcomingTutoring } from "../lib/tutorSchedule.ts";
 import type { Email } from "../lib/types.ts";
 import { NoKeyError } from "../pages/gemini.ts";
-import { Icon, type IconName } from "./Icon.tsx";
+import { Icon } from "./Icon.tsx";
 
 // The AI briefing on Today: the app gathers the day, the AI (when it's there)
-// picks what matters, and the text writes itself in word by word. The action
-// chips under it open the things it names.
+// picks what matters, written as one short paragraph (Bento "Daily brief").
+// The chips under it open the things it names.
 
 const CACHE = "psh.brief";
-
-const ICON: Record<DayItem["kind"], IconName> = {
-  homework: "homework",
-  test: "cards",
-  todo: "checkSquare",
-  event: "calendar",
-  email: "mail",
-  tutor: "video",
-};
 
 /** A word of the briefing: bold or not, and whether a space comes before it. */
 interface Word {
@@ -254,58 +245,42 @@ export function Briefing() {
     return item ? [{ item, why: f.why || item.sub }] : [];
   });
   const things = day.due.length + day.prep.length + day.todos.length;
-  // Words appear one by one from 0.9 s; the chips pop in once the last word is there.
   const words = briefingWords(day, summary, focus, Boolean(smart && smart !== "nokey"));
-  const chipDelay = 0.9 + words.length * 0.048 + 0.25;
   const chips = focus.slice(0, 3);
   const updated = (at ?? now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <section className="card ai" aria-label="AI briefing">
+    <section className="card ai brief-card rise d2" aria-label="Daily brief">
       <div className="between" style={{ alignItems: "center" }}>
         <span className="chip violet">
-          <Icon name="sparkle" size={14} className="spark" />
-          AI briefing
+          <Icon name="sparkle" size={14} />
+          Daily brief
         </span>
-        <span className="s12 muted">
-          {!ai || smart === "nokey" ? "Sorted by the app" : `Updated ${updated}`}
-        </span>
+        <span className="s12 muted">{updated}</span>
       </div>
-      <h2 className="h2" style={{ fontSize: 20 }}>
-        {homework === null
-          ? "Reading your day…"
-          : things === 0
-            ? "Nothing urgent today"
-            : `${things} ${things === 1 ? "thing" : "things"} today`}
-      </h2>
       {homework === null ? (
         <div className="stack" style={{ gap: 8 }}>
           <div className="skeleton light" />
           <div className="skeleton light" style={{ width: "70%" }} />
         </div>
       ) : (
-        <p className="brief" key={key}>
+        <p className="brief" aria-label={things === 0 ? "Nothing urgent today" : undefined}>
           {words.map((x, k) => (
             <span key={k}>
               {x.space ? " " : ""}
-              <span className="w" style={{ "--i": k } as React.CSSProperties}>
-                {x.bold ? <strong>{x.text}</strong> : x.text}
-              </span>
+              {x.bold ? <b>{x.text}</b> : x.text}
             </span>
           ))}
-          <span className="cur" aria-hidden="true" />
         </p>
       )}
       {chips.length > 0 && (
-        <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           {chips.map((c, k) => (
             <button
               key={c.item.ref}
-              className="act"
-              style={{ animationDelay: `${chipDelay + k * 0.15}s` }}
+              className={`chip brief-chip${k === 0 ? " due" : ""}`}
               onClick={() => open(c.item)}
             >
-              <Icon name={ICON[c.item.kind]} size={14} />
               {shortLabel(c.item)}
             </button>
           ))}
@@ -314,10 +289,10 @@ export function Briefing() {
       {smart === "nokey" && (
         <button
           className="btn link s12"
-          style={{ alignSelf: "flex-start" }}
+          style={{ alignSelf: "flex-start", minHeight: 32, padding: 0 }}
           onClick={() => go("apps")}
         >
-          Add the AI key for a smarter briefing ›
+          Add the AI key for a smarter brief ›
         </button>
       )}
     </section>

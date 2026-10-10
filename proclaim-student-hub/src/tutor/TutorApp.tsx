@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
 import { newId, type TutorMessage, type TutorSession } from "../lib/study.ts";
-import { subjectVars } from "../lib/subjects.ts";
+import { subjectTone } from "../lib/subjects.ts";
 import {
   calendarInviteLink,
   mergePacket,
@@ -24,6 +24,21 @@ const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+
+/** "just now", "5 min ago", "3 h ago" or the date. */
+function agoLabel(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (!Number.isFinite(min) || min < 1) {
+    return "just now";
+  }
+  if (min < 60) {
+    return `${min} min ago`;
+  }
+  if (min < 24 * 60) {
+    return `${Math.round(min / 60)} h ago`;
+  }
+  return dateLabel(iso.slice(0, 10));
+}
 
 const dateLabel = (day: string) =>
   day
@@ -52,6 +67,9 @@ export function TutorApp() {
   const [message, setMessage] = useState("");
   const [link, setLink] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Bumped by the quick actions so the right form opens.
+  const [logging, setLogging] = useState(0);
+  const [setting, setSetting] = useState(0);
 
   useEffect(() => {
     void readPacketFromLocation().then((fresh) => {
@@ -118,7 +136,6 @@ export function TutorApp() {
 
   const tutor = packet.tutor;
   const start = nextLesson({ when }, new Date());
-  const open = all.homework.filter((h) => !h.done);
   const changes =
     added.sessions.length + added.homework.length + added.materials.length + added.messages.length;
 
@@ -185,83 +202,158 @@ export function TutorApp() {
   const thread = [...tutorMessages, ...added.messages].toSorted((a, b) => a.at.localeCompare(b.at));
   const studentEmail = packet.studentEmail ?? "";
 
+  const switchTo = (next: TutorPacket) => {
+    setPacket(next);
+    setWhen(next.tutor.when);
+    setMeet(next.tutor.meet);
+    setAdded({ sessions: [], homework: [], materials: [], messages: [] });
+  };
+  const doneCount = all.homework.filter((h) => h.done).length;
+  const questions = thread.filter((m) => m.from !== "tutor" && m.text.includes("?")).slice(-3);
+
   return (
     <div className="app tutor-hub">
-      <main className="screen" style={{ gap: 16 }}>
-        <header className="between rise" style={{ alignItems: "flex-end" }}>
-          <div className="stack" style={{ gap: 6, minWidth: 0 }}>
+      <main className="screen tutor-screen" style={{ gap: 14 }}>
+        {students.length > 1 && (
+          <nav className="stu-list rise" aria-label="Students">
+            {students.map((s) => {
+              const key = tutorStore.key(s.tutor.id, s.student);
+              const on = key === tutorStore.key(tutor.id, packet.student);
+              return (
+                <button
+                  key={key}
+                  className={on ? "stu on" : "stu"}
+                  aria-current={on ? "true" : undefined}
+                  onClick={() => switchTo(s)}
+                >
+                  <span className={`av tone-${subjectTone(s.tutor.subject)}`}>
+                    {s.student.trim()[0]?.toUpperCase() ?? "?"}
+                  </span>
+                  <span className="stack" style={{ gap: 0, minWidth: 0 }}>
+                    <b>{s.student}</b>
+                    <span className="muted s12">{s.tutor.subject}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        <header className="between rise" style={{ alignItems: "flex-end", gap: 12 }}>
+          <div className="stack" style={{ gap: 8, minWidth: 0 }}>
             <span className="eyebrow">Tutor Hub · {tutor.name}</span>
-            <h1 className="h1">{packet.student}</h1>
+            <h1 className="h1" style={{ fontSize: 36 }}>
+              {packet.student}
+            </h1>
             <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
-              <span className="chip subject" style={subjectVars(tutor.subject)}>
-                {tutor.subject}
-              </span>
+              <span className={`chip tone-${subjectTone(tutor.subject)}`}>{tutor.subject}</span>
               {packet.mastery !== null && (
                 <span className="chip good">{packet.mastery}% mastered</span>
               )}
               {packet.nextTest && (
-                <span className="chip warm">
+                <span className="chip magenta">
                   <Icon name="flag" size={13} />
                   Test {dateLabel(packet.nextTest.date)}
                 </span>
               )}
             </div>
           </div>
-          {students.length > 1 && (
-            <select
-              className="field"
-              style={{ width: "auto", minHeight: 40 }}
-              value={tutorStore.key(tutor.id, packet.student)}
-              onChange={(e) => {
-                const next = students.find(
-                  (s) => tutorStore.key(s.tutor.id, s.student) === e.target.value,
-                );
-                if (next) {
-                  setPacket(next);
-                  setWhen(next.tutor.when);
-                  setMeet(next.tutor.meet);
-                  setAdded({ sessions: [], homework: [], materials: [], messages: [] });
-                }
-              }}
-              aria-label="Student"
-            >
-              {students.map((s) => (
-                <option
-                  key={tutorStore.key(s.tutor.id, s.student)}
-                  value={tutorStore.key(s.tutor.id, s.student)}
-                >
-                  {s.student} · {s.tutor.subject}
-                </option>
-              ))}
-            </select>
-          )}
+          <span className="chip good sync-chip" title="From the last link the student sent">
+            <span className="pulse" aria-hidden="true" />
+            Synced {agoLabel(packet.sentAt)}
+          </span>
         </header>
 
-        <NextLessonCard
-          student={packet.student}
-          studentEmail={studentEmail}
-          subject={tutor.subject}
-          when={when}
-          meet={meet}
-          start={start}
-          onWhen={setWhen}
-          onMeet={setMeet}
-          onSay={say}
-        />
+        <div className="tutor-grid">
+          <NextLessonCard
+            student={packet.student}
+            studentEmail={studentEmail}
+            subject={tutor.subject}
+            when={when}
+            meet={meet}
+            start={start}
+            onWhen={setWhen}
+            onMeet={setMeet}
+            onSay={say}
+          />
 
-        <div className="hw-stats rise">
-          <div className="hw-stat">
-            <strong>{all.sessions.length}</strong>
-            <span>lessons</span>
-          </div>
-          <div className={`hw-stat${open.length ? " warm" : ""}`}>
-            <strong>{open.length}</strong>
-            <span>to do</span>
-          </div>
-          <div className="hw-stat">
-            <strong>{all.homework.filter((h) => h.done).length}</strong>
-            <span>done</span>
-          </div>
+          <nav className="qa3 rise d1" aria-label="Quick actions">
+            <button
+              onClick={() => {
+                setTab("lessons");
+                setLogging((n) => n + 1);
+              }}
+            >
+              <span className="ic tone-violet">
+                <Icon name="pen" size={20} />
+              </span>
+              Log lesson
+            </button>
+            <button
+              onClick={() => {
+                setTab("homework");
+                setSetting((n) => n + 1);
+              }}
+            >
+              <span className="ic tone-orange">
+                <Icon name="bookClosed" size={20} />
+              </span>
+              Set work
+            </button>
+            <button onClick={() => setTab("messages")}>
+              <span className="ic tone-blue">
+                <Icon name="mail" size={20} />
+              </span>
+              Message
+            </button>
+          </nav>
+
+          <section className="card rows rise d2 work-card">
+            <div className="between" style={{ padding: "14px 16px 6px" }}>
+              <h2 className="h2">Their work</h2>
+              <span className="muted s13">
+                {doneCount} of {all.homework.length} done
+              </span>
+            </div>
+            <div className="tbar" aria-hidden="true">
+              <i
+                style={{
+                  transform: `scaleX(${all.homework.length ? doneCount / all.homework.length : 0})`,
+                }}
+              />
+            </div>
+            {all.homework.length === 0 && (
+              <div className="li muted s13">Nothing set yet. Tap Set work.</div>
+            )}
+            {all.homework.slice(0, 5).map((h) => (
+              <div key={h.id} className="li">
+                <span className={h.done ? "tick done" : "tick"} aria-hidden="true">
+                  <Icon name="check" size={15} />
+                </span>
+                <span className="li-main" style={h.done ? { color: "var(--muted)" } : undefined}>
+                  {h.text}
+                </span>
+                <span className={h.done ? "chip good" : "chip"}>
+                  {h.done ? "Done" : h.due ? dateLabel(h.due) : "Open"}
+                </span>
+              </div>
+            ))}
+          </section>
+
+          {questions.length > 0 && (
+            <section className="card rows rise d3">
+              <div className="between" style={{ padding: "14px 16px 4px" }}>
+                <h2 className="h2">Their questions</h2>
+                <span className="chip lime">From their app</span>
+              </div>
+              {questions.map((q) => (
+                <div key={q.id} className="li" style={{ alignItems: "flex-start" }}>
+                  <span style={{ color: "var(--yellow)" }}>★</span>
+                  <span style={{ fontSize: 14 }}>“{q.text}”</span>
+                </div>
+              ))}
+            </section>
+          )}
         </div>
 
         <div className="pills" role="tablist" aria-label="Section">
@@ -287,6 +379,8 @@ export function TutorApp() {
 
         {tab === "lessons" && (
           <LessonsTab
+            key={`log${logging}`}
+            startOpen={logging > 0}
             sessions={all.sessions}
             tutorId={tutor.id}
             onAdd={(s, hw) =>
@@ -300,6 +394,8 @@ export function TutorApp() {
         )}
         {tab === "homework" && (
           <HomeworkTab
+            key={`set${setting}`}
+            startOpen={setting > 0}
             homework={all.homework}
             onAdd={(h) => setAdded((a) => ({ ...a, homework: [h, ...a.homework] }))}
           />
@@ -460,23 +556,27 @@ function NextLessonCard({
     );
   };
   return (
-    <section className="card hero stack rise" style={{ gap: 14 }} aria-label="Next lesson">
+    <section
+      className="now-card tutor-next stack rise"
+      style={{ gap: 14 }}
+      aria-label="Next lesson"
+    >
       <div className="between" style={{ alignItems: "center", gap: 12 }}>
         <div className="stack" style={{ gap: 5, minWidth: 0 }}>
-          <span className="eyebrow" style={{ color: "var(--accent-ink)" }}>
+          <span className="now-eyebrow">
             {start ? `Next lesson · ${lessonLabel(start, now)}` : "Next lesson"}
           </span>
-          <strong className="h2" style={{ fontSize: 18 }}>
+          <strong className="now-title" style={{ fontSize: 30 }}>
             {when || "No regular time yet"}
           </strong>
-          <span className="sub">{link ? "Google Meet" : "No Meet link yet"}</span>
+          <span className="now-sub">{link ? "Google Meet" : "No Meet link yet"}</span>
         </div>
         {start && (
           <span className="test-count">
-            <span className="num" style={{ color: "var(--accent-ink)", fontSize: 26 }}>
+            <span className="num" style={{ fontSize: 30 }}>
               {countdownLabel(start, now)}
             </span>
-            <span className="eyebrow">to go</span>
+            <span className="now-eyebrow">to go</span>
           </span>
         )}
       </div>
@@ -589,16 +689,24 @@ function countdownLabel(start: Date, now: Date): string {
   return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+const HOW = ["Hard", "Meh", "Okay", "Good", "Great"];
+
 function LessonsTab({
   sessions,
   tutorId,
   onAdd,
+  startOpen = false,
 }: {
   sessions: TutorSession[];
   tutorId: string;
   onAdd: (s: TutorSession, homework: TutorHomework[]) => void;
+  /** Opened from "Log lesson". */
+  startOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
+  const [how, setHow] = useState(3);
+  const [got, setGot] = useState("");
+  const [tricky, setTricky] = useState("");
   const [date, setDate] = useState(today);
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
@@ -624,13 +732,30 @@ function LessonsTab({
               .split("\n")
               .map((l) => l.replace(/^\s*(?:[•\-*]|\d+[.)])\s+/, "").trim())
               .filter(Boolean);
+            // How it went, what clicked and what's still tricky go at the top of the notes.
+            const summary = [
+              `How it went: ${HOW[how]}`,
+              got.trim() ? `Got it: ${got.trim()}` : "",
+              tricky.trim() ? `Still tricky: ${tricky.trim()}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n");
             onAdd(
-              { id: newId("s"), tutorId, date, topic: topic.trim(), notes: notes.trim() },
+              {
+                id: newId("s"),
+                tutorId,
+                date,
+                topic: topic.trim(),
+                notes: [summary, notes.trim()].filter(Boolean).join("\n\n"),
+              },
               lines.map((text) => ({ id: newId("t"), text, due, done: false })),
             );
             setOpen(false);
             setTopic("");
             setNotes("");
+            setGot("");
+            setTricky("");
+            setHow(3);
             setHw("");
             setDue("");
           }}
@@ -654,6 +779,44 @@ function LessonsTab({
               autoFocus
             />
           </label>
+          <div className="stack" style={{ gap: 6 }}>
+            <span className="eyebrow">How did it go?</span>
+            <div className="how5" role="radiogroup" aria-label="How did it go">
+              {HOW.map((label, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="radio"
+                  aria-checked={how === i}
+                  className={how === i ? "on" : undefined}
+                  onClick={() => setHow(i)}
+                >
+                  <b>{i + 1}</b>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <label className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}>
+              <span className="eyebrow">Got it</span>
+              <input
+                className="field"
+                value={got}
+                onChange={(e) => setGot(e.target.value)}
+                placeholder="e.g. splitting the middle"
+              />
+            </label>
+            <label className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}>
+              <span className="eyebrow">Still tricky</span>
+              <input
+                className="field"
+                value={tricky}
+                onChange={(e) => setTricky(e.target.value)}
+                placeholder="e.g. negative numbers"
+              />
+            </label>
+          </div>
           <label className="stack" style={{ gap: 4 }}>
             <span className="eyebrow">Notes for the student</span>
             <textarea
@@ -717,9 +880,12 @@ function LessonsTab({
 function HomeworkTab({
   homework,
   onAdd,
+  startOpen = false,
 }: {
   homework: TutorHomework[];
   onAdd: (h: TutorHomework) => void;
+  /** Opened from "Set work": the field gets the cursor. */
+  startOpen?: boolean;
 }) {
   const [text, setText] = useState("");
   const [due, setDue] = useState("");
@@ -745,6 +911,7 @@ function HomeworkTab({
           onChange={(e) => setText(e.target.value)}
           placeholder="New homework for the student"
           aria-label="New homework"
+          autoFocus={startOpen}
         />
         <div className="row">
           <input

@@ -163,7 +163,9 @@ export function Tutor() {
     <>
       <header className="stack buddy-head">
         <div className="between" style={{ gap: 10 }}>
-          <h1 className="h1">Study buddy</h1>
+          <h1 className="h1" style={{ fontSize: 36 }}>
+            AI help
+          </h1>
           {app.aiContext && (
             <span className="chip cyan" style={{ maxWidth: "58%" }}>
               <Icon name="eye" size={14} />
@@ -171,11 +173,12 @@ export function Tutor() {
             </span>
           )}
         </div>
-        <div className="segmented" role="tablist" aria-label="Mode">
+        <div className="modes" role="tablist" aria-label="How should it help">
           {MODES.map((m) => (
             <button
               key={m.id}
               role="tab"
+              className={mode === m.id ? "mode on" : "mode"}
               aria-selected={mode === m.id}
               onClick={() => setMode(m.id)}
             >
@@ -357,7 +360,7 @@ export function Tutor() {
         )}
         <button
           type="submit"
-          className="round dark"
+          className="round send"
           aria-label="Send"
           disabled={busy || (!input.trim() && images.length === 0)}
         >

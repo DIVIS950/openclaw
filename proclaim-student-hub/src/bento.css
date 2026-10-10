@@ -1,0 +1,2020 @@
+/* ==========================================================================
+   Bento: the final look (Claude Design canvas "Proclaim Student Hub, Final").
+   Light first: a cool grey ground, white cards with soft shadows, one volt
+   blue accent, subject colours as soft fills, Bricolage Grotesque headings
+   and big numbers, Figtree text. Tactile buttons with a 4px lip, a floating
+   ink tab bar on phones and an ink side rail on iPad.
+   Motion stays iPhone 11 safe: only transform and opacity, no live blur,
+   no animated shadows, no backdrop filters.
+   This file loads after styles.css and wins where they differ.
+   ========================================================================== */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #eef0f4;
+  --card: #ffffff;
+  --card-2: #f3f4f7;
+  --surface: #ffffff;
+  --surface2: #f3f4f7;
+  --card-border: transparent;
+  --line: rgba(14, 17, 22, 0.08);
+  --line-soft: rgba(14, 17, 22, 0.05);
+  --seg: #e3e6ec;
+  --ink: #0e1116;
+  --ink2: #3e4553;
+  --text2: #3e4553;
+  --muted: #5f6775;
+  --on-accent: #ffffff;
+  --lip: rgba(14, 17, 22, 0.1);
+  --shadow: 0 1px 2px rgba(14, 17, 22, 0.05), 0 12px 28px -14px rgba(14, 17, 22, 0.22);
+  --shadow-lg: 0 2px 4px rgba(14, 17, 22, 0.06), 0 24px 48px -20px rgba(14, 17, 22, 0.3);
+  --glow: var(--shadow);
+  --hero: #ffffff;
+  --hero-ink: #0e1116;
+  --glass: #eef0f4;
+  --overlay: rgba(14, 17, 22, 0.42);
+  --scrim: rgba(14, 17, 22, 0.42);
+  --orb: 0;
+  --radius: 26px;
+
+  /* Subject colours: a strong tone, a soft fill and a readable text shade. */
+  --blue: #2f5bff;
+  --blue-s: #e4eaff;
+  --blue-t: #2346d9;
+  --orange: #ff6b1a;
+  --orange-s: #ffe9dc;
+  --orange-t: #b9450a;
+  --green: #12b076;
+  --green-s: #ddf6ea;
+  --green-t: #0a7a50;
+  --pink: #e5407a;
+  --pink-s: #fde3ec;
+  --pink-t: #b11f57;
+  --violet: #7b5cff;
+  --violet-s: #ece7ff;
+  --violet-t: #5536db;
+  --yellow: #ffc21a;
+  --yellow-s: #fff3cc;
+  --yellow-t: #8a6100;
+
+  /* The old colour names, mapped onto Bento: lime was the accent, cyan the
+     calm "good" colour, magenta the urgent one. */
+  --lime: var(--accent);
+  --lime-t: var(--accent-t);
+  --lime-soft: var(--accent-soft);
+  --cyan: var(--green);
+  --cyan-t: var(--green-t);
+  --cyan-soft: var(--green-s);
+  --mint: var(--green);
+  --magenta: var(--pink);
+  --magenta-t: var(--pink-t);
+  --magenta-soft: var(--pink-s);
+  --coral: var(--pink);
+  --violet-soft: var(--violet-s);
+  --amber: var(--orange);
+  --warm: var(--orange-t);
+  --warm-soft: var(--orange-s);
+  --good: var(--green-t);
+  --good-soft: var(--green-s);
+
+  /* Accent: volt blue unless More › Look says otherwise. */
+  --accent: #2f5bff;
+  --accent-ink: #2346d9;
+  --accent-t: #2346d9;
+  --accent-soft: #e4eaff;
+  --link: #2346d9;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0d12;
+  --card: #161a22;
+  --card-2: #1f2430;
+  --surface: #161a22;
+  --surface2: #1f2430;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --seg: #1f2430;
+  --ink: #f2f4f8;
+  --ink2: #c6ccd7;
+  --text2: #c6ccd7;
+  --muted: #98a1b0;
+  --lip: rgba(0, 0, 0, 0.45);
+  --shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 24px 48px -20px rgba(0, 0, 0, 0.8);
+  --hero: #161a22;
+  --hero-ink: #f2f4f8;
+  --glass: #0b0d12;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  --blue: #5b7cff;
+  --blue-s: rgba(91, 124, 255, 0.18);
+  --blue-t: #a3b4ff;
+  --orange: #ff7a2e;
+  --orange-s: rgba(255, 122, 46, 0.16);
+  --orange-t: #ffa06a;
+  --green: #22c58a;
+  --green-s: rgba(34, 197, 138, 0.16);
+  --green-t: #5fddae;
+  --pink: #f0588e;
+  --pink-s: rgba(240, 88, 142, 0.16);
+  --pink-t: #ff8db4;
+  --violet: #9479ff;
+  --violet-s: rgba(148, 121, 255, 0.18);
+  --violet-t: #b8a6ff;
+  --yellow: #ffc93d;
+  --yellow-s: rgba(255, 201, 61, 0.16);
+  --yellow-t: #ffd873;
+
+  --accent: #2f5bff;
+  --accent-ink: #a3b4ff;
+  --accent-t: #a3b4ff;
+  --accent-soft: rgba(91, 124, 255, 0.18);
+  --link: #a3b4ff;
+  color-scheme: dark;
+}
+
+/* Accent choices (More › Look). */
+:root[data-accent="orange"],
+:root[data-theme][data-accent="orange"] {
+  --accent: #ff6b1a;
+  --accent-ink: #b9450a;
+  --accent-t: #b9450a;
+  --accent-soft: #ffe9dc;
+  --link: #b9450a;
+}
+:root[data-accent="green"],
+:root[data-theme][data-accent="green"] {
+  --accent: #12b076;
+  --accent-ink: #0a7a50;
+  --accent-t: #0a7a50;
+  --accent-soft: #ddf6ea;
+  --link: #0a7a50;
+}
+:root[data-accent="violet"],
+:root[data-theme][data-accent="violet"] {
+  --accent: #7b5cff;
+  --accent-ink: #5536db;
+  --accent-t: #5536db;
+  --accent-soft: #ece7ff;
+  --link: #5536db;
+}
+:root[data-theme="dark"][data-accent="orange"] {
+  --accent-ink: #ffa06a;
+  --accent-t: #ffa06a;
+  --accent-soft: rgba(255, 122, 46, 0.16);
+  --link: #ffa06a;
+}
+:root[data-theme="dark"][data-accent="green"] {
+  --accent: #14b87b;
+  --accent-ink: #5fddae;
+  --accent-t: #5fddae;
+  --accent-soft: rgba(34, 197, 138, 0.16);
+  --link: #5fddae;
+}
+:root[data-theme="dark"][data-accent="violet"] {
+  --accent-ink: #b8a6ff;
+  --accent-t: #b8a6ff;
+  --accent-soft: rgba(148, 121, 255, 0.18);
+  --link: #b8a6ff;
+}
+
+body {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.4;
+  background: var(--bg);
+}
+
+/* No orbs: a calm, flat ground. */
+.app::before,
+.app::after {
+  display: none;
+}
+
+/* ---------- Type ---------- */
+.h1,
+h1 {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 34px;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+.h2,
+h2 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+.num,
+.big {
+  font-family: var(--serif);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--card);
+  border: 0;
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+}
+.card.rows {
+  overflow: hidden;
+}
+.crow + .crow,
+.card.rows > * + * {
+  border-color: var(--line);
+}
+
+/* The AI briefing: a plain card, the violet chip says it's AI. */
+.card.ai {
+  background: var(--card);
+  border: 0;
+  box-shadow: var(--shadow);
+}
+.card.ai::before,
+.card.ai::after {
+  display: none;
+}
+
+/* Hero cards (the lesson on now): filled with the accent, white text. */
+.hero,
+.card.hero,
+.now-card {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 28px;
+  box-shadow: 0 18px 34px -18px color-mix(in oklab, var(--accent) 80%, #000);
+}
+.hero .eyebrow,
+.now-card .eyebrow,
+.now-card .t2,
+.now-card .muted,
+.now-card .sub {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+.now-card .now-title,
+.now-card strong {
+  color: #fff;
+  font-family: var(--serif);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+.hero.cyan,
+.hero.magenta,
+.hero.violet {
+  border: 0;
+}
+.hero.cyan {
+  background: var(--green);
+}
+.hero.magenta {
+  background: var(--pink);
+}
+.hero.violet {
+  background: var(--violet);
+}
+
+/* ---------- Chips ---------- */
+.chip {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  background: var(--card-2);
+  color: var(--ink2);
+}
+.chip.lime,
+.chip.accent {
+  background: var(--accent-soft);
+  color: var(--accent-t);
+}
+.chip.cyan,
+.chip.good {
+  background: var(--green-s);
+  color: var(--green-t);
+}
+.chip.magenta,
+.chip.warm {
+  background: var(--pink-s);
+  color: var(--pink-t);
+}
+.chip.violet {
+  background: var(--violet-s);
+  color: var(--violet-t);
+}
+.chip.streak {
+  background: var(--yellow-s);
+  color: var(--yellow-t);
+}
+.chip.due {
+  background: var(--orange-s);
+  color: var(--orange-t);
+}
+.ico.lime {
+  background: var(--accent-soft);
+  color: var(--accent-t);
+}
+.ico.cyan {
+  background: var(--green-s);
+  color: var(--green-t);
+}
+.ico.magenta {
+  background: var(--pink-s);
+  color: var(--pink-t);
+}
+.ico.violet {
+  background: var(--violet-s);
+  color: var(--violet-t);
+}
+
+/* ---------- Buttons: tactile, with a lip that squashes on press ---------- */
+.btn {
+  border: 0;
+  border-radius: 16px;
+  font-weight: 800;
+  background: var(--card-2);
+  color: var(--ink);
+  box-shadow: 0 3px 0 var(--lip);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 0 color-mix(in oklab, var(--accent) 60%, #000);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--lip);
+}
+.btn.primary:active:not(:disabled) {
+  box-shadow: 0 2px 0 color-mix(in oklab, var(--accent) 60%, #000);
+}
+.btn.ghost,
+.btn.link,
+.link-btn {
+  box-shadow: none;
+}
+.btn.ghost {
+  background: transparent;
+}
+.btn.link,
+.link-btn {
+  background: none;
+  color: var(--accent-t);
+}
+.btn.dark {
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: none;
+}
+.btn:disabled,
+.btn.primary:disabled {
+  background: var(--card-2);
+  color: var(--muted);
+  box-shadow: none;
+}
+.round {
+  border: 0;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+
+/* Segmented controls: an ink pill marks the choice. */
+.seg,
+.segmented {
+  background: var(--seg);
+  border: 0;
+  border-radius: 16px;
+}
+.seg button.on,
+.seg button[aria-selected="true"],
+.segmented button.on,
+.segmented button[aria-selected="true"],
+.segmented [aria-selected="true"] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(14, 17, 22, 0.08);
+}
+
+/* Fields */
+.field,
+input.field,
+textarea.field,
+select.field {
+  border: 0;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+}
+.field:focus,
+.field:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  outline: none;
+}
+
+/* Banners and toasts: ink pills. */
+.banner {
+  border: 0;
+  background: var(--card);
+  color: var(--ink2);
+  box-shadow: var(--shadow);
+}
+.toast {
+  background: var(--ink);
+  color: var(--bg);
+  border: 0;
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+}
+.toast .round {
+  background: rgba(127, 127, 127, 0.2);
+  color: inherit;
+  box-shadow: none;
+}
+
+/* Sheets */
+.sheet {
+  background: var(--bg);
+  border: 0;
+}
+.backdrop {
+  background: var(--overlay);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Tiles */
+.tile {
+  background: var(--card);
+  border: 0;
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Tab bar: a floating ink pill, Add in the middle ---------- */
+.nav {
+  left: 16px;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  height: 68px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 34px;
+  background: var(--ink);
+  color: var(--bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 18px 40px -16px rgba(14, 17, 22, 0.55);
+  align-items: center;
+  justify-content: space-around;
+}
+.nav::before {
+  display: none;
+}
+.nav-item,
+.nav-item[aria-current="page"] {
+  color: var(--bg);
+  background: none;
+  box-shadow: none;
+}
+.nav-item {
+  min-height: 52px;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  opacity: 0.6;
+}
+.nav-item > svg,
+.nav-item[aria-current="page"] > svg {
+  color: inherit;
+  filter: none;
+}
+.nav-item[aria-current="page"] {
+  opacity: 1;
+}
+.nav-item[aria-current="page"]::after {
+  background: var(--accent);
+  box-shadow: none;
+  width: 5px;
+  height: 5px;
+}
+.nav-fab {
+  width: 54px;
+  height: 54px;
+  margin: 0;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 0 color-mix(in oklab, var(--accent) 60%, #000);
+  animation: none;
+}
+.nav-fab::before {
+  display: none;
+}
+.nav-fab:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 color-mix(in oklab, var(--accent) 60%, #000);
+}
+/* Content fades out under the bar instead of a hard edge. */
+.nav-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(env(safe-area-inset-bottom) + 120px);
+  background: linear-gradient(to bottom, transparent, var(--bg) 62%);
+  pointer-events: none;
+  z-index: 14;
+}
+
+/* The floating Ask AI pill sits above the bar. */
+.ask {
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  background: var(--ink);
+  color: var(--bg);
+  border: 0;
+  box-shadow: 0 12px 28px -12px rgba(14, 17, 22, 0.5);
+}
+
+/* ---------- Today ---------- */
+.today-head .avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 18px;
+}
+.today-head .h1 {
+  font-size: 36px;
+}
+.bento-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.bento-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  text-align: left;
+  min-width: 0;
+}
+.bento-tile .big {
+  font-size: 34px;
+  line-height: 1;
+}
+.bento-tile .big small {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.bento-tile .s13 {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t-orange {
+  color: var(--orange-t);
+}
+.t-pink {
+  color: var(--pink-t);
+}
+.t-violet {
+  color: var(--violet-t);
+}
+.t-green {
+  color: var(--green-t);
+}
+.t-accent {
+  color: var(--accent-t);
+}
+
+/* ---------- iPad and bigger: the ink side rail ---------- */
+@media (min-width: 768px) and (min-height: 600px) {
+  .app:not(.tutor-hub) {
+    padding-left: 120px;
+  }
+  .nav {
+    top: calc(env(safe-area-inset-top) + 16px);
+    bottom: calc(env(safe-area-inset-bottom) + 16px);
+    left: calc(env(safe-area-inset-left) + 16px);
+    right: auto;
+    width: 88px;
+    height: auto;
+    padding: 16px 0;
+    border-radius: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-item {
+    flex: none;
+    width: 72px;
+    max-width: none;
+    min-height: 60px;
+    border-radius: 18px;
+    font-size: 11px;
+  }
+  .nav-item[aria-current="page"] {
+    background: color-mix(in oklab, var(--bg) 12%, transparent);
+  }
+  .nav-item::after,
+  .nav-item[aria-current="page"]::after {
+    display: none;
+  }
+  /* Add sits at the top of the rail. */
+  .nav-fab {
+    order: -1;
+    margin: 0 auto 10px;
+  }
+  .nav-fade {
+    display: none;
+  }
+  .ask {
+    bottom: calc(env(safe-area-inset-bottom) + 28px);
+  }
+  .screen {
+    padding: calc(env(safe-area-inset-top) + 30px) calc(env(safe-area-inset-right) + 32px)
+      calc(env(safe-area-inset-bottom) + 40px) 16px;
+  }
+  .h1,
+  h1 {
+    font-size: 44px;
+  }
+  .toast {
+    left: calc(120px + 24px);
+  }
+}
+
+/* Today on a wide screen: a real bento grid with the day on the right. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .screen.today > :not(.backdrop) {
+    max-width: none;
+  }
+  .screen.today {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 340px;
+    grid-auto-rows: min-content;
+    align-content: start;
+    align-items: start;
+    gap: 16px;
+  }
+  .screen.today > * {
+    grid-column: 1 / 3;
+  }
+  .screen.today > .today-head,
+  .screen.today > .banner {
+    grid-column: 1 / 3;
+  }
+  .screen.today > .today-day {
+    grid-column: 3;
+    grid-row: 1 / span 6;
+  }
+  .screen.today > .card.ai {
+    grid-column: 1;
+  }
+  .screen.today > .bento-tiles {
+    grid-column: 2;
+    align-self: stretch;
+  }
+  .screen.today > .now-card .now-title {
+    font-size: 52px !important;
+  }
+  .screen.today .tiles-grid.quad {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Homework on a wide screen: the list stays on the left, the task opens on the right. */
+.split {
+  display: contents;
+}
+@media (min-width: 1000px) and (min-height: 600px) {
+  .split {
+    display: grid;
+    grid-template-columns: 400px minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+  }
+  .split > .screen {
+    min-height: 0;
+  }
+  .split > .screen > :not(.backdrop) {
+    max-width: none;
+  }
+  .split > .split-pane {
+    padding-left: 0;
+  }
+  .split-empty {
+    margin: calc(env(safe-area-inset-top) + 30px) 32px 40px 0;
+    border-radius: 30px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    color: var(--muted);
+    padding: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .nav-fab {
+    transition: none;
+  }
+}
+
+/* Today's day card: three lessons on a phone, the whole day on a wide screen. */
+.today-day .crow.extra {
+  display: none;
+}
+@media (min-width: 1000px) and (min-height: 600px) {
+  .today-day .crow.extra {
+    display: flex;
+  }
+  .split > .screen + .screen {
+    padding-left: 0;
+  }
+}
+
+/* ==========================================================================
+   Canvas exact: values copied from the Bento boards.
+   ========================================================================== */
+
+/* Screen frame: 58px top, 18px sides, 120px bottom, 14px between blocks. */
+.screen,
+.screen.g18,
+.screen.g20 {
+  padding: calc(env(safe-area-inset-top) + 58px) 18px calc(env(safe-area-inset-bottom) + 120px);
+  gap: 14px;
+}
+.rise {
+  animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.rise.d1 {
+  animation-delay: 0.06s;
+}
+.rise.d2 {
+  animation-delay: 0.12s;
+}
+.rise.d3 {
+  animation-delay: 0.18s;
+}
+.rise.d4 {
+  animation-delay: 0.24s;
+}
+.rise.d5 {
+  animation-delay: 0.3s;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.text-link {
+  border: 0;
+  background: none;
+  padding: 6px 0;
+  min-height: 32px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent-t);
+}
+.muted {
+  color: var(--muted);
+}
+.s13 {
+  font-size: 13px;
+}
+
+/* List rows inside a card (Later today, settings). */
+.li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 13px 16px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.li + .li,
+.card.rows > .li + .li {
+  border-top: 1px solid var(--line);
+}
+.li-time {
+  width: 46px;
+  flex: none;
+  font-size: 15px;
+  font-weight: 800;
+}
+.li-main {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-day .li.extra {
+  display: none;
+}
+
+/* Header: date, greeting, avatar and streak. */
+.today-head .eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.today-head .h1 {
+  font-size: 36px;
+  line-height: 0.98;
+}
+.chip {
+  height: 28px;
+  padding: 0 11px;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+/* Now: the accent hero. */
+.now-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 16px;
+}
+.now-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.now-eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.now-card .now-title {
+  font-size: 44px !important;
+  line-height: 0.98;
+}
+.now-sub {
+  font-size: 14px;
+  opacity: 0.9;
+}
+.bento-ring {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  flex: none;
+}
+.bento-ring svg {
+  transform: rotate(-90deg);
+}
+.bento-ring .arc {
+  stroke-dasharray: 201;
+  stroke-dashoffset: 201;
+  animation: ring-draw 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 0.35s forwards;
+}
+@keyframes ring-draw {
+  to {
+    stroke-dashoffset: var(--off);
+  }
+}
+.bento-ring .ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  color: #fff;
+}
+.bento-ring .ring-text b {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+.bento-ring .ring-text small {
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+.now-card .btn.now-btn {
+  flex: 1;
+  min-height: 48px;
+  background: #fff;
+  color: var(--accent);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+}
+.now-card .btn.now-btn.ghost {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Daily brief. */
+.brief-card {
+  padding: 16px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.brief-card .brief {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink2);
+}
+.brief-card .brief b {
+  color: var(--ink);
+}
+.brief-chip {
+  height: 36px;
+  border: 0;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento-ring .arc {
+    animation: none;
+    stroke-dashoffset: var(--off);
+  }
+}
+
+/* ---------- More ---------- */
+.profile-card {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.profile-card .me {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 24px;
+  flex: none;
+}
+.apps-card {
+  padding: 16px;
+}
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 10px;
+}
+.app-t {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.app-t .ic {
+  width: 58px;
+  height: 58px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tone-blue {
+  background: var(--blue-s);
+  color: var(--blue-t);
+}
+.tone-pink {
+  background: var(--pink-s);
+  color: var(--pink-t);
+}
+.tone-violet {
+  background: var(--violet-s);
+  color: var(--violet-t);
+}
+.tone-orange {
+  background: var(--orange-s);
+  color: var(--orange-t);
+}
+.tone-green {
+  background: var(--green-s);
+  color: var(--green-t);
+}
+.tone-yellow {
+  background: var(--yellow-s);
+  color: var(--yellow-t);
+}
+.tone-grey {
+  background: var(--card-2);
+  color: var(--ink2);
+}
+.set {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+.set + .set,
+.settings-card > * + * {
+  border-top: 1px solid var(--line);
+}
+.set .ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.set .label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+.seg3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--card-2);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+.seg3 button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  font-size: 12.5px;
+}
+.seg3 button.on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 2px 0 var(--line);
+}
+.accent-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+}
+.accent-swatch[aria-checked="true"] {
+  box-shadow:
+    0 0 0 3px var(--card),
+    0 0 0 5px var(--ink);
+}
+.set > svg:last-child {
+  color: var(--muted);
+  flex: none;
+}
+/* Older settings rows (AI key, Gmail, backups) follow the same pattern. */
+.settings-card .crow {
+  padding: 12px 16px;
+  min-height: 48px;
+  gap: 12px;
+  border-color: var(--line);
+}
+.settings-card .crow .ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+}
+
+/* ---------- Notifications ---------- */
+:root {
+  --off: #d5d9e0;
+}
+:root[data-theme="dark"] {
+  --off: #2f3542;
+}
+.notif-sample {
+  background: var(--card);
+  border-radius: 22px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: 0 18px 40px -18px rgba(14, 17, 22, 0.35);
+}
+.appic {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 18px;
+  flex: none;
+}
+.nrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  min-height: 48px;
+}
+.nrow + .nrow {
+  border-top: 1px solid var(--line);
+}
+.nrow .ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.sw {
+  width: 52px;
+  height: 32px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--off);
+  position: relative;
+  flex: none;
+  padding: 0;
+  transition: background 0.2s ease;
+}
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sw.on {
+  background: var(--green);
+}
+.sw.on::after {
+  transform: translateX(20px);
+}
+.sw:active:not(:disabled) {
+  transform: none;
+}
+.home-steps {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--blue-s);
+  box-shadow: none;
+}
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink2);
+}
+.steps span {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.steps b {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex: none;
+}
+
+/* ---------- Tutorial tour ---------- */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.tour-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 11, 16, 0.62);
+  animation: fade-in 0.3s ease both;
+}
+/* The lit part: a ring around it, and a huge shadow that dims everything else. */
+.tour-hole {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 200vmax rgba(9, 11, 16, 0.62);
+  pointer-events: none;
+}
+.tour-tip {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  max-width: 420px;
+  margin-inline: auto;
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 26px;
+  padding: 18px;
+  box-shadow: 0 24px 50px -20px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: tour-pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes tour-pop {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.tour-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tour-dots {
+  display: flex;
+  gap: 6px;
+}
+.tour-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: width 0.25s ease;
+}
+.tour-dots i.on {
+  width: 22px;
+  background: var(--accent);
+}
+.tour-skip {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--muted);
+  min-height: 44px;
+  padding: 0 6px;
+}
+
+/* ---------- Homework ---------- */
+.seg2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: var(--card-2);
+  border-radius: 16px;
+  padding: 4px;
+  gap: 4px;
+}
+.seg2 button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  background: transparent;
+  color: var(--muted);
+}
+.seg2 button.on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 2px 0 var(--line);
+}
+.fchips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -18px;
+  padding: 0 18px;
+}
+.fchips::-webkit-scrollbar {
+  display: none;
+}
+.fchip {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink2);
+  white-space: nowrap;
+  flex: none;
+}
+.fchip.on {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.sec {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 4px 0;
+}
+.sec.late {
+  color: var(--orange-t);
+}
+.hw {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: var(--card);
+}
+.card.rows > * + * .hw,
+.card.rows > .hw + .hw {
+  border-top: 1px solid var(--line);
+}
+.tick {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid color-mix(in oklab, var(--muted) 55%, transparent);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  padding: 0;
+  margin-top: 1px;
+  color: #fff;
+}
+.tick svg {
+  opacity: 0;
+}
+.tick.done {
+  background: var(--green);
+  border-color: var(--green);
+}
+.tick.done svg {
+  opacity: 1;
+}
+.hw-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+.hw-title {
+  font-weight: 700;
+  line-height: 1.3;
+}
+.hw-title.done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.chip.tone-blue,
+.chip.tone-pink,
+.chip.tone-violet,
+.chip.tone-orange,
+.chip.tone-green,
+.chip.tone-yellow {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Do it here ---------- */
+.do-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.do-steps .dstep {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.do-steps .dstep i {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--card-2);
+}
+.do-steps .dstep.done i {
+  background: var(--green);
+}
+.do-steps .dstep.now {
+  color: var(--ink);
+}
+.do-steps .dstep.now i {
+  background: var(--accent);
+}
+textarea.ans {
+  width: 100%;
+  min-height: 150px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--card-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 14px;
+  resize: vertical;
+  outline: none;
+  box-shadow: none;
+}
+textarea.ans:focus {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.save-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: none;
+}
+.dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 16;
+  padding: 12px 18px calc(env(safe-area-inset-bottom) + 18px);
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+}
+.dock > .btn:first-child {
+  flex: none;
+  min-width: 128px;
+}
+.screen:has(> .dock) {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 110px);
+}
+@media (min-width: 768px) and (min-height: 600px) {
+  .split .dock {
+    left: auto;
+    right: 0;
+    position: sticky;
+    margin: 0 -32px -40px -16px;
+  }
+}
+
+/* ---------- Add anything ---------- */
+.sheet {
+  border-radius: 30px 30px 0 0;
+  padding: 10px 18px calc(env(safe-area-inset-bottom) + 30px);
+  gap: 14px;
+}
+.handle {
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  align-self: center;
+  flex: none;
+}
+.src-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.srcb {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 0;
+  box-shadow: var(--shadow);
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+  min-height: 96px;
+}
+.srcb.on {
+  box-shadow:
+    0 0 0 2px var(--green),
+    var(--shadow);
+}
+.srcb .ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+textarea.field.in {
+  min-height: 96px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.kind {
+  height: 36px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink2);
+  font-weight: 800;
+  font-size: 13px;
+}
+.kind[aria-pressed="true"],
+.kind.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+.sorted-item .kv-card {
+  border-radius: 24px;
+}
+
+/* ---------- AI help ---------- */
+.buddy-head {
+  padding: calc(env(safe-area-inset-top) + 54px) 18px 12px;
+  gap: 12px;
+  background: var(--bg);
+}
+.modes {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -18px;
+  padding: 0 18px;
+}
+.modes::-webkit-scrollbar {
+  display: none;
+}
+.modes .mode {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink2);
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  white-space: nowrap;
+  flex: none;
+}
+.modes .mode.on {
+  background: var(--violet);
+  border-color: var(--violet);
+  color: #fff;
+}
+.screen.buddy-body {
+  padding-top: 8px;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 180px);
+}
+.bubble {
+  border: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.bubble.me {
+  align-self: flex-end;
+  max-width: 78%;
+  background: var(--accent);
+  color: #fff;
+  padding: 11px 14px;
+  border-radius: 20px 20px 6px 20px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.bubble.ai {
+  align-self: flex-start;
+  max-width: 88%;
+  background: var(--card);
+  color: var(--ink2);
+  box-shadow: var(--shadow);
+  padding: 13px 15px;
+  border-radius: 20px 20px 20px 6px;
+}
+.bubble.ai b,
+.bubble.ai strong {
+  color: var(--ink);
+}
+.composer {
+  gap: 8px;
+  align-items: center;
+  background: linear-gradient(to bottom, transparent, var(--bg) 30%);
+  border: 0;
+  padding: 10px 16px calc(env(safe-area-inset-bottom) + 96px);
+  margin: 0;
+}
+.composer .field {
+  flex: 1;
+  border-radius: 25px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.composer .round {
+  width: 44px;
+  height: 44px;
+  background: var(--card-2);
+  box-shadow: none;
+  flex: none;
+}
+.composer .round.send {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 0 color-mix(in oklab, var(--accent) 60%, #000);
+}
+.composer .round.send:disabled {
+  background: var(--card-2);
+  color: var(--muted);
+  box-shadow: none;
+}
+@media (min-width: 768px) and (min-height: 600px) {
+  .composer {
+    padding: 10px 32px calc(env(safe-area-inset-bottom) + 24px) 16px;
+  }
+  .buddy-head {
+    padding-left: 16px;
+    padding-right: 32px;
+  }
+}
+.do-steps .dstep {
+  text-decoration: none;
+}
+/* The composer brings its own fade; the bar stays on top of it. */
+.app:has(> .composer) .nav-fade {
+  display: none;
+}
+
+/* ---------- Tutor Hub (green accent, set in tutor/main.tsx) ---------- */
+.tutor-next .btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: none;
+}
+.tutor-next .btn.primary {
+  background: #fff;
+  color: color-mix(in oklab, var(--accent) 70%, #000);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+}
+.tutor-next .test-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #fff;
+}
+.tutor-next .field {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0e1116;
+}
+.tutor-next .eyebrow {
+  color: rgba(255, 255, 255, 0.86);
+}
+.stu-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -18px;
+  padding: 2px 18px 4px;
+}
+.stu-list::-webkit-scrollbar {
+  display: none;
+}
+.stu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-height: 56px;
+  padding: 8px 14px 8px 8px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.stu.on {
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.stu .av {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 17px;
+}
+.sync-chip {
+  flex: none;
+}
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+.qa3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.qa3 button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink);
+}
+.qa3 .ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tbar {
+  height: 6px;
+  margin: 4px 16px 8px;
+  border-radius: 3px;
+  background: var(--card-2);
+  overflow: hidden;
+}
+.tbar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.work-card .tick {
+  width: 24px;
+  height: 24px;
+}
+.how5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.how5 button {
+  min-height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--card-2);
+  font: inherit;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--ink2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.how5 button b {
+  font-family: var(--serif);
+  font-size: 18px;
+}
+.how5 button.on {
+  background: var(--accent);
+  color: #fff;
+}
+.tutor-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tutor-hub .screen {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 40px);
+}
+/* iPad and laptop: students down the left, two columns of cards. */
+@media (min-width: 900px) {
+  .tutor-hub .tutor-screen {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 30px 32px 40px;
+  }
+  .tutor-hub .tutor-screen:has(> .stu-list) {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    align-content: start;
+    column-gap: 24px;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 30px 32px 40px;
+  }
+  .tutor-hub .tutor-screen:has(> .stu-list) > * {
+    grid-column: 2;
+    max-width: none;
+  }
+  .tutor-hub .tutor-screen > .stu-list {
+    grid-column: 1;
+    grid-row: 1 / span 20;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    align-self: start;
+    position: sticky;
+    top: 30px;
+  }
+  .tutor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .tutor-grid > .work-card {
+    grid-row: span 2;
+  }
+}
+
+/* Any accent hero: white text and buttons that read on the colour. */
+.hero .eyebrow,
+.hero .muted,
+.hero .sub,
+.hero .t2,
+.hero .s12.muted {
+  color: rgba(255, 255, 255, 0.86);
+}
+.hero .h2,
+.hero .count,
+.hero .num,
+.hero strong {
+  color: #fff;
+}
+.hero .count {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+.hero .btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: none;
+}
+.hero .btn.primary {
+  background: #fff;
+  color: color-mix(in oklab, var(--accent) 75%, #000);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+}
+.hero .chip {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.tutor-next .test-count,
+.tutor-next .test-count .num {
+  background: none;
+  color: #fff;
+}
+.tutor-next .now-title {
+  font-size: 26px !important;
+  line-height: 1.05;
+  white-space: normal;
+  overflow: visible;
+}

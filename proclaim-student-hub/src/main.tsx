@@ -14,9 +14,10 @@ import { localDb } from "./pages/localDb.ts";
 import { unlockSeed } from "./pages/lockedSeed.ts";
 import { installPagesRuntime, pagesImport, PAGES } from "./pages/runtime.ts";
 import "./styles.css";
+import "./bento.css";
 
 async function start() {
-  // Night Studio look, dark unless the student chose otherwise in Apps › Look.
+  // Bento look, light unless the student chose otherwise in More › Look.
   applyTheme();
   applyAccent();
   watchTheme();
@@ -25,6 +26,8 @@ async function start() {
     // GitHub Pages version: Gemini + phone storage stand in for claude.ai, and
     // data sent from the claude.ai link arrives in the address.
     installPagesRuntime();
+    // Only for notifications from the Home Screen (public/sw.js caches nothing).
+    navigator.serviceWorker?.register("sw.js").catch(() => undefined);
     // The student's own timetable/classes/homework, if their private link unlocked it.
     await unlockSeed();
     pagesImport.added = await importFromLocation(localDb).catch(() => null);

@@ -14,13 +14,21 @@ export function mmss(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export function FocusButton({ title }: { title: string }) {
+export function FocusButton({
+  title,
+  label = "Focus timer",
+  className = "btn sm",
+}: {
+  title: string;
+  label?: string;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="btn sm" onClick={() => setOpen(true)}>
-        <Icon name="timer" size={14} />
-        Focus timer
+      <button className={className} onClick={() => setOpen(true)}>
+        <Icon name="timer" size={className.includes("sm") ? 14 : 18} />
+        {label}
       </button>
       {open &&
         createPortal(

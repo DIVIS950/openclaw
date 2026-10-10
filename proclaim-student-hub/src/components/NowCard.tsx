@@ -24,59 +24,61 @@ export function NowCard() {
   const live = info.state === "now";
   const pct = live ? Math.round(info.progress * 100) : 0;
   const big = live ? info.minutesLeft : info.minutesUntil < 100 ? info.minutesUntil : null;
-  const small = live ? "min left" : info.minutesUntil < 100 ? "min to go" : "starts";
-  // Ring: r=36 → circumference 226.2; the offset is what's left to draw.
-  const off = 226.2 * (1 - (live ? info.progress : 0));
+  // Ring: r=32 → circumference 201; the offset is what's left to draw.
+  const off = 201 * (1 - (live ? info.progress : 0));
   return (
-    <section className="card hero now-card rise d2" aria-label={live ? "Now" : "Next lesson"}>
+    <section className="now-card rise d1" aria-label={live ? "Now" : "Next lesson"}>
       <div className="now-head">
-        <div className="stack" style={{ gap: 7, minWidth: 0 }}>
-          <span className="eyebrow row" style={{ color: "var(--accent-t)", gap: 8 }}>
-            {live && <span className="dot" aria-hidden="true" />}
+        <div className="stack" style={{ gap: 6, minWidth: 0 }}>
+          <span className="now-eyebrow">
             {live ? "Now" : "Next up"}
             {lesson.room ? ` · Room ${lesson.room}` : ""}
           </span>
-          <strong className="h1 now-title" style={{ fontSize: 30 }}>
-            {lesson.subject}
-          </strong>
-          <span className="t2 s13">
+          <strong className="now-title">{lesson.subject}</strong>
+          <span className="now-sub">
             {lesson.start}
             {lesson.end ? ` – ${lesson.end}` : ""}
             {live && info.after ? ` · ${info.after.subject} next` : ""}
           </span>
         </div>
         <span
-          className="ring-wrap now-ring"
+          className="bento-ring"
           style={{ "--off": off } as React.CSSProperties}
           aria-label={live ? `${info.minutesLeft} minutes left, ${pct}% through` : "Not started"}
         >
-          <svg viewBox="0 0 84 84" width="84" height="84" aria-hidden="true">
-            <circle cx="42" cy="42" r="36" fill="none" stroke="var(--line)" strokeWidth="7" />
+          <svg viewBox="0 0 76 76" width="76" height="76" aria-hidden="true">
+            <circle
+              cx="38"
+              cy="38"
+              r="32"
+              fill="none"
+              stroke="rgba(255,255,255,.22)"
+              strokeWidth="8"
+            />
             <circle
               className="arc"
-              cx="42"
-              cy="42"
-              r="36"
+              cx="38"
+              cy="38"
+              r="32"
               fill="none"
-              stroke="var(--accent)"
-              strokeWidth="7"
+              stroke="#fff"
+              strokeWidth="8"
               strokeLinecap="round"
             />
           </svg>
           <span className="ring-text">
             <b>{big === null ? lesson.start : <CountUp n={big} delay={600} />}</b>
-            <small>{small}</small>
+            <small>{big === null ? "STARTS" : "MIN"}</small>
           </span>
         </span>
       </div>
       <div className="row" style={{ gap: 10 }}>
-        <button className="btn" onClick={() => go("timetable")}>
-          <Icon name="calendar" size={18} />
-          Timetable
-        </button>
-        <button className="btn primary" onClick={() => go("tutor")}>
+        <button className="btn now-btn" onClick={() => go("tutor")}>
           <Icon name="sparkle" size={18} />
           Prep me
+        </button>
+        <button className="btn now-btn ghost" onClick={() => go("timetable")}>
+          Full day
         </button>
       </div>
     </section>

@@ -168,13 +168,13 @@ export function Tutoring({
 
       {nextUp && (
         <section
-          className="card hero cyan rise d1"
+          className="card hero rise d1"
           style={{ ...subjectVars(nextUp.tutor.subject), padding: "16px 18px", gap: 14 }}
           aria-label="Next lesson"
         >
           <div className="between" style={{ alignItems: "center", gap: 12 }}>
             <div className="stack" style={{ gap: 5, minWidth: 0 }}>
-              <span className="eyebrow" style={{ color: "var(--cyan-t)" }}>
+              <span className="eyebrow">
                 Next up · {dayShort(nextUp.start)} {timeOf(nextUp.start)}
               </span>
               <span className="h2" style={{ fontSize: 18 }}>
@@ -191,7 +191,7 @@ export function Tutoring({
               </span>
             </div>
             <div className="stack" style={{ alignItems: "flex-end", gap: 0, flex: "none" }}>
-              <span className="count cyan">
+              <span className="count">
                 {lessonLabel(nextUp.start, now) === "on now" ? "now" : countdown(nextUp.start, now)}
               </span>
               <span className="eyebrow" style={{ letterSpacing: ".1em" }}>
@@ -202,7 +202,7 @@ export function Tutoring({
           <div className="row" style={{ gap: 10 }}>
             {safeLink(nextUp.tutor.meet) ? (
               <a
-                className="btn cyan"
+                className="btn primary"
                 style={{ flex: 1.3 }}
                 href={safeLink(nextUp.tutor.meet)}
                 target="_blank"
@@ -213,7 +213,7 @@ export function Tutoring({
               </a>
             ) : whatsappLink(nextUp.tutor.whatsapp) ? (
               <a
-                className="btn cyan"
+                className="btn primary"
                 style={{ flex: 1.3 }}
                 href={whatsappLink(nextUp.tutor.whatsapp)}
                 target="_blank"
@@ -223,7 +223,7 @@ export function Tutoring({
               </a>
             ) : (
               <button
-                className="btn cyan"
+                className="btn primary"
                 style={{ flex: 1.3 }}
                 onClick={() => setEditing(nextUp.tutor)}
               >

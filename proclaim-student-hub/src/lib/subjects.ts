@@ -79,3 +79,35 @@ export function subjectVars(name: string): React.CSSProperties {
     "--neon": look.neon,
   } as React.CSSProperties;
 }
+
+export type Tone = "blue" | "orange" | "green" | "pink" | "violet" | "yellow";
+
+// Bento subject colours: one soft tone per subject (chips, dots, timeline blocks).
+const TONES: [RegExp, Tone][] = [
+  [/span|español/i, "orange"],
+  [/comput|\bict\b|\bit\b|coding/i, "blue"],
+  [/math|further|stat/i, "violet"],
+  [/czech|češ|česk/i, "pink"],
+  [/hist|dějepis/i, "yellow"],
+  [/eng|lit/i, "green"],
+  [/music/i, "blue"],
+  [/geo|zeměpis/i, "green"],
+  [/bio|chem|phys|sci/i, "green"],
+  [/french|franç/i, "blue"],
+  [/german|deutsch/i, "yellow"],
+  [/art|design|drama/i, "pink"],
+  [/\bp\.?e\b|physical|sport|games|swim/i, "orange"],
+];
+const TONE_CYCLE: Tone[] = ["blue", "orange", "green", "pink", "violet", "yellow"];
+
+export function subjectTone(name: string): Tone {
+  const found = TONES.find(([re]) => re.test(name));
+  if (found) {
+    return found[1];
+  }
+  let h = 0;
+  for (const ch of name) {
+    h = (h * 31 + ch.charCodeAt(0)) % 997;
+  }
+  return TONE_CYCLE[h % TONE_CYCLE.length];
+}

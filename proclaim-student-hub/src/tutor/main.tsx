@@ -3,9 +3,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { trackKeyboard } from "../lib/keyboard.ts";
 import "../styles.css";
+import "../bento.css";
 
 // The Tutor Hub is light by default (it follows the tutor's phone if they pick
-// "auto" later) and uses the cyan accent, the tutoring colour in the design.
+// "auto" later) and uses the green accent, so it never looks like the student's app.
 try {
   const pref = localStorage.getItem("tutorhub.theme");
   const light =
@@ -16,8 +17,8 @@ try {
 } catch {
   document.documentElement.dataset.theme = "light";
 }
-document.documentElement.dataset.accent = "cyan";
-document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#f3f2fa");
+document.documentElement.dataset.accent = "green";
+document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#EEF0F4");
 import { TutorApp } from "./TutorApp.tsx";
 
 trackKeyboard();

@@ -8,35 +8,39 @@ import {
   type Accent,
   type ThemePref,
 } from "../lib/theme.ts";
+import { Icon } from "./Icon.tsx";
 
 const OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
   { value: "auto", label: "Auto" },
 ];
 
 const SWATCH: Record<Accent, string> = {
-  lime: "#c8ff2e",
-  cyan: "#3df2ff",
-  magenta: "#ff3dae",
-  violet: "#9d6bff",
+  blue: "#2F5BFF",
+  orange: "#FF6B1A",
+  green: "#12B076",
+  violet: "#7B5CFF",
 };
 
-/** More › Look: dark (default), light or follow the phone, plus the accent colour. */
+/** More › Look: light (default), dark or follow the phone, plus the accent colour. */
 export function LookCard() {
   const [pref, setPref] = useState<ThemePref>(() => themePref());
   const [accent, setAccent] = useState<Accent>(() => accentPref());
   return (
     <>
-      <div className="crow" aria-label="Look">
-        <span style={{ flex: 1, fontWeight: 700 }}>Look</span>
-        <div className="seg sm accent" role="tablist" aria-label="Theme">
+      <div className="set">
+        <span className="ic tone-grey" aria-hidden="true">
+          <Icon name="sun" size={18} />
+        </span>
+        <span className="label">Look</span>
+        <div className="seg3" role="radiogroup" aria-label="Theme">
           {OPTIONS.map((o) => (
             <button
               key={o.value}
-              role="tab"
+              role="radio"
               className={pref === o.value ? "on" : undefined}
-              aria-selected={pref === o.value}
+              aria-checked={pref === o.value}
               onClick={() => {
                 setPref(o.value);
                 setThemePref(o.value);
@@ -47,8 +51,11 @@ export function LookCard() {
           ))}
         </div>
       </div>
-      <div className="crow">
-        <span style={{ flex: 1, fontWeight: 700 }}>Accent</span>
+      <div className="set">
+        <span className="ic tone-grey" aria-hidden="true">
+          <Icon name="palette" size={18} />
+        </span>
+        <span className="label">Accent</span>
         <div className="row" style={{ gap: 10 }} role="radiogroup" aria-label="Accent colour">
           {ACCENTS.map((a) => (
             <button

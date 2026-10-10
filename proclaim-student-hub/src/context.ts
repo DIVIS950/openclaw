@@ -18,7 +18,8 @@ export type Screen =
   | "todo"
   | "tests"
   | "notes"
-  | "tutoring";
+  | "tutoring"
+  | "notifications";
 
 export const SCREENS: Screen[] = [
   "today",
@@ -36,6 +37,7 @@ export const SCREENS: Screen[] = [
   "tests",
   "notes",
   "tutoring",
+  "notifications",
 ];
 
 export interface TutorSeed {
@@ -72,6 +74,8 @@ export interface AppContext {
   toast: (message: string) => void;
   /** Null on the web link, which has no separate sign-in. */
   signOut: (() => void) | null;
+  /** Shows the tutorial tour over Today. */
+  startTour: () => void;
 }
 
 export const Ctx = createContext<AppContext | null>(null);

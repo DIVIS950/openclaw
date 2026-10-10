@@ -4,6 +4,7 @@ import { AddAnythingButton } from "./components/AddAnything.tsx";
 import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
+import { Tour, tour } from "./components/Tour.tsx";
 import { Ctx, SCREENS, type AppContext, type Screen, type TutorSeed } from "./context.ts";
 import { Lab } from "./lab/Lab.tsx";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
@@ -13,10 +14,13 @@ import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
+import { dueReminders, newHomeworkReminder, notifyPrefs, show } from "./lib/notify.ts";
 import { applyHomeworkSeed } from "./lib/seed.ts";
-import { dayOf } from "./lib/study.ts";
+import { timetable } from "./lib/store.ts";
+import { dayOf, tutoring } from "./lib/study.ts";
 import { tutorImport } from "./lib/tutorImport.ts";
 import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
+import { upcomingTutoring } from "./lib/tutorSchedule.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { reloadToUpdate, watchForUpdates } from "./lib/updates.ts";
 import { gmailLink, withGmail } from "./pages/gmailLink.ts";
@@ -28,6 +32,7 @@ import { Call } from "./screens/Call.tsx";
 import { Classes } from "./screens/Classes.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { Inbox } from "./screens/Inbox.tsx";
+import { Notifications } from "./screens/Notifications.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Timetable } from "./screens/Timetable.tsx";
 import { Today } from "./screens/Today.tsx";
@@ -133,6 +138,25 @@ export function App() {
   );
 }
 
+/** iPad landscape and bigger: Homework opens tasks beside the list (bento.css .split). */
+const WIDE = "(min-width: 1000px) and (min-height: 600px)";
+
+function useWide(): boolean {
+  const [wide, setWide] = useState(
+    () => typeof matchMedia === "function" && matchMedia(WIDE).matches,
+  );
+  useEffect(() => {
+    if (typeof matchMedia !== "function") {
+      return;
+    }
+    const mq = matchMedia(WIDE);
+    const on = () => setWide(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
+
 /** The private link keeps its key in the address; "Add to Home Screen" needs it there. */
 const keyInHash = () => /^#(k|import)=/.test(window.location.hash);
 
@@ -233,6 +257,10 @@ function Shell({
           if (added.length > 0) {
             setHomework((list) => [...(list ?? []), ...added]);
             toast(`${added.length} new from Classroom: ${added.map((h) => h.title).join(", ")}`);
+            const note = newHomeworkReminder(added);
+            if (note && notifyPrefs.get().hw) {
+              void show(note);
+            }
           }
         },
         (err: unknown) => console.warn("Classroom email sync failed", err),
@@ -303,6 +331,39 @@ function Shell({
     return () => window.removeEventListener("hashchange", onHash);
   }, [toast, reloadHomework]);
 
+  // The tour: once on a new device, when Today has drawn; again from More.
+  const [touring, setTouring] = useState(false);
+  useEffect(() => {
+    if (homework !== null && !tour.seen() && screen === "today") {
+      const id = window.setTimeout(() => setTouring(true), 900);
+      return () => window.clearTimeout(id);
+    }
+  }, [homework === null]);
+
+  // Reminders (More › Notifications): checked every minute while the app runs.
+  const hwRef = useRef<Homework[]>([]);
+  hwRef.current = homework ?? [];
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const list = dueReminders(now, notifyPrefs.get(), {
+        homework: hwRef.current,
+        lessons: timetable.get(),
+        tutoring: upcomingTutoring(tutoring.tutors(), now).map((u) => ({
+          name: u.tutor.name,
+          start: u.start,
+          meet: u.tutor.meet,
+        })),
+      });
+      for (const r of list) {
+        void show(r);
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const ctx = useMemo<AppContext>(
     () => ({
       data,
@@ -336,6 +397,10 @@ function Shell({
       handleError,
       toast,
       signOut: onSignOut,
+      startTour: () => {
+        go("today");
+        window.setTimeout(() => setTouring(true), 400);
+      },
     }),
     [
       data,
@@ -355,6 +420,8 @@ function Shell({
   );
 
   const current = screen === "assignment" && !assignment ? "homework" : screen;
+  const wide = useWide();
+  const split = wide && (current === "homework" || current === "assignment");
   // Shown at the top of Today in demo mode; it scrolls away with the screen.
   const demoBanner = data.demo ? (
     <div className="banner between">
@@ -399,9 +466,28 @@ function Shell({
           </div>
         )}
         {current === "today" && <Today demoBanner={demoBanner} />}
-        {current === "homework" && <HomeworkScreen />}
-        {current === "assignment" && assignment && (
-          <Assignment key={assignment.id} hw={assignment} />
+        {split ? (
+          <div className="split">
+            <HomeworkScreen />
+            {current === "assignment" && assignment ? (
+              <Assignment key={assignment.id} hw={assignment} />
+            ) : (
+              <div className="split-empty">
+                <Icon name="bookClosed" size={28} />
+                <strong className="h2" style={{ color: "var(--ink)" }}>
+                  Pick a homework
+                </strong>
+                <span className="s13">It opens here, next to your list.</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {current === "homework" && <HomeworkScreen />}
+            {current === "assignment" && assignment && (
+              <Assignment key={assignment.id} hw={assignment} />
+            )}
+          </>
         )}
         {current === "tutor" && <Tutor />}
         {(current === "revise" || current === "games") && <Lab />}
@@ -414,6 +500,7 @@ function Shell({
         {current === "tests" && <TestsScreen />}
         {current === "notes" && <NotesScreen />}
         {current === "tutoring" && <TutoringScreen />}
+        {current === "notifications" && <Notifications />}
         {(current === "homework" || current === "todo" || current === "inbox") && (
           <button
             className="ask"
@@ -432,7 +519,13 @@ function Shell({
             onClose={() => setAiSheet(null)}
           />
         )}
-        {current !== "assignment" && <NavBar screen={current} go={go} />}
+        {(current !== "assignment" || wide) && (
+          <>
+            <div className="nav-fade" aria-hidden="true" />
+            <NavBar screen={current} go={go} />
+          </>
+        )}
+        {touring && <Tour onClose={() => setTouring(false)} />}
         {toastMsg?.includes("XP") && <Confetti key={toastMsg} />}
         {toastMsg && (
           <div className="toast" role="status">
@@ -462,6 +555,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
       </button>
       <button
         className="nav-item"
+        data-tour="homework"
         aria-current={active(["homework", "assignment", "classes"])}
         onClick={() => go("homework")}
       >
@@ -472,6 +566,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
       <AddAnythingButton variant="fab" />
       <button
         className="nav-item"
+        data-tour="ai"
         aria-current={active(["tutor", "call"])}
         onClick={() => go("tutor")}
       >
@@ -490,6 +585,7 @@ function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
           "timetable",
           "tutoring",
           "inbox",
+          "notifications",
         ])}
         onClick={() => go("apps")}
       >

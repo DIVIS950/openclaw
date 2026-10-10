@@ -14,6 +14,7 @@ import {
 } from "../lib/sorter.ts";
 import { courses } from "../lib/store.ts";
 import { dayOf } from "../lib/study.ts";
+import { canListen, listen } from "../lib/voice.ts";
 import { Icon } from "./Icon.tsx";
 
 // The "Add anything" sheet: paste or photograph whatever you got, the AI sorts
@@ -134,6 +135,30 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
   };
 
   const textarea = useRef<HTMLTextAreaElement>(null);
+  // "Say it": dictate into the box (falls back to typing where there's no voice).
+  const [listening, setListening] = useState(false);
+  const stopListening = useRef<(() => void) | null>(null);
+  const sayIt = () => {
+    if (!canListen()) {
+      textarea.current?.focus();
+      return;
+    }
+    if (listening) {
+      stopListening.current?.();
+      return;
+    }
+    const before = text.trim();
+    const join = (heard: string) => (before ? `${before} ${heard}` : heard);
+    const rec = listen((heard) => setText(join(heard)));
+    stopListening.current = rec.stop;
+    setListening(true);
+    rec.done
+      .then(
+        (heard) => setText(join(heard)),
+        () => undefined,
+      )
+      .finally(() => setListening(false));
+  };
   const pasteText = async () => {
     try {
       const clip = await navigator.clipboard.readText();
@@ -157,12 +182,9 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
         onClick={(e) => e.stopPropagation()}
       >
         <div className="between" style={{ alignItems: "center" }}>
-          <div className="stack" style={{ gap: 4 }}>
-            <h2 className="h1" style={{ fontSize: 24 }}>
-              Add anything
-            </h2>
-            <span className="s13 muted">The AI sorts it. You confirm. It saves.</span>
-          </div>
+          <h2 className="h1" style={{ fontSize: 28 }}>
+            Add anything
+          </h2>
           <button className="round" aria-label="Close" disabled={busy} onClick={onClose}>
             <Icon name="close" size={18} />
           </button>
@@ -171,31 +193,36 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
         {items === null ? (
           <>
             <div className="src-grid">
-              <button className="src" disabled={busy} onClick={() => void pasteText()}>
-                <span className="ico cyan" aria-hidden="true">
-                  <Icon name="clipboard" size={20} />
+              <button className="srcb" disabled={busy} onClick={() => void pasteText()}>
+                <span className="ic tone-blue" aria-hidden="true">
+                  <Icon name="clipboard" size={19} />
                 </span>
-                Paste text
+                Paste
               </button>
-              <button className="src" disabled={busy} onClick={() => camera.current?.click()}>
-                <span className="ico magenta" aria-hidden="true">
-                  <Icon name="camera" size={20} />
+              <button className="srcb" disabled={busy} onClick={() => camera.current?.click()}>
+                <span className="ic tone-orange" aria-hidden="true">
+                  <Icon name="camera" size={19} />
                 </span>
-                Take a photo
+                Photo
               </button>
-              <button className="src" disabled={busy} onClick={() => textarea.current?.focus()}>
-                <span className="ico violet" aria-hidden="true">
-                  <Icon name="keyboard" size={20} />
+              <button
+                className={listening ? "srcb on" : "srcb"}
+                disabled={busy}
+                aria-pressed={listening}
+                onClick={sayIt}
+              >
+                <span className="ic tone-green" aria-hidden="true">
+                  <Icon name={canListen() ? "mic" : "keyboard"} size={19} />
                 </span>
-                Type
+                {listening ? "Listening…" : canListen() ? "Say it" : "Type"}
               </button>
             </div>
             <label className="stack" style={{ gap: 6 }}>
               <span className="eyebrow">What is it?</span>
               <textarea
                 ref={textarea}
-                className="field"
-                rows={2}
+                className="field in"
+                rows={3}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Science hw: finish respiration Qs 1–8 for Thursday"

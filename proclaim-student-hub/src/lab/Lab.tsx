@@ -546,7 +546,7 @@ function LabHome({
     <main className="screen">
       <header className="stack rise" style={{ gap: 10 }}>
         <div className="between" style={{ alignItems: "center", gap: 10 }}>
-          <h1 className="h1">Revision Lab</h1>
+          <h1 className="h1">Revise</h1>
           <div className="row" style={{ gap: 6 }}>
             <span className="chip lime">
               <Icon name="flame" size={14} className={stats.streak > 0 ? "wiggle" : undefined} />
