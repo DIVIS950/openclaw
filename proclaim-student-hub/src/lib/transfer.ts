@@ -1,5 +1,5 @@
 import type { Db } from "./claudeRuntime.ts";
-import { allowedMeet } from "./study.ts";
+import { allowedMeet, realDay } from "./study.ts";
 import type { Homework } from "./types.ts";
 
 // Moves the student's data from the claude.ai link (which reads Gmail and
@@ -332,12 +332,36 @@ export function cleanImported(key: string, incoming: unknown): unknown {
   }
   if (key === "psh.grades") {
     // Record by record: one bad grade doesn't drop the good ones.
-    return list
-      .filter((g) => num(g.score) && num(g.outOf) && (g.outOf as number) > 0)
-      .map((g) => withText(g, TEXT_FIELDS[key]));
+    return (
+      list
+        // A real mark: 0 <= score <= out of <= 1000.
+        .filter(
+          (g) =>
+            num(g.score) &&
+            num(g.outOf) &&
+            (g.outOf as number) > 0 &&
+            (g.outOf as number) <= 1000 &&
+            (g.score as number) >= 0 &&
+            (g.score as number) <= (g.outOf as number),
+        )
+        .map((g) => withText(g, TEXT_FIELDS[key]))
+    );
   }
   if (key === "psh.lab.packs") {
-    return list.filter((p) => typeof p.id === "string" && Array.isArray(p.items));
+    // Only packs with at least one card that can be practised.
+    return list.filter(
+      (p) =>
+        typeof p.id === "string" &&
+        Array.isArray(p.items) &&
+        p.items.some(
+          (i) =>
+            isRecord(i) &&
+            typeof i.prompt === "string" &&
+            i.prompt !== "" &&
+            typeof i.answer === "string" &&
+            i.answer !== "",
+        ),
+    );
   }
   if (TEXT_FIELDS[key]) {
     return list.map((r) => {
@@ -345,7 +369,7 @@ export function cleanImported(key: string, incoming: unknown): unknown {
       return key === "psh.todos"
         ? {
             ...out,
-            due: /^\d{4}-\d{2}-\d{2}$/.test(String(out.due)) ? out.due : "",
+            due: realDay(out.due) ? out.due : "",
             done: r.done === true,
           }
         : out;

@@ -81,7 +81,9 @@ export function samplePack(): LabPack {
   return { ...fromRevisionPack(SAMPLE_PACK), id: "sample", topic: "Photosynthesis (sample)" };
 }
 
-const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+/** Text from saved data: numbers become text, objects and lists become "". */
+const text = (v: unknown) =>
+  typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
 const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
 
 /** A saved pack with every field the Lab reads in the right shape; bad cards are left out. */
@@ -118,6 +120,17 @@ function cleanPack(p: LabPack): LabPack {
     insight: text(p.insight),
     createdAt: text(p.createdAt),
     photo: text(p.photo),
+    gaps: Array.isArray(p.gaps)
+      ? (p.gaps as unknown[])
+          .filter(
+            (g): g is { before: unknown; answer: string; after: unknown } =>
+              !!g &&
+              typeof g === "object" &&
+              typeof (g as { answer?: unknown }).answer === "string" &&
+              (g as { answer: string }).answer !== "",
+          )
+          .map((g) => ({ before: text(g.before), answer: g.answer, after: text(g.after) }))
+      : [],
     steps: Array.isArray(p.steps) ? p.steps.filter((s) => typeof s === "string") : [],
     labels: Array.isArray(p.labels)
       ? p.labels.filter(

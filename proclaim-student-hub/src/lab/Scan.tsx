@@ -352,7 +352,9 @@ function Review({
         </label>
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           <span className="chip">{DOC_LABELS[draft.docType]}</span>
-          <span className="chip">{draft.items.length} items</span>
+          <span className="chip">
+            {draft.items.length} {draft.items.length === 1 ? "item" : "items"}
+          </span>
           {draft.testScore && <span className="chip warm">Test: {draft.testScore}</span>}
           {wrong > 0 && <span className="chip warm">{wrong} marked wrong</span>}
           {draft.steps.length > 0 && <span className="chip">{draft.steps.length} steps</span>}

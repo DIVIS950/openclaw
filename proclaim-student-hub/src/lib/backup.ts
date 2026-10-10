@@ -108,10 +108,12 @@ export const backups = {
     }
   },
 
-  /** The save taken right before the last link, if any. */
-  lastLink(storage: Storage = localStorage): Snapshot | null {
+  /** The save taken right before the last link, if that link came in today. */
+  lastLink(storage: Storage = localStorage, now = new Date()): Snapshot | null {
     try {
-      return JSON.parse(storage.getItem(LINK_KEY) ?? "null") as Snapshot | null;
+      const snap = JSON.parse(storage.getItem(LINK_KEY) ?? "null") as Snapshot | null;
+      // An older one would undo more than "the last link": only today's counts.
+      return snap && dayOf(new Date(snap.at)) === dayOf(now) ? snap : null;
     } catch {
       return null;
     }

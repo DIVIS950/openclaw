@@ -255,7 +255,9 @@ export function Lab() {
       prepTests.save(prepTests.all().map((t) => (t.id === testId ? { ...t, packId: pack.id } : t)));
     }
     progress.add(10);
-    app.toast(`Pack ready: ${pack.items.length} cards. +10 XP`);
+    app.toast(
+      `Pack ready: ${pack.items.length} ${pack.items.length === 1 ? "card" : "cards"}. +10 XP`,
+    );
     show({ name: "pack", id: pack.id });
     if (!app.data.demo) {
       app.data.saveNotes(`Revision: ${pack.topic}`, packAsText(pack)).catch(app.handleError);
@@ -786,7 +788,7 @@ function PackRow({ pack, today, onOpen }: { pack: LabPack; today: string; onOpen
           {pack.subject} · {pack.topic}
         </span>
         <span className="s12 muted clip">
-          {pack.items.length} cards
+          {pack.items.length} {pack.items.length === 1 ? "card" : "cards"}
           {pack.testScore
             ? ` · test ${pack.testScore}`
             : pack.docType !== "auto"
@@ -1077,8 +1079,9 @@ function Settings({
       <section className="card stack">
         <h2 className="h2">Your packs</h2>
         <span className="muted">
-          {packs.length} packs, {items} items, saved on this device. Export to keep a copy or move
-          them to another phone.
+          {packs.length} {packs.length === 1 ? "pack" : "packs"}, {items}{" "}
+          {items === 1 ? "item" : "items"}, saved on this device. Export to keep a copy or move them
+          to another phone.
         </span>
         <div className="row" style={{ flexWrap: "wrap" }}>
           <button

@@ -135,3 +135,27 @@ describe("round-6 link checks", () => {
     expect(JSON.parse(storage.getItem("psh.todos") ?? "[]")).toHaveLength(2);
   });
 });
+
+describe("round-7 link checks", () => {
+  it("knows a real day", async () => {
+    const { realDay } = await import("../src/lib/study.ts");
+    expect(realDay("2026-10-12")).toBe(true);
+    expect(realDay("2026-99-99")).toBe(false);
+    expect(realDay("2026-02-30")).toBe(false);
+    expect(realDay(5)).toBe(false);
+  });
+  it("keeps only real marks and packs with a card", async () => {
+    const { cleanImported } = await import("../src/lib/transfer.ts");
+    const grades = cleanImported("psh.grades", [
+      { id: "a", score: 1e300, outOf: 1 },
+      { id: "b", score: -50, outOf: 10 },
+      { id: "c", score: 7, outOf: 10 },
+    ]) as { id: string }[];
+    expect(grades.map((g) => g.id)).toEqual(["c"]);
+    const packs = cleanImported("psh.lab.packs", [
+      { id: "e", items: [] },
+      { id: "f", items: [{ prompt: "q", answer: "a" }] },
+    ]) as { id: string }[];
+    expect(packs.map((p) => p.id)).toEqual(["f"]);
+  });
+});

@@ -61,7 +61,7 @@ export const grades = {
 };
 
 export const percent = (g: Pick<Grade, "score" | "outOf">): number =>
-  g.outOf > 0 ? Math.round((g.score / g.outOf) * 100) : 0;
+  g.outOf > 0 ? Math.min(100, Math.max(0, Math.round((g.score / g.outOf) * 100))) : 0;
 
 /** A letter for a percentage, the way the school reports it. */
 export function letter(p: number): string {

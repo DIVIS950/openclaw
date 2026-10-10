@@ -9,7 +9,13 @@ const savedAt = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? "earlier"
-    : d.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 };
 
 interface State {

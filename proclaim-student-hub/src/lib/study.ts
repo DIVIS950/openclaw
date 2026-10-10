@@ -81,7 +81,7 @@ export const todos = {
     readList<Todo>("psh.todos", ["id", "text", "due", "subject", "from"]).map((t) => ({
       ...t,
       // A due date is a day (YYYY-MM-DD) or nothing.
-      due: /^\d{4}-\d{2}-\d{2}$/.test(t.due) ? t.due : "",
+      due: realDay(t.due) ? t.due : "",
       done: t.done === true,
     })),
   save(list: Todo[]): boolean {
@@ -567,6 +567,19 @@ export function allowedMeet(url: string): string {
     host === "teams.live.com";
   return u.protocol === "https:" && ok && !u.username && !u.password ? u.href : "";
 }
+
+/** A real calendar day as YYYY-MM-DD (2026-99-99 is not). */
+export const realDay = (v: unknown): v is string => {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return false;
+  }
+  const d = new Date(`${v}T12:00:00`);
+  return (
+    !Number.isNaN(d.getTime()) &&
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` ===
+      v
+  );
+};
 
 /** "Google Meet", "Zoom" or "Teams" for a lesson link; "the call" for anything else. */
 export function callName(url: string): string {

@@ -95,7 +95,9 @@ export function PackHome({
         <h1 className="h1">{pack.topic}</h1>
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           <span className="chip accent">{mastery(pack.items)}% mastered</span>
-          <span className="chip">{pack.items.length} items</span>
+          <span className="chip">
+            {pack.items.length} {pack.items.length === 1 ? "item" : "items"}
+          </span>
           {due > 0 && <span className="chip good">{due} due today</span>}
           {weak > 0 && <span className="chip warm">{weak} weak</span>}
           {pack.testScore && <span className="chip">Real test: {pack.testScore}</span>}

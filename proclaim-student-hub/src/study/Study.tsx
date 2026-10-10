@@ -8,6 +8,7 @@ import {
   groupTodos,
   newId,
   noteHandoff,
+  realDay,
   todos,
   TODOS_CHANGED,
   type Todo,
@@ -125,7 +126,7 @@ export function TutoringScreen() {
 }
 
 function dueText(due: string, today: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+  if (!realDay(due)) {
     return "";
   }
   if (due === today) {
