@@ -9,6 +9,7 @@ import { timetable } from "../lib/store.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import { lessonsOn, nowAndNext, schoolDays, weekdayOf } from "../lib/timetable.ts";
 import type { Homework } from "../lib/types.ts";
+import { useEscape } from "../lib/useEscape.ts";
 
 const DAY_NAMES: Record<Weekday, string> = {
   Mon: "Monday",
@@ -307,6 +308,7 @@ function LessonEditor({
 }) {
   const [draft, setDraft] = useState(lesson);
   const valid = draft.subject.trim() && draft.start && (!draft.end || draft.end > draft.start);
+  useEscape(onClose);
   return (
     <div className="backdrop" onClick={onClose}>
       <form

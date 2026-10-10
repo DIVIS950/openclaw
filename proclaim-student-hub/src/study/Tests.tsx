@@ -24,6 +24,8 @@ import {
   type TestSuggestion,
 } from "../lib/study.ts";
 import { subjectTone, subjectVars } from "../lib/subjects.ts";
+import { useEscape } from "../lib/useEscape.ts";
+import { useOpenStep } from "../lib/useOpenStep.ts";
 import { GradesSection } from "./Grades.tsx";
 
 // Tests coming up, each with a plan for every day until the test: get the
@@ -57,7 +59,8 @@ export function Tests({
   const { homework, ai, toast } = useApp();
   const today = dayOf(new Date());
   const [list, setList] = useState<PrepTest[]>(prepTests.all);
-  const [open, setOpen] = useState<string | null>(testHandoff.take);
+  // An open plan is its own history step, so phone Back returns to the list.
+  const [open, openPlan, closePlan] = useOpenStep("pshPlan", testHandoff.take());
   const [adding, setAdding] = useState<TestSuggestion | null>(null);
   const suggestions = useMemo(
     () => suggestTests({ homework: homework ?? [], courses: courses.get(), existing: list }, today),
@@ -83,11 +86,11 @@ export function Tests({
         test={current}
         today={today}
         onOpenNote={onOpenNote}
-        onBack={() => setOpen(null)}
+        onBack={closePlan}
         onChange={(t) => save(list.map((x) => (x.id === t.id ? t : x)))}
         onDelete={() => {
           save(list.filter((x) => x.id !== current.id));
-          setOpen(null);
+          closePlan();
         }}
       />
     );
@@ -127,7 +130,7 @@ export function Tests({
       )}
 
       {view === "tests" && upcoming.length > 0 && (
-        <NextTest test={upcoming[0]} today={today} onOpen={() => setOpen(upcoming[0].id)} />
+        <NextTest test={upcoming[0]} today={today} onOpen={() => openPlan(upcoming[0].id)} />
       )}
 
       {view === "tests" && upcoming.length > 1 && (
@@ -137,7 +140,7 @@ export function Tests({
             <span className="muted s13">{upcoming.length - 1}</span>
           </div>
           {upcoming.slice(1).map((t) => (
-            <button key={t.id} className="li test-li" onClick={() => setOpen(t.id)}>
+            <button key={t.id} className="li test-li" onClick={() => openPlan(t.id)}>
               <span className="test-date num">
                 {new Date(`${t.date}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short" })}
                 <br />
@@ -199,7 +202,7 @@ export function Tests({
           onAdd={(t) => {
             save([...list, t]);
             setAdding(null);
-            setOpen(t.id);
+            openPlan(t.id);
             // The AI builds the pack while the plan opens.
             autoPackInBackground(ai, t, toast, () => setList(prepTests.all()));
           }}
@@ -304,6 +307,7 @@ function AddTest({
   const [topic, setTopic] = useState(start.topic);
   const [date, setDate] = useState(start.date);
   const subjects = [...new Set(courses.get().map((c) => c.subject))];
+  useEscape(onClose);
   return (
     <div className="backdrop" onClick={onClose}>
       <form

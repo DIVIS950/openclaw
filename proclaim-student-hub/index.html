@@ -58,6 +58,12 @@
         border-radius: 6px;
         background: var(--b-fill);
       }
+      .boot-title {
+        font: 800 13px/12px system-ui, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5b6372;
+      }
       .boot-line.big {
         height: 34px;
         width: 58%;
@@ -118,6 +124,9 @@
         .boot-card {
           box-shadow: none;
         }
+        .boot-title {
+          color: #9aa3b2;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .boot-line,
@@ -131,7 +140,7 @@
     <div id="root">
       <div class="boot" role="status" aria-label="Loading your hub">
         <div class="boot-col">
-          <div class="boot-line"></div>
+          <div class="boot-title">Student Hub</div>
           <div class="boot-line big"></div>
           <div class="boot-card"></div>
           <div class="boot-card short"></div>

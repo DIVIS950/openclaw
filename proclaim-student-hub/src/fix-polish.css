@@ -216,3 +216,57 @@ label > span.h2:first-child {
     background 0.2s ease,
     color 0.2s ease;
 }
+
+/* Round-2 jury: every tap target at least 44px (the hit area grows, not the
+   drawing), and small text without opacity so it keeps 4.5:1. */
+.sw::before,
+.accent-swatch::before {
+  content: "";
+  position: absolute;
+  inset: -8px -6px;
+}
+.accent-swatch {
+  position: relative;
+}
+.accent-swatch::before {
+  inset: -8px;
+  border-radius: 12px;
+}
+.seg3 button {
+  min-height: 44px;
+}
+button.tick::before {
+  inset: -10px;
+  border-radius: 12px;
+}
+.search {
+  min-height: 44px;
+}
+.search input {
+  min-height: 40px;
+}
+.les .blk .r {
+  opacity: 1;
+}
+.les .blk:not(.now) .r {
+  color: var(--ink2);
+}
+.hero.cyan .eyebrow,
+.hero.cyan .muted {
+  color: #fff;
+  opacity: 1;
+}
+
+/* AI help before a key is added. */
+.no-key-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card-2);
+  color: var(--ink2);
+}
+.no-key-note .link-btn {
+  color: var(--accent-t);
+  font-weight: 700;
+  min-height: 0;
+}

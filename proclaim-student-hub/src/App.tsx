@@ -21,12 +21,14 @@ import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
+import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
 import { dueReminders, newHomeworkReminder, notifyPrefs, show } from "./lib/notify.ts";
 import { applyHomeworkSeed } from "./lib/seed.ts";
 import { timetable } from "./lib/store.ts";
-import { dayOf, tutoring } from "./lib/study.ts";
+import { tutoring } from "./lib/study.ts";
+import { readTransferFromLocation, transferPreview } from "./lib/transfer.ts";
 import { tutorImport } from "./lib/tutorImport.ts";
-import { appliedSummary, importReplyFromLocation } from "./lib/tutorLink.ts";
+import { importReplyFromLocation } from "./lib/tutorLink.ts";
 import { upcomingTutoring } from "./lib/tutorSchedule.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { reloadToUpdate, watchForUpdates } from "./lib/updates.ts";
@@ -394,13 +396,26 @@ function Shell({
   useEffect(() => {
     const onHash = () => {
       // A tutor's link tapped while the app is already open.
+      // A tutor's or claude.ai link tapped while the app is already open: it
+      // waits for the student's OK in LinkConfirm, like on a fresh load.
       if (window.location.hash.startsWith("#tutor=")) {
-        void importReplyFromLocation(dayOf(new Date())).then((got) => {
-          if (got) {
-            toast(appliedSummary(got));
-            reloadHomework();
-          }
-        });
+        void importReplyFromLocation().catch(() => linkInbox.set(damagedLink("your tutor")));
+        return;
+      }
+      if (PAGES && window.location.hash.startsWith("#import=")) {
+        void readTransferFromLocation()
+          .catch(() => "damaged" as const)
+          .then((t) => {
+            if (t === "damaged") {
+              linkInbox.set(damagedLink("whoever sent it"));
+            } else if (t) {
+              linkInbox.set({
+                kind: "import",
+                transfer: t,
+                lines: transferPreview(t, localStorage),
+              });
+            }
+          });
         return;
       }
       if (navState(window.history.state)) {
@@ -416,7 +431,7 @@ function Shell({
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, [toast, reloadHomework]);
+  }, []);
 
   // The tour: once on a new device, when Today has drawn; again from More.
   const [touring, setTouring] = useState(false);

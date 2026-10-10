@@ -40,6 +40,15 @@ export function Assignment({ hw }: { hw: Homework }) {
   const latest = useRef("");
   // Typing that the real save hasn't been asked to keep yet.
   const pending = useRef(false);
+  // Escape leaves the typing box first, then closes the task (the iPad pane).
+  useEscape(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
+      el.blur();
+    } else {
+      back("homework");
+    }
+  });
 
   useEffect(() => {
     data.loadDraft(hw).then(

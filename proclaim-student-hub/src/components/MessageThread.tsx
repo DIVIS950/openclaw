@@ -14,6 +14,7 @@ export function MessageThread({
   placeholder,
   onSend,
   pending = 0,
+  autoFocus = false,
 }: {
   messages: TutorMessage[];
   me: TutorMessage["from"];
@@ -22,6 +23,8 @@ export function MessageThread({
   onSend: (text: string) => void;
   /** How many of mine are written but not yet in a link. */
   pending?: number;
+  /** Put the cursor in the message box (opened from a "Message" button). */
+  autoFocus?: boolean;
 }) {
   const [text, setText] = useState("");
   const send = () => {
@@ -73,6 +76,7 @@ export function MessageThread({
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
           aria-label="New message"
+          autoFocus={autoFocus}
         />
         <button
           className="round dark"

@@ -138,7 +138,7 @@
 /* Accent choices (More › Look). */
 :root[data-accent="orange"],
 :root[data-theme][data-accent="orange"] {
-  --accent: #ff6b1a;
+  --accent: #c2410c;
   --accent-ink: #b9450a;
   --accent-t: #b9450a;
   --accent-soft: #ffe9dc;
@@ -146,7 +146,7 @@
 }
 :root[data-accent="green"],
 :root[data-theme][data-accent="green"] {
-  --accent: #12b076;
+  --accent: #0b7f55;
   --accent-ink: #0a7a50;
   --accent-t: #0a7a50;
   --accent-soft: #ddf6ea;
@@ -154,7 +154,7 @@
 }
 :root[data-accent="violet"],
 :root[data-theme][data-accent="violet"] {
-  --accent: #7b5cff;
+  --accent: #6a45f0;
   --accent-ink: #5536db;
   --accent-t: #5536db;
   --accent-soft: #ece7ff;
@@ -167,7 +167,7 @@
   --link: #ffa06a;
 }
 :root[data-theme="dark"][data-accent="green"] {
-  --accent: #14b87b;
+  --accent: #0b7f55;
   --accent-ink: #5fddae;
   --accent-t: #5fddae;
   --accent-soft: rgba(34, 197, 138, 0.16);

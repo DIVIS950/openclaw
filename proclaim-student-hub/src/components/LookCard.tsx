@@ -18,9 +18,9 @@ const OPTIONS: { value: ThemePref; label: string }[] = [
 
 const SWATCH: Record<Accent, string> = {
   blue: "#2F5BFF",
-  orange: "#FF6B1A",
-  green: "#12B076",
-  violet: "#7B5CFF",
+  orange: "#C2410C",
+  green: "#0B7F55",
+  violet: "#6A45F0",
 };
 
 /** More › Look: follow the phone (default), light or dark, plus the accent colour. */

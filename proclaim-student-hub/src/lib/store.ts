@@ -84,6 +84,15 @@ export const weekLog = {
       same ? keep.map((e) => (e === same ? { ...e, n: e.n + n } : e)) : [...keep, { day, kind, n }],
     );
   },
+  /** Takes back `n` of today's count (an Undo), never below zero. */
+  take(kind: WeekKind, n: number, day = localDay()) {
+    write(
+      "psh.weeklog",
+      weekLog
+        .all()
+        .map((e) => (e.day === day && e.kind === kind ? { ...e, n: Math.max(0, e.n - n) } : e)),
+    );
+  },
 };
 
 export interface SavedPack {
@@ -170,6 +179,37 @@ export const homeworkXp = {
     write(XP_IDS_KEY, next.awarded);
     progress.add(5);
     weekLog.add("hw", 1);
+    return true;
+  },
+  /** Undo right after a tick: takes back the XP and the report-card count. */
+  undo(id: string) {
+    const awarded = homeworkXp.awarded();
+    if (!awarded.includes(id)) {
+      return;
+    }
+    write(
+      XP_IDS_KEY,
+      awarded.filter((x) => x !== id),
+    );
+    const p = progress.get();
+    write("psh.progress", { ...p, xp: Math.max(0, p.xp - 5) });
+    weekLog.take("hw", 1);
+    weekLog.take("xp", 5);
+  },
+};
+
+const TODO_XP_KEY = "psh.xp.todo";
+
+/** To-do XP, once per to-do: ticking, unticking and ticking again adds nothing. */
+export const todoXp = {
+  tick(id: string): boolean {
+    const next = awardOnce(read<string[]>(TODO_XP_KEY, []), id);
+    if (!next.fresh) {
+      return false;
+    }
+    write(TODO_XP_KEY, next.awarded);
+    progress.add(2);
+    weekLog.add("todo", 1);
     return true;
   },
 };

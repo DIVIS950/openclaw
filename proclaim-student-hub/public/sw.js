@@ -28,6 +28,10 @@ async function assetsOf(html) {
   const found = new Set();
   const queue = [];
   const add = (name) => {
+    // The Claude SDK chunk only loads once a key is added: fetched on first use, not here.
+    if (name.startsWith("claude-")) {
+      return;
+    }
     const url = at(`assets/${name}`);
     if (!found.has(url)) {
       found.add(url);

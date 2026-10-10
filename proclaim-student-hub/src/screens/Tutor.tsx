@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatTurn, ImageInput, TutorMode } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
+import { NoAiKeyNote } from "../components/NoAiKeyNote.tsx";
 import { useApp } from "../context.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
 import { newId, notes } from "../lib/study.ts";
@@ -225,6 +226,7 @@ export function Tutor() {
             <p className="muted buddy-hint" style={{ margin: 0 }}>
               Ask about any homework, snap a photo of a question, or pick one below.
             </p>
+            <NoAiKeyNote />
             <div className="qr">
               {[
                 ...(nextHw ? [`Help me start "${nextHw.title}"`] : []),

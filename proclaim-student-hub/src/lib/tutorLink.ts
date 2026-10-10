@@ -408,16 +408,45 @@ const shortLink = (url: string) => url.replace(/^https:\/\//, "").replace(/\/$/,
 export function replyPreview(reply: TutorReply, tutor: Tutor): string[] {
   const n = (count: number, one: string, many: string) =>
     count ? `${count} ${count === 1 ? one : many}` : "";
-  const notes = tutoring.messages();
-  const newMessages = (reply.messages?.length ? reply.messages : []).filter(
-    (m) => m.from === "tutor" && m.text.trim() && !notes.some((x) => x.id === m.id),
-  ).length;
+  // Only what isn't here yet (the same checks as applyReply), so a link opened
+  // twice says "Nothing new" the second time.
+  const thread = tutoring.messages();
+  const newMessages = reply.messages?.length
+    ? reply.messages.filter(
+        (m) => m.from === "tutor" && m.text.trim() && !thread.some((x) => x.id === m.id),
+      ).length
+    : reply.message.trim() && !thread.some((x) => x.id === `m-${reply.sentAt}`)
+      ? 1
+      : 0;
+  const sessions = tutoring.sessions();
+  const materials = tutoring.materials();
+  const list = todos.all();
   const lines = [
-    n(reply.sessions.length, "lesson note", "lesson notes"),
-    n(reply.materials.length, "material", "materials"),
-    n(newMessages || (reply.message.trim() ? 1 : 0), "message", "messages"),
+    n(
+      reply.sessions.filter(
+        (s) => s.tutorId === reply.tutorId && !sessions.some((x) => x.id === s.id),
+      ).length,
+      "lesson note",
+      "lesson notes",
+    ),
+    n(
+      reply.materials.filter(
+        (m) => m.tutorId === reply.tutorId && !materials.some((x) => x.id === m.id),
+      ).length,
+      "material",
+      "materials",
+    ),
+    n(newMessages, "message", "messages"),
     ...reply.homework
-      .filter((h) => h.text.trim())
+      .filter(
+        (h) =>
+          h.text.trim() &&
+          !list.some(
+            (t) =>
+              t.id === h.id ||
+              (t.from === fromLabel(tutor.name) && t.text === h.text && t.due === h.due),
+          ),
+      )
       .slice(0, 4)
       .map((h) => `Homework: ${h.text.trim().slice(0, 80)}`),
   ].filter(Boolean);

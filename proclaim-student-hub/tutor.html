@@ -23,9 +23,27 @@
     <title>Tutor Hub</title>
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon-180.png" />
+    <style>
+      /* Loading shell, replaced when the app draws. */
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #eef0f4;
+        color: #0b7f55;
+        font: 800 20px/1.2 system-ui, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        .boot {
+          background: #0b0d12;
+          color: #34d399;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" role="status">Tutor Hub</div></div>
     <script type="module" src="/src/tutor/main.tsx"></script>
   </body>
 </html>

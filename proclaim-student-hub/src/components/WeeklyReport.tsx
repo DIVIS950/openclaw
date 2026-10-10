@@ -44,7 +44,7 @@ export function WeeklyReport() {
         <div className="stack" style={{ gap: 6 }}>
           <div className="between s12" style={{ fontWeight: 700 }}>
             <span className="eyebrow" style={{ letterSpacing: "0.08em" }}>
-              Homework handed in
+              Homework ticked off
             </span>
             <span className="num s13">
               {stats.homework} / {Math.max(goal, stats.homework)}

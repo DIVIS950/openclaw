@@ -88,15 +88,20 @@ export function HomeworkScreen() {
           <h1 className="h1" style={{ fontSize: 36 }}>
             Homework
           </h1>
-          <button
-            className="chip cyan"
-            style={{ border: 0 }}
-            onClick={data.demo ? undefined : checkNow}
-            disabled={checking}
-            aria-label={data.demo ? "Sample data" : "Check Classroom now"}
-          >
-            {syncLabel}
-          </button>
+          {data.demo || PAGES ? (
+            // Nothing to check from here: Classroom arrives through claude.ai.
+            <span className="chip cyan">{syncLabel}</span>
+          ) : (
+            <button
+              className="chip cyan"
+              style={{ border: 0 }}
+              onClick={checkNow}
+              disabled={checking}
+              aria-label="Check Classroom now"
+            >
+              {syncLabel}
+            </button>
+          )}
         </div>
         <div className="seg2" role="tablist" aria-label="Show">
           <button
@@ -316,7 +321,12 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
         const xp = homeworkXp.tick(hw.id);
         toast(xp ? `${data.labels.ticked} +5 XP` : data.labels.ticked, {
           label: "Undo",
-          run: () => void setDone(false),
+          run: () => {
+            if (xp) {
+              homeworkXp.undo(hw.id);
+            }
+            void setDone(false);
+          },
         });
       }
     } catch (err) {

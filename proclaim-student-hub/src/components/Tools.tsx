@@ -254,23 +254,88 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
   );
 }
 
-/** A calculator that only does arithmetic: numbers, + - × ÷, brackets, powers, percent. */
+/**
+ * A calculator that only does arithmetic: numbers, + - × ÷, brackets, powers
+ * (^ or **), percent. A small parser (no eval, so it works under the page's
+ * Content-Security-Policy). Returns "" for anything it can't read.
+ */
 export function calc(expr: string): string {
-  const clean = expr
+  const src = expr
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
     .replace(/,/g, ".")
-    .replace(/\^/g, "**")
+    .replace(/\*\*/g, "^")
     .replace(/\s+/g, "");
-  if (!clean || !/^[\d.()+\-*/%e]+$/i.test(clean) || /[a-df-z]/i.test(clean)) {
+  if (!src || !/^[\d.()+\-*/%^e]+$/i.test(src)) {
     return "";
   }
+  let i = 0;
+  const peek = () => src[i];
+  // expr := term (('+'|'-') term)*
+  const expression = (): number => {
+    let v = term();
+    while (peek() === "+" || peek() === "-") {
+      const op = src[i++];
+      const r = term();
+      v = op === "+" ? v + r : v - r;
+    }
+    return v;
+  };
+  // term := power (('*'|'/') power)*
+  const term = (): number => {
+    let v = power();
+    while (peek() === "*" || peek() === "/") {
+      const op = src[i++];
+      const r = power();
+      v = op === "*" ? v * r : v / r;
+    }
+    return v;
+  };
+  // power := unary ('^' power)?   (right-associative)
+  const power = (): number => {
+    const base = unary();
+    if (peek() === "^") {
+      i++;
+      return base ** power();
+    }
+    return base;
+  };
+  // unary := ('-'|'+') unary | atom '%'?
+  const unary = (): number => {
+    if (peek() === "-") {
+      i++;
+      return -unary();
+    }
+    if (peek() === "+") {
+      i++;
+      return unary();
+    }
+    let v = atom();
+    while (peek() === "%") {
+      i++;
+      v /= 100;
+    }
+    return v;
+  };
+  const atom = (): number => {
+    if (peek() === "(") {
+      i++;
+      const v = expression();
+      if (src[i++] !== ")") {
+        throw new Error("bracket");
+      }
+      return v;
+    }
+    const m = /^(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/i.exec(src.slice(i));
+    if (!m) {
+      throw new Error("number");
+    }
+    i += m[0].length;
+    return Number(m[0]);
+  };
   try {
-    // Only arithmetic characters got through the check above.
-    const value = new Function(
-      `"use strict"; return (${clean.replace(/(\d+(?:\.\d+)?)%/g, "($1/100)")});`,
-    )() as number;
-    if (typeof value !== "number" || !Number.isFinite(value)) {
+    const value = expression();
+    if (i !== src.length || !Number.isFinite(value)) {
       return "";
     }
     return String(Math.round(value * 1e10) / 1e10);

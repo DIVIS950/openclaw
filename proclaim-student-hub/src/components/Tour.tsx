@@ -51,7 +51,7 @@ const STEPS: Step[] = [
   {
     target: '[data-tour="homework"]',
     title: "Tick off homework",
-    body: "Swipe a task right when it is done. New Classroom work shows up here by itself.",
+    body: "Swipe a task right when it is done, or tap it to start working on it.",
     cta: "Next",
   },
   {

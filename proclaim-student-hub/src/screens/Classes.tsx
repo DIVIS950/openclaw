@@ -184,11 +184,7 @@ function ClassCard({ course }: { course: Course }) {
             `${p.date ? `, posted ${p.date}` : ""}. ${p.text}`;
           const old = i > 1;
           return (
-            <div
-              key={`${p.date}-${p.title}`}
-              className="post"
-              style={old ? { opacity: 0.7 } : undefined}
-            >
+            <div key={`${p.date}-${p.title}`} className="post">
               <span className="post-dot" style={old ? { background: "var(--line)" } : undefined} />
               <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
                 <button

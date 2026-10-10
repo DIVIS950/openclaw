@@ -12,6 +12,7 @@ import {
   newId,
   notes,
   prepTests,
+  joinLabel,
   safeLink,
   todos,
   tutoring,
@@ -75,7 +76,7 @@ function JoinButtons({ tutor, onDark = false }: { tutor: Tutor; onDark?: boolean
       {meet && (
         <a className="btn small primary" href={meet} target="_blank" rel="noopener noreferrer">
           <Icon name="link" size={14} />
-          Join Meet
+          {joinLabel(meet)}
         </a>
       )}
       {wa && (
@@ -215,7 +216,7 @@ export function Tutoring({
                 rel="noopener noreferrer"
               >
                 <Icon name="video" size={18} />
-                Join Meet
+                {joinLabel(nextUp.tutor.meet)}
               </a>
             ) : whatsappLink(nextUp.tutor.whatsapp) ? (
               <a

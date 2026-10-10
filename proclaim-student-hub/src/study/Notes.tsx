@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -14,6 +14,7 @@ import {
   type NoteKind,
 } from "../lib/study.ts";
 import { readMaterial } from "../lib/studyAi.ts";
+import { useOpenStep } from "../lib/useOpenStep.ts";
 
 // Notes: typed, or read from a photo by the AI. Any note can become a revision
 // pack, and every revision pack writes its own note with the vocab list.
@@ -32,7 +33,22 @@ export function Notes({
   const [list, setList] = useState<Note[]>(notes.all);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("All");
-  const [open, setOpen] = useState<string | null>(openId);
+  // An open note is its own history step, so phone Back returns to the list.
+  const [open, openNote, closeNote] = useOpenStep("pshNote", openId);
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      // Leaving a note that was never written in: don't keep an empty one.
+      const saved = notes.all();
+      const kept = saved.filter((n) => n.id !== wasOpen.current || n.title.trim() || n.body.trim());
+      if (kept.length !== saved.length) {
+        notes.save(kept);
+      }
+      setList(notes.all());
+      onClose();
+    }
+    wasOpen.current = open;
+  }, [open, onClose]);
   const [reading, setReading] = useState(false);
   const camera = useRef<HTMLInputElement>(null);
   const shown = searchNotes(list, query).filter((n) => matches(n, filter));
@@ -60,7 +76,7 @@ export function Notes({
         kind: "photo",
       };
       save(note);
-      setOpen(note.id);
+      openNote(note.id);
       toast("Note made from your photo. Check it looks right.");
     } catch (err) {
       handleError(err);
@@ -75,23 +91,12 @@ export function Notes({
       <NoteEditor
         note={current}
         onSave={save}
-        onBack={() => {
-          // Leaving a note that was never written in: don't keep an empty one.
-          const saved = notes.all();
-          const empty = saved.find((n) => n.id === current.id && !n.title.trim() && !n.body.trim());
-          if (empty) {
-            notes.save(saved.filter((n) => n !== empty));
-          }
-          setList(notes.all());
-          setOpen(null);
-          onClose();
-        }}
+        onBack={closeNote}
         onDelete={() => {
           const next = list.filter((n) => n.id !== current.id);
           notes.save(next);
           setList(next);
-          setOpen(null);
-          onClose();
+          closeNote();
         }}
       />
     );
@@ -140,7 +145,7 @@ export function Notes({
                 key={n.id}
                 className="card note rise"
                 style={{ animationDelay: `${Math.min(i, 5) * 0.05}s` }}
-                onClick={() => setOpen(n.id)}
+                onClick={() => openNote(n.id)}
               >
                 <span className={`chip ${KIND_CHIP[kind].cls}`}>
                   {kind === "ai" && <Icon name="sparkle" size={12} />}
@@ -178,7 +183,7 @@ export function Notes({
               kind: "written",
             };
             save(note);
-            setOpen(note.id);
+            openNote(note.id);
           }}
         >
           <Icon name="plus" size={18} />

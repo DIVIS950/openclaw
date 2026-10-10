@@ -299,14 +299,15 @@ export async function readTransferFromLocation(): Promise<Transfer | null | "dam
   return (await decodeTransfer(hash.slice(TAG.length))) ?? "damaged";
 }
 
-const LABELS: Record<string, string> = {
-  "psh.todos": "to-dos",
-  "psh.notes": "notes",
-  "psh.timetable": "lessons in the timetable",
-  "psh.courses": "classes",
-  "psh.prep": "tests",
-  "psh.tutors": "tutors",
-  "psh.events": "calendar events",
+/** [one, many] for each list a transfer can bring in. */
+const LABELS: Record<string, [string, string]> = {
+  "psh.todos": ["to-do", "to-dos"],
+  "psh.notes": ["note", "notes"],
+  "psh.timetable": ["lesson in the timetable", "lessons in the timetable"],
+  "psh.courses": ["class", "classes"],
+  "psh.prep": ["test", "tests"],
+  "psh.tutors": ["tutor", "tutors"],
+  "psh.events": ["calendar event", "calendar events"],
 };
 
 /** What a transfer would bring in, line by line, for the student to OK first. */
@@ -324,7 +325,7 @@ export function transferPreview(t: Transfer, storage: Storage): string[] {
     const label = LABELS[key];
     if (label && Array.isArray(value)) {
       if (value.length) {
-        lines.push(`${value.length} ${label}`);
+        lines.push(`${value.length} ${label[value.length === 1 ? 0 : 1]}`);
       }
     } else if (key === "psh.schedule") {
       lines.push("Study plan");

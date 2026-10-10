@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BackButton } from "../components/BackButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
-import { progress, weekLog } from "../lib/store.ts";
-import { dayOf, groupTodos, newId, noteHandoff, todos, type Todo } from "../lib/study.ts";
+import { todoXp } from "../lib/store.ts";
+import {
+  dayOf,
+  groupTodos,
+  newId,
+  noteHandoff,
+  todos,
+  TODOS_CHANGED,
+  type Todo,
+} from "../lib/study.ts";
 import { Notes } from "./Notes.tsx";
 import { Tests } from "./Tests.tsx";
 import { Tutoring } from "./Tutoring.tsx";
@@ -130,6 +138,11 @@ function dueText(due: string, today: string): string {
 function TodoList() {
   const { toast } = useApp();
   const [list, setList] = useState<Todo[]>(todos.all);
+  useEffect(() => {
+    const reload = () => setList(todos.all());
+    window.addEventListener(TODOS_CHANGED, reload);
+    return () => window.removeEventListener(TODOS_CHANGED, reload);
+  }, []);
   const [text, setText] = useState("");
   const [due, setDue] = useState("");
   void setDue;
@@ -152,8 +165,7 @@ function TodoList() {
 
   const toggle = (t: Todo) => {
     if (!t.done) {
-      progress.add(2);
-      weekLog.add("todo", 1);
+      todoXp.tick(t.id);
     }
     save(list.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)));
   };
@@ -225,9 +237,18 @@ function TodoList() {
                   style={{ width: 32, height: 32 }}
                   aria-label={`Delete "${t.text}"`}
                   onClick={() => {
-                    const before = list;
+                    const at = list.findIndex((x) => x.id === t.id);
                     save(list.filter((x) => x.id !== t.id));
-                    toast("To-do deleted.", { label: "Undo", run: () => save(before) });
+                    // Undo puts back only this to-do, into the list as it is now.
+                    toast("To-do deleted.", {
+                      label: "Undo",
+                      run: () => {
+                        const now = todos.all();
+                        if (!now.some((x) => x.id === t.id)) {
+                          save([...now.slice(0, at), t, ...now.slice(at)]);
+                        }
+                      },
+                    });
                   }}
                 >
                   <Icon name="close" size={14} />

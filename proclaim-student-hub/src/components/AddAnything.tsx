@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ImageInput } from "../../shared/api.ts";
 import { useApp } from "../context.ts";
@@ -17,6 +17,7 @@ import { courses } from "../lib/store.ts";
 import { dayOf } from "../lib/study.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { canListen, listen } from "../lib/voice.ts";
+import { aiKey, PAGES } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
 
 // The "Add anything" sheet: paste or photograph whatever you got, the AI sorts
@@ -81,7 +82,17 @@ const MANUAL_KINDS: { kind: SortKind; label: string }[] = [
 ];
 
 export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved?: () => void }) {
-  const { ai, data, toast, handleError, reloadHomework } = useApp();
+  const app = useApp();
+  const { data, toast, handleError, reloadHomework } = app;
+  // On the website the AI provider always exists, but it only works with a key:
+  // without one, offer the manual "Save as …" buttons instead of a dead end.
+  const [hasKey, setHasKey] = useState(!PAGES);
+  useEffect(() => {
+    if (PAGES) {
+      void aiKey.get().then((k) => setHasKey(Boolean(k)));
+    }
+  }, []);
+  const ai = hasKey ? app.ai : null;
   const [text, setTextState] = useState(keptText);
   const setText = (next: string | ((t: string) => string)) =>
     setTextState((t) => {

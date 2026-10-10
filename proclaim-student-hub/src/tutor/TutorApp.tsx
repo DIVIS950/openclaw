@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
-import { newId, type TutorMessage, type TutorSession } from "../lib/study.ts";
+import { callName, joinLabel, newId, type TutorMessage, type TutorSession } from "../lib/study.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import {
   allowedMeet,
@@ -102,6 +102,8 @@ export function TutorApp() {
   // Bumped by the quick actions so the right form opens.
   const [logging, setLogging] = useState(0);
   const [setting, setSetting] = useState(0);
+  // "Message" in the quick actions opens the thread with the cursor in the box.
+  const [writing, setWriting] = useState(false);
 
   /** Shows a student, with whatever the tutor hadn't sent to them yet. */
   const open = useCallback((next: TutorPacket | null) => {
@@ -418,7 +420,12 @@ export function TutorApp() {
               </span>
               Set work
             </button>
-            <button onClick={() => setTab("messages")}>
+            <button
+              onClick={() => {
+                setWriting(true);
+                setTab("messages");
+              }}
+            >
               <span className="ic tone-blue">
                 <Icon name="mail" size={20} />
               </span>
@@ -500,7 +507,10 @@ export function TutorApp() {
               role="tab"
               aria-selected={tab === t}
               aria-pressed={tab === t}
-              onClick={() => setTab(t)}
+              onClick={() => {
+                setWriting(false);
+                setTab(t);
+              }}
             >
               {t === "lessons"
                 ? "Lessons"
@@ -549,6 +559,7 @@ export function TutorApp() {
             me="tutor"
             otherName={who}
             placeholder={`Message ${who}…`}
+            autoFocus={writing}
             pending={added.messages.length}
             onSend={(text) =>
               setAdded((a) => ({
@@ -706,7 +717,9 @@ function NextLessonCard({
           <strong className="now-title" style={{ fontSize: 30 }}>
             {when || "No regular time yet"}
           </strong>
-          <span className="now-sub">{link ? "Google Meet" : "No Meet link yet"}</span>
+          <span className="now-sub">
+            {link ? callName(link).replace(/^the call$/, "Video call") : "No Meet link yet"}
+          </span>
         </div>
         {start && (
           <span className="test-count">
@@ -727,7 +740,7 @@ function NextLessonCard({
             rel="noopener noreferrer"
           >
             <Icon name="link" size={16} />
-            Join Meet
+            {joinLabel(link)}
           </a>
         ) : (
           <button className="btn primary" style={{ flex: 1 }} onClick={() => setEdit(true)}>

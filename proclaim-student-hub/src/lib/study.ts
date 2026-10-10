@@ -54,9 +54,21 @@ export interface Todo {
   from: string;
 }
 
+/** Fired on window whenever the to-do list is saved. */
+export const TODOS_CHANGED = "psh:todos";
+
 export const todos = {
   all: (): Todo[] => read<Todo[]>("psh.todos", []),
-  save: (list: Todo[]) => write("psh.todos", list),
+  save(list: Todo[]): boolean {
+    const ok = write("psh.todos", list);
+    // An open To-do screen redraws when the + sheet or a tutor link adds one.
+    try {
+      window.dispatchEvent(new Event(TODOS_CHANGED));
+    } catch {
+      // No window (tests): nothing on screen to redraw.
+    }
+    return ok;
+  },
   add(fields: Omit<Todo, "id" | "done">): Todo[] {
     const next = [...todos.all(), { ...fields, id: newId("t"), done: false }];
     todos.save(next);
@@ -153,8 +165,18 @@ function syncSchedule(list: PrepTest[]) {
 export const prepTests = {
   all(): PrepTest[] {
     const saved = read<PrepTest[] | null>("psh.prep", null);
-    if (saved) {
-      return saved;
+    if (Array.isArray(saved)) {
+      // Damaged or older entries get the lists they're missing instead of crashing the app.
+      return saved
+        .filter((t) => t && typeof t.id === "string")
+        .map((t) => ({
+          ...t,
+          subject: t.subject ?? "",
+          topic: t.topic ?? "",
+          start: t.start ?? t.date ?? "",
+          packId: t.packId ?? "",
+          done: Array.isArray(t.done) ? t.done : [],
+        }));
     }
     // First run: bring over test dates added before the prep planner existed.
     const today = dayOf(new Date());
@@ -478,6 +500,25 @@ export function whatsappLink(number: string): string {
 /** Only real web links are opened. */
 export function safeLink(url: string): string {
   return /^https:\/\/[^\s]+$/i.test(url.trim()) ? url.trim() : "";
+}
+
+/** "Google Meet", "Zoom" or "Teams" for a lesson link; "the call" for anything else. */
+export function callName(url: string): string {
+  const host = /^https:\/\/([^/?#]+)/i.exec(url.trim())?.[1]?.toLowerCase() ?? "";
+  const is = (d: string) => host === d || host.endsWith(`.${d}`);
+  return is("meet.google.com")
+    ? "Google Meet"
+    : is("zoom.us")
+      ? "Zoom"
+      : is("teams.microsoft.com") || is("teams.live.com")
+        ? "Teams"
+        : "the call";
+}
+
+/** The button text for a lesson link: "Join Meet", "Join Zoom", "Join Teams" or "Join call". */
+export function joinLabel(url: string): string {
+  const name = callName(url);
+  return name === "Google Meet" ? "Join Meet" : name === "the call" ? "Join call" : `Join ${name}`;
 }
 
 // ---------- Handing work to the Revision Lab ----------

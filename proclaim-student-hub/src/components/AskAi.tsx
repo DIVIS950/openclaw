@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatTurn } from "../../shared/api.ts";
 import { useApp } from "../context.ts";
 import { helperInstructions } from "../lib/aiFeatures.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/voice.ts";
 import { Icon } from "./Icon.tsx";
+import { NoAiKeyNote } from "./NoAiKeyNote.tsx";
 
 /** The AI helper: a chat that opens over the current screen, so nothing navigates away. */
 export function AskAi({
@@ -23,6 +25,7 @@ export function AskAi({
   const abort = useRef<AbortController | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const asked = useRef(false);
+  useEscape(onClose);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -152,6 +155,7 @@ export function AskAi({
               <p className="sub">
                 Ask anything about what's on your screen, or tap the mic and talk.
               </p>
+              <NoAiKeyNote />
               {suggestions.map((s) => (
                 <button
                   key={s}

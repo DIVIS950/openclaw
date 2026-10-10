@@ -61,13 +61,16 @@ export interface HomeworkGroups<T> {
 }
 
 /** Homework by urgency: overdue, due within 7 days, later, no date — each soonest first. */
-export function groupByDue<T extends { due?: string }>(
+export function groupByDue<T extends { due?: string; title?: string }>(
   list: T[],
   now = new Date(),
 ): HomeworkGroups<T> {
   const g: HomeworkGroups<T> = { overdue: [], week: [], later: [], noDate: [] };
   const today = startOfDay(now);
-  for (const h of list.toSorted((a, b) => (a.due ?? "").localeCompare(b.due ?? ""))) {
+  // Same date (or none): by title, so the order doesn't depend on where it was loaded from.
+  const order = (a: T, b: T) =>
+    (a.due ?? "").localeCompare(b.due ?? "") || (a.title ?? "").localeCompare(b.title ?? "");
+  for (const h of list.toSorted(order)) {
     if (!h.due) {
       g.noDate.push(h);
       continue;
