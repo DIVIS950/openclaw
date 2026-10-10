@@ -7,7 +7,7 @@ import { syncToDocs, withDocLink } from "./googleDocs.ts";
 // so Classroom emails become homework here too (and answers can be saved as
 // Google Docs). It needs a Google "OAuth
 // client ID" (made once by a parent at console.cloud.google.com) pasted into
-// Apps › Gmail. The ID isn't secret; the sign-in happens on Google's page.
+// More › Gmail on this website. The ID isn't secret; the sign-in happens on Google's page.
 
 const CLIENT_KEY = "psh.google.client";
 const GRANT_KEY = "psh.gmail.granted";
@@ -74,7 +74,7 @@ class GmailLink {
   async connect(): Promise<void> {
     const auth = this.auth;
     if (!auth) {
-      throw new Error("Paste the Google client ID first (Apps › Gmail).");
+      throw new Error("Paste the Google client ID first (More › Gmail on this website).");
     }
     await auth.signIn();
     try {

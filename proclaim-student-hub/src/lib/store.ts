@@ -140,3 +140,36 @@ export const timetable = {
   get: (): Lesson[] => read<Lesson[]>("psh.timetable", []),
   save: (value: Lesson[]) => write("psh.timetable", value),
 };
+
+// ---------- Homework XP, once per homework ----------
+
+const XP_IDS_KEY = "psh.xp.hw";
+/** Keeps the newest ids only, so the list can't grow forever. */
+const MAX_XP_IDS = 1000;
+
+/** Adds `id` to the awarded list; false when it was already there (no XP again). */
+export function awardOnce(awarded: string[], id: string): { awarded: string[]; fresh: boolean } {
+  if (awarded.includes(id)) {
+    return { awarded, fresh: false };
+  }
+  return { awarded: [...awarded, id].slice(-MAX_XP_IDS), fresh: true };
+}
+
+/**
+ * Ticking homework earns +5 XP and counts on the weekly report once per
+ * homework: untick and tick again doesn't earn it twice.
+ */
+export const homeworkXp = {
+  awarded: (): string[] => read<string[]>(XP_IDS_KEY, []),
+  /** Returns true when XP was awarded now. */
+  tick(id: string): boolean {
+    const next = awardOnce(homeworkXp.awarded(), id);
+    if (!next.fresh) {
+      return false;
+    }
+    write(XP_IDS_KEY, next.awarded);
+    progress.add(5);
+    weekLog.add("hw", 1);
+    return true;
+  },
+};

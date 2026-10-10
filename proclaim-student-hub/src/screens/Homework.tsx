@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { SwipeDone } from "../components/SwipeDone.tsx";
@@ -6,9 +6,11 @@ import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { syncStatus } from "../lib/classroomSync.ts";
 import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
-import { courses, progress, weekLog } from "../lib/store.ts";
+import { subjectChips } from "../lib/homeworkFilter.ts";
+import { courses, homeworkXp } from "../lib/store.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { gmailLink } from "../pages/gmailLink.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { GmailCard } from "../pages/WebVersion.tsx";
@@ -22,7 +24,6 @@ export function HomeworkScreen() {
   const [subject, setSubject] = useState("All");
   const [view, setView] = useState<"todo" | "done">("todo");
   const [adding, setAdding] = useState(false);
-  void setAdding;
   const [importing, setImporting] = useState(false);
   const [sync, setSync] = useState(syncStatus.get);
   const [checking, setChecking] = useState(false);
@@ -50,17 +51,35 @@ export function HomeworkScreen() {
         .join("; "),
   );
 
-  const subjects = [...new Set(list.map((h) => h.course).filter(Boolean))].slice(0, 6);
-  const shown = (view === "todo" ? list : doneList).filter(
-    (h) => subject === "All" || h.course === subject,
-  );
+  const viewList = view === "todo" ? list : doneList;
+  // Chips come from the list being shown; a subject with nothing left falls back to All.
+  const { chips: subjects, active } = subjectChips(viewList, subject);
+  useEffect(() => {
+    if (active !== subject) {
+      setSubject(active);
+    }
+  }, [active, subject]);
+  const shown = viewList.filter((h) => active === "All" || h.course === active);
+  // Only a check that really read emails earns "just now"; with no Gmail it would be a fake.
+  const checkedEmails = Boolean(sync && !sync.error && sync.checked > 0);
   const syncLabel = data.demo
     ? "Sample data"
     : checking
       ? "Checking…"
-      : sync && !sync.error
+      : sync && checkedEmails
         ? `Classroom · ${agoLabel(sync.at)}`
-        : "Classroom";
+        : PAGES
+          ? "Classroom: via claude.ai"
+          : "Classroom";
+
+  // A tick moves the next row under the finger: ignore taps on the list for a moment.
+  const tickedAt = useRef(0);
+  const guardTaps = (e: React.MouseEvent) => {
+    if (Date.now() - tickedAt.current < 400) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   return (
     <main className="screen">
@@ -97,13 +116,13 @@ export function HomeworkScreen() {
             Done · {doneList.length}
           </button>
         </div>
-        {(subjects.length > 1 || filters.length > 2) && (
+        {(subjects.length > 1 || active !== "All" || filters.length > 2) && (
           <div className="fchips" role="group" aria-label="Filter">
             {["All", ...subjects].map((f) => (
               <button
                 key={f}
-                className={subject === f ? "fchip on" : "fchip"}
-                aria-pressed={subject === f}
+                className={active === f ? "fchip on" : "fchip"}
+                aria-pressed={active === f}
                 onClick={() => setSubject(f)}
               >
                 {f}
@@ -137,7 +156,7 @@ export function HomeworkScreen() {
         </div>
       ) : (
         (view === "done"
-          ? ([["Handed in", shown]] as [string, Homework[]][])
+          ? ([["Ticked off", shown]] as [string, Homework[]][])
           : weekGroups(shown)
         ).map(
           ([title, items], g) =>
@@ -148,9 +167,15 @@ export function HomeworkScreen() {
                 style={{ gap: 8 }}
               >
                 <h2 className={`sec${title === "Overdue" ? " late" : ""}`}>{title}</h2>
-                <div className="card rows">
+                <div className="card rows" onClickCapture={guardTaps}>
                   {items.map((hw) => (
-                    <HomeworkItem key={hw.id} hw={hw} />
+                    <HomeworkItem
+                      key={hw.id}
+                      hw={hw}
+                      onTicked={() => {
+                        tickedAt.current = Date.now();
+                      }}
+                    />
                   ))}
                 </div>
               </section>
@@ -209,6 +234,14 @@ export function HomeworkScreen() {
             </button>
           </section>
         )}
+        <button
+          className="btn block"
+          style={{ justifyContent: "flex-start" }}
+          onClick={() => setAdding(true)}
+        >
+          <Icon name="plus" size={18} />
+          <span style={{ flex: 1, textAlign: "left" }}>Add homework yourself</span>
+        </button>
         <EmailScan />
       </section>
       {importing && <ImportSheet mode="homework" onClose={() => setImporting(false)} />}
@@ -265,17 +298,26 @@ function dueText(hw: Homework): string {
   return date;
 }
 
-function HomeworkItem({ hw }: { hw: Homework }) {
-  const { openAssignment, data, replaceHomework, handleError, toast } = useApp();
+function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) {
+  const { openAssignment, data, replaceHomework, handleError, toast, screen, assignment } =
+    useApp();
+  // The task open beside the list (iPad) is marked in the list.
+  const open = screen === "assignment" && assignment?.id === hw.id;
 
   const setDone = async (done: boolean) => {
+    if (done) {
+      onTicked();
+    }
     replaceHomework({ ...hw, done });
     try {
       await data.setDone(hw, done);
       if (done) {
-        progress.add(5);
-        weekLog.add("hw", 1);
-        toast(`${data.labels.ticked} +5 XP`);
+        // XP once per homework: untick and tick again doesn't earn more.
+        const xp = homeworkXp.tick(hw.id);
+        toast(xp ? `${data.labels.ticked} +5 XP` : data.labels.ticked, {
+          label: "Undo",
+          run: () => void setDone(false),
+        });
       }
     } catch (err) {
       replaceHomework(hw);
@@ -285,7 +327,7 @@ function HomeworkItem({ hw }: { hw: Homework }) {
 
   const urgent = isUrgent(hw.due) && !hw.done;
   const body = (
-    <article className="hw">
+    <article className={open ? "hw is-open" : "hw"}>
       <button
         className={hw.done ? "tick done" : "tick"}
         aria-label={hw.done ? `Mark not done: ${hw.title}` : `Tick off ${hw.title}`}
@@ -296,6 +338,7 @@ function HomeworkItem({ hw }: { hw: Homework }) {
       <button
         className="hw-main"
         aria-label={`Do it here: ${hw.title}`}
+        aria-current={open ? "true" : undefined}
         onClick={() => openAssignment(hw)}
       >
         <span className={hw.done ? "hw-title done" : "hw-title"}>{hw.title}</span>
@@ -320,6 +363,7 @@ function AddHomework({ onClose }: { onClose: () => void }) {
   const [source, setSource] = useState<Source>(choices[0]);
   const [due, setDue] = useState("");
   const [busy, setBusy] = useState(false);
+  useEscape(onClose, !busy);
 
   return (
     <div className="backdrop" onClick={onClose}>

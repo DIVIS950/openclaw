@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BackButton } from "../components/BackButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { progress, weekLog } from "../lib/store.ts";
@@ -39,6 +40,7 @@ function useOpenNote() {
 export function TodoScreen() {
   return (
     <main className="screen">
+      <BackButton />
       <TodoList />
     </main>
   );
@@ -49,6 +51,7 @@ export function TestsScreen() {
   const [view, setView] = useState<"tests" | "grades">("tests");
   return (
     <main className="screen">
+      <BackButton />
       <Tests
         onOpenNote={openNote}
         view={view}
@@ -84,6 +87,8 @@ export function NotesScreen() {
   const [noteId, setNoteId] = useState<string | null>(() => noteHandoff.take());
   return (
     <main className="screen">
+      {/* An open note has its own way back to the list. */}
+      {!noteId && <BackButton />}
       <Notes
         key={noteId ?? "list"}
         openId={noteId}
@@ -98,6 +103,7 @@ export function TutoringScreen() {
   const openNote = useOpenNote();
   return (
     <main className="screen">
+      <BackButton />
       <Tutoring onOpenNote={openNote} />
     </main>
   );

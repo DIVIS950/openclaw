@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { collectStore, PAGES_URL, transferLink } from "../lib/transfer.ts";
-import { isClaudeKey, testClaude } from "./claude.ts";
+import { isClaudeKey } from "./aiKind.ts";
 import { geminiSample } from "./gemini.ts";
 import { gmailClientId, gmailLink, isClientId } from "./gmailLink.ts";
 import { privateLink } from "./lockedSeed.ts";
@@ -101,6 +101,7 @@ export function AiKeyForm({
         setTest({ ok: true, text: `Gemini answered "${r.text.trim().slice(0, 20)}".` });
         return;
       }
+      const { testClaude } = await import("./claude.ts");
       setTest({ ok: true, text: await testClaude(k) });
     } catch (err) {
       setTest({ ok: false, text: err instanceof Error ? err.message : "The test failed." });
@@ -179,80 +180,14 @@ export function AiKeyForm({
           )}
         </div>
       )}
-      <span className="muted" style={{ fontSize: 11 }}>
-        App build {__BUILD__}
-      </span>
     </div>
   );
 }
 
-/** On Today (website only): a bright card until the AI key is in. */
-export function AiKeyCard() {
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
-  // Stays open after saving so "Test the AI" is right there; "Done" hides it.
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      return localStorage.getItem("psh.ai.card") === "done";
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    if (PAGES) {
-      void aiKey.get().then((k) => setHasKey(Boolean(k)));
-    }
-  }, []);
-  if (!PAGES || hasKey === null || (hasKey && dismissed)) {
-    return null;
-  }
-  // The canvas keeps Today clean: once the key is in, it lives on More.
-  if (hasKey) {
-    return null;
-  }
-  return (
-    <section className="card stack rise" style={{ gap: 10 }} aria-label="Set up the AI">
-      <div className="row" style={{ gap: 12 }}>
-        <span className="ico lime r40" aria-hidden="true">
-          <Icon name="key" size={18} />
-        </span>
-        <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-          <span className="row" style={{ gap: 6, fontWeight: 700 }}>
-            Claude AI key
-            {hasKey && (
-              <span className="chip lime" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>
-                Connected
-              </span>
-            )}
-          </span>
-          <span className="s12 muted">
-            {hasKey
-              ? "Powers Add anything, study buddy, packs"
-              : "From console.anthropic.com › API keys (starts with sk-ant-). Stays on this phone."}
-          </span>
-        </span>
-      </div>
-      <AiKeyForm compact onSaved={(ok) => setHasKey(ok)} />
-      {hasKey && (
-        <button
-          className="btn small ghost"
-          style={{ alignSelf: "flex-end" }}
-          onClick={() => {
-            try {
-              localStorage.setItem("psh.ai.card", "done");
-            } catch {
-              // Fine, it just shows again next time.
-            }
-            setDismissed(true);
-          }}
-        >
-          Done, hide this
-        </button>
-      )}
-    </section>
-  );
-}
-
-/** On More (website only): the AI key as a settings row; expands to the form. */
+/**
+ * On More (website only): the one place for the AI key, a settings row for
+ * parents that expands to the form. Today stays free of setup.
+ */
 export function AiKeyRow() {
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
@@ -267,6 +202,7 @@ export function AiKeyRow() {
       <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
         <span style={{ fontWeight: 700 }}>Claude AI key</span>
         <span className="s11 muted">
+          For parents ·{" "}
           {hasKey === null ? "Checking…" : hasKey ? "Connected · stays on this phone" : "Not set"}
         </span>
       </span>
@@ -275,7 +211,7 @@ export function AiKeyRow() {
       </button>
       {open && (
         <div style={{ flexBasis: "100%" }}>
-          <AiKeyForm compact onSaved={(ok) => setHasKey(ok)} />
+          <AiKeyForm compact={false} onSaved={(ok) => setHasKey(ok)} />
         </div>
       )}
     </div>
@@ -428,7 +364,6 @@ export function GmailCard() {
   );
 }
 
-/** On GitHub Pages: name and AI key, both kept only on this phone. */
 /**
  * More › Private link: the website address with this phone's key, to open the
  * hub (with your timetable and homework) on another device or add it to the
@@ -497,7 +432,6 @@ export function PagesSettings() {
           autoComplete="given-name"
         />
       </label>
-      <AiKeyForm />
     </section>
   );
 }

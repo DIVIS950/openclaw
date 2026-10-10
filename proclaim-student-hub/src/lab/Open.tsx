@@ -105,7 +105,7 @@ export function OpenQuestions({
   if (!ai) {
     return (
       <main className="screen">
-        <div className="card empty">Exam questions need the AI. Add the key in Apps.</div>
+        <div className="card empty">Exam questions need the AI. A parent adds the key in More › Claude AI key.</div>
         <button className="btn" onClick={onQuit}>
           Back
         </button>

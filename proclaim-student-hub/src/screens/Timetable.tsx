@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AgendaList } from "../components/Agenda.tsx";
 import { Icon } from "../components/Icon.tsx";
+import { BackButton } from "../components/BackButton.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson, type Weekday } from "../lib/aiFeatures.ts";
@@ -86,8 +87,10 @@ export function Timetable() {
   const [lessons, setLessons] = useState<Lesson[]>(timetable.get);
   const days = schoolDays(lessons);
   const today = weekdayOf(now);
-  const [day, setDay] = useState<Weekday>(days.includes(today) ? today : "Mon");
-  const [week, setWeek] = useState(0);
+  // At the weekend this week is all over: open on next week's first school day.
+  const schoolToday = days.includes(today);
+  const [day, setDay] = useState<Weekday>(schoolToday ? today : (days[0] ?? "Mon"));
+  const [week, setWeek] = useState(schoolToday ? 0 : 1);
   const [editing, setEditing] = useState<{ lesson: Lesson; index: number } | null>(null);
   const [importing, setImporting] = useState(false);
   const { current, left, next } = nowAndNext(lessons, now);
@@ -132,6 +135,7 @@ export function Timetable() {
 
   return (
     <main className="screen">
+      <BackButton />
       <header className="between rise" style={{ alignItems: "center", gap: 10 }}>
         <div className="stack" style={{ gap: 4 }}>
           <span className="s13 muted" style={{ fontWeight: 700 }}>

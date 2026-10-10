@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackButton } from "../components/BackButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
@@ -544,6 +545,7 @@ function LabHome({
 
   return (
     <main className="screen">
+      <BackButton />
       <header className="stack rise" style={{ gap: 10 }}>
         <div className="between" style={{ alignItems: "center", gap: 10 }}>
           <h1 className="h1" style={{ fontSize: 36 }}>

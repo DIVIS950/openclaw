@@ -1,6 +1,6 @@
 import type { UserCap } from "../lib/claudeRuntime.ts";
 import type { Sample } from "../lib/claudeRuntime.ts";
-import { claudeSample, isClaudeKey } from "./claude.ts";
+import { isClaudeKey } from "./aiKind.ts";
 import { geminiSample } from "./gemini.ts";
 import { localDb } from "./localDb.ts";
 
@@ -33,7 +33,7 @@ function set(key: string, value: string) {
   }
 }
 
-/** The Gemini key added in Apps › AI key; kept only on this phone. */
+/** The AI key added in More › Claude AI key; kept only on this phone. */
 export const aiKey = {
   get: async (): Promise<string | null> => get(KEY) || null,
   set: (key: string) => set(KEY, key.trim()),
@@ -49,11 +49,27 @@ const user: UserCap = {
   me: async () => ({ name: studentName.get(), email: null }),
 };
 
+/**
+ * Claude via the official SDK, loaded only the first time the AI is used so
+ * the SDK stays out of the first download.
+ */
+let claudeLoad: Promise<Sample> | null = null;
+const claudeLazy = (): Promise<Sample> => {
+  claudeLoad ??= import("./claude.ts")
+    .then((m) => m.claudeSample(aiKey.get))
+    .catch((err: unknown) => {
+      // Offline or a stale deploy: try again next time instead of failing for good.
+      claudeLoad = null;
+      throw err;
+    });
+  return claudeLoad;
+};
+
 /** Picks Claude or Gemini by the kind of key added, each time it's asked. */
 function pickSample(): Sample {
-  const claude = claudeSample(aiKey.get);
   const gemini = geminiSample(aiKey.get);
-  const which = async () => (isClaudeKey((await aiKey.get()) ?? "") ? claude : gemini);
+  const which = async (): Promise<Sample> =>
+    isClaudeKey((await aiKey.get()) ?? "") ? claudeLazy() : gemini;
   const sample = (async (input, options) => (await which())(input, options)) as Sample;
   sample.json = async (input, options) => (await which()).json(input, options);
   sample.limits = async () => (await which()).limits();

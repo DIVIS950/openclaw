@@ -4,9 +4,10 @@ import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
 import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { useApp, type Screen } from "../context.ts";
-import { notifyPrefs } from "../lib/notify.ts";
+import { notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
 import { PAGES } from "../pages/runtime.ts";
+import { alertsLabel } from "./Notifications.tsx";
 import {
   AiKeyRow,
   CLAUDE_PAGE,
@@ -85,7 +86,7 @@ export function Apps() {
   const { profile, data, signOut, go, startTour } = useApp();
   const [moreApps, setMoreApps] = useState(false);
   const [stats] = useState(progress.get);
-  const [alerts] = useState(() => Object.values(notifyPrefs.get()).filter(Boolean).length);
+  const [alerts] = useState(() => alertsLabel(notifyPrefs.get(), permission()));
   const name = profile?.name?.trim() || "Student";
   return (
     <main className="screen">
@@ -126,7 +127,7 @@ export function Apps() {
             <Icon name="bell" size={18} />
           </span>
           <span className="label">Notifications</span>
-          <span className="muted s13">{alerts} on</span>
+          <span className="muted s13">{alerts}</span>
           <Icon name="chevron" size={18} />
         </button>
         <button className="set" onClick={startTour}>
@@ -208,6 +209,10 @@ export function Apps() {
             : data.hasClassroom
               ? profile?.email
               : "Connected through Claude"}
+      </p>
+      {/* Which build this device has, for when something needs checking. */}
+      <p className="muted s11" style={{ textAlign: "center", margin: 0 }}>
+        App build {__BUILD__}
       </p>
     </main>
   );

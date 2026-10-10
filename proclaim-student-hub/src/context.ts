@@ -49,6 +49,11 @@ export interface TutorSeed {
   key: number;
 }
 
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface AppContext {
   data: DataSource;
   /** The AI features, or null where Claude can't be reached. */
@@ -60,7 +65,10 @@ export interface AppContext {
   replaceHomework: (hw: Homework) => void;
   addHomeworkItem: (hw: Homework) => void;
   screen: Screen;
-  go: (screen: Screen) => void;
+  /** Opens a screen; Back returns to the one before. `replace` swaps the current history entry. */
+  go: (screen: Screen, replace?: boolean) => void;
+  /** "Back to <screen>": a history step when we came from there, else opens it in place. */
+  back: (to: Screen) => void;
   assignment: Homework | null;
   openAssignment: (hw: Homework) => void;
   tutorSeed: TutorSeed | null;
@@ -71,7 +79,8 @@ export interface AppContext {
   aiContext: string;
   setAiContext: (context: string) => void;
   handleError: (err: unknown) => void;
-  toast: (message: string) => void;
+  /** A short message; `action` adds a button such as Undo. */
+  toast: (message: string, action?: ToastAction) => void;
   /** Null on the web link, which has no separate sign-in. */
   signOut: (() => void) | null;
   /** Shows the tutorial tour over Today. */

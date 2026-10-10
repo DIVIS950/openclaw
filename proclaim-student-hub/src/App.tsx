@@ -5,7 +5,14 @@ import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
 import { Tour, tour } from "./components/Tour.tsx";
-import { Ctx, SCREENS, type AppContext, type Screen, type TutorSeed } from "./context.ts";
+import {
+  Ctx,
+  SCREENS,
+  type AppContext,
+  type Screen,
+  type ToastAction,
+  type TutorSeed,
+} from "./context.ts";
 import { Lab } from "./lab/Lab.tsx";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
 import { syncClassroomEmails } from "./lib/classroomSync.ts";
@@ -168,6 +175,38 @@ function screenFromHash(): Screen {
   return SCREENS.includes(name) ? name : "today";
 }
 
+/** What each history entry remembers, so Back moves between screens (the URL may hold #k=). */
+interface NavState {
+  pshScreen: Screen;
+  /** The screen it was opened from. */
+  from?: Screen;
+}
+
+function navState(value: unknown): NavState | null {
+  const screen = (value as Partial<NavState> | null)?.pshScreen;
+  return typeof screen === "string" && SCREENS.includes(screen) ? (value as NavState) : null;
+}
+
+function writeHistory(state: NavState, replace: boolean) {
+  // With the key in the address, the address stays exactly as it is: only the state changes.
+  const url = keyInHash() ? undefined : `#${state.pshScreen}`;
+  try {
+    if (replace) {
+      window.history.replaceState(state, "", url);
+    } else {
+      window.history.pushState(state, "", url);
+    }
+  } catch {
+    // Some embedded browsers refuse history changes; the screen still changes.
+  }
+}
+
+interface ToastState {
+  text: string;
+  action?: ToastAction;
+  key: number;
+}
+
 function Shell({
   data,
   ai,
@@ -193,14 +232,15 @@ function Shell({
     question?: string;
     context: string;
   } | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<ToastState | null>(null);
   const [needReconnect, setNeedReconnect] = useState(false);
   const toastTimer = useRef<number | undefined>(undefined);
 
-  const toast = useCallback((message: string) => {
-    setToastMsg(message);
+  const toast = useCallback((message: string, action?: ToastAction) => {
+    setToastMsg({ text: message, action, key: Date.now() });
     window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastMsg(null), 4000);
+    // A little longer when there's something to tap, like Undo.
+    toastTimer.current = window.setTimeout(() => setToastMsg(null), action ? 6000 : 4000);
   }, []);
 
   const handleError = useCallback(
@@ -301,13 +341,51 @@ function Shell({
     data.profile().then(setProfile, handleError);
   }, [data, reloadHomework, handleError]);
 
-  // Keep the phone's back button working by mirroring the screen in the URL hash.
-  const go = useCallback((next: Screen) => {
-    setScreen(next);
-    // With the key in the address, leave the address alone (no back-button mirroring).
-    if (!keyInHash() && window.location.hash.slice(1) !== next) {
-      window.location.hash = next;
+  // The phone's back button moves between screens: every screen change is a
+  // history entry (the #screen hash, or only the entry's state when #k= is there).
+  const screenRef = useRef(screen);
+  useEffect(() => {
+    try {
+      // Mark the entry the app opened on; the address itself is left alone.
+      window.history.replaceState({ pshScreen: screenRef.current }, "");
+    } catch {
+      // History not available: Back just leaves, as before.
     }
+  }, []);
+
+  const go = useCallback((next: Screen, replace = false) => {
+    const from = screenRef.current;
+    screenRef.current = next;
+    setScreen(next);
+    if (next !== from || replace) {
+      writeHistory({ pshScreen: next, from }, replace);
+    }
+  }, []);
+
+  // "Back to …" buttons: step back when that is where we came from, else swap this entry.
+  const back = useCallback(
+    (to: Screen) => {
+      const state = navState(window.history.state);
+      if (state && state.pshScreen === screenRef.current && state.from === to) {
+        window.history.back();
+      } else {
+        go(to, true);
+      }
+    },
+    [go],
+  );
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      if (window.location.hash.startsWith("#tutor=")) {
+        return;
+      }
+      const next = navState(e.state)?.pshScreen ?? screenFromHash();
+      screenRef.current = next;
+      setScreen(next);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   useEffect(() => {
@@ -322,10 +400,16 @@ function Shell({
         });
         return;
       }
+      if (navState(window.history.state)) {
+        // A Back/Forward step: popstate already moved the screen.
+        return;
+      }
       const next = screenFromHash();
-      setScreen((current) =>
-        next === "assignment" && current !== "assignment" ? "homework" : next,
-      );
+      setScreen((current) => {
+        const s = next === "assignment" && current !== "assignment" ? "homework" : next;
+        screenRef.current = s;
+        return s;
+      });
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -376,10 +460,12 @@ function Shell({
       addHomeworkItem: (hw) => setHomework((list) => [...(list ?? []), hw]),
       screen,
       go,
+      back,
       assignment,
       openAssignment: (hw) => {
         setAssignment(hw);
-        go("assignment");
+        // Switching task beside the list replaces the entry, so Back leaves the task view.
+        go("assignment", screenRef.current === "assignment");
       },
       tutorSeed,
       openAi: (request) =>
@@ -410,6 +496,7 @@ function Shell({
       reloadHomework,
       screen,
       go,
+      back,
       assignment,
       tutorSeed,
       aiContext,
@@ -434,9 +521,11 @@ function Shell({
     </div>
   ) : null;
 
+  const showAsk = current === "homework" || current === "todo" || current === "inbox";
+
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app">
+      <div className={showAsk ? "app has-ask" : "app"}>
         {updateReady && (
           <div
             className="banner between update-banner"
@@ -466,12 +555,14 @@ function Shell({
           </div>
         )}
         {current === "today" && <Today demoBanner={demoBanner} />}
-        {split ? (
+        {/* One tree for phone and iPad (.split is display: contents on a phone), so
+            turning the iPad never remounts the open task and loses typing. */}
+        {(current === "homework" || current === "assignment") && (
           <div className="split">
-            <HomeworkScreen />
+            {(split || current === "homework") && <HomeworkScreen />}
             {current === "assignment" && assignment ? (
               <Assignment key={assignment.id} hw={assignment} />
-            ) : (
+            ) : split ? (
               <div className="split-empty">
                 <Icon name="bookClosed" size={28} />
                 <strong className="h2" style={{ color: "var(--ink)" }}>
@@ -479,15 +570,8 @@ function Shell({
                 </strong>
                 <span className="s13">It opens here, next to your list.</span>
               </div>
-            )}
+            ) : null}
           </div>
-        ) : (
-          <>
-            {current === "homework" && <HomeworkScreen />}
-            {current === "assignment" && assignment && (
-              <Assignment key={assignment.id} hw={assignment} />
-            )}
-          </>
         )}
         {current === "tutor" && <Tutor />}
         {(current === "revise" || current === "games") && <Lab />}
@@ -501,7 +585,7 @@ function Shell({
         {current === "notes" && <NotesScreen />}
         {current === "tutoring" && <TutoringScreen />}
         {current === "notifications" && <Notifications />}
-        {(current === "homework" || current === "todo" || current === "inbox") && (
+        {showAsk && (
           <button
             className="ask"
             aria-label="Ask AI about this screen"
@@ -526,10 +610,22 @@ function Shell({
           </>
         )}
         {touring && <Tour onClose={() => setTouring(false)} />}
-        {toastMsg?.includes("XP") && <Confetti key={toastMsg} />}
+        {toastMsg?.text.includes("XP") && <Confetti key={toastMsg.key} />}
         {toastMsg && (
           <div className="toast" role="status">
-            <span style={{ flex: 1 }}>{toastMsg}</span>
+            <span style={{ flex: 1 }}>{toastMsg.text}</span>
+            {toastMsg.action && (
+              <button
+                className="btn sm toast-action"
+                onClick={() => {
+                  toastMsg.action?.run();
+                  window.clearTimeout(toastTimer.current);
+                  setToastMsg(null);
+                }}
+              >
+                {toastMsg.action.label}
+              </button>
+            )}
             <button
               className="round"
               style={{ width: 32, height: 32 }}

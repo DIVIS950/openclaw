@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useApp } from "../context.ts";
+import { aiKey, PAGES } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
 
 // The tutorial tour (Bento "Tutorial tour" board): six steps over the real
@@ -14,6 +15,8 @@ interface Step {
   target: string | null;
   title: string;
   body: string;
+  /** Said instead of `body` while no AI is set up, so nothing is promised. */
+  noAi?: string;
   cta: string;
 }
 
@@ -28,18 +31,21 @@ const STEPS: Step[] = [
     target: ".now-card",
     title: "What is happening now",
     body: "Your current lesson, minutes left and the room. Tap Prep me for a two-minute warm-up before class.",
+    noAi: "Your current lesson, minutes left, the room and what comes next.",
     cta: "Next",
   },
   {
     target: ".brief-card",
     title: "Your day in one line",
     body: "Every morning the AI reads Classroom and your inbox and tells you what matters first.",
+    noAi: "What is due and what is on today, in one line. Once a parent adds the AI key in More, it gets smarter.",
     cta: "Next",
   },
   {
     target: ".nav-fab",
     title: "Add anything",
     body: "Paste a message, snap the board or just say it. The AI files it as homework, a test, a to-do or a note.",
+    noAi: "Add homework, a test, a to-do or a note. With the AI key set up, it can sort what you paste or say.",
     cta: "Next",
   },
   {
@@ -52,6 +58,7 @@ const STEPS: Step[] = [
     target: '[data-tour="ai"]',
     title: "Stuck? Ask",
     body: "AI help explains, quizzes you or checks your answer. Last step: let the app remind you before things are due.",
+    noAi: "AI help explains, quizzes you or checks your answer once a parent adds the key in More › Claude AI key. Last step: reminders before things are due.",
     cta: "Turn on alerts",
   },
 ];
@@ -82,11 +89,23 @@ interface Hole {
 }
 
 export function Tour({ onClose }: { onClose: () => void }) {
-  const { go } = useApp();
+  const { go, ai } = useApp();
+  // Only the steps whose part is on screen (no Now card on a weekend, say).
+  const [steps] = useState(() =>
+    STEPS.filter((s) => !s.target || document.querySelector(s.target)),
+  );
+  // The website needs a key before any AI works; elsewhere `ai` says it all.
+  const [hasAi, setHasAi] = useState(ai !== null && !PAGES);
+  useEffect(() => {
+    if (PAGES && ai) {
+      void aiKey.get().then((k) => setHasAi(Boolean(k)));
+    }
+  }, [ai]);
   const [i, setI] = useState(0);
   const [hole, setHole] = useState<Hole | null>(null);
-  const step = STEPS[i];
-  const last = i === STEPS.length - 1;
+  const step = steps[Math.min(i, steps.length - 1)];
+  const last = i >= steps.length - 1;
+  const body = !hasAi && step.noAi ? step.noAi : step.body;
 
   // Find the part to light up (and follow it if the window changes size).
   useLayoutEffect(() => {
@@ -116,9 +135,11 @@ export function Tour({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const finish = () => {
+  // Every way out of the tour lands on Today, except "Turn on alerts".
+  const finish = (next: "today" | "notifications" = "today") => {
     tour.markSeen();
     onClose();
+    go(next);
   };
 
   // The card sits under a highlight in the top half, above one in the bottom half.
@@ -131,7 +152,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
       : { bottom: Math.max(vh - hole.y + 14, 24) };
 
   return (
-    <div className="tour" role="dialog" aria-modal="true" aria-label={`Tour step ${i + 1} of 6`}>
+    <div className="tour" role="dialog" aria-modal="true" aria-label={`Tour step ${i + 1} of ${steps.length}`}>
       {hole ? (
         <div
           className="tour-hole"
@@ -152,36 +173,33 @@ export function Tour({ onClose }: { onClose: () => void }) {
           </span>
         )}
         <span className="eyebrow" style={{ fontWeight: 800 }}>
-          Step {i + 1} of 6
+          Step {i + 1} of {steps.length}
         </span>
         <h2 className="h2" style={{ fontSize: 24, fontWeight: 800 }}>
           {step.title}
         </h2>
-        <p style={{ margin: 0, color: "var(--ink2)" }}>{step.body}</p>
+        <p style={{ margin: 0, color: "var(--ink2)" }}>{body}</p>
         <div className="between" style={{ gap: 10 }}>
           <div className="tour-dots" aria-hidden="true">
-            {STEPS.map((_, k) => (
+            {steps.map((_, k) => (
               <i key={k} className={k === i ? "on" : undefined} />
             ))}
           </div>
           <div className="row" style={{ gap: 6 }}>
-            {!last && (
-              <button className="tour-skip" onClick={finish}>
-                Skip
-              </button>
-            )}
+            <button className="tour-skip" onClick={() => finish()}>
+              {last ? "Not now" : "Skip"}
+            </button>
             <button
               className="btn primary"
               onClick={() => {
                 if (last) {
-                  finish();
-                  go("notifications");
+                  finish("notifications");
                 } else {
                   setI(i + 1);
                 }
               }}
             >
-              {step.cta}
+              {last ? "Turn on alerts" : step.cta}
             </button>
           </div>
         </div>

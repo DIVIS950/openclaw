@@ -25,7 +25,7 @@ interface GeminiReply {
 export class NoKeyError extends Error {
   constructor() {
     super(
-      "The AI isn't set up on this phone yet. Ask a parent to add a Claude API key in Apps › AI key.",
+      "The AI isn't set up on this phone yet. Ask a parent to add a Claude API key in More › Claude AI key.",
     );
   }
 }
@@ -67,10 +67,10 @@ export async function toContents(input: SampleInput, images?: Blob[]): Promise<C
 function failure(status: number, body: GeminiReply | null): Error & { retry?: boolean } {
   const msg = body?.error?.message ?? "";
   if (status === 400 && /api key/i.test(msg)) {
-    return new Error("The AI key isn't valid. Check it in Apps › AI key.");
+    return new Error("The AI key isn't valid. Check it in More › Claude AI key.");
   }
   if (status === 403) {
-    return new Error("The AI key isn't allowed to use Gemini. Check it in Apps › AI key.");
+    return new Error("The AI key isn't allowed to use Gemini. Check it in More › Claude AI key.");
   }
   if (status === 429) {
     return new Error("The AI's free limit is used up for now. Try again in a few minutes.");

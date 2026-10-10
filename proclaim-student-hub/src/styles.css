@@ -90,7 +90,7 @@
   --accent-soft: rgba(157, 107, 255, 0.18);
 }
 
-/* Light mode: chosen in Apps › Look, or "Auto" follows the phone. */
+/* Light mode: chosen in More › Look, or "Auto" follows the phone. */
 :root[data-theme="light"] {
   --bg: #f3f2fa;
   --card: #ffffff;
@@ -1353,44 +1353,6 @@ textarea.field {
   background: var(--neon, #fff);
   box-shadow: 0 0 10px var(--neon, #fff);
   transition: width 1s linear;
-}
-
-.day-tabs {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 4px;
-  padding: 4px;
-  border-radius: 14px;
-  background: var(--card-2);
-}
-
-.day-tabs button {
-  position: relative;
-  min-height: 38px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.day-tabs button.is-today::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  width: 4px;
-  height: 4px;
-  margin-left: -2px;
-  border-radius: 2px;
-  background: var(--ink);
-}
-
-.day-tabs button[aria-selected="true"] {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: var(--shadow);
 }
 
 .lesson {
@@ -4164,47 +4126,6 @@ h2 {
   font-family: var(--serif);
   letter-spacing: -0.02em;
 }
-
-.day-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  background: none;
-  padding: 0;
-}
-.day-tabs button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-height: 56px;
-  padding: 8px 0;
-  border-radius: 16px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.day-tabs button b {
-  font-family: var(--serif);
-  font-size: 16px;
-  color: var(--ink);
-  letter-spacing: 0;
-}
-.day-tabs button[aria-selected="true"] {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--on-accent);
-}
-.day-tabs button[aria-selected="true"] b {
-  color: var(--on-accent);
-}
-.day-tabs button.is-today:not([aria-selected="true"]) {
-  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
-}
 .lesson {
   position: relative;
   gap: 12px;
@@ -4307,8 +4228,7 @@ h2 {
 .hw-swipe,
 .tool,
 .tile,
-.lesson,
-.day-tabs button {
+.lesson {
   border-radius: var(--r-tile);
 }
 .field,
@@ -4486,13 +4406,6 @@ textarea.field {
   margin-right: 8px;
   vertical-align: 1px;
   background: var(--neon, var(--subject, var(--accent)));
-}
-.day-tabs button {
-  min-height: 60px;
-  gap: 3px;
-}
-.day-tabs button.is-today::after {
-  bottom: 6px;
 }
 
 /* Horizontal rows fade out at the gutter instead of a hard cut. */
@@ -5694,53 +5607,7 @@ select.field {
 }
 
 /* Timetable */
-.day-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  padding: 0;
-  background: none;
-  border: 0;
-}
-.day-tabs button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-height: 58px;
-  padding: 8px 0;
-  border-radius: 18px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  box-shadow: none;
-}
-.day-tabs button b {
-  font-family: var(--serif);
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--ink);
-  letter-spacing: 0;
-}
-.day-tabs button[aria-selected="true"] {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: transparent;
-  box-shadow: 0 8px 22px color-mix(in oklab, var(--accent) 40%, transparent);
-}
-.day-tabs button[aria-selected="true"] b {
-  color: var(--on-accent);
-}
-.day-tabs button.is-today:not([aria-selected="true"]) {
-  border-color: transparent;
-}
-.day-tabs button.is-today::after {
-  display: none;
-}
+
 .lesson {
   display: flex;
   align-items: center;

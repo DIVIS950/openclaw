@@ -4,12 +4,12 @@ import { CountUp } from "../components/CountUp.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { NowCard } from "../components/NowCard.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
-import { upcomingLessons, type Lesson } from "../lib/aiFeatures.ts";
-import { greeting } from "../lib/format.ts";
+import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
+import { dueLabel, greeting, isUrgent } from "../lib/format.ts";
 import { level, progress, timetable } from "../lib/store.ts";
 import { addDays, dayOf, daysBetween, prepTests } from "../lib/study.ts";
+import type { Homework } from "../lib/types.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
-import { AiKeyCard } from "../pages/WebVersion.tsx";
 
 // Today, as on the Bento canvas: greeting, the lesson on now (accent hero),
 // the daily brief, two big numbers (due today, next test) and the rest of the
@@ -22,6 +22,52 @@ const SHORTCUTS: { screen: Screen; label: string; icon: IconName; tone: string }
   { screen: "tutoring", label: "Tutoring", icon: "users", tone: "orange" },
   { screen: "inbox", label: "Inbox", icon: "mail", tone: "blue" },
 ];
+
+const LONG_DAY: Record<string, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
+};
+
+/**
+ * The day list: lessons today that haven't started yet ("Later today"), or,
+ * when today is over or a weekend, the whole of the next school day.
+ */
+export function dayList(lessons: Lesson[], now = new Date()): { label: string; lessons: Lesson[] } {
+  const todayIdx = (now.getDay() + 6) % 7;
+  const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const sorted = lessons.toSorted((a, b) => a.start.localeCompare(b.start));
+  const later = sorted.filter((l) => WEEKDAYS.indexOf(l.day) === todayIdx && l.start > time);
+  if (later.length > 0) {
+    return { label: "Later today", lessons: later };
+  }
+  // School still on today (only the current lesson left): nothing "later".
+  const onNow = sorted.some(
+    (l) => WEEKDAYS.indexOf(l.day) === todayIdx && (l.end || l.start) > time,
+  );
+  if (onNow) {
+    return { label: "", lessons: [] };
+  }
+  for (let step = 1; step <= 7; step++) {
+    const idx = (todayIdx + step) % 7;
+    const day = sorted.filter((l) => WEEKDAYS.indexOf(l.day) === idx);
+    if (day.length > 0) {
+      return { label: `Next school day · ${LONG_DAY[WEEKDAYS[idx]]}`, lessons: day };
+    }
+  }
+  return { label: "", lessons: [] };
+}
+
+/** The three open homework items due soonest (undated ones last). */
+export function dueNext(open: Homework[], count = 3): Homework[] {
+  return open
+    .toSorted((a, b) => (a.due ?? "\uffff").localeCompare(b.due ?? "\uffff"))
+    .slice(0, count);
+}
 
 /** "Morning," over "Honza" when the name is known, else "Good morning". */
 function Hello({ name }: { name: string | undefined }) {
@@ -42,14 +88,15 @@ function Hello({ name }: { name: string | undefined }) {
 
 export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const app = useApp();
-  const { homework, profile, go } = app;
+  const { homework, profile, go, openAssignment } = app;
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
   const [tests] = useState(prepTests.all);
-  const upcoming = upcomingLessons(lessons);
+  const upcoming = dayList(lessons);
   const lvl = level(stats.xp);
 
   const open = (homework ?? []).filter((h) => !h.done);
+  const next3 = dueNext(open);
   useAiContext(
     "Today screen. Homework still to do: " +
       open
@@ -102,10 +149,13 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
               <Icon name="user" size={20} />
             )}
           </button>
-          <span className="chip streak" aria-label={`${stats.streak} day streak`}>
-            <Icon name="flame" size={14} className={stats.streak > 0 ? "flame" : undefined} />
-            <CountUp n={stats.streak} /> {stats.streak === 1 ? "day" : "days"}
-          </span>
+          {/* A "0 days" streak only discourages; it appears from the first day. */}
+          {stats.streak > 0 && (
+            <span className="chip streak" aria-label={`${stats.streak} day streak`}>
+              <Icon name="flame" size={14} className="flame" />
+              <CountUp n={stats.streak} /> {stats.streak === 1 ? "day" : "days"}
+            </span>
+          )}
         </div>
       </header>
 
@@ -139,10 +189,32 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
         </button>
       </nav>
 
+      {next3.length > 0 && (
+        <section className="card rows today-due rise d4" aria-label="Due next">
+          <div className="between" style={{ padding: "14px 16px 4px" }}>
+            <h2 className="h2">Due next</h2>
+            <button className="text-link" onClick={() => go("homework")}>
+              All {open.length}
+            </button>
+          </div>
+          {next3.map((h) => (
+            <button key={h.id} className="li" onClick={() => openAssignment(h)}>
+              <span className="stack li-main" style={{ gap: 1 }}>
+                <span className="li-title">{h.title}</span>
+                <span className="s12 muted li-course">{h.course}</span>
+              </span>
+              <span className={`s13 due-when${isUrgent(h.due) ? " urgent" : ""}`}>
+                {dueLabel(h.due)}
+              </span>
+            </button>
+          ))}
+        </section>
+      )}
+
       {upcoming.lessons.length > 0 && (
         <section className="card rows today-day rise d4">
           <div className="between" style={{ padding: "14px 16px 4px" }}>
-            <h2 className="h2">{upcoming.label === "Today" ? "Later today" : upcoming.label}</h2>
+            <h2 className="h2">{upcoming.label}</h2>
             <button className="text-link" onClick={() => go("timetable")}>
               Week
             </button>
@@ -174,7 +246,6 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
       </nav>
 
       <UnlockCard />
-      <AiKeyCard />
     </main>
   );
 }

@@ -66,7 +66,7 @@ function apiMessage(err: InstanceType<typeof Anthropic.APIError>): string {
 
 function friendly(err: unknown): Error {
   if (err instanceof Anthropic.AuthenticationError) {
-    return new Error("Claude says the key isn't valid (401). Paste it again in Apps › AI key.");
+    return new Error("Claude says the key isn't valid (401). Paste it again in More › Claude AI key.");
   }
   if (err instanceof Anthropic.PermissionDeniedError) {
     return new Error(`Claude refused this key (403): ${apiMessage(err)}`);
@@ -197,5 +197,4 @@ export function claudeSample(getKey: () => Promise<string | null>): Sample {
   return sample;
 }
 
-/** Claude keys look like "sk-ant-…"; anything else is treated as a Gemini key. */
-export const isClaudeKey = (key: string): boolean => key.trim().startsWith("sk-ant-");
+export { isClaudeKey } from "./aiKind.ts";
