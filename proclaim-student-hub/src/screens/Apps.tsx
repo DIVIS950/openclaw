@@ -12,6 +12,7 @@ import {
   CLAUDE_PAGE,
   GmailCard,
   PagesSettings,
+  PrivateLinkRow,
   SendToWeb,
 } from "../pages/WebVersion.tsx";
 
@@ -135,6 +136,7 @@ export function Apps() {
           <span className="label">Replay the tour</span>
           <Icon name="chevron" size={18} />
         </button>
+        {PAGES && <PrivateLinkRow />}
         {PAGES && <AiKeyRow />}
         {PAGES && <GmailCard />}
         {PAGES && <PagesSettings />}

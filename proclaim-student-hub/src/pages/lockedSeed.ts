@@ -100,3 +100,16 @@ export async function unlockSeed(): Promise<boolean> {
     return false;
   }
 }
+
+/** This phone's private link (website address + its key), or "" when there's no key here. */
+export function privateLink(): string {
+  let key = /^#k=([\w-]{40,})$/.exec(window.location.hash)?.[1] ?? "";
+  if (!key) {
+    try {
+      key = localStorage.getItem(KEY_STORE) ?? "";
+    } catch {
+      key = "";
+    }
+  }
+  return key ? `${window.location.origin}${window.location.pathname}#k=${key}` : "";
+}

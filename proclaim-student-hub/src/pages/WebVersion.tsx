@@ -5,6 +5,7 @@ import { collectStore, PAGES_URL, transferLink } from "../lib/transfer.ts";
 import { isClaudeKey, testClaude } from "./claude.ts";
 import { geminiSample } from "./gemini.ts";
 import { gmailClientId, gmailLink, isClientId } from "./gmailLink.ts";
+import { privateLink } from "./lockedSeed.ts";
 import { aiKey, PAGES, studentName } from "./runtime.ts";
 
 // The two versions of the hub and the bridge between them:
@@ -428,6 +429,53 @@ export function GmailCard() {
 }
 
 /** On GitHub Pages: name and AI key, both kept only on this phone. */
+/**
+ * More › Private link: the website address with this phone's key, to open the
+ * hub (with your timetable and homework) on another device or add it to the
+ * Home Screen again. Hidden until tapped, because anyone with it sees your data.
+ */
+export function PrivateLinkRow() {
+  const { toast } = useApp();
+  const [link] = useState(privateLink);
+  const [shown, setShown] = useState(false);
+  if (!link) {
+    return null;
+  }
+  const copy = () =>
+    navigator.clipboard.writeText(link).then(
+      () => toast("Private link copied. Only send it to your own devices."),
+      () => setShown(true),
+    );
+  return (
+    <div className="crow" style={{ flexWrap: "wrap" }}>
+      <span className="ico lime r40" aria-hidden="true">
+        <Icon name="lock" size={18} />
+      </span>
+      <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+        <span style={{ fontWeight: 700 }}>Your private link</span>
+        <span className="s11 muted">Opens the hub with your data. Keep it to yourself.</span>
+      </span>
+      <button className="btn sm" onClick={() => setShown((v) => !v)} aria-expanded={shown}>
+        {shown ? "Hide" : "Show"}
+      </button>
+      <button className="btn sm primary" onClick={() => void copy()}>
+        Copy
+      </button>
+      {shown && (
+        <textarea
+          className="field"
+          readOnly
+          rows={3}
+          value={link}
+          aria-label="Your private link"
+          style={{ flexBasis: "100%", fontSize: 12 }}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      )}
+    </div>
+  );
+}
+
 export function PagesSettings() {
   const [name, setName] = useState(studentName.get);
 
