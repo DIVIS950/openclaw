@@ -62,7 +62,8 @@ export async function unlockSeed(): Promise<boolean> {
   const w = window as unknown as { __PSH_SEED__?: unknown };
   let text: string;
   try {
-    const res = await fetch("./private.dat", { cache: "no-cache" });
+    // Plain fetch so it can use the copy index.html preloads (GitHub Pages keeps it 10 min at most).
+    const res = await fetch("./private.dat");
     if (!res.ok) {
       return false;
     }

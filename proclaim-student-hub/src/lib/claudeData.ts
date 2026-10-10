@@ -175,6 +175,12 @@ export class ClaudeData implements DataSource {
     await this.store().collection("homework").doc(hw.id).update({ done });
   }
 
+  async setDue(hw: Homework, day: string): Promise<string> {
+    const due = new Date(`${day}T16:00:00`).toISOString();
+    await this.store().collection("homework").doc(hw.id).update({ due });
+    return due;
+  }
+
   // ---------- Drafts ----------
 
   async loadDraft(hw: Homework): Promise<Draft> {

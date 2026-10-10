@@ -270,3 +270,103 @@ button.tick::before {
   font-weight: 700;
   min-height: 0;
 }
+
+/* Round-3 jury: the last small tap targets get a 44px hit area without
+   changing how they look. */
+.cb::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 12px;
+}
+.text-link,
+.link-btn,
+.item .round,
+button.chip {
+  position: relative;
+}
+.text-link::before,
+.link-btn::before,
+.item .round::before,
+button.chip::before {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+}
+
+/* Round-3 contrast: the selected AI mode, the Inbox hero label and the class
+   badge (now large text, so its bright subject colour stays readable). */
+.modes .mode.on {
+  background: #6a45f0;
+  color: #fff;
+}
+.card.hero.cyan .eyebrow {
+  color: #fff;
+}
+.mark {
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+
+/* Today's To-do card: a tick circle, then the text (opens the To-do list). */
+.today-due .todo-li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.today-due .todo-li .tick {
+  flex: none;
+}
+.todo-li-open {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+@media (min-width: 768px) and (min-height: 600px) {
+  .app.no-nav:not(.tutor-hub) {
+    padding-left: 0;
+  }
+}
+
+/* The due-date chip on a task opens the date picker (the input covers it). */
+.date-chip {
+  position: relative;
+  cursor: pointer;
+}
+.date-chip input {
+  position: absolute;
+  inset: -6px -2px;
+  opacity: 0;
+  cursor: pointer;
+  width: auto;
+  min-height: 44px;
+}
+
+/* Ask AI while scrolling: a 44px round button, label hidden. */
+.ask.mini {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.ask.mini .ask-label {
+  display: none;
+}
+
+/* The shortcut line only where there is a keyboard and a mouse. */
+@media (hover: none), (pointer: coarse) {
+  .key-hint {
+    display: none;
+  }
+}

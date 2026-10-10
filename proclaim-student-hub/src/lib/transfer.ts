@@ -1,4 +1,5 @@
 import type { Db } from "./claudeRuntime.ts";
+import { allowedMeet } from "./study.ts";
 import type { Homework } from "./types.ts";
 
 // Moves the student's data from the claude.ai link (which reads Gmail and
@@ -247,8 +248,17 @@ export async function applyTransfer(t: Transfer, storage: Storage, db: Db): Prom
     } catch {
       local = null;
     }
+    // A link can't plant a tutor with a lesson link that isn't Meet, Zoom or Teams.
+    const value =
+      key === "psh.tutors" && Array.isArray(incoming)
+        ? incoming.map((t: unknown) =>
+            t && typeof t === "object"
+              ? { ...t, meet: allowedMeet(String((t as { meet?: unknown }).meet ?? "")) }
+              : t,
+          )
+        : incoming;
     try {
-      storage.setItem(key, JSON.stringify(mergeImported(key, local, incoming)));
+      storage.setItem(key, JSON.stringify(mergeImported(key, local, value)));
     } catch {
       // Out of space: keep going with the rest.
     }

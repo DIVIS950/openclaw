@@ -27,7 +27,11 @@ const shellFirst = (): Plugin => ({
       );
       // Stylesheets first, then scripts.
       tags.sort((a, b) => Number(a.startsWith("<script")) - Number(b.startsWith("<script")));
-      return head.replace("</body>", `    ${tags.join("\n    ")}\n  </body>`);
+      // index.html only: the student's locked data downloads alongside the app script.
+      const preload = /src="\.\/assets\/main-/.test(html)
+        ? '<link rel="preload" href="./private.dat" as="fetch" crossorigin>\n    '
+        : "";
+      return head.replace("</body>", `    ${preload}${tags.join("\n    ")}\n  </body>`);
     },
   },
 });

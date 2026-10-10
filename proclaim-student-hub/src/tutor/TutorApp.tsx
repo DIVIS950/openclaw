@@ -768,7 +768,7 @@ function NextLessonCard({
             />
           </label>
           <label className="stack" style={{ gap: 4 }}>
-            <span className="eyebrow">Google Meet link</span>
+            <span className="eyebrow">Lesson link (Meet, Zoom or Teams)</span>
             <input
               className="field"
               value={meet}

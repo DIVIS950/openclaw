@@ -29,6 +29,8 @@ const keyOf = (p: PendingLink) =>
 function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void }) {
   const app = useContext(Ctx);
   const [busy, setBusy] = useState(false);
+  const nothingNew =
+    pending.kind !== "error" && pending.lines.length === 1 && pending.lines[0] === "Nothing new";
   const first = useRef<HTMLButtonElement>(null);
 
   const close = (message: string | null) => {
@@ -54,11 +56,8 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
         const added = await applyTransfer(pending.transfer, localStorage, localDb);
         if (app) {
           app.reloadHomework();
-          close(
-            added > 0
-              ? `Brought in: ${added} new homework, plus your timetable, notes and to-dos.`
-              : "Brought in: timetable, notes and to-dos.",
-          );
+          // The same list the sheet showed, so the message says what really came in.
+          close(`Brought in: ${pending.lines.join(", ")}.`);
         } else {
           // App.tsx shows its usual "Brought over from claude.ai" message.
           pagesImport.added = added;
@@ -124,7 +123,7 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
           <>
             <p className="muted" style={{ margin: 0 }}>
               {pending.kind === "import"
-                ? "This link brings data from the claude.ai version. It's added next to what's already here; nothing of yours is replaced."
+                ? "Only bring this in if you made this link in your claude.ai version. It's added next to what's already here; nothing of yours is replaced."
                 : "Only open links your tutor sent you."}
             </p>
             <ul className="card rows link-lines">
@@ -134,18 +133,27 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
                 </li>
               ))}
             </ul>
-            <button
-              ref={first}
-              className="btn big primary"
-              disabled={busy}
-              onClick={() => void accept()}
-            >
-              <Icon name="check" size={18} />
-              Bring it in
-            </button>
-            <button className="btn ghost" disabled={busy} onClick={() => close(null)}>
-              Not now
-            </button>
+            {nothingNew ? (
+              // Already brought in (a link opened twice): nothing to accept.
+              <button ref={first} className="btn big primary" onClick={() => close(null)}>
+                OK
+              </button>
+            ) : (
+              <>
+                <button
+                  ref={first}
+                  className="btn big primary"
+                  disabled={busy}
+                  onClick={() => void accept()}
+                >
+                  <Icon name="check" size={18} />
+                  Bring it in
+                </button>
+                <button className="btn ghost" disabled={busy} onClick={() => close(null)}>
+                  Not now
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

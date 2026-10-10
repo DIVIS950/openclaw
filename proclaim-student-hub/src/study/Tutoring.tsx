@@ -13,7 +13,7 @@ import {
   notes,
   prepTests,
   joinLabel,
-  safeLink,
+  callName,
   todos,
   tutoring,
   whatsappLink,
@@ -31,6 +31,7 @@ import {
   tutorHomework,
   TUTOR_APP_URL,
   type SchoolItem,
+  allowedMeet,
 } from "../lib/tutorLink.ts";
 import {
   LESSON_MINUTES,
@@ -69,7 +70,7 @@ function Avatar({ tutor, size = 44 }: { tutor: Tutor; size?: number }) {
 }
 
 function JoinButtons({ tutor, onDark = false }: { tutor: Tutor; onDark?: boolean }) {
-  const meet = safeLink(tutor.meet);
+  const meet = allowedMeet(tutor.meet);
   const wa = whatsappLink(tutor.whatsapp);
   return (
     <>
@@ -191,7 +192,7 @@ export function Tutoring({
                 {[
                   nextUp.tutor.when,
                   `${LESSON_MINUTES} min`,
-                  safeLink(nextUp.tutor.meet) ? "Google Meet" : nextUp.tutor.name,
+                  allowedMeet(nextUp.tutor.meet) ? callName(nextUp.tutor.meet) : nextUp.tutor.name,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -207,11 +208,11 @@ export function Tutoring({
             </div>
           </div>
           <div className="row" style={{ gap: 10 }}>
-            {safeLink(nextUp.tutor.meet) ? (
+            {allowedMeet(nextUp.tutor.meet) ? (
               <a
                 className="btn primary"
                 style={{ flex: 1.3 }}
-                href={safeLink(nextUp.tutor.meet)}
+                href={allowedMeet(nextUp.tutor.meet)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -281,7 +282,7 @@ export function Tutoring({
                   <span className="s12 muted clip">
                     {[
                       start ? `${dayShort(start)} ${timeOf(start)}` : t.when || "No time set",
-                      safeLink(t.meet) ? "Meet" : t.whatsapp ? "WhatsApp" : t.name,
+                      allowedMeet(t.meet) ? callName(t.meet) : t.whatsapp ? "WhatsApp" : t.name,
                     ].join(" · ")}
                   </span>
                 </span>
@@ -474,6 +475,7 @@ function TutorForm({
   onDelete?: () => void;
 }) {
   const [draft, setDraft] = useState(tutor);
+  const badLink = Boolean(draft.meet.trim()) && !allowedMeet(draft.meet);
   // Escape closes the sheet, like the other sheets.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -507,8 +509,8 @@ function TutorForm({
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (draft.name.trim()) {
-            onSave({ ...draft, name: draft.name.trim(), meet: safeLink(draft.meet) });
+          if (draft.name.trim() && !badLink) {
+            onSave({ ...draft, name: draft.name.trim(), meet: allowedMeet(draft.meet) });
           }
         }}
       >
@@ -530,10 +532,20 @@ function TutorForm({
               : "I can't read that time. Try e.g. “Tuesdays 17:00” or “po a čt 16:30”."}
           </span>
         )}
-        {field("meet", "Google Meet link", "https://meet.google.com/…", "url")}
+        {field(
+          "meet",
+          "Lesson link (Google Meet, Zoom or Teams)",
+          "https://meet.google.com/…",
+          "url",
+        )}
+        {badLink && (
+          <span className="warm-text" style={{ fontSize: 13, marginTop: -6 }}>
+            Only Google Meet, Zoom or Teams links can be saved here.
+          </span>
+        )}
         {field("whatsapp", "WhatsApp number (optional)", "+420 …", "tel")}
         <span className="muted">Saved only on this device.</span>
-        <button className="btn big primary" type="submit" disabled={!draft.name.trim()}>
+        <button className="btn big primary" type="submit" disabled={!draft.name.trim() || badLink}>
           Save
         </button>
         {onDelete && (

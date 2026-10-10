@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import { collectStore, PAGES_URL, transferLink } from "../lib/transfer.ts";
 import { isClaudeKey } from "./aiKind.ts";
 import { geminiSample } from "./gemini.ts";
 import { gmailClientId, gmailLink, isClientId } from "./gmailLink.ts";
+import { keyHandoff } from "./keyHandoff.ts";
 import { privateLink } from "./lockedSeed.ts";
 import { aiKey, PAGES, studentName } from "./runtime.ts";
 
@@ -190,12 +191,18 @@ export function AiKeyForm({
  */
 export function AiKeyRow() {
   const [hasKey, setHasKey] = useState<boolean | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(keyHandoff.take);
+  const row = useRef<HTMLDivElement>(null);
+  const openedFromLink = useRef(open);
   useEffect(() => {
     void aiKey.get().then((k) => setHasKey(Boolean(k)));
+    if (openedFromLink.current) {
+      // Opened from a "More › Claude AI key" link: bring the form into view.
+      row.current?.scrollIntoView({ block: "center" });
+    }
   }, []);
   return (
-    <div className="crow" style={{ flexWrap: "wrap" }}>
+    <div className="crow" style={{ flexWrap: "wrap" }} ref={row}>
       <span className="ico lime r40" aria-hidden="true">
         <Icon name="key" size={18} />
       </span>

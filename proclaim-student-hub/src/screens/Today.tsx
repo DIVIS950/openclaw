@@ -6,7 +6,7 @@ import { NowCard } from "../components/NowCard.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
 import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
 import { dueLabel, greeting, isUrgent } from "../lib/format.ts";
-import { level, progress, timetable } from "../lib/store.ts";
+import { level, progress, timetable, todoXp } from "../lib/store.ts";
 import { addDays, dayOf, daysBetween, groupTodos, prepTests, todos } from "../lib/study.ts";
 import type { Homework } from "../lib/types.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
@@ -92,6 +92,21 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const [lessons] = useState<Lesson[]>(timetable.get);
   const [stats] = useState(progress.get);
   const [tests] = useState(prepTests.all);
+  const [todoAll, setTodoAll] = useState(todos.all);
+  // Ticking a to-do here: saved, XP once, and an Undo in the toast.
+  const tickTodo = (id: string) => {
+    const before = todos.all();
+    todos.save(before.map((t) => (t.id === id ? { ...t, done: true } : t)));
+    todoXp.tick(id);
+    setTodoAll(todos.all());
+    app.toast("To-do done.", {
+      label: "Undo",
+      run: () => {
+        todos.save(todos.all().map((t) => (t.id === id ? { ...t, done: false } : t)));
+        setTodoAll(todos.all());
+      },
+    });
+  };
   const upcoming = dayList(lessons);
   const lvl = level(stats.xp);
 
@@ -99,7 +114,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const next3 = dueNext(open);
   // Open to-dos, most urgent first: overdue, today, this week, any time.
   const today = dayOf(new Date());
-  const todoGroups = groupTodos(todos.all(), today);
+  const todoGroups = groupTodos(todoAll, today);
   const todoList = [
     ...todoGroups.overdue,
     ...todoGroups.today,
@@ -230,16 +245,21 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
             </button>
           </div>
           {todoNext.map((t) => (
-            <button key={t.id} className="li" onClick={() => go("todo")}>
-              <span className="stack li-main" style={{ gap: 1 }}>
+            <div key={t.id} className="li todo-li">
+              <button
+                className="tick"
+                aria-label={`Tick off ${t.text}`}
+                onClick={() => tickTodo(t.id)}
+              />
+              <button className="todo-li-open" onClick={() => go("todo")}>
                 <span className="li-title">{t.text}</span>
-              </span>
-              {t.due && (
-                <span className={`s13 due-when${t.due <= today ? " urgent" : ""}`}>
-                  {t.due < today ? "Overdue" : t.due === today ? "Today" : dueLabel(t.due)}
-                </span>
-              )}
-            </button>
+                {t.due && (
+                  <span className={`s13 due-when${t.due <= today ? " urgent" : ""}`}>
+                    {t.due < today ? "Overdue" : t.due === today ? "Today" : dueLabel(t.due)}
+                  </span>
+                )}
+              </button>
+            </div>
           ))}
         </section>
       )}

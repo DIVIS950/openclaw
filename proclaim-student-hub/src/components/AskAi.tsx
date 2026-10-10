@@ -155,7 +155,7 @@ export function AskAi({
               <p className="sub">
                 Ask anything about what's on your screen, or tap the mic and talk.
               </p>
-              <NoAiKeyNote />
+              <NoAiKeyNote onGo={onClose} />
               {suggestions.map((s) => (
                 <button
                   key={s}

@@ -16,6 +16,7 @@ import {
   type PolishArea,
   type PolishResult,
 } from "../lib/polish.ts";
+import { dayOf } from "../lib/study.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import type { HandInResult, Homework } from "../lib/types.ts";
 import { useEscape } from "../lib/useEscape.ts";
@@ -26,7 +27,7 @@ type SaveState = "loading" | "saved" | "saving" | "error";
 const SAVE_DELAY_MS = 1200;
 
 export function Assignment({ hw }: { hw: Homework }) {
-  const { data, back, ai, handleError, toast, openAi } = useApp();
+  const { data, back, ai, handleError, toast, openAi, replaceHomework } = useApp();
   const [text, setText] = useState("");
   const [state, setState] = useState<SaveState>("loading");
   const [link, setLink] = useState<string | null>(null);
@@ -179,11 +180,33 @@ export function Assignment({ hw }: { hw: Homework }) {
             {hw.course && (
               <span className={`chip tone-${subjectTone(hw.course)}`}>{hw.course}</span>
             )}
-            <span
-              className={`chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " due" : ""}`}
-            >
-              {dueLabel(hw.due)}
-            </span>
+            {data.setDue ? (
+              // A date picker under the chip: homework that came without a date can get one.
+              <label
+                className={`chip date-chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " due" : ""}`}
+              >
+                {hw.due ? dueLabel(hw.due) : "Set due date"}
+                <input
+                  type="date"
+                  aria-label="Due date"
+                  value={hw.due ? dayOf(new Date(hw.due)) : ""}
+                  onChange={(e) => {
+                    const day = e.target.value;
+                    if (day && data.setDue) {
+                      data
+                        .setDue(hw, day)
+                        .then((due) => replaceHomework({ ...hw, due }), handleError);
+                    }
+                  }}
+                />
+              </label>
+            ) : (
+              <span
+                className={`chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " due" : ""}`}
+              >
+                {dueLabel(hw.due)}
+              </span>
+            )}
           </div>
         </div>
         <h1 className="h1" style={{ fontSize: 30 }}>
@@ -203,7 +226,7 @@ export function Assignment({ hw }: { hw: Homework }) {
         </div>
       </header>
 
-      {!hw.description && (
+      {!hw.description && hw.source !== "Other" && (
         <section className="card stack rise d1 no-brief" style={{ padding: 16, gap: 8 }}>
           <span className="eyebrow">From your teacher</span>
           <p className="s13" style={{ margin: 0, color: "var(--ink2)", lineHeight: 1.45 }}>

@@ -287,6 +287,9 @@ export function calc(expr: string): string {
     while (peek() === "*" || peek() === "/") {
       const op = src[i++];
       const r = power();
+      if (op === "/" && r === 0) {
+        throw new Error("div0");
+      }
       v = op === "*" ? v * r : v / r;
     }
     return v;
@@ -339,8 +342,8 @@ export function calc(expr: string): string {
       return "";
     }
     return String(Math.round(value * 1e10) / 1e10);
-  } catch {
-    return "";
+  } catch (err) {
+    return err instanceof Error && err.message === "div0" ? "Can't divide by 0" : "";
   }
 }
 

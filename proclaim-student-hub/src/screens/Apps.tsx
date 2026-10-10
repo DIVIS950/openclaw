@@ -6,6 +6,7 @@ import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { useApp, type Screen } from "../context.ts";
 import { notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
+import { keyHandoff } from "../pages/keyHandoff.ts";
 import { PAGES } from "../pages/runtime.ts";
 import {
   AiKeyRow,
@@ -138,8 +139,7 @@ export function Apps() {
           <Icon name="chevron" size={18} />
         </button>
         {PAGES && <PrivateLinkRow />}
-        {PAGES && <AiKeyRow />}
-        {PAGES && <GmailCard />}
+        {PAGES && <ParentSetup />}
         {PAGES && <PagesSettings />}
         {CLAUDE_PAGE && !data.demo && <SendToWeb />}
         <BackupCard />
@@ -210,10 +210,44 @@ export function Apps() {
               ? profile?.email
               : "Connected through Claude"}
       </p>
-      {/* Which build this device has, for when something needs checking. */}
-      <p className="muted s11" style={{ textAlign: "center", margin: 0 }}>
-        App build {__BUILD__}
+      <p className="muted s12 key-hint" style={{ textAlign: "center", margin: 0 }}>
+        Keyboard: 1–4 tabs · N add · / ask AI · Esc close
       </p>
+      {!PAGES && (
+        // Which build this device has, for when something needs checking.
+        <p className="muted s11" style={{ textAlign: "center", margin: 0 }}>
+          App build {__BUILD__}
+        </p>
+      )}
     </main>
+  );
+}
+
+/**
+ * Website setup that only a parent does (the Claude key, Gmail's client ID)
+ * and the build stamp, folded into one row so the student's More stays theirs.
+ */
+function ParentSetup() {
+  const [open, setOpen] = useState(keyHandoff.peek);
+  return (
+    <>
+      <button className="set" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className="ic tone-grey" aria-hidden="true">
+          <Icon name="key" size={18} />
+        </span>
+        <span className="label">For parents</span>
+        <span className="muted s13">AI key · Gmail</span>
+        <Icon name="chevron" size={18} />
+      </button>
+      {open && (
+        <div className="stack parent-setup" style={{ gap: 10 }}>
+          <AiKeyRow />
+          <GmailCard />
+          <p className="muted s11" style={{ textAlign: "center", margin: 0 }}>
+            App build {__BUILD__}
+          </p>
+        </div>
+      )}
+    </>
   );
 }

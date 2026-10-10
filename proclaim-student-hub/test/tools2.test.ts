@@ -160,7 +160,8 @@ describe("calculator", () => {
     expect(calc("2^10")).toBe("1024");
     expect(calc("7 ÷ 2")).toBe("3.5");
     expect(calc("alert(1)")).toBe("");
-    expect(calc("1/0")).toBe("");
+    expect(calc("1/0")).toBe("Can't divide by 0");
+    expect(calc("10^400")).toBe("");
   });
 });
 

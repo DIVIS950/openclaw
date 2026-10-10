@@ -316,17 +316,16 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
     replaceHomework({ ...hw, done });
     try {
       await data.setDone(hw, done);
+      if (!done) {
+        // Unticked (Undo or the Done list): the XP and report-card count go too.
+        homeworkXp.undo(hw.id);
+      }
       if (done) {
         // XP once per homework: untick and tick again doesn't earn more.
         const xp = homeworkXp.tick(hw.id);
         toast(xp ? `${data.labels.ticked} +5 XP` : data.labels.ticked, {
           label: "Undo",
-          run: () => {
-            if (xp) {
-              homeworkXp.undo(hw.id);
-            }
-            void setDone(false);
-          },
+          run: () => void setDone(false),
         });
       }
     } catch (err) {

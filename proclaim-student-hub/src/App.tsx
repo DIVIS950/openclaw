@@ -193,6 +193,8 @@ interface NavState {
   pshScreen: Screen;
   /** The screen it was opened from. */
   from?: Screen;
+  /** The homework open on an "assignment" entry, so a reload can reopen it. */
+  hw?: string;
 }
 
 function navState(value: unknown): NavState | null {
@@ -231,8 +233,15 @@ function Shell({
   auth: GoogleAuth | null;
   onSignOut: (() => void) | null;
 }) {
+  // A reload keeps the history entry: reopen its screen (and its homework,
+  // once the list has loaded) instead of starting again on Today.
+  const reopen = useRef<string | null>(
+    navState(window.history.state)?.pshScreen === "assignment"
+      ? (navState(window.history.state)?.hw ?? null)
+      : null,
+  );
   const [screen, setScreen] = useState<Screen>(() => {
-    const s = screenFromHash();
+    const s = navState(window.history.state)?.pshScreen ?? screenFromHash();
     return s === "assignment" ? "homework" : s;
   });
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -360,7 +369,10 @@ function Shell({
   useEffect(() => {
     try {
       // Mark the entry the app opened on; the address itself is left alone.
-      window.history.replaceState({ pshScreen: screenRef.current }, "");
+      // A reloaded task entry stays as it is until its homework reopens.
+      if (!reopen.current) {
+        window.history.replaceState({ pshScreen: screenRef.current }, "");
+      }
     } catch {
       // History not available: Back just leaves, as before.
     }
@@ -441,10 +453,52 @@ function Shell({
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  useEffect(() => {
+    const id = reopen.current;
+    if (!id || homework === null) {
+      return;
+    }
+    reopen.current = null;
+    const hw = homework.find((h) => h.id === id);
+    if (hw) {
+      setAssignment(hw);
+      screenRef.current = "assignment";
+      setScreen("assignment");
+    } else {
+      window.history.replaceState({ pshScreen: screenRef.current }, "");
+    }
+  }, [homework]);
+
+  // The Ask AI pill shrinks to a small round button while the page is
+  // scrolled, so it covers less of the list under it.
+  const [askMini, setAskMini] = useState(false);
+  useEffect(() => {
+    const onScroll = (e: Event) => {
+      const el = e.target instanceof Element ? e.target : document.scrollingElement;
+      setAskMini((el?.scrollTop ?? 0) > 24);
+    };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", onScroll, { capture: true });
+  }, []);
+  useEffect(() => setAskMini(false), [screen]);
+
   // Keyboard (laptop, iPad keyboard): 1–4 switch tabs, N adds something, / asks
   // the AI. Ignored while typing, with modifier keys, or when a sheet is open.
   useEffect(() => {
     const TABS: Screen[] = ["today", "homework", "tutor", "apps"];
+    // The box appears a frame or two later (sheet animation, lazy screen).
+    const focusSoon = (selector: string) => {
+      let tries = 0;
+      const tick = () => {
+        const el = document.querySelector<HTMLElement>(selector);
+        if (el) {
+          el.focus();
+        } else if (tries++ < 20) {
+          window.setTimeout(tick, 50);
+        }
+      };
+      window.setTimeout(tick, 0);
+    };
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (
@@ -461,8 +515,10 @@ function Shell({
         go(TABS[Number(e.key) - 1]);
       } else if (e.key === "n" || e.key === "N") {
         document.querySelector<HTMLButtonElement>(".nav-fab")?.click();
+        focusSoon('textarea[aria-label="What is it?"]');
       } else if (e.key === "/") {
         go("tutor");
+        focusSoon("textarea#ask");
       } else {
         return;
       }
@@ -523,6 +579,11 @@ function Shell({
         setAssignment(hw);
         // Switching task beside the list replaces the entry, so Back leaves the task view.
         go("assignment", screenRef.current === "assignment");
+        try {
+          window.history.replaceState({ ...window.history.state, hw: hw.id }, "");
+        } catch {
+          // No history: a reload lands on Homework instead.
+        }
       },
       tutorSeed,
       openAi: (request) =>
@@ -582,7 +643,16 @@ function Shell({
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className={showAsk ? "app has-ask" : "app"}>
+      <div
+        className={[
+          "app",
+          showAsk ? "has-ask" : "",
+          // A task open full-screen (iPad portrait): no rail, so no gutter for it.
+          current === "assignment" && !wide ? "no-nav" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {updateReady && (
           <div
             className="banner between update-banner"
@@ -662,12 +732,12 @@ function Shell({
         )}
         {showAsk && (
           <button
-            className="ask"
+            className={askMini ? "ask mini" : "ask"}
             aria-label="Ask AI about this screen"
             onClick={() => setAiSheet({ key: Date.now(), context: aiContext })}
           >
             <Icon name="sparkle" size={16} />
-            Ask AI
+            <span className="ask-label">Ask AI</span>
           </button>
         )}
         {aiSheet && (

@@ -8,7 +8,8 @@ export const SOURCE_LINKS: Record<Source, string> = {
   Desmos: "https://student.desmos.com",
   ActiveLearn: "https://www.pearsonactivelearn.com",
   Canva: "https://www.canva.com",
-  Other: "https://classroom.google.com",
+  // Homework the student added themselves has no app to open.
+  Other: "",
 };
 
 export interface Homework {
@@ -95,6 +96,8 @@ export interface DataSource {
   searchEmails?(query: string): Promise<Email[]>;
   events(): Promise<CalEvent[]>;
   setDone(hw: Homework, done: boolean): Promise<void>;
+  /** Gives homework a due date (YYYY-MM-DD) after it arrived without one. */
+  setDue?(hw: Homework, day: string): Promise<string>;
   addHomework(input: {
     title: string;
     source: Source;

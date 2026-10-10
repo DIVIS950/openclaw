@@ -502,6 +502,24 @@ export function safeLink(url: string): string {
   return /^https:\/\/[^\s]+$/i.test(url.trim()) ? url.trim() : "";
 }
 
+/** Lesson links the app will open: https Google Meet, Zoom or Teams only ("" otherwise). */
+export function allowedMeet(url: string): string {
+  let u: URL;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return "";
+  }
+  const host = u.hostname.toLowerCase();
+  const ok =
+    host === "meet.google.com" ||
+    host === "zoom.us" ||
+    host.endsWith(".zoom.us") ||
+    host === "teams.microsoft.com" ||
+    host === "teams.live.com";
+  return u.protocol === "https:" && ok && !u.username && !u.password ? u.href : "";
+}
+
 /** "Google Meet", "Zoom" or "Teams" for a lesson link; "the call" for anything else. */
 export function callName(url: string): string {
   const host = /^https:\/\/([^/?#]+)/i.exec(url.trim())?.[1]?.toLowerCase() ?? "";

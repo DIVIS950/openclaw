@@ -8,7 +8,10 @@ import {
   type TutorMessage,
   type TutorSession,
 } from "./study.ts";
+import { allowedMeet } from "./study.ts";
 import { packJson, PAGES_URL, unpackJson } from "./transfer.ts";
+
+export { allowedMeet };
 
 // The student and their tutor swap links. Nothing goes through a server: the
 // student sends the tutor a link that carries this tutor's lessons, materials
@@ -266,24 +269,6 @@ export function normalizeReply(raw: unknown): TutorReply | null {
     messages,
     sentAt: str(raw.sentAt),
   };
-}
-
-/** Lesson links the app will open: https Google Meet, Zoom or Teams only ("" otherwise). */
-export function allowedMeet(url: string): string {
-  let u: URL;
-  try {
-    u = new URL(url.trim());
-  } catch {
-    return "";
-  }
-  const host = u.hostname.toLowerCase();
-  const ok =
-    host === "meet.google.com" ||
-    host === "zoom.us" ||
-    host.endsWith(".zoom.us") ||
-    host === "teams.microsoft.com" ||
-    host === "teams.live.com";
-  return u.protocol === "https:" && ok && !u.username && !u.password ? u.href : "";
 }
 
 /** In the Tutor Hub: the student's packet, null without one, "damaged" when it can't be read. */
