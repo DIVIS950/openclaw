@@ -108,6 +108,26 @@ export const backups = {
     }
   },
 
+  /** When the last link (of any day) was brought in, if one was. */
+  lastLinkAt(storage: Storage = localStorage): string | null {
+    try {
+      const snap = JSON.parse(storage.getItem(LINK_KEY) ?? "null") as Snapshot | null;
+      return typeof snap?.at === "string" ? snap.at : null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * The save to go back to: the newest one taken before the last link (even
+   * a link from yesterday evening), else the newest one.
+   */
+  safeSave(storage: Storage = localStorage): { day: string; at: string } | null {
+    const saves = backups.list(storage);
+    const linkAt = backups.lastLinkAt(storage);
+    return (linkAt ? saves.find((s) => s.at < linkAt) : undefined) ?? saves[0] ?? null;
+  },
+
   /** The save taken right before the last link, if that link came in today. */
   lastLink(storage: Storage = localStorage, now = new Date()): Snapshot | null {
     try {

@@ -170,3 +170,27 @@ describe("typed grades", () => {
     expect(parseScore("85%")).toEqual({ score: 85, outOf: 100 });
   });
 });
+
+describe("recovery after midnight", () => {
+  it("offers the save from before a link brought in late yesterday", async () => {
+    const { backups } = await import("../src/lib/backup.ts");
+    const map = new Map<string, string>();
+    const storage = {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } as Storage;
+    storage.setItem("psh.todos", JSON.stringify([{ id: "good" }]));
+    backups.daily(storage, new Date("2026-10-09T08:00:00"));
+    backups.beforeLink(storage, new Date("2026-10-09T23:58:00"));
+    storage.setItem("psh.todos", JSON.stringify([{ id: "bad" }]));
+    backups.daily(storage, new Date("2026-10-10T00:02:00"));
+    expect(backups.lastLink(storage, new Date("2026-10-10T00:03:00"))).toBeNull();
+    expect(backups.safeSave(storage)?.day).toBe("2026-10-09");
+  });
+});

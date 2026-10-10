@@ -71,8 +71,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
     const link = backups.lastLink();
     // Today's save, unless it was taken after the link (a link brought in just
     // before midnight): then the day before's. The same moment twice shows once.
-    const saves = backups.list();
-    const day = link && saves[0] && saves[0].at > link.at ? (saves[1] ?? null) : (saves[0] ?? null);
+    const day = backups.safeSave();
     const sameMoment =
       !!link &&
       !!day &&

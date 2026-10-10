@@ -126,9 +126,12 @@ function AddGrade({
   const [subject, setSubject] = useState(start.subject ?? "");
   const [topic, setTopic] = useState(start.topic ?? "");
   const [date, setDate] = useState(start.date ?? dayOf(new Date()));
+  // Two number fields: a phone's number keypad has no "/" or "%".
   const [score, setScore] = useState("");
+  const [outOf, setOutOf] = useState("100");
   useEscape(onClose);
-  const parsed = parseScore(score);
+  const parsed =
+    score.trim() && outOf.trim() ? parseScore(`${score.trim()}/${outOf.trim()}`) : null;
   return (
     <div className="backdrop" onClick={onClose}>
       <form
@@ -138,8 +141,12 @@ function AddGrade({
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (!parsed || !subject.trim()) {
-            toast("Type the mark like 18/20 or 85%.");
+          if (!subject.trim()) {
+            toast("Add the subject first, e.g. Maths.");
+            return;
+          }
+          if (!parsed) {
+            toast("Type the score and what it was out of, e.g. 18 out of 20.");
             return;
           }
           onAdd({
@@ -175,16 +182,29 @@ function AddGrade({
         </label>
         <div className="row" style={{ alignItems: "flex-end" }}>
           <label className="stack" style={{ gap: 6, flex: 1 }}>
-            <span className="h2">Mark</span>
+            <span className="h2">Score</span>
             <input
               className="field"
               value={score}
-              onChange={(e) => setScore(e.target.value)}
-              placeholder="18/20 or 85%"
+              onChange={(e) => setScore(e.target.value.replace(",", "."))}
+              placeholder="18"
               inputMode="decimal"
-              aria-label="Mark"
+              aria-label="Score"
             />
           </label>
+          <label className="stack" style={{ gap: 6, flex: 1 }}>
+            <span className="h2">Out of</span>
+            <input
+              className="field"
+              value={outOf}
+              onChange={(e) => setOutOf(e.target.value.replace(",", "."))}
+              placeholder="20"
+              inputMode="decimal"
+              aria-label="Out of"
+            />
+          </label>
+        </div>
+        <div className="row" style={{ alignItems: "flex-end" }}>
           <label className="stack" style={{ gap: 6, flex: 1 }}>
             <span className="h2">Date</span>
             <input
@@ -198,6 +218,7 @@ function AddGrade({
         {parsed && (
           <span className="chip good" style={{ alignSelf: "flex-start" }}>
             {percent(parsed)}% · {letter(percent(parsed))}
+            {parsed.score > parsed.outOf ? " · more than full marks?" : ""}
           </span>
         )}
         <button className="btn big primary" type="submit">
