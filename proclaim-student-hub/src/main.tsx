@@ -15,6 +15,9 @@ import { unlockSeed } from "./pages/lockedSeed.ts";
 import { installPagesRuntime, pagesImport, PAGES } from "./pages/runtime.ts";
 import "./styles.css";
 import "./bento.css";
+import "./fix-tutor.css";
+import "./fix-flow.css";
+import "./fix-polish.css";
 
 async function start() {
   // Bento look, light unless the student chose otherwise in More › Look.
