@@ -22,7 +22,7 @@ if git -C "$GHP_DIR" diff --cached --quiet; then
 fi
 git -C "$GHP_DIR" -c user.name="Claude" -c user.email="noreply@anthropic.com" commit -q -m "$MSG
 
-Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01FQN13h1FeRz1TnJkL3yTRB"
 for i in 1 2 3 4; do
   if git -C "$GHP_DIR" push origin gh-pages >/dev/null 2>&1; then
