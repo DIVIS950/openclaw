@@ -125,7 +125,12 @@ export const backups = {
   safeSave(storage: Storage = localStorage): { day: string; at: string } | null {
     const saves = backups.list(storage);
     const linkAt = backups.lastLinkAt(storage);
-    return (linkAt ? saves.find((s) => s.at < linkAt) : undefined) ?? saves[0] ?? null;
+    // Step back past the newest save only when the last link came after the
+    // save before it: an old link mustn't make "go back" wipe several days.
+    if (linkAt && saves[0] && saves[0].at > linkAt && saves[1] && saves[1].at < linkAt) {
+      return saves[1];
+    }
+    return saves[0] ?? null;
   },
 
   /** The save taken right before the last link, if that link came in today. */

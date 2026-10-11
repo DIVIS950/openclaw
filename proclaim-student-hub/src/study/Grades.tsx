@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
+import { Overlay } from "../components/Overlay.tsx";
 import { useApp } from "../context.ts";
 import { bySubject, grades, letter, parseScore, percent, type Grade } from "../lib/grades.ts";
 import { dayOf, type PrepTest } from "../lib/study.ts";
@@ -128,104 +129,120 @@ function AddGrade({
   const [date, setDate] = useState(start.date ?? dayOf(new Date()));
   // Two number fields: a phone's number keypad has no "/" or "%".
   const [score, setScore] = useState("");
-  const [outOf, setOutOf] = useState("100");
+  const [outOf, setOutOf] = useState("");
   useEscape(onClose);
   const parsed =
     score.trim() && outOf.trim() ? parseScore(`${score.trim()}/${outOf.trim()}`) : null;
   return (
-    <div className="backdrop" onClick={onClose}>
-      <form
-        className="sheet"
-        role="dialog"
-        aria-label="Add a grade"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!subject.trim()) {
-            toast("Add the subject first, e.g. Maths.");
-            return;
-          }
-          if (!parsed) {
-            toast("Type the score and what it was out of, e.g. 18 out of 20.");
-            return;
-          }
-          onAdd({
-            subject: subject.trim(),
-            topic: topic.trim(),
-            date,
-            score: parsed.score,
-            outOf: parsed.outOf,
-            testId: start.testId ?? "",
-          });
-        }}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          Add a grade
-        </h2>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Subject</span>
-          <input
-            className="field"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="e.g. Maths"
-          />
-        </label>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Test</span>
-          <input
-            className="field"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. Fractions quiz"
-          />
-        </label>
-        <div className="row" style={{ alignItems: "flex-end" }}>
-          <label className="stack" style={{ gap: 6, flex: 1 }}>
-            <span className="h2">Score</span>
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <form
+          className="sheet"
+          role="dialog"
+          aria-label="Add a grade"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!subject.trim()) {
+              toast("Add the subject first, e.g. Maths.");
+              return;
+            }
+            if (!score.trim() || !outOf.trim()) {
+              toast(
+                score.trim()
+                  ? "What was it out of? E.g. 20 (or 100 for a percentage)."
+                  : "Type the score, e.g. 18.",
+              );
+              return;
+            }
+            if (!parsed) {
+              const s = Number(score);
+              const o = Number(outOf);
+              toast(
+                o > 0 && s > o * 2
+                  ? "That's more than double the full marks. Check the two numbers."
+                  : "Type the score and what it was out of, e.g. 18 out of 20.",
+              );
+              return;
+            }
+            onAdd({
+              subject: subject.trim(),
+              topic: topic.trim(),
+              date,
+              score: parsed.score,
+              outOf: parsed.outOf,
+              testId: start.testId ?? "",
+            });
+          }}
+        >
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            Add a grade
+          </h2>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Subject</span>
             <input
               className="field"
-              value={score}
-              onChange={(e) => setScore(e.target.value.replace(",", "."))}
-              placeholder="18"
-              inputMode="decimal"
-              aria-label="Score"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Maths"
             />
           </label>
-          <label className="stack" style={{ gap: 6, flex: 1 }}>
-            <span className="h2">Out of</span>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Test</span>
             <input
               className="field"
-              value={outOf}
-              onChange={(e) => setOutOf(e.target.value.replace(",", "."))}
-              placeholder="20"
-              inputMode="decimal"
-              aria-label="Out of"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g. Fractions quiz"
             />
           </label>
-        </div>
-        <div className="row" style={{ alignItems: "flex-end" }}>
-          <label className="stack" style={{ gap: 6, flex: 1 }}>
-            <span className="h2">Date</span>
-            <input
-              className="field"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-        </div>
-        {parsed && (
-          <span className="chip good" style={{ alignSelf: "flex-start" }}>
-            {percent(parsed)}% · {letter(percent(parsed))}
-            {parsed.score > parsed.outOf ? " · more than full marks?" : ""}
-          </span>
-        )}
-        <button className="btn big primary" type="submit">
-          <Icon name="check" size={18} />
-          Save grade
-        </button>
-      </form>
-    </div>
+          <div className="row" style={{ alignItems: "flex-end" }}>
+            <label className="stack" style={{ gap: 6, flex: 1 }}>
+              <span className="h2">Score</span>
+              <input
+                className="field"
+                value={score}
+                onChange={(e) => setScore(e.target.value.replace(",", "."))}
+                placeholder="18"
+                inputMode="decimal"
+                aria-label="Score"
+              />
+            </label>
+            <label className="stack" style={{ gap: 6, flex: 1 }}>
+              <span className="h2">Out of</span>
+              <input
+                className="field"
+                value={outOf}
+                onChange={(e) => setOutOf(e.target.value.replace(",", "."))}
+                placeholder="20"
+                inputMode="decimal"
+                aria-label="Out of"
+              />
+            </label>
+          </div>
+          <div className="row" style={{ alignItems: "flex-end" }}>
+            <label className="stack" style={{ gap: 6, flex: 1 }}>
+              <span className="h2">Date</span>
+              <input
+                className="field"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </label>
+          </div>
+          {parsed && (
+            <span className="chip good" style={{ alignSelf: "flex-start" }}>
+              {percent(parsed)}% · {letter(percent(parsed))}
+              {parsed.score > parsed.outOf ? " · more than full marks?" : ""}
+            </span>
+          )}
+          <button className="btn big primary" type="submit">
+            <Icon name="check" size={18} />
+            Save grade
+          </button>
+        </form>
+      </div>
+    </Overlay>
   );
 }

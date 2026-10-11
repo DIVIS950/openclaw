@@ -194,3 +194,13 @@ describe("recovery after midnight", () => {
     expect(backups.safeSave(storage)?.day).toBe("2026-10-09");
   });
 });
+
+describe("round-10 grade input", () => {
+  it("reads 18., .5 and 18,5", async () => {
+    const { parseScore } = await import("../src/lib/grades.ts");
+    expect(parseScore("18./20")).toEqual({ score: 18, outOf: 20 });
+    expect(parseScore(".5/1")).toEqual({ score: 0.5, outOf: 1 });
+    expect(parseScore("18,5/20")).toEqual({ score: 18.5, outOf: 20 });
+    expect(parseScore("81/40")).toBeNull();
+  });
+});

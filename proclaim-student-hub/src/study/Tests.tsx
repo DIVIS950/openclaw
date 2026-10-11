@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon.tsx";
+import { Overlay } from "../components/Overlay.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { dayString } from "../lab/model.ts";
 import { packFromTopic } from "../lab/scan.ts";
@@ -309,77 +310,79 @@ function AddTest({
   const subjects = [...new Set(courses.get().map((c) => c.subject))];
   useEscape(onClose);
   return (
-    <div className="backdrop" onClick={onClose}>
-      <form
-        className="sheet"
-        role="dialog"
-        aria-label="Add a test"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (subject.trim() && topic.trim() && date >= today) {
-            onAdd({
-              id: newId("x"),
-              subject: subject.trim(),
-              topic: topic.trim(),
-              date,
-              start: today,
-              packId: "",
-              done: [],
-            });
-          }
-        }}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          Plan a test
-        </h2>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="eyebrow">Subject</span>
-          <input
-            className="field"
-            list="test-subjects"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="e.g. Spanish"
-          />
-          <datalist id="test-subjects">
-            {subjects.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-        </label>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="eyebrow">What's it on?</span>
-          <input
-            className="field"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. Unit 1.1c vocab: ¿Qué haces en casa?"
-          />
-        </label>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="eyebrow">Test date</span>
-          <input
-            className="field"
-            type="date"
-            lang="en-GB"
-            min={today}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-        <button
-          className="btn big primary"
-          type="submit"
-          disabled={!subject.trim() || !topic.trim() || !date || date < today}
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <form
+          className="sheet"
+          role="dialog"
+          aria-label="Add a test"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (subject.trim() && topic.trim() && date >= today) {
+              onAdd({
+                id: newId("x"),
+                subject: subject.trim(),
+                topic: topic.trim(),
+                date,
+                start: today,
+                packId: "",
+                done: [],
+              });
+            }
+          }}
         >
-          Make my prep plan
-        </button>
-        <button className="btn ghost" type="button" onClick={onClose}>
-          Cancel
-        </button>
-      </form>
-    </div>
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            Plan a test
+          </h2>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="eyebrow">Subject</span>
+            <input
+              className="field"
+              list="test-subjects"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Spanish"
+            />
+            <datalist id="test-subjects">
+              {subjects.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </label>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="eyebrow">What's it on?</span>
+            <input
+              className="field"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g. Unit 1.1c vocab: ¿Qué haces en casa?"
+            />
+          </label>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="eyebrow">Test date</span>
+            <input
+              className="field"
+              type="date"
+              lang="en-GB"
+              min={today}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+          <button
+            className="btn big primary"
+            type="submit"
+            disabled={!subject.trim() || !topic.trim() || !date || date < today}
+          >
+            Make my prep plan
+          </button>
+          <button className="btn ghost" type="button" onClick={onClose}>
+            Cancel
+          </button>
+        </form>
+      </div>
+    </Overlay>
   );
 }
 

@@ -3,6 +3,7 @@ import { AgendaList } from "../components/Agenda.tsx";
 import { BackButton } from "../components/BackButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
+import { Overlay } from "../components/Overlay.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson, type Weekday } from "../lib/aiFeatures.ts";
 import { timetable } from "../lib/store.ts";
@@ -310,84 +311,86 @@ function LessonEditor({
   const valid = draft.subject.trim() && draft.start && (!draft.end || draft.end > draft.start);
   useEscape(onClose);
   return (
-    <div className="backdrop" onClick={onClose}>
-      <form
-        className="sheet"
-        role="dialog"
-        aria-label={isNew ? "Add a lesson" : "Edit lesson"}
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (valid) {
-            onSave({ ...draft, subject: draft.subject.trim(), room: draft.room.trim() });
-          }
-        }}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          {isNew ? "Add a lesson" : draft.subject || "Lesson"}
-        </h2>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Subject</span>
-          <input
-            className="field"
-            value={draft.subject}
-            onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
-            placeholder="e.g. Maths"
-            autoFocus={isNew}
-          />
-        </label>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Day</span>
-          <select
-            className="field"
-            value={draft.day}
-            onChange={(e) => setDraft({ ...draft, day: e.target.value as Weekday })}
-          >
-            {WEEKDAYS.map((d) => (
-              <option key={d} value={d}>
-                {DAY_NAMES[d]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="row">
-          <label className="stack" style={{ gap: 6, flex: 1 }}>
-            <span className="h2">Starts</span>
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <form
+          className="sheet"
+          role="dialog"
+          aria-label={isNew ? "Add a lesson" : "Edit lesson"}
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid) {
+              onSave({ ...draft, subject: draft.subject.trim(), room: draft.room.trim() });
+            }
+          }}
+        >
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            {isNew ? "Add a lesson" : draft.subject || "Lesson"}
+          </h2>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Subject</span>
             <input
               className="field"
-              type="time"
-              value={draft.start}
-              onChange={(e) => setDraft({ ...draft, start: e.target.value })}
+              value={draft.subject}
+              onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+              placeholder="e.g. Maths"
+              autoFocus={isNew}
             />
           </label>
-          <label className="stack" style={{ gap: 6, flex: 1 }}>
-            <span className="h2">Ends</span>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Day</span>
+            <select
+              className="field"
+              value={draft.day}
+              onChange={(e) => setDraft({ ...draft, day: e.target.value as Weekday })}
+            >
+              {WEEKDAYS.map((d) => (
+                <option key={d} value={d}>
+                  {DAY_NAMES[d]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="row">
+            <label className="stack" style={{ gap: 6, flex: 1 }}>
+              <span className="h2">Starts</span>
+              <input
+                className="field"
+                type="time"
+                value={draft.start}
+                onChange={(e) => setDraft({ ...draft, start: e.target.value })}
+              />
+            </label>
+            <label className="stack" style={{ gap: 6, flex: 1 }}>
+              <span className="h2">Ends</span>
+              <input
+                className="field"
+                type="time"
+                value={draft.end}
+                onChange={(e) => setDraft({ ...draft, end: e.target.value })}
+              />
+            </label>
+          </div>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Room</span>
             <input
               className="field"
-              type="time"
-              value={draft.end}
-              onChange={(e) => setDraft({ ...draft, end: e.target.value })}
+              value={draft.room}
+              onChange={(e) => setDraft({ ...draft, room: e.target.value })}
+              placeholder="e.g. S12"
             />
           </label>
-        </div>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Room</span>
-          <input
-            className="field"
-            value={draft.room}
-            onChange={(e) => setDraft({ ...draft, room: e.target.value })}
-            placeholder="e.g. S12"
-          />
-        </label>
-        <button className="btn big primary" type="submit" disabled={!valid}>
-          {isNew ? "Add lesson" : "Save"}
-        </button>
-        {!isNew && (
-          <button className="btn ghost" type="button" onClick={onDelete}>
-            Delete lesson
+          <button className="btn big primary" type="submit" disabled={!valid}>
+            {isNew ? "Add lesson" : "Save"}
           </button>
-        )}
-      </form>
-    </div>
+          {!isNew && (
+            <button className="btn ghost" type="button" onClick={onDelete}>
+              Delete lesson
+            </button>
+          )}
+        </form>
+      </div>
+    </Overlay>
   );
 }

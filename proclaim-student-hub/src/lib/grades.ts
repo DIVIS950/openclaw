@@ -105,16 +105,19 @@ export function bySubject(list: Grade[]): SubjectGrades[] {
 /** "18/20" or "85%" or "18 out of 20" → score and outOf. */
 export function parseScore(text: string): { score: number; outOf: number } | null {
   const t = text.trim();
-  const frac = t.match(/^(\d+(?:\.\d+)?)\s*(?:\/|out of|of|z)\s*(\d+(?:\.\d+)?)$/i);
+  // A number: "18", "18.5", "18,5", "18." or ".5".
+  const n = String.raw`(\d+(?:[.,]\d*)?|[.,]\d+)`;
+  const num = (v: string) => Number(v.replace(",", "."));
+  const frac = t.match(new RegExp(String.raw`^${n}\s*(?:\/|out of|of|z)\s*${n}$`, "i"));
   if (frac) {
-    const score = Number(frac[1]);
-    const outOf = Number(frac[2]);
+    const score = num(frac[1]);
+    const outOf = num(frac[2]);
     // "18/0" isn't a mark; bonus marks up to double are fine.
     return outOf > 0 && outOf <= 1000 && score <= outOf * 2 ? { score, outOf } : null;
   }
-  const pct = t.match(/^(\d+(?:\.\d+)?)\s*%$/);
+  const pct = t.match(new RegExp(String.raw`^${n}\s*%$`));
   if (pct) {
-    const score = Number(pct[1]);
+    const score = num(pct[1]);
     return score <= 200 ? { score, outOf: 100 } : null;
   }
   return null;

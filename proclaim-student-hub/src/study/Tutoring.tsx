@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
+import { Overlay } from "../components/Overlay.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { mastery } from "../lab/model.ts";
 import { labPacks } from "../lab/store.ts";
@@ -501,68 +502,77 @@ function TutorForm({
     </label>
   );
   return (
-    <div className="backdrop" onClick={onClose}>
-      <form
-        className="sheet"
-        role="dialog"
-        aria-label="Tutor"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (draft.name.trim() && !badLink) {
-            onSave({ ...draft, name: draft.name.trim(), meet: allowedMeet(draft.meet) });
-          }
-        }}
-      >
-        <div className="between" style={{ alignItems: "center", gap: 12 }}>
-          <h2 className="h1" style={{ fontSize: 24 }}>
-            {onDelete ? "Edit tutor" : "Add a tutor"}
-          </h2>
-          <button className="round" type="button" aria-label="Close" onClick={onClose}>
-            <Icon name="close" size={18} />
-          </button>
-        </div>
-        {field("name", "Name", "e.g. Anna")}
-        {field("subject", "Subject", "e.g. Maths")}
-        {field("when", "When are lessons?", "e.g. Tuesdays 17:00, or Mon & Thu 16:30")}
-        {draft.when.trim() && (
-          <span className={parsed ? "muted" : "warm-text"} style={{ fontSize: 13, marginTop: -6 }}>
-            {parsed && next
-              ? `✓ Every ${parsed.days.map((d) => DAY_SHORT[d]).join(" & ")} at ${parsed.time}. Next: ${lessonLabel(next)}`
-              : "I can't read that time. Try e.g. “Tuesdays 17:00” or “po a čt 16:30”."}
-          </span>
-        )}
-        {field(
-          "meet",
-          "Lesson link (Google Meet, Zoom or Teams)",
-          "https://meet.google.com/…",
-          "url",
-        )}
-        {badLink && (
-          <span className="warm-text" style={{ fontSize: 13, marginTop: -6 }}>
-            Only Google Meet, Zoom or Teams links can be saved here.
-          </span>
-        )}
-        {field("whatsapp", "WhatsApp number (optional)", "+420 …", "tel")}
-        <span className="muted">Saved only on this device.</span>
-        <button className="btn big primary" type="submit" disabled={!draft.name.trim() || badLink}>
-          Save
-        </button>
-        {onDelete && (
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <form
+          className="sheet"
+          role="dialog"
+          aria-label="Tutor"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (draft.name.trim() && !badLink) {
+              onSave({ ...draft, name: draft.name.trim(), meet: allowedMeet(draft.meet) });
+            }
+          }}
+        >
+          <div className="between" style={{ alignItems: "center", gap: 12 }}>
+            <h2 className="h1" style={{ fontSize: 24 }}>
+              {onDelete ? "Edit tutor" : "Add a tutor"}
+            </h2>
+            <button className="round" type="button" aria-label="Close" onClick={onClose}>
+              <Icon name="close" size={18} />
+            </button>
+          </div>
+          {field("name", "Name", "e.g. Anna")}
+          {field("subject", "Subject", "e.g. Maths")}
+          {field("when", "When are lessons?", "e.g. Tuesdays 17:00, or Mon & Thu 16:30")}
+          {draft.when.trim() && (
+            <span
+              className={parsed ? "muted" : "warm-text"}
+              style={{ fontSize: 13, marginTop: -6 }}
+            >
+              {parsed && next
+                ? `✓ Every ${parsed.days.map((d) => DAY_SHORT[d]).join(" & ")} at ${parsed.time}. Next: ${lessonLabel(next)}`
+                : "I can't read that time. Try e.g. “Tuesdays 17:00” or “po a čt 16:30”."}
+            </span>
+          )}
+          {field(
+            "meet",
+            "Lesson link (Google Meet, Zoom or Teams)",
+            "https://meet.google.com/…",
+            "url",
+          )}
+          {badLink && (
+            <span className="warm-text" style={{ fontSize: 13, marginTop: -6 }}>
+              Only Google Meet, Zoom or Teams links can be saved here.
+            </span>
+          )}
+          {field("whatsapp", "WhatsApp number (optional)", "+420 …", "tel")}
+          <span className="muted">Saved only on this device.</span>
           <button
-            className="btn ghost"
-            type="button"
-            onClick={() => {
-              if (window.confirm(`Remove ${draft.name}?`)) {
-                onDelete();
-              }
-            }}
+            className="btn big primary"
+            type="submit"
+            disabled={!draft.name.trim() || badLink}
           >
-            Remove tutor
+            Save
           </button>
-        )}
-      </form>
-    </div>
+          {onDelete && (
+            <button
+              className="btn ghost"
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Remove ${draft.name}?`)) {
+                  onDelete();
+                }
+              }}
+            >
+              Remove tutor
+            </button>
+          )}
+        </form>
+      </div>
+    </Overlay>
   );
 }
 
@@ -1185,71 +1195,73 @@ function AddMaterial({
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   return (
-    <div className="backdrop" onClick={busy ? undefined : onClose}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-label="Add material"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          Material from {tutor.name}
-        </h2>
-        <p className="sub">Screenshots or photos from WhatsApp, and/or a copied message.</p>
-        <input
-          ref={input}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={async (e) => {
-            const files = [...(e.target.files ?? [])].slice(0, 4 - images.length);
-            setImages(
-              [...images, ...(await Promise.all(files.map(photoToImageInput)))].slice(0, 4),
-            );
-          }}
-        />
-        <div className="thumbs">
-          {images.map((img, i) => (
-            <img key={i} src={imageSrc(img)} alt={`Picture ${i + 1}`} />
-          ))}
-          {images.length < 4 && (
-            <button className="thumb add" onClick={() => input.current?.click()}>
-              <Icon name="image" size={22} />
-              Photos
-            </button>
-          )}
-        </div>
-        <textarea
-          className="field"
-          rows={4}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Paste a message from WhatsApp…"
-          aria-label="Pasted message"
-        />
-        {!canRead && images.length > 0 && (
-          <div className="banner">
-            Reading photos needs the AI (open the app on claude.ai). Pasted text still works.
-          </div>
-        )}
-        <button
-          className="btn big primary"
-          disabled={busy || (images.length === 0 && !text.trim()) || (!canRead && !text.trim())}
-          onClick={async () => {
-            setBusy(true);
-            await onAdd(images, text);
-            setBusy(false);
-          }}
+    <Overlay>
+      <div className="backdrop" onClick={busy ? undefined : onClose}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-label="Add material"
+          onClick={(e) => e.stopPropagation()}
         >
-          {busy && <Icon name="loader" size={18} className="spin" />}
-          {busy ? "Reading it…" : "Save material"}
-        </button>
-        <button className="btn ghost" disabled={busy} onClick={onClose}>
-          Cancel
-        </button>
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            Material from {tutor.name}
+          </h2>
+          <p className="sub">Screenshots or photos from WhatsApp, and/or a copied message.</p>
+          <input
+            ref={input}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={async (e) => {
+              const files = [...(e.target.files ?? [])].slice(0, 4 - images.length);
+              setImages(
+                [...images, ...(await Promise.all(files.map(photoToImageInput)))].slice(0, 4),
+              );
+            }}
+          />
+          <div className="thumbs">
+            {images.map((img, i) => (
+              <img key={i} src={imageSrc(img)} alt={`Picture ${i + 1}`} />
+            ))}
+            {images.length < 4 && (
+              <button className="thumb add" onClick={() => input.current?.click()}>
+                <Icon name="image" size={22} />
+                Photos
+              </button>
+            )}
+          </div>
+          <textarea
+            className="field"
+            rows={4}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Paste a message from WhatsApp…"
+            aria-label="Pasted message"
+          />
+          {!canRead && images.length > 0 && (
+            <div className="banner">
+              Reading photos needs the AI (open the app on claude.ai). Pasted text still works.
+            </div>
+          )}
+          <button
+            className="btn big primary"
+            disabled={busy || (images.length === 0 && !text.trim()) || (!canRead && !text.trim())}
+            onClick={async () => {
+              setBusy(true);
+              await onAdd(images, text);
+              setBusy(false);
+            }}
+          >
+            {busy && <Icon name="loader" size={18} className="spin" />}
+            {busy ? "Reading it…" : "Save material"}
+          </button>
+          <button className="btn ghost" disabled={busy} onClick={onClose}>
+            Cancel
+          </button>
+        </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -1295,74 +1307,80 @@ function LogSession({
   };
 
   return (
-    <div className="backdrop" onClick={busy ? undefined : onClose}>
-      <form
-        className="sheet"
-        role="dialog"
-        aria-label="Log a lesson"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
-          e.preventDefault();
-          onAdd(
-            { id: newId("s"), tutorId: "", date, topic: topic.trim(), notes: text.trim() },
-            homework
-              .split("\n")
-              .map((h) => h.replace(/^\s*(?:[•\-*]|\d+[.)])\s+/, "").trim())
-              .filter(Boolean),
-          );
-        }}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          Log a lesson
-        </h2>
-        <input
-          className="field"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
-        />
-        <input
-          className="field"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="What did you cover?"
-          aria-label="Topic"
-        />
-        <textarea
-          className="field"
-          rows={5}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Rough notes are fine: what you did, what was hard, what the tutor set…"
-          aria-label="Notes"
-        />
-        {ai && (
-          <button
-            className="btn"
-            type="button"
-            disabled={busy || !text.trim()}
-            onClick={() => void writeUp()}
-          >
-            <Icon name={busy ? "loader" : "wand"} size={16} className={busy ? "spin" : undefined} />
-            {busy ? "Writing it up…" : "Write it up for me"}
+    <Overlay>
+      <div className="backdrop" onClick={busy ? undefined : onClose}>
+        <form
+          className="sheet"
+          role="dialog"
+          aria-label="Log a lesson"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onAdd(
+              { id: newId("s"), tutorId: "", date, topic: topic.trim(), notes: text.trim() },
+              homework
+                .split("\n")
+                .map((h) => h.replace(/^\s*(?:[•\-*]|\d+[.)])\s+/, "").trim())
+                .filter(Boolean),
+            );
+          }}
+        >
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            Log a lesson
+          </h2>
+          <input
+            className="field"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            aria-label="Date"
+          />
+          <input
+            className="field"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="What did you cover?"
+            aria-label="Topic"
+          />
+          <textarea
+            className="field"
+            rows={5}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Rough notes are fine: what you did, what was hard, what the tutor set…"
+            aria-label="Notes"
+          />
+          {ai && (
+            <button
+              className="btn"
+              type="button"
+              disabled={busy || !text.trim()}
+              onClick={() => void writeUp()}
+            >
+              <Icon
+                name={busy ? "loader" : "wand"}
+                size={16}
+                className={busy ? "spin" : undefined}
+              />
+              {busy ? "Writing it up…" : "Write it up for me"}
+            </button>
+          )}
+          <textarea
+            className="field"
+            rows={2}
+            value={homework}
+            onChange={(e) => setHomework(e.target.value)}
+            placeholder="Homework from the tutor, one per line (goes to your to-do)"
+            aria-label="Homework"
+          />
+          <button className="btn big primary" type="submit" disabled={busy}>
+            Save lesson
           </button>
-        )}
-        <textarea
-          className="field"
-          rows={2}
-          value={homework}
-          onChange={(e) => setHomework(e.target.value)}
-          placeholder="Homework from the tutor, one per line (goes to your to-do)"
-          aria-label="Homework"
-        />
-        <button className="btn big primary" type="submit" disabled={busy}>
-          Save lesson
-        </button>
-        <button className="btn ghost" type="button" disabled={busy} onClick={onClose}>
-          Cancel
-        </button>
-      </form>
-    </div>
+          <button className="btn ghost" type="button" disabled={busy} onClick={onClose}>
+            Cancel
+          </button>
+        </form>
+      </div>
+    </Overlay>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { ImportSheet } from "../components/ImportSheet.tsx";
+import { Overlay } from "../components/Overlay.tsx";
 import { SwipeDone } from "../components/SwipeDone.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
@@ -375,76 +376,78 @@ function AddHomework({ onClose }: { onClose: () => void }) {
   useEscape(onClose, !busy);
 
   return (
-    <div className="backdrop" onClick={onClose}>
-      <form
-        className="sheet"
-        role="dialog"
-        aria-label="Add homework"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!title.trim()) {
-            return;
-          }
-          setBusy(true);
-          try {
-            addHomeworkItem(
-              await data.addHomework({ title: title.trim(), source, due: due || undefined }),
-            );
-            toast(data.labels.added);
-            onClose();
-          } catch (err) {
-            handleError(err);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          Add homework
-        </h2>
-        <p className="sub">{data.labels.addNote}</p>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">What is it?</span>
-          <input
-            className="field"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Task 13: Simultaneous equations"
-            autoFocus
-          />
-        </label>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Which app?</span>
-          <select
-            className="field"
-            value={source}
-            onChange={(e) => setSource(e.target.value as Source)}
-          >
-            {choices.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </label>
-        <label className="stack" style={{ gap: 6 }}>
-          <span className="h2">Due date</span>
-          <input
-            className="field"
-            type="date"
-            lang="en-GB"
-            value={due}
-            onChange={(e) => setDue(e.target.value)}
-          />
-        </label>
-        <button className="btn big primary" type="submit" disabled={busy || !title.trim()}>
-          {busy && <Icon name="loader" size={18} className="spin" />}
-          Add
-        </button>
-        <button className="btn ghost" type="button" onClick={onClose}>
-          Cancel
-        </button>
-      </form>
-    </div>
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <form
+          className="sheet"
+          role="dialog"
+          aria-label="Add homework"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!title.trim()) {
+              return;
+            }
+            setBusy(true);
+            try {
+              addHomeworkItem(
+                await data.addHomework({ title: title.trim(), source, due: due || undefined }),
+              );
+              toast(data.labels.added);
+              onClose();
+            } catch (err) {
+              handleError(err);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            Add homework
+          </h2>
+          <p className="sub">{data.labels.addNote}</p>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">What is it?</span>
+            <input
+              className="field"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Task 13: Simultaneous equations"
+              autoFocus
+            />
+          </label>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Which app?</span>
+            <select
+              className="field"
+              value={source}
+              onChange={(e) => setSource(e.target.value as Source)}
+            >
+              {choices.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="h2">Due date</span>
+            <input
+              className="field"
+              type="date"
+              lang="en-GB"
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
+            />
+          </label>
+          <button className="btn big primary" type="submit" disabled={busy || !title.trim()}>
+            {busy && <Icon name="loader" size={18} className="spin" />}
+            Add
+          </button>
+          <button className="btn ghost" type="button" onClick={onClose}>
+            Cancel
+          </button>
+        </form>
+      </div>
+    </Overlay>
   );
 }
 

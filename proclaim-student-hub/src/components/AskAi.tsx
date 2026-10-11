@@ -6,6 +6,7 @@ import { useEscape } from "../lib/useEscape.ts";
 import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/voice.ts";
 import { Icon } from "./Icon.tsx";
 import { NoAiKeyNote } from "./NoAiKeyNote.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 /** The AI helper: a chat that opens over the current screen, so nothing navigates away. */
 export function AskAi({
@@ -111,133 +112,135 @@ export function AskAi({
     : ["Help me plan my homework", "Explain a maths topic", "Quiz me on something"];
 
   return (
-    <div className="backdrop" onClick={onClose}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-label="Ask AI"
-        style={{ height: "82%", padding: 0, gap: 0 }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
         <div
-          className="between"
-          style={{ padding: "16px 20px 12px", borderBottom: "1px solid var(--line)" }}
+          className="sheet"
+          role="dialog"
+          aria-label="Ask AI"
+          style={{ height: "82%", padding: 0, gap: 0 }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="row" style={{ gap: 8 }}>
-            <span className="nav-ai" style={{ margin: 0, width: 36, height: 36, border: "none" }}>
-              <Icon name="sparkle" size={18} />
-            </span>
-            <strong style={{ fontSize: 16 }}>Ask AI</strong>
-          </div>
-          <div className="row">
-            <button
-              className="btn small ghost"
-              onClick={() => {
-                onClose();
-                go("tutor");
-              }}
-            >
-              Full chat
-            </button>
-            <button className="round" aria-label="Close" onClick={onClose}>
-              <Icon name="close" size={18} />
-            </button>
-          </div>
-        </div>
-
-        <div
-          className="stack"
-          style={{ flex: 1, overflowY: "auto", padding: "16px 20px", gap: 12 }}
-          aria-live="polite"
-        >
-          {turns.length === 0 && (
-            <div className="stack" style={{ gap: 8 }}>
-              <p className="sub">
-                Ask anything about what's on your screen, or tap the mic and talk.
-              </p>
-              <NoAiKeyNote onGo={onClose} />
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  className="btn"
-                  style={{ justifyContent: "flex-start" }}
-                  onClick={() => void send(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-          {turns.map((t, i) =>
-            t.role === "assistant" && !t.text ? (
-              <div key={i} className="bubble ai typing" aria-label="AI is typing">
-                <span />
-                <span />
-                <span />
-              </div>
-            ) : (
-              <div key={i} className={`bubble ${t.role === "user" ? "me" : "ai"}`}>
-                {t.text}
-                {t.role === "assistant" && canSpeak() && !(busy && i === turns.length - 1) && (
-                  <button
-                    className="link-btn"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      minHeight: 32,
-                      fontSize: 13,
-                    }}
-                    onClick={() => speak(t.text)}
-                  >
-                    <Icon name="speaker" size={16} />
-                    Read aloud
-                  </button>
-                )}
-              </div>
-            ),
-          )}
-          <div ref={bottom} />
-        </div>
-
-        <form
-          className="composer"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send(input);
-          }}
-        >
-          {canListen() && (
-            <button
-              type="button"
-              className={`round${listening ? " dark" : ""}`}
-              aria-label={listening ? "Stop listening" : "Talk"}
-              onClick={talk}
-            >
-              <Icon name="mic" size={20} className={listening ? "wiggle" : undefined} />
-            </button>
-          )}
-          <label htmlFor="ask-ai" className="sr-only">
-            Your question
-          </label>
-          <input
-            id="ask-ai"
-            className="field"
-            style={{ borderRadius: 22 }}
-            value={input}
-            placeholder={listening ? "Listening…" : "Ask anything…"}
-            onChange={(e) => setInput(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="round dark"
-            aria-label="Send"
-            disabled={busy || !input.trim()}
+          <div
+            className="between"
+            style={{ padding: "16px 20px 12px", borderBottom: "1px solid var(--line)" }}
           >
-            <Icon name="send" size={18} />
-          </button>
-        </form>
+            <div className="row" style={{ gap: 8 }}>
+              <span className="nav-ai" style={{ margin: 0, width: 36, height: 36, border: "none" }}>
+                <Icon name="sparkle" size={18} />
+              </span>
+              <strong style={{ fontSize: 16 }}>Ask AI</strong>
+            </div>
+            <div className="row">
+              <button
+                className="btn small ghost"
+                onClick={() => {
+                  onClose();
+                  go("tutor");
+                }}
+              >
+                Full chat
+              </button>
+              <button className="round" aria-label="Close" onClick={onClose}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="stack"
+            style={{ flex: 1, overflowY: "auto", padding: "16px 20px", gap: 12 }}
+            aria-live="polite"
+          >
+            {turns.length === 0 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <p className="sub">
+                  Ask anything about what's on your screen, or tap the mic and talk.
+                </p>
+                <NoAiKeyNote onGo={onClose} />
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    className="btn"
+                    style={{ justifyContent: "flex-start" }}
+                    onClick={() => void send(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            {turns.map((t, i) =>
+              t.role === "assistant" && !t.text ? (
+                <div key={i} className="bubble ai typing" aria-label="AI is typing">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ) : (
+                <div key={i} className={`bubble ${t.role === "user" ? "me" : "ai"}`}>
+                  {t.text}
+                  {t.role === "assistant" && canSpeak() && !(busy && i === turns.length - 1) && (
+                    <button
+                      className="link-btn"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        minHeight: 32,
+                        fontSize: 13,
+                      }}
+                      onClick={() => speak(t.text)}
+                    >
+                      <Icon name="speaker" size={16} />
+                      Read aloud
+                    </button>
+                  )}
+                </div>
+              ),
+            )}
+            <div ref={bottom} />
+          </div>
+
+          <form
+            className="composer"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(input);
+            }}
+          >
+            {canListen() && (
+              <button
+                type="button"
+                className={`round${listening ? " dark" : ""}`}
+                aria-label={listening ? "Stop listening" : "Talk"}
+                onClick={talk}
+              >
+                <Icon name="mic" size={20} className={listening ? "wiggle" : undefined} />
+              </button>
+            )}
+            <label htmlFor="ask-ai" className="sr-only">
+              Your question
+            </label>
+            <input
+              id="ask-ai"
+              className="field"
+              style={{ borderRadius: 22 }}
+              value={input}
+              placeholder={listening ? "Listening…" : "Ask anything…"}
+              onChange={(e) => setInput(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="round dark"
+              aria-label="Send"
+              disabled={busy || !input.trim()}
+            >
+              <Icon name="send" size={18} />
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

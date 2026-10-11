@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FocusButton } from "../components/FocusTimer.tsx";
 import { Icon } from "../components/Icon.tsx";
+import { Overlay } from "../components/Overlay.tsx";
 import { PresentButton } from "../components/Present.tsx";
 import { StartTask } from "../components/StartTask.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -615,7 +616,35 @@ function HandInSheet({
   const done = result !== "working";
   if (result === "confirm") {
     return (
-      <div className="backdrop" onClick={onClose}>
+      <Overlay>
+        <div className="backdrop" onClick={onClose}>
+          <div
+            className="sheet"
+            role="dialog"
+            aria-label="Hand in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="h1" style={{ fontSize: 24 }}>
+              Nothing written
+            </h2>
+            <p className="sub" style={{ margin: 0 }}>
+              Your answer is empty. Mark it as done anyway? If it was done on paper or somewhere
+              else, that's fine.
+            </p>
+            <button className="btn big primary" onClick={() => setResult("working")}>
+              Mark as done
+            </button>
+            <button className="btn ghost" onClick={onClose}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Overlay>
+    );
+  }
+  return (
+    <Overlay>
+      <div className="backdrop" onClick={done ? onClose : undefined}>
         <div
           className="sheet"
           role="dialog"
@@ -623,95 +652,71 @@ function HandInSheet({
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className="h1" style={{ fontSize: 24 }}>
-            Nothing written
+            {result === "turnedIn"
+              ? "Handed in!"
+              : empty && result === "openClassroom"
+                ? "Marked as done"
+                : "Handing in"}
           </h2>
-          <p className="sub" style={{ margin: 0 }}>
-            Your answer is empty. Mark it as done anyway? If it was done on paper or somewhere else,
-            that's fine.
-          </p>
-          <button className="btn big primary" onClick={() => setResult("working")}>
-            Mark as done
-          </button>
-          <button className="btn ghost" onClick={onClose}>
-            Cancel
+          {result === "working" && (
+            <div className="step">
+              <Icon name="loader" size={22} className="spin" />
+              Saving your work…
+            </div>
+          )}
+          {result === "error" && (
+            <div className="banner">
+              Something went wrong. Your work is still saved; try again or finish in Classroom.
+            </div>
+          )}
+          {(result === "turnedIn" || result === "openClassroom") && (
+            <>
+              {!empty && (
+                <Step n="✓" ok delay={0.1}>
+                  {data.labels.workStep}
+                </Step>
+              )}
+              <Step n="✓" ok delay={0.3}>
+                {data.labels.tickedStep}
+              </Step>
+              {result === "turnedIn" ? (
+                <Step n="✓" ok delay={0.5}>
+                  Turned in on Google Classroom
+                </Step>
+              ) : empty ? (
+                hw.link && (
+                  <Step n="2" delay={0.5}>
+                    <span>
+                      If it needs handing in, press <strong>Turn in</strong> on Classroom
+                    </span>
+                  </Step>
+                )
+              ) : (
+                <Step n="3" delay={0.5}>
+                  <span>
+                    Last tap: attach your Doc and press <strong>Turn in</strong> on Classroom
+                  </span>
+                </Step>
+              )}
+            </>
+          )}
+          {result !== "turnedIn" && hw.link && (
+            <a
+              className="btn big primary rise"
+              style={{ animationDelay: "0.7s" }}
+              href={hw.link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Classroom
+            </a>
+          )}
+          <button className="btn ghost" onClick={onClose} disabled={!done}>
+            {result === "turnedIn" ? "Done" : "Close"}
           </button>
         </div>
       </div>
-    );
-  }
-  return (
-    <div className="backdrop" onClick={done ? onClose : undefined}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-label="Hand in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          {result === "turnedIn"
-            ? "Handed in!"
-            : empty && result === "openClassroom"
-              ? "Marked as done"
-              : "Handing in"}
-        </h2>
-        {result === "working" && (
-          <div className="step">
-            <Icon name="loader" size={22} className="spin" />
-            Saving your work…
-          </div>
-        )}
-        {result === "error" && (
-          <div className="banner">
-            Something went wrong. Your work is still saved; try again or finish in Classroom.
-          </div>
-        )}
-        {(result === "turnedIn" || result === "openClassroom") && (
-          <>
-            {!empty && (
-              <Step n="✓" ok delay={0.1}>
-                {data.labels.workStep}
-              </Step>
-            )}
-            <Step n="✓" ok delay={0.3}>
-              {data.labels.tickedStep}
-            </Step>
-            {result === "turnedIn" ? (
-              <Step n="✓" ok delay={0.5}>
-                Turned in on Google Classroom
-              </Step>
-            ) : empty ? (
-              hw.link && (
-                <Step n="2" delay={0.5}>
-                  <span>
-                    If it needs handing in, press <strong>Turn in</strong> on Classroom
-                  </span>
-                </Step>
-              )
-            ) : (
-              <Step n="3" delay={0.5}>
-                <span>
-                  Last tap: attach your Doc and press <strong>Turn in</strong> on Classroom
-                </span>
-              </Step>
-            )}
-          </>
-        )}
-        {result !== "turnedIn" && hw.link && (
-          <a
-            className="btn big primary rise"
-            style={{ animationDelay: "0.7s" }}
-            href={hw.link}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open in Classroom
-          </a>
-        )}
-        <button className="btn ghost" onClick={onClose} disabled={!done}>
-          {result === "turnedIn" ? "Done" : "Close"}
-        </button>
-      </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -785,205 +790,211 @@ function PolishSheet({
   const apply = () => onApply(applyEdits(text, accepted));
 
   return (
-    <div className="backdrop" onClick={onClose}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-label="Polish your work"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="h1" style={{ fontSize: 24 }}>
-          {forHandIn ? "Polish before handing in?" : "Polish your work"}
-        </h2>
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-label="Polish your work"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="h1" style={{ fontSize: 24 }}>
+            {forHandIn ? "Polish before handing in?" : "Polish your work"}
+          </h2>
 
-        {result === null && (
-          <>
-            <p className="sub">What should I polish? You'll see every change before it's used.</p>
-            <div className="stack" style={{ gap: 8 }}>
-              {POLISH_AREAS.map((a) => (
-                <label key={a.id} className="polish-area">
-                  <input
-                    type="checkbox"
-                    checked={areas.includes(a.id)}
-                    onChange={(e) =>
-                      setAreas(
-                        e.target.checked ? [...areas, a.id] : areas.filter((x) => x !== a.id),
-                      )
-                    }
-                  />
-                  <span className="stack" style={{ gap: 2 }}>
-                    <strong>{a.label}</strong>
-                    <span className="muted">{a.hint}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-            <label className="stack" style={{ gap: 6 }}>
-              <span className="h2">Anything else? (optional)</span>
-              <input
-                className="field"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="e.g. make my intro stronger"
-              />
-            </label>
-            {!ai && (
-              <div className="banner">Polishing needs the AI; open the app on claude.ai.</div>
-            )}
-            <button
-              className="btn big primary"
-              disabled={!ai || areas.length === 0 || !text.trim()}
-              onClick={() => void run()}
-            >
-              <Icon name="sparkle" size={16} />
-              Polish
-            </button>
-            {forHandIn && (
-              <button className="btn" onClick={onHandIn}>
-                Hand in without polishing
-              </button>
-            )}
-            <button className="btn ghost" onClick={onClose}>
-              Cancel
-            </button>
-          </>
-        )}
-
-        {result === "working" && (
-          <div className="row muted" style={{ padding: "24px 0", justifyContent: "center" }}>
-            <Icon name="loader" size={18} className="spin" />
-            Reading your work…
-          </div>
-        )}
-
-        {result && result !== "working" && (
-          <>
-            {result.edits.length === 0 &&
-            result.tips.length === 0 &&
-            result.visuals.length === 0 ? (
-              <p className="sub">Nothing to change. It already reads well!</p>
-            ) : (
-              <p className="sub">Tap a change to skip it. Only the ones you keep are used.</p>
-            )}
-            <div className="stack" style={{ gap: 8 }}>
-              {result.edits.map((e, i) => (
-                <button
-                  key={i}
-                  className={`polish-edit${off.has(i) ? " off" : ""}`}
-                  style={{ textAlign: "left", background: "var(--card)", color: "var(--ink)" }}
-                  aria-pressed={!off.has(i)}
-                  onClick={() => {
-                    const next = new Set(off);
-                    if (next.has(i)) {
-                      next.delete(i);
-                    } else {
-                      next.add(i);
-                    }
-                    setOff(next);
-                  }}
-                >
-                  <Icon name={off.has(i) ? "close" : "check"} size={18} />
-                  <span className="stack" style={{ gap: 4, minWidth: 0 }}>
-                    <span>
-                      <del>{e.before}</del> → <ins>{e.after}</ins>
+          {result === null && (
+            <>
+              <p className="sub">What should I polish? You'll see every change before it's used.</p>
+              <div className="stack" style={{ gap: 8 }}>
+                {POLISH_AREAS.map((a) => (
+                  <label key={a.id} className="polish-area">
+                    <input
+                      type="checkbox"
+                      checked={areas.includes(a.id)}
+                      onChange={(e) =>
+                        setAreas(
+                          e.target.checked ? [...areas, a.id] : areas.filter((x) => x !== a.id),
+                        )
+                      }
+                    />
+                    <span className="stack" style={{ gap: 2 }}>
+                      <strong>{a.label}</strong>
+                      <span className="muted">{a.hint}</span>
                     </span>
-                    <span className="muted">
-                      {POLISH_AREAS.find((a) => a.id === e.area)?.label}
-                      {e.why ? `: ${e.why}` : ""}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-            {result.tips.length > 0 && (
-              <section className="ai-card">
-                <h3>Structure tips</h3>
-                <ul className="ai-list">
-                  {result.tips.map((t, i) => (
-                    <li key={i}>{t}</li>
-                  ))}
-                </ul>
-              </section>
-            )}
-            {result.visuals.length > 0 && (
-              <section className="stack" style={{ gap: 8 }}>
-                <h3 className="h2">Visual ideas</h3>
-                {result.visuals.map((v, i) => (
-                  <div key={i} className="card stack" style={{ gap: 8 }}>
-                    <span>
-                      {v.idea} <span className="muted">({v.format})</span>
-                    </span>
-                    {typeof canva[i] === "string" && canva[i] !== "working" ? (
-                      <a
-                        className="btn small"
-                        href={canva[i]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Open in Canva
-                      </a>
-                    ) : (
-                      <button
-                        className="btn small"
-                        disabled={canva[i] === "working"}
-                        onClick={async () => {
-                          setCanva((c) => ({ ...c, [i]: "working" }));
-                          try {
-                            const link = await makeCanvaDesign(
-                              `${v.idea}. For a Year 9 student's homework "${hw.title}" (${hw.course}). Clean, simple, school-appropriate.`,
-                              v.format,
-                            );
-                            setCanva((c) => ({ ...c, [i]: link }));
-                          } catch (err) {
-                            setCanva((c) => {
-                              const next = { ...c };
-                              delete next[i];
-                              return next;
-                            });
-                            handleError(err);
-                          }
-                        }}
-                      >
-                        <Icon
-                          name={canva[i] === "working" ? "loader" : "palette"}
-                          size={14}
-                          className={canva[i] === "working" ? "spin" : undefined}
-                        />
-                        {canva[i] === "working" ? "Making it in Canva…" : "Make it in Canva"}
-                      </button>
-                    )}
-                  </div>
+                  </label>
                 ))}
-              </section>
-            )}
-            {forHandIn ? (
-              <>
+              </div>
+              <label className="stack" style={{ gap: 6 }}>
+                <span className="h2">Anything else? (optional)</span>
+                <input
+                  className="field"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="e.g. make my intro stronger"
+                />
+              </label>
+              {!ai && (
+                <div className="banner">Polishing needs the AI; open the app on claude.ai.</div>
+              )}
+              <button
+                className="btn big primary"
+                disabled={!ai || areas.length === 0 || !text.trim()}
+                onClick={() => void run()}
+              >
+                <Icon name="sparkle" size={16} />
+                Polish
+              </button>
+              {forHandIn && (
+                <button className="btn" onClick={onHandIn}>
+                  Hand in without polishing
+                </button>
+              )}
+              <button className="btn ghost" onClick={onClose}>
+                Cancel
+              </button>
+            </>
+          )}
+
+          {result === "working" && (
+            <div className="row muted" style={{ padding: "24px 0", justifyContent: "center" }}>
+              <Icon name="loader" size={18} className="spin" />
+              Reading your work…
+            </div>
+          )}
+
+          {result && result !== "working" && (
+            <>
+              {result.edits.length === 0 &&
+              result.tips.length === 0 &&
+              result.visuals.length === 0 ? (
+                <p className="sub">Nothing to change. It already reads well!</p>
+              ) : (
+                <p className="sub">Tap a change to skip it. Only the ones you keep are used.</p>
+              )}
+              <div className="stack" style={{ gap: 8 }}>
+                {result.edits.map((e, i) => (
+                  <button
+                    key={i}
+                    className={`polish-edit${off.has(i) ? " off" : ""}`}
+                    style={{ textAlign: "left", background: "var(--card)", color: "var(--ink)" }}
+                    aria-pressed={!off.has(i)}
+                    onClick={() => {
+                      const next = new Set(off);
+                      if (next.has(i)) {
+                        next.delete(i);
+                      } else {
+                        next.add(i);
+                      }
+                      setOff(next);
+                    }}
+                  >
+                    <Icon name={off.has(i) ? "close" : "check"} size={18} />
+                    <span className="stack" style={{ gap: 4, minWidth: 0 }}>
+                      <span>
+                        <del>{e.before}</del> → <ins>{e.after}</ins>
+                      </span>
+                      <span className="muted">
+                        {POLISH_AREAS.find((a) => a.id === e.area)?.label}
+                        {e.why ? `: ${e.why}` : ""}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {result.tips.length > 0 && (
+                <section className="ai-card">
+                  <h3>Structure tips</h3>
+                  <ul className="ai-list">
+                    {result.tips.map((t, i) => (
+                      <li key={i}>{t}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {result.visuals.length > 0 && (
+                <section className="stack" style={{ gap: 8 }}>
+                  <h3 className="h2">Visual ideas</h3>
+                  {result.visuals.map((v, i) => (
+                    <div key={i} className="card stack" style={{ gap: 8 }}>
+                      <span>
+                        {v.idea} <span className="muted">({v.format})</span>
+                      </span>
+                      {typeof canva[i] === "string" && canva[i] !== "working" ? (
+                        <a
+                          className="btn small"
+                          href={canva[i]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open in Canva
+                        </a>
+                      ) : (
+                        <button
+                          className="btn small"
+                          disabled={canva[i] === "working"}
+                          onClick={async () => {
+                            setCanva((c) => ({ ...c, [i]: "working" }));
+                            try {
+                              const link = await makeCanvaDesign(
+                                `${v.idea}. For a Year 9 student's homework "${hw.title}" (${hw.course}). Clean, simple, school-appropriate.`,
+                                v.format,
+                              );
+                              setCanva((c) => ({ ...c, [i]: link }));
+                            } catch (err) {
+                              setCanva((c) => {
+                                const next = { ...c };
+                                delete next[i];
+                                return next;
+                              });
+                              handleError(err);
+                            }
+                          }}
+                        >
+                          <Icon
+                            name={canva[i] === "working" ? "loader" : "palette"}
+                            size={14}
+                            className={canva[i] === "working" ? "spin" : undefined}
+                          />
+                          {canva[i] === "working" ? "Making it in Canva…" : "Make it in Canva"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </section>
+              )}
+              {forHandIn ? (
+                <>
+                  <button
+                    className="btn big primary"
+                    onClick={() => {
+                      apply();
+                      onHandIn();
+                    }}
+                  >
+                    {accepted.length ? `Use ${accepted.length} changes and hand in` : "Hand in"}
+                  </button>
+                  {accepted.length > 0 && (
+                    <button className="btn" onClick={apply}>
+                      Use changes, don't hand in yet
+                    </button>
+                  )}
+                </>
+              ) : (
                 <button
                   className="btn big primary"
-                  onClick={() => {
-                    apply();
-                    onHandIn();
-                  }}
+                  disabled={accepted.length === 0}
+                  onClick={apply}
                 >
-                  {accepted.length ? `Use ${accepted.length} changes and hand in` : "Hand in"}
+                  Use {accepted.length} changes
                 </button>
-                {accepted.length > 0 && (
-                  <button className="btn" onClick={apply}>
-                    Use changes, don't hand in yet
-                  </button>
-                )}
-              </>
-            ) : (
-              <button className="btn big primary" disabled={accepted.length === 0} onClick={apply}>
-                Use {accepted.length} changes
+              )}
+              <button className="btn ghost" onClick={() => setResult(null)}>
+                Back
               </button>
-            )}
-            <button className="btn ghost" onClick={() => setResult(null)}>
-              Back
-            </button>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
