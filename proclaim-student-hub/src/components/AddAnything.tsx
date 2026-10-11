@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { ImageInput } from "../../shared/api.ts";
 import { useApp } from "../context.ts";
 import { imageSrc, photoToImageInput } from "../lib/image.ts";
@@ -19,6 +18,7 @@ import { useEscape } from "../lib/useEscape.ts";
 import { canListen, listen } from "../lib/voice.ts";
 import { aiKey, PAGES } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 // The "Add anything" sheet: paste or photograph whatever you got, the AI sorts
 // it into homework, tests, to-dos, calendar and notes, you check, then save.
@@ -54,11 +54,12 @@ export function AddAnythingButton({
         </button>
       )}
       {/* Portalled to the app root: an animated parent would otherwise trap the sheet under later cards. */}
-      {open &&
-        createPortal(
+      {open && (
+        <Overlay>
           <AddAnything onClose={() => setOpen(false)} onSaved={onSaved} />,
-          document.querySelector(".app") ?? document.body,
-        )}
+          document.querySelector(".app") ?? document.body
+        </Overlay>
+      )}
     </>
   );
 }

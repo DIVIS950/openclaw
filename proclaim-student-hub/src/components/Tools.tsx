@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useApp } from "../context.ts";
 import { backups, exportAll, importAll } from "../lib/backup.ts";
 import { daysBetween, dayOf, newId, notes, prepTests } from "../lib/study.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { Icon, type IconName } from "./Icon.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 // Tools: small one-job helpers. The AI ones take a bit of text (or a pasted
 // paragraph) and give one clean result that can be saved as a note.
@@ -166,93 +166,94 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
     }
   };
 
-  const host = document.querySelector(".app") ?? document.body;
-  return createPortal(
-    <div className="backdrop" onClick={onClose}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-label={tool.label}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="between">
-          <h2 className="h1" style={{ fontSize: 24 }}>
-            {tool.label}
-          </h2>
-          <button className="round" aria-label="Close" onClick={onClose}>
-            <Icon name="close" size={18} />
-          </button>
-        </div>
-        {tool.languages && (
-          <div
-            className="segmented"
-            role="tablist"
-            style={{ gridTemplateColumns: `repeat(${tool.languages.length}, 1fr)` }}
-          >
-            {tool.languages.map((l) => (
-              <button key={l} role="tab" aria-selected={lang === l} onClick={() => setLang(l)}>
-                {l}
-              </button>
-            ))}
-          </div>
-        )}
-        <textarea
-          className="field"
-          rows={4}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={tool.placeholder}
-          aria-label="Text"
-        />
-        <button
-          className="btn primary big"
-          disabled={!text.trim() || busy}
-          onClick={() => void run()}
+  return (
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-label={tool.label}
+          onClick={(e) => e.stopPropagation()}
         >
-          <Icon
-            name={busy ? "loader" : "sparkle"}
-            size={18}
-            className={busy ? "spin" : undefined}
-          />
-          {busy ? "Working…" : tool.label}
-        </button>
-        {out && (
-          <div className="card stack" style={{ gap: 10 }}>
-            <div style={{ whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.5 }}>{out}</div>
-            {!busy && (
-              <div className="row">
-                <button
-                  className="btn small"
-                  onClick={() => {
-                    notes.upsert({
-                      id: newId("n"),
-                      title: `${tool.label}: ${text.trim().slice(0, 40)}`,
-                      subject: "",
-                      body: out,
-                      updatedAt: new Date().toISOString(),
-                      packId: "",
-                    });
-                    toast("Saved to Notes.");
-                  }}
-                >
-                  <Icon name="note" size={14} />
-                  Save as note
-                </button>
-                <button
-                  className="btn small"
-                  onClick={() =>
-                    void navigator.clipboard?.writeText(out).then(() => toast("Copied."))
-                  }
-                >
-                  Copy
-                </button>
-              </div>
-            )}
+          <div className="between">
+            <h2 className="h1" style={{ fontSize: 24 }}>
+              {tool.label}
+            </h2>
+            <button className="round" aria-label="Close" onClick={onClose}>
+              <Icon name="close" size={18} />
+            </button>
           </div>
-        )}
+          {tool.languages && (
+            <div
+              className="segmented"
+              role="tablist"
+              style={{ gridTemplateColumns: `repeat(${tool.languages.length}, 1fr)` }}
+            >
+              {tool.languages.map((l) => (
+                <button key={l} role="tab" aria-selected={lang === l} onClick={() => setLang(l)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
+          <textarea
+            className="field"
+            rows={4}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={tool.placeholder}
+            aria-label="Text"
+          />
+          <button
+            className="btn primary big"
+            disabled={!text.trim() || busy}
+            onClick={() => void run()}
+          >
+            <Icon
+              name={busy ? "loader" : "sparkle"}
+              size={18}
+              className={busy ? "spin" : undefined}
+            />
+            {busy ? "Working…" : tool.label}
+          </button>
+          {out && (
+            <div className="card stack" style={{ gap: 10 }}>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.5 }}>{out}</div>
+              {!busy && (
+                <div className="row">
+                  <button
+                    className="btn small"
+                    onClick={() => {
+                      notes.upsert({
+                        id: newId("n"),
+                        title: `${tool.label}: ${text.trim().slice(0, 40)}`,
+                        subject: "",
+                        body: out,
+                        updatedAt: new Date().toISOString(),
+                        packId: "",
+                      });
+                      toast("Saved to Notes.");
+                    }}
+                  >
+                    <Icon name="note" size={14} />
+                    Save as note
+                  </button>
+                  <button
+                    className="btn small"
+                    onClick={() =>
+                      void navigator.clipboard?.writeText(out).then(() => toast("Copied."))
+                    }
+                  >
+                    Copy
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>,
-    host,
+      , host
+    </Overlay>
   );
 }
 
@@ -360,8 +361,8 @@ function Calculator() {
         <Icon name="calculator" size={15} />
         Calculator
       </button>
-      {open &&
-        createPortal(
+      {open && (
+        <Overlay>
           <div className="backdrop" onClick={() => setOpen(false)}>
             <div
               className="sheet"
@@ -400,9 +401,10 @@ function Calculator() {
                 </button>
               </div>
             </div>
-          </div>,
-          document.querySelector(".app") ?? document.body,
-        )}
+          </div>
+          , document.querySelector(".app") ?? document.body
+        </Overlay>
+      )}
     </>
   );
 }

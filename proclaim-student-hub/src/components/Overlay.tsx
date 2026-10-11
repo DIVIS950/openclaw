@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 // Open overlays, newest last: only the top one keeps the keyboard.
@@ -15,13 +15,15 @@ const FOCUSABLE =
  */
 export function Overlay({ children }: { children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
+  // The button that opened the sheet, read while rendering: by the time the
+  // effect runs, a field's autoFocus may already have moved focus inside.
+  const [opener] = useState(() => document.activeElement);
 
   useEffect(() => {
     const box = root.current;
     if (!box) {
       return;
     }
-    const before = document.activeElement;
     stack.push(box);
     const dialog =
       box.querySelector<HTMLElement>('[role="dialog"]') ?? box.querySelector<HTMLElement>(".sheet");
@@ -31,10 +33,13 @@ export function Overlay({ children }: { children: ReactNode }) {
     }
     if (!box.contains(document.activeElement)) {
       const laptop = typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
+      // The first field that can really take focus: not hidden, not a file picker.
       const field = laptop
-        ? box.querySelector<HTMLElement>(
-            "input:not([type=hidden]):not([disabled]), textarea, select",
-          )
+        ? ([
+            ...box.querySelectorAll<HTMLElement>(
+              'input:not([type="hidden"]):not([type="file"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
+            ),
+          ].find((el) => el.offsetParent !== null) ?? null)
         : null;
       (field ?? dialog)?.focus({ preventScroll: true });
     }
@@ -68,8 +73,8 @@ export function Overlay({ children }: { children: ReactNode }) {
       document.removeEventListener("keydown", onKey);
       stack.splice(stack.indexOf(box), 1);
       // Back to the button that opened the sheet, if it's still there.
-      if (before instanceof HTMLElement && document.contains(before)) {
-        before.focus({ preventScroll: true });
+      if (opener instanceof HTMLElement && opener !== document.body && document.contains(opener)) {
+        opener.focus({ preventScroll: true });
       }
     };
   }, []);

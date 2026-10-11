@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { useApp } from "../context.ts";
 import { deckBrief, makeGammaDeck } from "../lib/gamma.ts";
 import type { Homework } from "../lib/types.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { Icon } from "./Icon.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 /** "Slides" on Do it here: the AI turns the task and your notes into a Gamma deck. */
 export function PresentButton({ hw, text }: { hw: Homework; text: string }) {
@@ -46,8 +46,8 @@ export function PresentButton({ hw, text }: { hw: Homework; text: string }) {
         Slides
       </button>
       {/* Portalled to the app root: inside the animated answer card it was boxed in. */}
-      {open &&
-        createPortal(
+      {open && (
+        <Overlay>
           <div className="backdrop" onClick={busy ? undefined : () => setOpen(false)}>
             <section
               className="sheet"
@@ -126,9 +126,10 @@ export function PresentButton({ hw, text }: { hw: Homework; text: string }) {
                 </button>
               )}
             </section>
-          </div>,
-          document.querySelector(".app") ?? document.body,
-        )}
+          </div>
+          , document.querySelector(".app") ?? document.body
+        </Overlay>
+      )}
     </>
   );
 }

@@ -399,7 +399,9 @@ function Shell({
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
-      if (window.location.hash.startsWith("#tutor=")) {
+      // A tutor's or claude.ai link opened in place: the hashchange handler
+      // shows its confirm sheet, and the screen (and any open sheet) stays.
+      if (/^#(tutor|import)=/.test(window.location.hash)) {
         return;
       }
       const next = navState(e.state)?.pshScreen ?? screenFromHash();

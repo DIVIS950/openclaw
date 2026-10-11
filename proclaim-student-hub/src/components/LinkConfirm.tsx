@@ -6,9 +6,11 @@ import { dayOf } from "../lib/study.ts";
 import { applyTransfer } from "../lib/transfer.ts";
 import { tutorImport } from "../lib/tutorImport.ts";
 import { appliedSummary, applyReply } from "../lib/tutorLink.ts";
+import { useEscape } from "../lib/useEscape.ts";
 import { localDb } from "../pages/localDb.ts";
 import { pagesImport } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 // "Bring this in?" for links that change the student's data (#import= from the
 // claude.ai version, #tutor= from a tutor). Nothing is written until they tap
@@ -77,18 +79,15 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
     }
   };
 
-  // Escape is "Not now"; the main button gets the focus.
+  // The main button gets the focus. Escape is "Not now", through the shared
+  // stack, so only the top sheet answers it (this one sits over everything).
   useEffect(() => {
     first.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        linkInbox.clear();
-        onDone?.();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onDone]);
+  }, []);
+  useEscape(() => {
+    linkInbox.clear();
+    onDone?.();
+  }, !busy);
 
   const title =
     pending.kind === "error"
@@ -98,69 +97,76 @@ function Sheet({ pending, onDone }: { pending: PendingLink; onDone?: () => void 
         : `${pending.title}: bring this in?`;
 
   return (
-    <div className="backdrop link-confirm" onClick={busy ? undefined : () => close(null)}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="between" style={{ alignItems: "center", gap: 12 }}>
-          <h2 className="h1" style={{ fontSize: 26 }}>
-            {title}
-          </h2>
-          <button className="round" aria-label="Close" disabled={busy} onClick={() => close(null)}>
-            <Icon name="close" size={18} />
-          </button>
-        </div>
-        {pending.kind === "error" ? (
-          <>
-            <p className="muted" style={{ margin: 0 }}>
-              {pending.text}
-            </p>
-            <button ref={first} className="btn big primary" onClick={() => close(null)}>
-              OK
+    <Overlay>
+      <div className="backdrop link-confirm" onClick={busy ? undefined : () => close(null)}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="between" style={{ alignItems: "center", gap: 12 }}>
+            <h2 className="h1" style={{ fontSize: 26 }}>
+              {title}
+            </h2>
+            <button
+              className="round"
+              aria-label="Close"
+              disabled={busy}
+              onClick={() => close(null)}
+            >
+              <Icon name="close" size={18} />
             </button>
-          </>
-        ) : (
-          <>
-            <p className="muted" style={{ margin: 0 }}>
-              {pending.kind === "import"
-                ? "Only bring this in if you made this link in your claude.ai version. It's added next to what's already here; nothing of yours is replaced."
-                : "Only open links your tutor sent you."}
-            </p>
-            <ul className="card rows link-lines">
-              {pending.lines.map((line, i) => (
-                <li key={i} className="li">
-                  {line}
-                </li>
-              ))}
-            </ul>
-            {nothingNew ? (
-              // Already brought in (a link opened twice): nothing to accept.
+          </div>
+          {pending.kind === "error" ? (
+            <>
+              <p className="muted" style={{ margin: 0 }}>
+                {pending.text}
+              </p>
               <button ref={first} className="btn big primary" onClick={() => close(null)}>
                 OK
               </button>
-            ) : (
-              <>
-                <button
-                  ref={first}
-                  className="btn big primary"
-                  disabled={busy}
-                  onClick={() => void accept()}
-                >
-                  <Icon name="check" size={18} />
-                  Bring it in
+            </>
+          ) : (
+            <>
+              <p className="muted" style={{ margin: 0 }}>
+                {pending.kind === "import"
+                  ? "Only bring this in if you made this link in your claude.ai version. It's added next to what's already here; nothing of yours is replaced."
+                  : "Only open links your tutor sent you."}
+              </p>
+              <ul className="card rows link-lines">
+                {pending.lines.map((line, i) => (
+                  <li key={i} className="li">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+              {nothingNew ? (
+                // Already brought in (a link opened twice): nothing to accept.
+                <button ref={first} className="btn big primary" onClick={() => close(null)}>
+                  OK
                 </button>
-                <button className="btn ghost" disabled={busy} onClick={() => close(null)}>
-                  Not now
-                </button>
-              </>
-            )}
-          </>
-        )}
+              ) : (
+                <>
+                  <button
+                    ref={first}
+                    className="btn big primary"
+                    disabled={busy}
+                    onClick={() => void accept()}
+                  >
+                    <Icon name="check" size={18} />
+                    Bring it in
+                  </button>
+                  <button className="btn ghost" disabled={busy} onClick={() => close(null)}>
+                    Not now
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

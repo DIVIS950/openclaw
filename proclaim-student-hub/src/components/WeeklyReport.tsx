@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useApp } from "../context.ts";
 import { isWeak } from "../lab/model.ts";
 import { labPacks } from "../lab/store.ts";
@@ -11,6 +10,7 @@ import { weeklyReport, weekStats, type WeekReport, type WeekStats } from "../lib
 import { keyHandoff } from "../pages/keyHandoff.ts";
 import { aiKey, PAGES } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 // "Your week": the numbers at a glance on Today, and a full report sheet with
 // a few honest lines from the AI about what went well and what to do next.
@@ -134,90 +134,91 @@ function WeekSheet({ stats, onClose }: { stats: WeekStats; onClose: () => void }
     });
   };
 
-  const host = document.querySelector(".app") ?? document.body;
   const range = `${stats.from.slice(8)}/${stats.from.slice(5, 7)} – ${stats.to.slice(8)}/${stats.to.slice(5, 7)}`;
-  return createPortal(
-    <div className="backdrop" onClick={onClose}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-label="Weekly report"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="between">
-          <div className="stack" style={{ gap: 2 }}>
-            <span className="eyebrow">Weekly report · {range}</span>
-            <h2 className="h1" style={{ fontSize: 24 }}>
-              Your week
-            </h2>
+  return (
+    <Overlay>
+      <div className="backdrop" onClick={onClose}>
+        <div
+          className="sheet"
+          role="dialog"
+          aria-label="Weekly report"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="between">
+            <div className="stack" style={{ gap: 2 }}>
+              <span className="eyebrow">Weekly report · {range}</span>
+              <h2 className="h1" style={{ fontSize: 24 }}>
+                Your week
+              </h2>
+            </div>
+            <button className="round" aria-label="Close" onClick={onClose}>
+              <Icon name="close" size={18} />
+            </button>
           </div>
-          <button className="round" aria-label="Close" onClick={onClose}>
-            <Icon name="close" size={18} />
-          </button>
-        </div>
-        <div className="week-grid">
-          <Stat n={stats.xp} label="XP" sub={stats.lastXp ? `last week ${stats.lastXp}` : ""} />
-          <Stat n={stats.homework} label="homework done" />
-          <Stat n={stats.cards} label="cards practised" />
-          <Stat n={stats.todos} label="to-dos ticked" />
-          <Stat n={stats.focus} label="focus minutes" />
-          <Stat n={stats.activeDays} label="active days" sub="of 7" />
-        </div>
-        {report === "loading" && (
-          <div className="stack" aria-label="Writing your report">
-            <div className="skeleton light" />
-            <div className="skeleton light" style={{ width: "70%" }} />
+          <div className="week-grid">
+            <Stat n={stats.xp} label="XP" sub={stats.lastXp ? `last week ${stats.lastXp}` : ""} />
+            <Stat n={stats.homework} label="homework done" />
+            <Stat n={stats.cards} label="cards practised" />
+            <Stat n={stats.todos} label="to-dos ticked" />
+            <Stat n={stats.focus} label="focus minutes" />
+            <Stat n={stats.activeDays} label="active days" sub="of 7" />
           </div>
-        )}
-        {report === "nokey" && (
-          <button
-            className="btn link s12"
-            style={{ alignSelf: "flex-start", minHeight: 44, padding: 0 }}
-            onClick={() => {
-              keyHandoff.set();
-              onClose();
-              go("apps");
-            }}
-          >
-            Add the AI key for a written summary of your week ›
-          </button>
-        )}
-        {report && report !== "loading" && report !== "nokey" && (
-          <section className="ai-card pop">
-            <h3>
-              <Icon name="sparkle" size={16} />
-              {report.headline}
-            </h3>
-            {report.wins.length > 0 && (
-              <div className="stack" style={{ gap: 4 }}>
-                <span className="eyebrow">Went well</span>
-                <ul className="ai-list">
-                  {report.wins.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {report.next.length > 0 && (
-              <div className="stack" style={{ gap: 4 }}>
-                <span className="eyebrow">Next week</span>
-                <ul className="ai-list">
-                  {report.next.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
-        )}
-        {!ai && (
-          <p className="muted" style={{ margin: 0 }}>
-            Add the AI key to get a written report with what to do next week.
-          </p>
-        )}
+          {report === "loading" && (
+            <div className="stack" aria-label="Writing your report">
+              <div className="skeleton light" />
+              <div className="skeleton light" style={{ width: "70%" }} />
+            </div>
+          )}
+          {report === "nokey" && (
+            <button
+              className="btn link s12"
+              style={{ alignSelf: "flex-start", minHeight: 44, padding: 0 }}
+              onClick={() => {
+                keyHandoff.set();
+                onClose();
+                go("apps");
+              }}
+            >
+              Add the AI key for a written summary of your week ›
+            </button>
+          )}
+          {report && report !== "loading" && report !== "nokey" && (
+            <section className="ai-card pop">
+              <h3>
+                <Icon name="sparkle" size={16} />
+                {report.headline}
+              </h3>
+              {report.wins.length > 0 && (
+                <div className="stack" style={{ gap: 4 }}>
+                  <span className="eyebrow">Went well</span>
+                  <ul className="ai-list">
+                    {report.wins.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {report.next.length > 0 && (
+                <div className="stack" style={{ gap: 4 }}>
+                  <span className="eyebrow">Next week</span>
+                  <ul className="ai-list">
+                    {report.next.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
+          )}
+          {!ai && (
+            <p className="muted" style={{ margin: 0 }}>
+              Add the AI key to get a written report with what to do next week.
+            </p>
+          )}
+        </div>
       </div>
-    </div>,
-    host,
+      , host
+    </Overlay>
   );
 }
 
