@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "../context.ts";
 import { aiKey, PAGES } from "../pages/runtime.ts";
 import { Icon } from "./Icon.tsx";
@@ -125,10 +125,22 @@ export function Tour({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("resize", measure);
   }, [step.target]);
 
+  // Keyboard: focus starts on the main button of each step and Tab stays in the tour.
+  const tip = useRef<HTMLElement>(null);
+  const primary = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    primary.current?.focus({ preventScroll: true });
+  }, [i]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         finish();
+      } else if (e.key === "Tab" && tip.current) {
+        const stops = [...tip.current.querySelectorAll<HTMLElement>("button")];
+        const at = stops.indexOf(document.activeElement as HTMLElement);
+        const next = (at + (e.shiftKey ? -1 : 1) + stops.length) % stops.length;
+        e.preventDefault();
+        stops[at === -1 ? 0 : next]?.focus();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -171,7 +183,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
       ) : (
         <div className="tour-shade" />
       )}
-      <section className="tour-tip" key={i} style={tipStyle}>
+      <section className="tour-tip" key={i} style={tipStyle} ref={tip}>
         {i === 0 && (
           <span className="tour-badge" aria-hidden="true">
             <Icon name="sparkle" size={28} />
@@ -195,6 +207,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
               {last ? "Not now" : "Skip"}
             </button>
             <button
+              ref={primary}
               className="btn primary"
               onClick={() => {
                 if (last) {

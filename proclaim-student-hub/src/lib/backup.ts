@@ -77,7 +77,8 @@ export const backups = {
   /** Takes today's snapshot if there isn't one yet; drops the oldest beyond five. */
   daily(storage: Storage = localStorage, now = new Date()): boolean {
     const day = dayOf(now);
-    if (storage.getItem(PREFIX + day)) {
+    // A damaged save for today doesn't count: it's replaced by a good one.
+    if (backups.get(day, storage)) {
       return false;
     }
     const data = collectAll(storage);
@@ -212,7 +213,12 @@ export function importAll(text: string, storage: Storage = localStorage): number
   } catch {
     throw new Error("That file isn't a Student Hub backup.");
   }
-  if (parsed?.app !== "proclaim-student-hub" || !parsed.data || typeof parsed.data !== "object") {
+  if (
+    parsed?.app !== "proclaim-student-hub" ||
+    !parsed.data ||
+    typeof parsed.data !== "object" ||
+    Array.isArray(parsed.data)
+  ) {
     throw new Error("That file isn't a Student Hub backup.");
   }
   // A save of how things were, so the import can be undone from Backups.

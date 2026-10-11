@@ -142,6 +142,10 @@ describe("automatic saves", () => {
       expect(backups.restore("2026-10-11")).toBe(false);
       expect(JSON.parse(localStorage.getItem("psh.todos")!)).toEqual([{ id: "a", text: "keep" }]);
     }
+    // A damaged save for today is replaced by a good one.
+    expect(backups.daily(localStorage, new Date("2026-10-11T09:00:00"))).toBe(true);
+    expect(backups.list().map((b) => b.day)).toEqual(["2026-10-11"]);
+    expect(() => importAll('{"app":"proclaim-student-hub","data":[1]}')).toThrow(/isn't/);
   });
 });
 
@@ -164,7 +168,7 @@ describe("exam questions", () => {
   });
 });
 
-import { calc } from "../src/components/Tools.tsx";
+import { calc, readCommas } from "../src/components/Tools.tsx";
 
 describe("calculator", () => {
   it("does arithmetic and nothing else", () => {
@@ -186,6 +190,18 @@ describe("calculator", () => {
     expect(calc("7,5*2")).toBe("15");
     expect(calc("2^40")).toBe("1.09951 × 10^12");
     expect(calc("9^99")).toBe("2.95127 × 10^94");
+  });
+
+  it("hides float noise and reads Czech decimals", () => {
+    expect(calc("123456789012")).toBe("123456789012");
+    expect(calc("291803.53")).toBe("291803.53");
+    expect(calc("-123456789.123")).toBe("-123456789.123");
+    expect(calc("0.1+0.2")).toBe("0.3");
+    expect(calc("0,125*8")).toBe("1");
+    expect(calc("3,14159*2")).toBe("6.28318");
+    expect(calc("12,500,000/1000")).toBe("12500");
+    expect(readCommas("2,250+1").thousands).toEqual(["2250"]);
+    expect(readCommas("7,5+0,125").thousands).toEqual([]);
   });
 });
 

@@ -606,7 +606,12 @@ function Shell({
       signOut: onSignOut,
       startTour: () => {
         go("today");
-        window.setTimeout(() => setTouring(true), 400);
+        // Only if they're still on Today (a quick tap elsewhere cancels it).
+        window.setTimeout(() => {
+          if (screenRef.current === "today") {
+            setTouring(true);
+          }
+        }, 400);
       },
     }),
     [

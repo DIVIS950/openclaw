@@ -261,12 +261,28 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
  * (^ or **), percent. A small parser (no eval, so it works under the page's
  * Content-Security-Policy). Returns "" for anything it can't read.
  */
+/**
+ * Commas: "1,000" and "12,500,000" are thousands; "7,5", "0,125" and "3,14159"
+ * are decimals (Czech style). Returns the numbers read as thousands, so the
+ * calculator can say so.
+ */
+export function readCommas(expr: string): { text: string; thousands: string[] } {
+  const thousands: string[] = [];
+  const text = expr.replace(/\d+(?:,\d+)+/g, (m) => {
+    const [head, ...rest] = m.split(",");
+    if (/^[1-9]\d{0,2}$/.test(head) && rest.every((p) => p.length === 3)) {
+      thousands.push(m.replace(/,/g, ""));
+      return m.replace(/,/g, "");
+    }
+    return m.replace(",", ".");
+  });
+  return { text, thousands };
+}
+
 export function calc(expr: string): string {
-  const src = expr
-    .replace(/×/g, "*")
+  const src = readCommas(expr)
+    .text.replace(/×/g, "*")
     .replace(/÷/g, "/")
-    // "1,000" is a thousand; "7,5" is seven and a half.
-    .replace(/(\d),(?=\d{3}(?!\d))/g, "$1")
     .replace(/,/g, ".")
     .replace(/\*\*/g, "^")
     .replace(/\s+/g, "");
@@ -355,7 +371,8 @@ export function calc(expr: string): string {
       const [mant, exp] = value.toPrecision(6).split("e");
       return `${String(Number(mant))} × 10^${Number(exp)}`;
     }
-    return String(Math.round(value * 1e10) / 1e10);
+    // 12 significant digits hides float noise (0.1+0.2, 291803.53).
+    return String(Number(value.toPrecision(12)));
   } catch (err) {
     return err instanceof Error && err.message === "div0" ? "Can't divide by 0" : "";
   }
@@ -409,6 +426,11 @@ function Calculator() {
               >
                 {result || (expr ? "…" : "0")}
               </div>
+              {readCommas(expr).thousands.length > 0 && (
+                <p className="muted" style={{ margin: 0, textAlign: "center" }}>
+                  Read as {readCommas(expr).thousands.join(", ")} · use . for decimals
+                </p>
+              )}
               <div className="row" style={{ flexWrap: "wrap" }}>
                 {["+", "-", "×", "÷", "(", ")", "^", "%"].map((k) => (
                   <button key={k} className="btn small" onClick={() => setExpr((e) => e + k)}>
