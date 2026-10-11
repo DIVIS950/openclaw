@@ -41,6 +41,7 @@ import {
   parseWhen,
   upcomingTutoring,
 } from "../lib/tutorSchedule.ts";
+import { useEscape } from "../lib/useEscape.ts";
 
 // Tutoring: the student's tutors, when the next lesson is (with one tap to
 // join the Meet), the AI getting them ready for it and writing it up after,
@@ -1194,6 +1195,7 @@ function AddMaterial({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  useEscape(onClose, !busy);
   return (
     <Overlay>
       <div className="backdrop" onClick={busy ? undefined : onClose}>
@@ -1280,6 +1282,7 @@ function LogSession({
   const [text, setText] = useState("");
   const [homework, setHomework] = useState("");
   const [busy, setBusy] = useState(false);
+  useEscape(onClose, !busy);
 
   const writeUp = async () => {
     if (!ai || !text.trim()) {

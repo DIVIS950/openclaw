@@ -159,9 +159,15 @@ function AddGrade({
               const s = Number(score);
               const o = Number(outOf);
               toast(
-                o > 0 && s > o * 2
-                  ? "That's more than double the full marks. Check the two numbers."
-                  : "Type the score and what it was out of, e.g. 18 out of 20.",
+                !(o > 0)
+                  ? "Out of has to be more than 0."
+                  : o > 1000
+                    ? "Out of can be at most 1000."
+                    : s < 0
+                      ? "The score can't be below 0."
+                      : s > o * 2
+                        ? "That's more than double the full marks. Check the two numbers."
+                        : "Type numbers only, e.g. 18 out of 20.",
               );
               return;
             }
