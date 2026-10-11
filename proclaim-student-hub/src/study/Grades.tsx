@@ -12,6 +12,7 @@ import { useEscape } from "../lib/useEscape.ts";
 
 /** `tests` are past tests: the ones with no grade yet get an "Add grade" row. */
 export function GradesSection({ tests }: { tests: PrepTest[] }) {
+  const { toast } = useApp();
   const [list, setList] = useState<Grade[]>(grades.all);
   const [adding, setAdding] = useState<Partial<Grade> | null>(null);
   const subjects = bySubject(list);
@@ -84,6 +85,16 @@ export function GradesSection({ tests }: { tests: PrepTest[] }) {
                       const next = list.filter((x) => x.id !== g.id);
                       grades.save(next);
                       setList(next);
+                      toast("Grade removed.", {
+                        label: "Undo",
+                        run: () => {
+                          const now = grades.all();
+                          if (!now.some((x) => x.id === g.id)) {
+                            grades.save([g, ...now]);
+                            setList(grades.all());
+                          }
+                        },
+                      });
                     }}
                   >
                     Remove

@@ -221,4 +221,21 @@ describe("export and import", () => {
     expect(() => importJson('{"hello": 1}', [])).toThrow();
     expect(importJson('{"packs": [{"id": 1}]}', []).added).toBe(0);
   });
+
+  it("cleans hand-edited cards on import", () => {
+    const file = JSON.stringify({
+      packs: [
+        {
+          id: "x",
+          topic: "t",
+          subject: "Maths",
+          items: [null, 5, { prompt: { a: 1 }, answer: "x" }, { prompt: "2+2", answer: "4" }],
+        },
+        { id: "y", topic: "t", subject: "Maths", items: [null] },
+      ],
+    });
+    const { packs, added } = importJson(file, []);
+    expect(added).toBe(1);
+    expect(packs[0].items.map((i) => [i.prompt, i.answer])).toEqual([["2+2", "4"]]);
+  });
 });

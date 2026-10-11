@@ -23,6 +23,20 @@ export interface Snapshot {
   data: Record<string, unknown>;
 }
 
+/** A save that can really be put back: a time and a plain object of data. */
+function readSnap(raw: string | null): Snapshot | null {
+  try {
+    const snap = JSON.parse(raw ?? "null") as Partial<Snapshot> | null;
+    const data = snap?.data;
+    if (typeof snap?.at !== "string" || !data || typeof data !== "object" || Array.isArray(data)) {
+      return null;
+    }
+    return { at: snap.at, data };
+  } catch {
+    return null;
+  }
+}
+
 function dayOf(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -50,11 +64,10 @@ export const backups = {
     for (let i = 0; i < storage.length; i++) {
       const key = storage.key(i);
       if (key?.startsWith(PREFIX)) {
-        try {
-          const s = JSON.parse(storage.getItem(key) ?? "null") as Snapshot;
+        // A damaged save is never offered (putting it back would empty the app).
+        const s = readSnap(storage.getItem(key));
+        if (s) {
           out.push({ day: key.slice(PREFIX.length), at: s.at });
-        } catch {
-          // Damaged snapshot: ignored.
         }
       }
     }
@@ -135,13 +148,9 @@ export const backups = {
 
   /** The save taken right before the last link, if that link came in today. */
   lastLink(storage: Storage = localStorage, now = new Date()): Snapshot | null {
-    try {
-      const snap = JSON.parse(storage.getItem(LINK_KEY) ?? "null") as Snapshot | null;
-      // An older one would undo more than "the last link": only today's counts.
-      return snap && dayOf(new Date(snap.at)) === dayOf(now) ? snap : null;
-    } catch {
-      return null;
-    }
+    const snap = readSnap(storage.getItem(LINK_KEY));
+    // An older one would undo more than "the last link": only today's counts.
+    return snap && dayOf(new Date(snap.at)) === dayOf(now) ? snap : null;
   },
 
   /** Undoes the last link: puts back the save taken right before it. */
@@ -156,11 +165,7 @@ export const backups = {
   },
 
   get(day: string, storage: Storage = localStorage): Snapshot | null {
-    try {
-      return JSON.parse(storage.getItem(PREFIX + day) ?? "null") as Snapshot | null;
-    } catch {
-      return null;
-    }
+    return readSnap(storage.getItem(PREFIX + day));
   },
 
   /** Puts a snapshot's data back exactly as it was. */
@@ -179,7 +184,9 @@ function putBack(snap: Snapshot, storage: Storage) {
     storage.removeItem(key);
   }
   for (const [key, value] of Object.entries(snap.data)) {
-    storage.setItem(key, JSON.stringify(value));
+    if (key.startsWith("psh.") && !SKIP.some((s) => key.startsWith(s))) {
+      storage.setItem(key, JSON.stringify(value));
+    }
   }
 }
 
@@ -208,6 +215,8 @@ export function importAll(text: string, storage: Storage = localStorage): number
   if (parsed?.app !== "proclaim-student-hub" || !parsed.data || typeof parsed.data !== "object") {
     throw new Error("That file isn't a Student Hub backup.");
   }
+  // A save of how things were, so the import can be undone from Backups.
+  backups.daily(storage);
   let keys = 0;
   for (const [key, incoming] of Object.entries(parsed.data)) {
     if (!key.startsWith("psh.") || SKIP.some((s) => key.startsWith(s))) {

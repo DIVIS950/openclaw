@@ -916,7 +916,18 @@ function TutorPage({
                   <button
                     className="btn small ghost"
                     aria-label={`Delete ${m.title}`}
-                    onClick={() => saveMaterials(materials.filter((x) => x.id !== m.id))}
+                    onClick={() => {
+                      saveMaterials(materials.filter((x) => x.id !== m.id));
+                      toast(`"${m.title}" removed.`, {
+                        label: "Undo",
+                        run: () => {
+                          const now = tutoring.materials().filter((x) => x.tutorId === tutor.id);
+                          if (!now.some((x) => x.id === m.id)) {
+                            saveMaterials([m, ...now]);
+                          }
+                        },
+                      });
+                    }}
                   >
                     <Icon name="close" size={14} />
                   </button>

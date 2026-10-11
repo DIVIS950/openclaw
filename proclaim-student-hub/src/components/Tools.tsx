@@ -265,6 +265,8 @@ export function calc(expr: string): string {
   const src = expr
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
+    // "1,000" is a thousand; "7,5" is seven and a half.
+    .replace(/(\d),(?=\d{3}(?!\d))/g, "$1")
     .replace(/,/g, ".")
     .replace(/\*\*/g, "^")
     .replace(/\s+/g, "");
@@ -283,12 +285,12 @@ export function calc(expr: string): string {
     }
     return v;
   };
-  // term := power (('*'|'/') power)*
+  // term := unary (('*'|'/') unary)*
   const term = (): number => {
-    let v = power();
+    let v = unary();
     while (peek() === "*" || peek() === "/") {
       const op = src[i++];
-      const r = power();
+      const r = unary();
       if (op === "/" && r === 0) {
         throw new Error("div0");
       }
@@ -296,16 +298,7 @@ export function calc(expr: string): string {
     }
     return v;
   };
-  // power := unary ('^' power)?   (right-associative)
-  const power = (): number => {
-    const base = unary();
-    if (peek() === "^") {
-      i++;
-      return base ** power();
-    }
-    return base;
-  };
-  // unary := ('-'|'+') unary | atom '%'?
+  // unary := ('-'|'+') unary | power   (so -3^2 is -9, as in BIDMAS)
   const unary = (): number => {
     if (peek() === "-") {
       i++;
@@ -315,6 +308,19 @@ export function calc(expr: string): string {
       i++;
       return unary();
     }
+    return power();
+  };
+  // power := percent ('^' unary)?   (right-associative; 2^-1 is 0.5)
+  const power = (): number => {
+    const base = percent();
+    if (peek() === "^") {
+      i++;
+      return base ** unary();
+    }
+    return base;
+  };
+  // percent := atom '%'*
+  const percent = (): number => {
     let v = atom();
     while (peek() === "%") {
       i++;
@@ -342,6 +348,12 @@ export function calc(expr: string): string {
     const value = expression();
     if (i !== src.length || !Number.isFinite(value)) {
       return "";
+    }
+    const abs = Math.abs(value);
+    // Very big or very small answers as "2.95127 × 10^94", not 30 digits.
+    if (abs >= 1e12 || (abs > 0 && abs < 1e-6)) {
+      const [mant, exp] = value.toPrecision(6).split("e");
+      return `${String(Number(mant))} × 10^${Number(exp)}`;
     }
     return String(Math.round(value * 1e10) / 1e10);
   } catch (err) {
@@ -386,7 +398,15 @@ function Calculator() {
                 aria-label="Sum"
                 autoFocus
               />
-              <div className="big-score" style={{ textAlign: "center" }}>
+              <div
+                className="big-score"
+                style={{
+                  textAlign: "center",
+                  overflowWrap: "anywhere",
+                  // Long answers shrink to fit a phone instead of being cut off.
+                  fontSize: Math.max(30, 64 - Math.max(0, (result || expr).length - 8) * 4),
+                }}
+              >
                 {result || (expr ? "…" : "0")}
               </div>
               <div className="row" style={{ flexWrap: "wrap" }}>
@@ -449,14 +469,15 @@ export function BackupCard() {
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) {
-                void f.text().then(
-                  (text) => {
+                // A wrong file throws inside importAll: show it, don't swallow it.
+                void f
+                  .text()
+                  .then((text) => {
                     const n = importAll(text);
                     toast(`Imported ${n} things. Reloading…`);
                     window.setTimeout(() => window.location.reload(), 800);
-                  },
-                  (err: unknown) => handleError(err),
-                );
+                  })
+                  .catch((err: unknown) => handleError(err));
               }
               e.target.value = "";
             }}

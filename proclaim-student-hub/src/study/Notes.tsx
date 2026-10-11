@@ -19,6 +19,19 @@ import { useOpenStep } from "../lib/useOpenStep.ts";
 // Notes: typed, or read from a photo by the AI. Any note can become a revision
 // pack, and every revision pack writes its own note with the vocab list.
 
+const isBlank = (n: Note) =>
+  (n.kind ?? "written") === "written" && !n.packId && !n.title.trim() && !n.body.trim();
+
+/** Removes never-written notes (except `keep`); returns what's left. */
+function dropBlank(keep: string | null): Note[] {
+  const saved = notes.all();
+  const kept = saved.filter((n) => n.id === keep || !isBlank(n));
+  if (kept.length !== saved.length) {
+    notes.save(kept);
+  }
+  return kept;
+}
+
 export function Notes({
   openId,
   onClose,
@@ -30,7 +43,8 @@ export function Notes({
   header?: ReactNode;
 }) {
   const { ai, handleError, toast } = useApp();
-  const [list, setList] = useState<Note[]>(notes.all);
+  // Blank notes left behind (the tab bar or a reload while one was new) go on arrival.
+  const [list, setList] = useState<Note[]>(() => dropBlank(openId));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("All");
   // An open note is its own history step, so phone Back returns to the list.
@@ -49,6 +63,8 @@ export function Notes({
     }
     wasOpen.current = open;
   }, [open, onClose]);
+  // Leaving Notes by the tab bar with a new note still blank: don't keep it.
+  useEffect(() => () => void dropBlank(null), []);
   const [reading, setReading] = useState(false);
   const camera = useRef<HTMLInputElement>(null);
   const shown = searchNotes(list, query).filter((n) => matches(n, filter));

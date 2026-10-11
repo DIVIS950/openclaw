@@ -215,13 +215,11 @@ export function importJson(text: string, existing: LabPack[]): { packs: LabPack[
   if (!Array.isArray(incoming)) {
     throw new Error("That file isn't a Revision Lab export.");
   }
-  const valid = incoming.filter(isPack).map((p) => ({
-    ...p,
-    steps: Array.isArray(p.steps) ? p.steps : [],
-    gaps: Array.isArray(p.gaps) ? p.gaps : [],
-    labels: Array.isArray(p.labels) ? p.labels : [],
-    photo: typeof p.photo === "string" ? p.photo : "",
-  }));
+  // Same clean-up as saved packs get: a hand-edited file can't break the Lab.
+  const valid = incoming
+    .filter(isPack)
+    .map(cleanPack)
+    .filter((p) => p.items.length > 0);
   const ids = new Set(valid.map((p) => p.id));
   return { packs: [...existing.filter((p) => !ids.has(p.id)), ...valid], added: valid.length };
 }

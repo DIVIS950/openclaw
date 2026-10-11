@@ -61,6 +61,29 @@ describe("grades", () => {
     expect(s[0]).toMatchObject({ average: 70, count: 2, trend: "up" });
   });
 
+  it("treats maths and Maths as one subject", () => {
+    grades.add({
+      subject: "Maths",
+      topic: "a",
+      date: "2026-09-01",
+      score: 10,
+      outOf: 20,
+      testId: "",
+    });
+    grades.add({
+      subject: "maths ",
+      topic: "b",
+      date: "2026-09-02",
+      score: 20,
+      outOf: 20,
+      testId: "",
+    });
+    expect(grades.all().map((g) => g.subject)).toEqual(["Maths", "Maths"]);
+    expect(
+      bySubject([...grades.all(), { ...grades.all()[0], id: "z", subject: "MATHS" }]).length,
+    ).toBe(1);
+  });
+
   it("replaces the grade for the same test instead of doubling it", () => {
     grades.add({
       subject: "Maths",

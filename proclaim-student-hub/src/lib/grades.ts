@@ -51,8 +51,13 @@ export const grades = {
     }
   },
   add(fields: Omit<Grade, "id">): Grade[] {
+    // "maths" joins an existing "Maths" instead of starting a second subject.
+    const same = read().find(
+      (g) => g.subject.trim().toLowerCase() === fields.subject.trim().toLowerCase(),
+    );
+    const subject = same ? same.subject : fields.subject;
     const next = [
-      { ...fields, id: `g${Date.now().toString(36)}` },
+      { ...fields, subject, id: `g${Date.now().toString(36)}` },
       ...read().filter((g) => !fields.testId || g.testId !== fields.testId),
     ];
     grades.save(next);
@@ -80,13 +85,18 @@ export interface SubjectGrades {
 
 /** Per-subject averages, weakest first, so the one to work on is at the top. */
 export function bySubject(list: Grade[]): SubjectGrades[] {
+  // Grouped ignoring case; shown with the first spelling met.
   const groups = new Map<string, Grade[]>();
+  const names = new Map<string, string>();
   for (const g of list) {
-    const key = g.subject.trim() || "Other";
+    const name = g.subject.trim() || "Other";
+    const key = name.toLowerCase();
     groups.set(key, [...(groups.get(key) ?? []), g]);
+    names.set(key, names.get(key) ?? name);
   }
   return [...groups.entries()]
-    .map(([subject, gs]) => {
+    .map(([key, gs]) => {
+      const subject = names.get(key) ?? key;
       const sorted = gs.toSorted((a, b) => b.date.localeCompare(a.date));
       const average = Math.round(gs.reduce((n, g) => n + percent(g), 0) / gs.length);
       const [latest, before] = sorted;

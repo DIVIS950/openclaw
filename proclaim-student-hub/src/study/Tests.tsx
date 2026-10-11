@@ -183,7 +183,18 @@ export function Tests({
                 </span>
                 <button
                   className="link-btn"
-                  onClick={() => save(list.filter((x) => x.id !== t.id))}
+                  onClick={() => {
+                    save(list.filter((x) => x.id !== t.id));
+                    toast("Test removed.", {
+                      label: "Undo",
+                      run: () => {
+                        const now = prepTests.all();
+                        if (!now.some((x) => x.id === t.id)) {
+                          save([...now, t]);
+                        }
+                      },
+                    });
+                  }}
                 >
                   Remove
                 </button>

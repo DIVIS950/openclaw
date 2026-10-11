@@ -130,6 +130,19 @@ describe("automatic saves", () => {
     ]);
     expect(() => importAll("nope")).toThrow(/isn't a Student Hub backup/);
   });
+
+  it("never offers or puts back a damaged save", () => {
+    localStorage.setItem("psh.todos", JSON.stringify([{ id: "a", text: "keep" }]));
+    for (const bad of [
+      '{"at":"2026-10-11T08:00:00.000Z","data":null}',
+      '{"at":"x","data":"xyz"}',
+    ]) {
+      localStorage.setItem("psh.backup.2026-10-11", bad);
+      expect(backups.list()).toEqual([]);
+      expect(backups.restore("2026-10-11")).toBe(false);
+      expect(JSON.parse(localStorage.getItem("psh.todos")!)).toEqual([{ id: "a", text: "keep" }]);
+    }
+  });
 });
 
 describe("exam questions", () => {
@@ -162,6 +175,17 @@ describe("calculator", () => {
     expect(calc("alert(1)")).toBe("");
     expect(calc("1/0")).toBe("Can't divide by 0");
     expect(calc("10^400")).toBe("");
+  });
+
+  it("follows BIDMAS for minus and powers, reads thousands, and keeps huge answers short", () => {
+    expect(calc("-3^2")).toBe("-9");
+    expect(calc("(-3)^2")).toBe("9");
+    expect(calc("2^-1")).toBe("0.5");
+    expect(calc("2*-3")).toBe("-6");
+    expect(calc("1,000+1")).toBe("1001");
+    expect(calc("7,5*2")).toBe("15");
+    expect(calc("2^40")).toBe("1.09951 × 10^12");
+    expect(calc("9^99")).toBe("2.95127 × 10^94");
   });
 });
 
