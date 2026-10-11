@@ -64,9 +64,15 @@ export function dayList(lessons: Lesson[], now = new Date()): { label: string; l
 
 /** The three open homework items due soonest (undated ones last). */
 export function dueNext(open: Homework[], count = 3): Homework[] {
-  return open
-    .toSorted((a, b) => (a.due ?? "\uffff").localeCompare(b.due ?? "\uffff"))
-    .slice(0, count);
+  return (
+    open
+      // Ties (undated ones, say) by title, so every device shows the same three.
+      .toSorted(
+        (a, b) =>
+          (a.due ?? "\uffff").localeCompare(b.due ?? "\uffff") || a.title.localeCompare(b.title),
+      )
+      .slice(0, count)
+  );
 }
 
 /** "Morning," over "Honza" when the name is known, else "Good morning". */

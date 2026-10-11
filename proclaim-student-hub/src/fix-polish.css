@@ -63,9 +63,24 @@
   .today-day .li.extra {
     display: flex;
   }
+  /* Beside the brief the two numbers stack and fill its height (no empty block). */
   .screen.today > .bento-tiles {
-    align-self: start;
+    align-self: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: 1fr;
   }
+  .screen.today > .bento-tiles .bento-tile {
+    justify-content: space-between;
+  }
+  .screen.today > .bento-tiles .bento-tile .big {
+    font-size: 44px;
+  }
+}
+
+/* Keyboard focus on the violet brief and the blue Now card: white, not the blue link ring. */
+.brief-card :focus-visible,
+.now-card :focus-visible {
+  outline-color: #fff;
 }
 
 /* ---------- Back button on screens opened from More ---------- */
