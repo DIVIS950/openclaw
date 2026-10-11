@@ -127,7 +127,6 @@ export function PresentButton({ hw, text }: { hw: Homework; text: string }) {
               )}
             </section>
           </div>
-          , document.querySelector(".app") ?? document.body
         </Overlay>
       )}
     </>

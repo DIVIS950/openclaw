@@ -217,7 +217,6 @@ function WeekSheet({ stats, onClose }: { stats: WeekStats; onClose: () => void }
           )}
         </div>
       </div>
-      , host
     </Overlay>
   );
 }

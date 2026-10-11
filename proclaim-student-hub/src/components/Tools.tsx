@@ -252,7 +252,6 @@ function ToolSheet({ tool, onClose }: { tool: Tool; onClose: () => void }) {
           )}
         </div>
       </div>
-      , host
     </Overlay>
   );
 }
@@ -402,7 +401,6 @@ function Calculator() {
               </div>
             </div>
           </div>
-          , document.querySelector(".app") ?? document.body
         </Overlay>
       )}
     </>

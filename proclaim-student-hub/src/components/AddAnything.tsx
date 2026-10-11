@@ -56,8 +56,7 @@ export function AddAnythingButton({
       {/* Portalled to the app root: an animated parent would otherwise trap the sheet under later cards. */}
       {open && (
         <Overlay>
-          <AddAnything onClose={() => setOpen(false)} onSaved={onSaved} />,
-          document.querySelector(".app") ?? document.body
+          <AddAnything onClose={() => setOpen(false)} onSaved={onSaved} />
         </Overlay>
       )}
     </>
