@@ -6694,6 +6694,8 @@ textarea.field.ans {
 .now-card .ring-text small {
   font-size: 9px;
   letter-spacing: 0.1em;
+  /* On the blue card: white, not the muted grey (that was 1.1:1). */
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Four tiles in a row, centred. */

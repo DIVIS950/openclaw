@@ -528,13 +528,14 @@ function Shell({
   }, [go]);
 
   // The tour: once on a new device, when Today has drawn; again from More.
+  // Leaving Today before it starts cancels it (it comes back on the next visit).
   const [touring, setTouring] = useState(false);
   useEffect(() => {
     if (homework !== null && !tour.seen() && screen === "today") {
       const id = window.setTimeout(() => setTouring(true), 900);
       return () => window.clearTimeout(id);
     }
-  }, [homework === null]);
+  }, [homework === null, screen]);
 
   // Reminders (More › Notifications): checked every minute while the app runs.
   const hwRef = useRef<Homework[]>([]);
