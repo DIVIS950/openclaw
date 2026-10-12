@@ -1,6 +1,6 @@
 {
   "name": "proclaim-student-hub",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "All your school apps in one place, with an AI study buddy.",
   "type": "module",

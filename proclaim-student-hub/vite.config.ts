@@ -1,5 +1,13 @@
+import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+
+// The release number shown in the app (package.json "version").
+const version = (
+  JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
+    version: string;
+  }
+).version;
 
 // The claude.ai page is published as one self-contained HTML file, so its
 // build must not split code into extra chunks (the SDK loads a few lazily).
@@ -39,6 +47,7 @@ const shellFirst = (): Plugin => ({
 export default defineConfig({
   // Shown in Apps so it's easy to tell which build a phone has.
   define: {
+    __VERSION__: JSON.stringify(version),
     __BUILD__: JSON.stringify(
       process.env.BUILD_STAMP ?? new Date().toISOString().slice(0, 16).replace("T", " "),
     ),

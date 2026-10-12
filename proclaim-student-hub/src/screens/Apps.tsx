@@ -216,7 +216,7 @@ export function Apps() {
       {!PAGES && (
         // Which build this device has, for when something needs checking.
         <p className="muted s11" style={{ textAlign: "center", margin: 0 }}>
-          App build {__BUILD__}
+          Version {__VERSION__} · build {__BUILD__}
         </p>
       )}
     </main>
@@ -249,7 +249,7 @@ function ParentSetup() {
           <AiKeyRow />
           <GmailCard />
           <p className="muted s11" style={{ textAlign: "center", margin: 0 }}>
-            App build {__BUILD__}
+            Version {__VERSION__} · build {__BUILD__}
           </p>
         </div>
       )}

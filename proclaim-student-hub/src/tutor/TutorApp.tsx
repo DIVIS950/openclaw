@@ -639,7 +639,7 @@ export function TutorApp() {
         </section>
 
         <p className="muted" style={{ fontSize: 12, textAlign: "center" }}>
-          Tutor Hub · build {__BUILD__}
+          Tutor Hub {__VERSION__} · build {__BUILD__}
         </p>
         {toast && (
           <div className="toast" role="status">
