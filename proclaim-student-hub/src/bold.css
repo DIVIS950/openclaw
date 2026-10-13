@@ -79,6 +79,17 @@ body:not(.tutor-page),
     font-size: clamp(28px, calc(19.6vw - 32px), 44px) !important;
   }
 }
+/* Phones: a long subject ("Czech History") wraps onto a second line instead of being cut. */
+@media (max-width: 767.98px) {
+  .now-card .now-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
 
 /* ---------- Today numbers: each tile in its own colour ---------- */
 .bento-tiles .bento-tile:nth-child(1) {
@@ -288,11 +299,14 @@ body:not(.tutor-page),
   }
 }
 
-/* Wide screens: the tiles come first in the page but sit right of the brief;
-   dense flow lets the brief fill the cell beside them. */
+/* Wide screens: the numbers sit left of the brief, so what you see, Tab and a
+   screen reader all go numbers → brief (they come first in the page too). */
 @media (min-width: 1000px) and (min-height: 600px) {
-  .screen.today {
-    grid-auto-flow: row dense;
+  .screen.today > .bento-tiles {
+    grid-column: 1;
+  }
+  .screen.today > .card.ai {
+    grid-column: 2;
   }
 }
 

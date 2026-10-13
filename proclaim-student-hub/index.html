@@ -15,7 +15,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#F6F3FF" />
+    <meta name="theme-color" content="#F6F3FF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F0E1A" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="All your school apps in one place, with an AI study buddy." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Student Hub" />
@@ -60,7 +61,9 @@
         background: var(--b-fill);
       }
       .boot-title {
-        font: 800 13px/12px system-ui, sans-serif;
+        font:
+          800 13px/12px system-ui,
+          sans-serif;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: #5b6372;
