@@ -32,6 +32,7 @@ const seed = fs.existsSync(seedFile)
 // The charset comes first: with the fonts inlined, the first bytes are all ASCII and
 // a browser would otherwise guess Latin-1 and break the non-ASCII regexes in the bundle.
 const html = `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Proclaim Student Hub</title>
 <style>
 ${css}

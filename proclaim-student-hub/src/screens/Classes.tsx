@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { courses, type Course, type CoursePost } from "../lib/store.ts";
-import { subjectVars } from "../lib/subjects.ts";
+import { courseName, subjectVars } from "../lib/subjects.ts";
 
 // The student's Classroom classes, as imported (Classroom itself is blocked for
 // outside apps at school). Go through the posts, get help, add work to homework.
@@ -98,7 +98,7 @@ export function Classes() {
                         {markOf(c.name)}
                       </span>
                       <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-                        <span style={{ fontWeight: 700 }}>{c.name}</span>
+                        <span style={{ fontWeight: 700 }}>{courseName(c.name)}</span>
                         <span className="s12 muted clip">
                           {latest ? latest.title : `${c.posts.length} posts`}
                         </span>
@@ -156,9 +156,10 @@ function ClassCard({ course }: { course: Course }) {
           {markOf(course.name)}
         </span>
         <div className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-          <h2 className="h2">{course.name}</h2>
+          <h2 className="h2">{courseName(course.name)}</h2>
           <span className="s12 muted">
-            {course.subject} · {course.posts.length} posts
+            {/* The full Classroom name here tells two classes of one subject apart. */}
+            {course.name} · {course.posts.length} posts
           </span>
         </div>
         {fresh > 0 && <span className="chip subject">{fresh} new</span>}
