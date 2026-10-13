@@ -15,7 +15,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#EEF0F4" />
+    <meta name="theme-color" content="#F6F3FF" />
     <meta name="description" content="All your school apps in one place, with an AI study buddy." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Student Hub" />
@@ -32,13 +32,14 @@
       html:not([data-theme]) body {
         margin: 0;
         height: 100%;
-        background: #eef0f4;
+        background: #f6f3ff;
       }
       .boot {
-        --b-bg: #eef0f4;
+        --b-bg: #f6f3ff;
         --b-card: #ffffff;
-        --b-fill: #e3e6ec;
-        --b-ink: #0e1116;
+        --b-fill: #ebe5f8;
+        --b-ink: #ffffff;
+        --b-edge: #e3dcf5;
         position: fixed;
         inset: 0;
         background: var(--b-bg);
@@ -74,7 +75,9 @@
         height: 168px;
         border-radius: 26px;
         background: var(--b-card);
-        box-shadow: 0 12px 28px -14px rgba(14, 17, 22, 0.22);
+        box-shadow:
+          0 0 0 2px var(--b-edge),
+          0 4px 0 2px var(--b-edge);
       }
       .boot-card.short {
         height: 112px;
@@ -91,6 +94,9 @@
         height: 68px;
         border-radius: 34px;
         background: var(--b-ink);
+        box-shadow:
+          0 0 0 2px var(--b-edge),
+          0 5px 0 2px var(--b-edge);
       }
       @keyframes boot-pulse {
         to {
@@ -113,16 +119,14 @@
       @media (prefers-color-scheme: dark) {
         html:not([data-theme]),
         html:not([data-theme]) body {
-          background: #0b0d12;
+          background: #0f0e1a;
         }
         .boot {
-          --b-bg: #0b0d12;
-          --b-card: #161a22;
-          --b-fill: #1f2430;
-          --b-ink: #f2f4f8;
-        }
-        .boot-card {
-          box-shadow: none;
+          --b-bg: #0f0e1a;
+          --b-card: #1b1930;
+          --b-fill: #252241;
+          --b-ink: #1b1930;
+          --b-edge: #2e2a4d;
         }
         .boot-title {
           color: #9aa3b2;

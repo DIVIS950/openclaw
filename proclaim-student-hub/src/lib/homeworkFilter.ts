@@ -1,4 +1,4 @@
-import { courseName } from "./subjects.ts";
+import { courseName, sameCourse } from "./subjects.ts";
 import type { Homework } from "./types.ts";
 
 /**
@@ -15,8 +15,14 @@ export function subjectChips(
   active: string;
 } {
   // Grouped by the short name, so "Y9 Spanish" and "Y9 SPANISH-ACU" are one chip.
-  const all = [...new Set(list.map((h) => courseName(h.course)).filter(Boolean))];
-  const active = selected !== "All" && all.includes(selected) ? selected : "All";
+  // Case doesn't split a chip: "ART" and "Art" are one.
+  const all: string[] = [];
+  for (const name of list.map((h) => courseName(h.course)).filter(Boolean)) {
+    if (!all.some((c) => sameCourse(c, name))) {
+      all.push(name);
+    }
+  }
+  const active = selected !== "All" ? (all.find((c) => sameCourse(c, selected)) ?? "All") : "All";
   const chips = all.slice(0, max);
   // The active one always stays visible, even past the first few.
   if (active !== "All" && !chips.includes(active)) {

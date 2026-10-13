@@ -65,7 +65,9 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
     <>
       <div className="hw-title">{hw.title}</div>
       <div className="muted" style={{ fontSize: 12 }}>
-        {hw.course === hw.source ? hw.source : `${courseName(hw.course)} · ${hw.source}`}
+        {courseName(hw.course) && hw.course !== hw.source
+          ? `${courseName(hw.course)} · ${hw.source}`
+          : hw.source}
       </div>
     </>
   );

@@ -146,6 +146,10 @@ body:not(.tutor-page),
 .brief-card .btn.link {
   color: #5b2fd6;
 }
+/* The light brief needs a dark ring (the white one is for the blue Now card). */
+:root:not([data-theme="dark"]) .brief-card :focus-visible {
+  outline-color: #5b2fd6;
+}
 :root[data-theme="dark"] .card.ai.brief-card {
   background: linear-gradient(135deg, #2c2450 0%, #3b2140 100%);
   box-shadow:
@@ -166,6 +170,11 @@ body:not(.tutor-page),
   background: rgba(255, 255, 255, 0.08);
   color: #f3eeff;
   border-color: #5a4890;
+}
+:root[data-theme="dark"] .brief-card .brief-chip.due {
+  background: #6a3df5;
+  color: #fff;
+  border-color: #6a3df5;
 }
 :root[data-theme="dark"] .brief-card .btn.link {
   color: #cbb8ff;
@@ -242,6 +251,12 @@ body:not(.tutor-page),
   .ask svg {
     width: 20px;
     height: 20px;
+  }
+  /* A right gutter on the list rows so titles and dates never sit under the button. */
+  .app.has-ask .card.rows .hw-main,
+  .app.has-ask .card.rows > .item,
+  .app.has-ask .card.rows > .mail {
+    padding-right: 52px;
   }
 }
 

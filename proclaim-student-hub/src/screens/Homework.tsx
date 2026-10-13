@@ -9,7 +9,7 @@ import { syncStatus } from "../lib/classroomSync.ts";
 import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
 import { subjectChips } from "../lib/homeworkFilter.ts";
 import { courses, homeworkXp } from "../lib/store.ts";
-import { courseName, subjectTone } from "../lib/subjects.ts";
+import { courseName, sameCourse, subjectTone } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { gmailLink } from "../pages/gmailLink.ts";
@@ -60,7 +60,9 @@ export function HomeworkScreen() {
       setSubject(active);
     }
   }, [active, subject]);
-  const shown = viewList.filter((h) => active === "All" || courseName(h.course) === active);
+  const shown = viewList.filter(
+    (h) => active === "All" || sameCourse(courseName(h.course), active),
+  );
   // Only a check that really read emails earns "just now"; with no Gmail it would be a fake.
   const checkedEmails = Boolean(sync && !sync.error && sync.checked > 0);
   const syncLabel = data.demo
@@ -352,7 +354,7 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
       >
         <span className={hw.done ? "hw-title done" : "hw-title"}>{hw.title}</span>
         <span className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          {hw.course && (
+          {courseName(hw.course) && (
             <span className={`chip tone-${subjectTone(courseName(hw.course))}`}>
               {courseName(hw.course)}
             </span>

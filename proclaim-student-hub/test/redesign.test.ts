@@ -45,3 +45,34 @@ describe("courseName on hostile input", () => {
     expect(out.length).toBeLessThanOrEqual(80);
   });
 });
+
+describe("courseName edge cases (jury r18)", () => {
+  it("keeps acronyms and fixes only shouted words", () => {
+    expect(courseName("9i PSHEE")).toBe("PSHEE");
+    expect(courseName("IGCSE MATHS")).toBe("IGCSE Maths");
+    expect(courseName("Y9 ART")).toBe("Art");
+  });
+
+  it("turns subject-part codes into words instead of dropping them", () => {
+    expect(courseName("Y9 Science-BIO")).toBe("Biology");
+    expect(courseName("Y9 Science-CHE")).toBe("Chemistry");
+    expect(courseName("Y9 ENGLISH-LIT")).toBe("English Literature");
+    expect(courseName("Y9 ENGLISH-LANG")).toBe("English Language");
+    expect(courseName("Y9 SPANISH-ACU")).toBe("Spanish");
+  });
+
+  it("gives nothing for a blank class", () => {
+    expect(courseName("   ")).toBe("");
+  });
+});
+
+describe("subjectChips groups case-insensitively", () => {
+  it("makes one chip for ART and Art", async () => {
+    const { subjectChips } = await import("../src/lib/homeworkFilter.ts");
+    const hw = (course: string) =>
+      ({ id: course, title: "t", course, source: "Classroom", done: false }) as never;
+    const { chips, active } = subjectChips([hw("Y9 ART"), hw("Y9 Art")], "art");
+    expect(chips).toEqual(["Art"]);
+    expect(active).toBe("Art");
+  });
+});

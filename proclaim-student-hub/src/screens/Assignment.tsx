@@ -178,7 +178,7 @@ export function Assignment({ hw }: { hw: Homework }) {
             <Icon name="chevronLeft" size={20} />
           </button>
           <div className="row" style={{ gap: 8, minWidth: 0, justifyContent: "flex-end" }}>
-            {hw.course && (
+            {courseName(hw.course) && (
               <span className={`chip tone-${subjectTone(courseName(hw.course))}`}>
                 {courseName(hw.course)}
               </span>

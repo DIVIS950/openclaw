@@ -112,6 +112,46 @@ export function subjectTone(name: string): Tone {
   return TONE_CYCLE[h % TONE_CYCLE.length];
 }
 
+/** Course-code endings that name a real part of the subject, not a teacher. */
+const PART_CODES: Record<string, string> = {
+  BIO: "Biology",
+  CHE: "Chemistry",
+  CHEM: "Chemistry",
+  PHY: "Physics",
+  PHYS: "Physics",
+  LIT: "Literature",
+  LANG: "Language",
+  HL: "HL",
+  SL: "SL",
+};
+
+/** Capitals that are names in their own right, kept as they are. */
+const ACRONYMS = new Set([
+  "PSHE",
+  "PSHEE",
+  "GCSE",
+  "IGCSE",
+  "ICT",
+  "RE",
+  "PE",
+  "DT",
+  "IB",
+  "MYP",
+  "DP",
+  "TOK",
+  "EAL",
+  "ESL",
+  "CAS",
+  "STEM",
+  "SL",
+  "HL",
+]);
+
+/** Two class names are the same chip when their short names match, ignoring case. */
+export function sameCourse(a: string, b: string): boolean {
+  return a.toLocaleLowerCase() === b.toLocaleLowerCase();
+}
+
 /**
  * A class name as a student says it: "Y9 SPANISH-ACU" → "Spanish",
  * "9I Computer Science 26-27" → "Computer Science", "Y9 Math 26/27" → "Maths".
@@ -129,12 +169,24 @@ export function courseName(raw: string): string {
   );
   // Trailing school year: "26-27", "26/27", "2026/2027".
   s = s.replace(/\s+(?:20)?\d{2}\s*[-/]\s*(?:20)?\d{2}$/, "");
-  // Trailing teacher/set code: "-ACU".
-  s = s.replace(/-[A-Z]{2,4}$/, "");
+  // Trailing code: a subject part ("-BIO", "-LIT") becomes a word, a teacher/set code ("-ACU") goes.
+  let part = "";
+  const code = s.match(/^(.+?)-([A-Za-z]{2,4})$/);
+  if (code && (PART_CODES[code[2].toUpperCase()] || /^[A-Z]+$/.test(code[2]))) {
+    s = code[1].trim();
+    part = PART_CODES[code[2].toUpperCase()] ?? "";
+  }
   s = s.replace(/^Math$/i, "Maths").replace(/^Český jazyk a literatura$/i, "Český jazyk");
-  // Shouted names: "SPANISH" → "Spanish".
-  if (s.length > 3 && s === s.toUpperCase()) {
-    s = s.charAt(0) + s.slice(1).toLowerCase();
+  // Shouted names: "SPANISH" → "Spanish", "IGCSE MATHS" → "IGCSE Maths"; acronyms stay.
+  if (s.length >= 3 && s === s.toUpperCase() && s !== s.toLowerCase()) {
+    s = s
+      .split(" ")
+      .map((w) => (w.length < 3 || ACRONYMS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()))
+      .join(" ");
+  }
+  if (part) {
+    // "Science-BIO" is just Biology; "English-LIT" is English Literature.
+    s = /^science$/i.test(s) ? part : `${s} ${part}`;
   }
   return s.trim() || name;
 }
