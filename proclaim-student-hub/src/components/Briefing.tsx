@@ -122,6 +122,20 @@ export function briefingWords(
   return words;
 }
 
+/** A run of bold words becomes one piece, so its highlight is one unbroken mark. */
+export function joinBold(words: Word[]): Word[] {
+  const out: Word[] = [];
+  for (const w of words) {
+    const last = out.at(-1);
+    if (last && last.bold && w.bold && w.space) {
+      last.text += ` ${w.text}`;
+    } else {
+      out.push({ ...w });
+    }
+  }
+  return out;
+}
+
 interface Piece {
   text: string;
   bold?: boolean;
@@ -271,7 +285,7 @@ export function Briefing() {
         </div>
       ) : (
         <p className="brief" aria-label={things === 0 ? "Nothing urgent today" : undefined}>
-          {words.map((x, k) => (
+          {joinBold(words).map((x, k) => (
             <span key={k} style={{ "--i": k } as React.CSSProperties}>
               {x.space ? " " : ""}
               {x.bold ? <b>{x.text}</b> : x.text}

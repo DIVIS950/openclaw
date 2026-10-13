@@ -7,6 +7,7 @@ import "../bento.css";
 import "../fix-tutor.css";
 import "../fix-flow.css";
 import "../fix-polish.css";
+import "../bold.css";
 
 // The Tutor Hub is light by default (it follows the tutor's phone if they pick
 // "auto" later) and uses the green accent, so it never looks like the student's app.

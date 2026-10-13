@@ -9,7 +9,7 @@ import { syncStatus } from "../lib/classroomSync.ts";
 import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
 import { subjectChips } from "../lib/homeworkFilter.ts";
 import { courses, homeworkXp } from "../lib/store.ts";
-import { subjectTone } from "../lib/subjects.ts";
+import { courseName, subjectTone } from "../lib/subjects.ts";
 import { OTHER_SOURCES, type Homework, type Source } from "../lib/types.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { gmailLink } from "../pages/gmailLink.ts";
@@ -60,7 +60,7 @@ export function HomeworkScreen() {
       setSubject(active);
     }
   }, [active, subject]);
-  const shown = viewList.filter((h) => active === "All" || h.course === active);
+  const shown = viewList.filter((h) => active === "All" || courseName(h.course) === active);
   // Only a check that really read emails earns "just now"; with no Gmail it would be a fake.
   const checkedEmails = Boolean(sync && !sync.error && sync.checked > 0);
   const syncLabel = data.demo
@@ -89,10 +89,9 @@ export function HomeworkScreen() {
           <h1 className="h1" style={{ fontSize: 36 }}>
             Homework
           </h1>
-          {data.demo || PAGES ? (
-            // Nothing to check from here: Classroom arrives through claude.ai.
+          {data.demo ? (
             <span className="chip cyan">{syncLabel}</span>
-          ) : (
+          ) : PAGES ? null : ( // Nothing to check from here (Classroom arrives through claude.ai): no chip.
             <button
               className="chip cyan"
               style={{ border: 0 }}
@@ -353,7 +352,11 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
       >
         <span className={hw.done ? "hw-title done" : "hw-title"}>{hw.title}</span>
         <span className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          {hw.course && <span className={`chip tone-${subjectTone(hw.course)}`}>{hw.course}</span>}
+          {hw.course && (
+            <span className={`chip tone-${subjectTone(courseName(hw.course))}`}>
+              {courseName(hw.course)}
+            </span>
+          )}
           <span className={urgent ? "chip due" : "chip"}>{dueText(hw)}</span>
           {hw.source !== "Classroom" && hw.source !== "Other" && (
             <span className="chip">{hw.source}</span>

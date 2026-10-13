@@ -18,7 +18,7 @@ import {
   type PolishResult,
 } from "../lib/polish.ts";
 import { dayOf } from "../lib/study.ts";
-import { subjectTone } from "../lib/subjects.ts";
+import { courseName, subjectTone } from "../lib/subjects.ts";
 import type { HandInResult, Homework } from "../lib/types.ts";
 import { useEscape } from "../lib/useEscape.ts";
 import { makeGoogleDoc } from "../pages/googleDocs.ts";
@@ -179,7 +179,9 @@ export function Assignment({ hw }: { hw: Homework }) {
           </button>
           <div className="row" style={{ gap: 8, minWidth: 0, justifyContent: "flex-end" }}>
             {hw.course && (
-              <span className={`chip tone-${subjectTone(hw.course)}`}>{hw.course}</span>
+              <span className={`chip tone-${subjectTone(courseName(hw.course))}`}>
+                {courseName(hw.course)}
+              </span>
             )}
             {data.setDue ? (
               // A date picker under the chip: homework that came without a date can get one.

@@ -111,3 +111,27 @@ export function subjectTone(name: string): Tone {
   }
   return TONE_CYCLE[h % TONE_CYCLE.length];
 }
+
+/**
+ * A class name as a student says it: "Y9 SPANISH-ACU" → "Spanish",
+ * "9I Computer Science 26-27" → "Computer Science", "Y9 Math 26/27" → "Maths".
+ * School codes (year group, class letter, school year, teacher code) are dropped.
+ */
+export function courseName(raw: string): string {
+  let s = raw.trim();
+  // Leading year group / class: "Y9 P - ", "Y9 _ ", "Y9i ", "Y9 ", "9I ", "9i ".
+  s = s.replace(
+    /^(?:y\s?\d{1,2}[a-z]?|\d{1,2}[a-z])\b(?:\s*[a-z]\s*-\s*|\s*_\s*|\s*-\s*|\s+)/i,
+    "",
+  );
+  // Trailing school year: "26-27", "26/27", "2026/2027".
+  s = s.replace(/\s+(?:20)?\d{2}\s*[-/]\s*(?:20)?\d{2}$/, "");
+  // Trailing teacher/set code: "-ACU".
+  s = s.replace(/-[A-Z]{2,4}$/, "");
+  s = s.replace(/^Math$/i, "Maths").replace(/^Český jazyk a literatura$/i, "Český jazyk");
+  // Shouted names: "SPANISH" → "Spanish".
+  if (s.length > 3 && s === s.toUpperCase()) {
+    s = s.charAt(0) + s.slice(1).toLowerCase();
+  }
+  return s.trim() || raw.trim();
+}

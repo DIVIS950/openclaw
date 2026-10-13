@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useApp } from "../context.ts";
 import { dueLabel, isUrgent } from "../lib/format.ts";
 import { homeworkXp } from "../lib/store.ts";
-import { subjectVars } from "../lib/subjects.ts";
+import { courseName, subjectVars } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
 
 /** One homework line with a tick box that marks it done in Google too. */
@@ -65,7 +65,7 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
     <>
       <div className="hw-title">{hw.title}</div>
       <div className="muted" style={{ fontSize: 12 }}>
-        {hw.course === hw.source ? hw.source : `${hw.course} · ${hw.source}`}
+        {hw.course === hw.source ? hw.source : `${courseName(hw.course)} · ${hw.source}`}
       </div>
     </>
   );

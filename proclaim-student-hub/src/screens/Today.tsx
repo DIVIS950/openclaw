@@ -8,6 +8,7 @@ import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
 import { dueLabel, greeting, isUrgent } from "../lib/format.ts";
 import { level, progress, timetable, todoXp } from "../lib/store.ts";
 import { addDays, dayOf, daysBetween, groupTodos, prepTests, todos } from "../lib/study.ts";
+import { courseName } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 
@@ -247,7 +248,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
             <button key={h.id} className="li" onClick={() => openAssignment(h)}>
               <span className="stack li-main" style={{ gap: 1 }}>
                 <span className="li-title">{h.title}</span>
-                <span className="s12 muted li-course">{h.course}</span>
+                <span className="s12 muted li-course">{courseName(h.course)}</span>
               </span>
               <span className={`s13 due-when${isUrgent(h.due) ? " urgent" : ""}`}>
                 {dueLabel(h.due)}

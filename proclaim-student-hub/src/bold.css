@@ -1,0 +1,282 @@
+/* ==========================================================================
+   Bold: the colourful look (loads last, wins where it differs).
+   Same layout as Bento, a playful finish: a lavender ground, white cards with
+   a chunky outline and a solid lip underneath (like a pressable sticker),
+   soft colour fills per subject, a sunny daily brief and a light tab bar.
+   Motion stays transform/opacity only; shadows are solid, never animated.
+   ========================================================================== */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f6f3ff;
+  --card: #ffffff;
+  --card-2: #f1edfb;
+  --surface2: #f1edfb;
+  --seg: #ebe5f8;
+  --line: rgba(60, 40, 120, 0.1);
+  /* The sticker edge: a 2px outline and a 4px lip below. */
+  --edge: #e3dcf5;
+  --shadow: 0 0 0 2px var(--edge), 0 4px 0 2px var(--edge);
+  --shadow-lg: 0 0 0 2px var(--edge), 0 6px 0 2px var(--edge);
+  --glass: #f6f3ff;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f0e1a;
+  --card: #1b1930;
+  --card-2: #252241;
+  --surface: #1b1930;
+  --surface2: #252241;
+  --seg: #252241;
+  --line: rgba(255, 255, 255, 0.08);
+  --edge: #2e2a4d;
+  --shadow: 0 0 0 2px var(--edge), 0 4px 0 2px var(--edge);
+  --shadow-lg: 0 0 0 2px var(--edge), 0 6px 0 2px var(--edge);
+  --hero: #1b1930;
+  --glass: #0f0e1a;
+}
+
+/* ---------- Ground: three colour washes (blue, pink, sun) ---------- */
+body:not(.tutor-page),
+.app:not(.tutor-hub) {
+  background:
+    radial-gradient(60% 40% at 0% -4%, rgba(47, 91, 255, 0.16), transparent 70%),
+    radial-gradient(50% 36% at 104% 6%, rgba(240, 88, 142, 0.14), transparent 70%),
+    radial-gradient(60% 40% at 30% 108%, rgba(255, 194, 26, 0.16), transparent 70%), var(--bg);
+}
+:root[data-theme="dark"] body:not(.tutor-page),
+:root[data-theme="dark"] .app:not(.tutor-hub) {
+  background:
+    radial-gradient(60% 40% at 0% -4%, rgba(91, 124, 255, 0.2), transparent 70%),
+    radial-gradient(50% 36% at 104% 6%, rgba(240, 88, 142, 0.14), transparent 70%),
+    radial-gradient(60% 40% at 30% 108%, rgba(255, 194, 26, 0.08), transparent 70%), var(--bg);
+}
+
+/* ---------- Cards and buttons: sticker edges ---------- */
+.card,
+.round,
+.today-head .avatar,
+.bento-tile {
+  border-radius: 24px;
+}
+.round:active,
+.bento-tile:active {
+  transform: translateY(2px);
+}
+.btn {
+  border-radius: 16px;
+}
+
+/* The lesson on now: the one solid block of colour, with a deep lip. */
+.now-card {
+  box-shadow: 0 6px 0 color-mix(in oklab, var(--accent) 62%, #000);
+}
+
+/* ---------- Today numbers: each tile in its own colour ---------- */
+.bento-tiles .bento-tile:nth-child(1) {
+  background: var(--orange-s);
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--orange) 45%, transparent),
+    0 4px 0 2px color-mix(in oklab, var(--orange) 45%, transparent);
+}
+.bento-tiles .bento-tile:nth-child(2) {
+  background: var(--pink-s);
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--pink) 45%, transparent),
+    0 4px 0 2px color-mix(in oklab, var(--pink) 45%, transparent);
+}
+.bento-tiles .bento-tile .eyebrow {
+  color: var(--ink2);
+}
+.bento-tiles .bento-tile .s13.muted {
+  color: var(--ink2);
+}
+
+/* ---------- Daily brief: sunny, calmer than the Now card ----------
+   A warm yellow-to-pink card with dark text; each key phrase gets one
+   highlighter stroke (a run of bold words is one mark, no gaps). */
+.card.ai.brief-card {
+  color: var(--ink);
+  background: linear-gradient(135deg, #fff5d1 0%, #ffe9f1 100%);
+  box-shadow:
+    0 0 0 2px #ffd978,
+    0 4px 0 2px #ffd978;
+}
+.card.ai.brief-card::before,
+.card.ai.brief-card::after {
+  display: none;
+}
+:root .card.ai.brief-card .chip.violet {
+  background: #6a3df5;
+  color: #fff;
+  border: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.brief-card .s12.muted {
+  color: #5c4a1e;
+}
+.card.ai.brief-card .brief {
+  color: #2b2433;
+  font-weight: 600;
+}
+.card.ai.brief-card .brief b {
+  color: #1a1420;
+  font-weight: 800;
+  text-decoration: none;
+  background: linear-gradient(transparent 56%, rgba(255, 184, 0, 0.55) 56%);
+  border-radius: 2px;
+  padding: 0 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.brief-card .brief-chip {
+  background: #fff;
+  color: #3a2a63;
+  border: 2px solid #f3c8dc;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.brief-card .brief-chip.due {
+  background: #6a3df5;
+  color: #fff;
+  border-color: #6a3df5;
+  box-shadow: 0 3px 0 #4421b8;
+}
+.brief-card .btn.link {
+  color: #5b2fd6;
+}
+:root[data-theme="dark"] .card.ai.brief-card {
+  background: linear-gradient(135deg, #2c2450 0%, #3b2140 100%);
+  box-shadow:
+    0 0 0 2px #4b3a7a,
+    0 4px 0 2px #4b3a7a;
+}
+:root[data-theme="dark"] .brief-card .s12.muted {
+  color: #d9cfa8;
+}
+:root[data-theme="dark"] .card.ai.brief-card .brief {
+  color: #efe9ff;
+}
+:root[data-theme="dark"] .card.ai.brief-card .brief b {
+  color: #fff;
+  background: linear-gradient(transparent 56%, rgba(255, 184, 0, 0.38) 56%);
+}
+:root[data-theme="dark"] .brief-card .brief-chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3eeff;
+  border-color: #5a4890;
+}
+:root[data-theme="dark"] .brief-card .btn.link {
+  color: #cbb8ff;
+}
+
+/* ---------- Chips: soft fill with a matching rim ---------- */
+.chip[class*="tone-"],
+.chip.due,
+.chip.cyan,
+.chip.violet,
+.chip.streak {
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, currentColor 28%, transparent);
+}
+.fchip {
+  border-width: 2px;
+}
+.fchip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 0 color-mix(in oklab, var(--accent) 60%, #000);
+}
+
+/* Section labels ("Due today", "This week") in the accent colour. */
+.sec {
+  color: var(--accent-t);
+}
+
+/* Homework ticks: a chunkier ring. */
+.tick {
+  border-width: 3px;
+}
+
+/* ---------- Tab bar: a light sticker bar, the page's colour shows active ---------- */
+.app:not(.tutor-hub) .nav {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 2px var(--edge),
+    0 5px 0 2px var(--edge),
+    0 18px 30px -18px rgba(40, 20, 90, 0.35);
+}
+.app:not(.tutor-hub) .nav-item,
+.app:not(.tutor-hub) .nav-item[aria-current="page"] {
+  color: var(--ink);
+}
+.app:not(.tutor-hub) .nav-item {
+  opacity: 0.62;
+}
+.app:not(.tutor-hub) .nav-item[aria-current="page"] {
+  opacity: 1;
+  color: var(--accent-t);
+}
+.app:not(.tutor-hub) .nav-fade {
+  background: linear-gradient(to bottom, transparent, var(--bg) 62%);
+}
+
+/* ---------- Ask AI: a violet sticker; on phones just the sparkle ---------- */
+.ask {
+  background: #6a3df5;
+  color: #fff;
+  box-shadow: 0 4px 0 #4421b8;
+}
+@media (max-width: 767px) {
+  .ask {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    justify-content: center;
+  }
+  .ask .ask-label {
+    display: none;
+  }
+  .ask svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ---------- Phone and iPad portrait: numbers before the brief ----------
+   The two count tiles move up under the Now card so "Due today" and "Next
+   test" are on the first screen; the brief is a little more compact. */
+@media (max-width: 999.98px), (max-height: 599.98px) {
+  .screen.today > * {
+    order: 2;
+  }
+  .screen.today > .banner,
+  .screen.today > .today-head,
+  .screen.today > .now-card,
+  .screen.today > .bento-tiles {
+    order: 0;
+  }
+  .card.ai.brief-card {
+    padding: 14px 16px 12px;
+    gap: 10px;
+  }
+  .card.ai.brief-card .brief {
+    font-size: 16.5px;
+    line-height: 1.42;
+  }
+  .brief-card .brief-chip {
+    height: 34px;
+  }
+  .bento-tile .big {
+    font-size: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .round:active,
+  .bento-tile:active {
+    transform: none;
+  }
+}
