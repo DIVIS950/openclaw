@@ -27,8 +27,10 @@ function resolve(pref: ThemePref): "dark" | "light" {
 export function applyTheme(pref: ThemePref = themePref()): "dark" | "light" {
   const mode = resolve(pref);
   document.documentElement.dataset.theme = mode;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  meta?.setAttribute("content", mode === "dark" ? "#0F0E1A" : "#F6F3FF");
+  // Both metas (light/dark media): the app's own choice wins over the device setting.
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute("content", mode === "dark" ? "#0F0E1A" : "#F6F3FF");
+  }
   return mode;
 }
 
