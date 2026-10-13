@@ -224,7 +224,8 @@ export function Assignment({ hw }: { hw: Homework }) {
         <div className="do-steps" aria-label="Progress">
           {["Read brief", "Write it", "Hand in"].map((label, i) => {
             // "Read brief" only counts as done when there was a brief to read.
-            const at = words > 0 ? 2 : hw.description ? 1 : 0;
+            // Ticked off: every step is done.
+            const at = hw.done ? 3 : words > 0 ? 2 : hw.description ? 1 : 0;
             return (
               <div key={label} className={i < at ? "dstep done" : i === at ? "dstep now" : "dstep"}>
                 <i />

@@ -76,3 +76,13 @@ describe("subjectChips groups case-insensitively", () => {
     expect(active).toBe("Art");
   });
 });
+
+describe("courseName re-test edge cases", () => {
+  it("doesn't repeat a subject the code repeats", () => {
+    expect(courseName("Y9 Biology-BIO")).toBe("Biology");
+  });
+  it("capitalises all-lower-case names", () => {
+    expect(courseName("y9 art")).toBe("Art");
+    expect(courseName("český jazyk")).toBe("Český jazyk");
+  });
+});

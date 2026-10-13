@@ -184,9 +184,14 @@ export function courseName(raw: string): string {
       .map((w) => (w.length < 3 || ACRONYMS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()))
       .join(" ");
   }
+  // All lower case ("y9 art"): a capital first letter, so it matches "Art".
+  if (s && s === s.toLowerCase() && s !== s.toUpperCase()) {
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+  }
   if (part) {
-    // "Science-BIO" is just Biology; "English-LIT" is English Literature.
-    s = /^science$/i.test(s) ? part : `${s} ${part}`;
+    // "Science-BIO" is just Biology; "Biology-BIO" stays Biology; "English-LIT" is English Literature.
+    const repeats = s.toLowerCase().endsWith(part.toLowerCase());
+    s = repeats ? s : /^science$/i.test(s) ? part : `${s} ${part}`;
   }
   return s.trim() || name;
 }
