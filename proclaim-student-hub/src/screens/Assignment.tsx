@@ -17,6 +17,7 @@ import {
   type PolishArea,
   type PolishResult,
 } from "../lib/polish.ts";
+import { homeworkXp } from "../lib/store.ts";
 import { dayOf } from "../lib/study.ts";
 import { courseName, subjectTone } from "../lib/subjects.ts";
 import type { HandInResult, Homework } from "../lib/types.ts";
@@ -29,6 +30,13 @@ const SAVE_DELAY_MS = 1200;
 
 export function Assignment({ hw }: { hw: Homework }) {
   const { data, back, ai, handleError, toast, openAi, replaceHomework } = useApp();
+  // Ticked off: "Was due 1 Oct", never a red "Overdue".
+  const dueSoon =
+    !hw.done && Boolean(hw.due) && new Date(hw.due ?? "").getTime() - Date.now() < 36 * 3600_000;
+  const dueShown =
+    hw.done && hw.due
+      ? `Was due ${new Date(hw.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+      : dueLabel(hw.due);
   const [text, setText] = useState("");
   const [state, setState] = useState<SaveState>("loading");
   const [link, setLink] = useState<string | null>(null);
@@ -185,10 +193,8 @@ export function Assignment({ hw }: { hw: Homework }) {
             )}
             {data.setDue ? (
               // A date picker under the chip: homework that came without a date can get one.
-              <label
-                className={`chip date-chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " due" : ""}`}
-              >
-                {hw.due ? dueLabel(hw.due) : "Set due date"}
+              <label className={`chip date-chip${dueSoon ? " due" : ""}`}>
+                {hw.due ? dueShown : "Set due date"}
                 <input
                   type="date"
                   aria-label="Due date"
@@ -208,11 +214,7 @@ export function Assignment({ hw }: { hw: Homework }) {
                 />
               </label>
             ) : (
-              <span
-                className={`chip${hw.due && new Date(hw.due).getTime() - Date.now() < 36 * 3600_000 ? " due" : ""}`}
-              >
-                {dueLabel(hw.due)}
-              </span>
+              <span className={`chip${dueSoon ? " due" : ""}`}>{dueShown}</span>
             )}
           </div>
         </div>
@@ -450,17 +452,44 @@ export function Assignment({ hw }: { hw: Homework }) {
         </section>
       )}
 
-      <div className="dock">
-        <FocusButton title={hw.title} label="Focus 25" className="btn" />
-        <button
-          className="btn primary"
-          style={{ flex: 1 }}
-          disabled={state === "loading"}
-          onClick={() => (text.trim() ? setPolish("handin") : setSheet(true))}
-        >
-          Hand in
-        </button>
-      </div>
+      {hw.done ? (
+        // Already ticked off: say so, and offer the way back instead of Hand in.
+        <div className="dock">
+          <span className="chip tone-green" style={{ height: 44 }}>
+            <Icon name="check" size={15} />
+            Done
+          </span>
+          <button
+            className="btn"
+            style={{ flex: 1 }}
+            onClick={async () => {
+              replaceHomework({ ...hw, done: false });
+              try {
+                await data.setDone(hw, false);
+                homeworkXp.undo(hw.id);
+                toast("Back on your to-do list");
+              } catch (err) {
+                replaceHomework(hw);
+                handleError(err);
+              }
+            }}
+          >
+            Mark not done
+          </button>
+        </div>
+      ) : (
+        <div className="dock">
+          <FocusButton title={hw.title} label="Focus 25" className="btn" />
+          <button
+            className="btn primary"
+            style={{ flex: 1 }}
+            disabled={state === "loading"}
+            onClick={() => (text.trim() ? setPolish("handin") : setSheet(true))}
+          >
+            Hand in
+          </button>
+        </div>
+      )}
 
       {polish && (
         <PolishSheet

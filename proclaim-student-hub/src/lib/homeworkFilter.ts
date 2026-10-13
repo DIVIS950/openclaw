@@ -9,7 +9,7 @@ import type { Homework } from "./types.ts";
 export function subjectChips(
   list: Homework[],
   selected: string,
-  max = 6,
+  max = 20,
 ): {
   chips: string[];
   active: string;

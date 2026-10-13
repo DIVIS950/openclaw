@@ -302,3 +302,25 @@ body:not(.tutor-page),
     transform: none;
   }
 }
+
+/* Wide screens: the subject filters wrap instead of hiding past the column edge
+   (a mouse wheel can't scroll them sideways). */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .split .fchips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* Tutor Hub has no side rail: no rail gap, and its toast stays centred on the screen. */
+@media (min-width: 768px) and (min-height: 600px) {
+  .app.tutor-hub {
+    padding-left: 0;
+  }
+  .tutor-hub .toast {
+    left: 24px;
+    right: 24px;
+    max-width: 560px;
+    margin-inline: auto;
+  }
+}
