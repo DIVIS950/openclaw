@@ -91,7 +91,7 @@ describe("spotting tests", () => {
     ];
     const s = suggestTests({ homework, courses, existing: [] }, TODAY);
     expect(s.map((x) => [x.subject, x.topic, x.date])).toEqual([
-      ["Y9 Spanish", "Spanish vocab test", ""],
+      ["Spanish", "Spanish vocab test", ""],
       ["Czech", "PŘÍPRAVA K TESTU 6. 10.", "2026-10-06"],
     ]);
     expect(

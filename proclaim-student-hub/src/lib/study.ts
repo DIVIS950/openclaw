@@ -1,5 +1,6 @@
 import type { LabPack, Subject as LabSubject } from "../lab/model.ts";
 import { schedule, type Course } from "./store.ts";
+import { courseName } from "./subjects.ts";
 import type { Homework } from "./types.ts";
 
 // The Study hub's data: to-dos, notes, tests with a day-by-day prep plan, and
@@ -75,6 +76,8 @@ export interface Todo {
 
 /** Fired on window whenever the to-do list is saved. */
 export const TODOS_CHANGED = "psh:todos";
+/** Fired when the notes list changes, so an open Notes list can redraw. */
+export const NOTES_CHANGED = "psh:notes";
 
 export const todos = {
   all: (): Todo[] =>
@@ -139,7 +142,16 @@ export function noteKind(n: Note): NoteKind {
 export const notes = {
   all: (): Note[] =>
     readList<Note>("psh.notes", ["id", "title", "subject", "body", "updatedAt", "packId"]),
-  save: (list: Note[]) => write("psh.notes", list),
+  save(list: Note[]): boolean {
+    const ok = write("psh.notes", list);
+    // An open Notes list redraws when Add anything saves a note.
+    try {
+      window.dispatchEvent(new Event(NOTES_CHANGED));
+    } catch {
+      // No window (tests): nothing on screen to redraw.
+    }
+    return ok;
+  },
   upsert(note: Note): Note[] {
     const list = notes.all();
     const next = list.some((n) => n.id === note.id)
@@ -426,7 +438,7 @@ export function suggestTests(
     if (!h.done && TEST_WORDS.test(h.title)) {
       const due = h.due?.slice(0, 10) ?? "";
       add({
-        subject: h.course,
+        subject: courseName(h.course),
         topic: h.title,
         date: due && due >= today ? due : dateInTitle(h.title, today),
         from: "Homework",
@@ -439,7 +451,7 @@ export function suggestTests(
       if (TEST_WORDS.test(p.title) && p.date && daysBetween(p.date, today) <= 7) {
         const date = dateInTitle(p.title, today);
         if (!date || date >= today) {
-          add({ subject: c.subject, topic: p.title, date, from: c.name });
+          add({ subject: courseName(c.subject), topic: p.title, date, from: c.name });
         }
       }
     }

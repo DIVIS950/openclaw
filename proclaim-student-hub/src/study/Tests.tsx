@@ -115,7 +115,11 @@ export function Tests({
                   {s.date ? ` · ${dayLabel(s.date, today)}` : " · date unknown"}
                 </span>
               </span>
-              <button className="btn primary sm" onClick={() => setAdding(s)}>
+              <button
+                className="btn primary sm"
+                style={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                onClick={() => setAdding(s)}
+              >
                 <Icon name="plus" size={16} />
                 Plan it
               </button>

@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 
-/** A number that counts up from 0 when it first appears (1.4 s, eased); static with reduced motion. */
+/**
+ * A number that counts up from 0 when it first appears (1.4 s, eased); static with
+ * reduced motion. Small numbers (under 10) just show: counting to 1 adds nothing, and on a
+ * slow phone a held "0" reads as "nothing due".
+ */
 export function CountUp({ n, delay = 500 }: { n: number; delay?: number }) {
   const reduced =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    n < 10 ||
+    (typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
   const [shown, setShown] = useState(reduced ? n : 0);
   useEffect(() => {
     if (reduced) {

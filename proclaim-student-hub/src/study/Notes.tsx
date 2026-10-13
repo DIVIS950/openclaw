@@ -6,6 +6,7 @@ import { photoToImageInput } from "../lib/image.ts";
 import {
   labHandoff,
   newId,
+  NOTES_CHANGED,
   noteKind,
   notes,
   searchNotes,
@@ -63,6 +64,16 @@ export function Notes({
     }
     wasOpen.current = open;
   }, [open, onClose]);
+  // A note saved elsewhere (Add anything) shows up in the list straight away.
+  useEffect(() => {
+    const reload = () => {
+      if (!wasOpen.current) {
+        setList(notes.all());
+      }
+    };
+    window.addEventListener(NOTES_CHANGED, reload);
+    return () => window.removeEventListener(NOTES_CHANGED, reload);
+  }, []);
   // Leaving Notes by the tab bar with a new note still blank: don't keep it.
   useEffect(() => () => void dropBlank(null), []);
   const [reading, setReading] = useState(false);

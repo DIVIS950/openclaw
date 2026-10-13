@@ -3,7 +3,6 @@ import { useApp } from "../context.ts";
 import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
 import { nowLesson } from "../lib/nowLesson.ts";
 import { timetable } from "../lib/store.ts";
-import { CountUp } from "./CountUp.tsx";
 import { Icon } from "./Icon.tsx";
 
 /** The first lesson of the next day with school (tomorrow onwards). */
@@ -113,7 +112,7 @@ export function NowCard() {
             />
           </svg>
           <span className="ring-text">
-            <b>{big === null ? lesson.start : <CountUp n={big} delay={600} />}</b>
+            <b>{big === null ? lesson.start : big}</b>
             <small>{big === null ? "STARTS" : "MIN"}</small>
           </span>
         </span>

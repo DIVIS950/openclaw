@@ -213,10 +213,15 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
         <button className="bento-tile" onClick={() => go("homework")}>
           <span className="eyebrow">Due today</span>
           <span className="big t-orange">
-            <CountUp n={dueToday} />
+            {/* Still loading: a dash, never a "0" that reads as "nothing due". */}
+            {homework === null ? "–" : <CountUp n={dueToday} />}
           </span>
           <span className="s13 muted">
-            {dueWeek > 0 ? `${dueWeek} more this week` : "Nothing else this week"}
+            {homework === null
+              ? "Loading…"
+              : dueWeek > 0
+                ? `${dueWeek} more this week`
+                : "Nothing else this week"}
           </span>
         </button>
         <button className="bento-tile" onClick={() => go("tests")}>
