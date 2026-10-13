@@ -72,6 +72,14 @@ body:not(.tutor-page),
   box-shadow: 0 6px 0 color-mix(in oklab, var(--accent) 62%, #000);
 }
 
+/* Under 390px the subject name shrinks to fit beside the ring ("Geography" at 320px),
+   instead of being cut off. Room for text there is about the width minus 160px. */
+@media (max-width: 389.98px) {
+  .now-card .now-title {
+    font-size: clamp(28px, calc(19.6vw - 32px), 44px) !important;
+  }
+}
+
 /* ---------- Today numbers: each tile in its own colour ---------- */
 .bento-tiles .bento-tile:nth-child(1) {
   background: var(--orange-s);
