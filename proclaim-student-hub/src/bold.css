@@ -245,19 +245,10 @@ body:not(.tutor-page),
   }
 }
 
-/* ---------- Phone and iPad portrait: numbers before the brief ----------
-   The two count tiles move up under the Now card so "Due today" and "Next
-   test" are on the first screen; the brief is a little more compact. */
+/* ---------- Phone and iPad portrait: a more compact brief ----------
+   The count tiles come before the brief in the page (Today.tsx), so "Due
+   today" and "Next test" are on the first screen. */
 @media (max-width: 999.98px), (max-height: 599.98px) {
-  .screen.today > * {
-    order: 2;
-  }
-  .screen.today > .banner,
-  .screen.today > .today-head,
-  .screen.today > .now-card,
-  .screen.today > .bento-tiles {
-    order: 0;
-  }
   .card.ai.brief-card {
     padding: 14px 16px 12px;
     gap: 10px;
@@ -271,6 +262,14 @@ body:not(.tutor-page),
   }
   .bento-tile .big {
     font-size: 30px;
+  }
+}
+
+/* Wide screens: the tiles come first in the page but sit right of the brief;
+   dense flow lets the brief fill the cell beside them. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .screen.today {
+    grid-auto-flow: row dense;
   }
 }
 

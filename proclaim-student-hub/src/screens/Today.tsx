@@ -208,8 +208,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
 
       <NowCard />
 
-      <Briefing />
-
+      {/* Numbers first: on a phone they sit above the brief, so the reading order matches. */}
       <nav className="bento-tiles rise d3" aria-label="Numbers">
         <button className="bento-tile" onClick={() => go("homework")}>
           <span className="eyebrow">Due today</span>
@@ -231,10 +230,16 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
             </span>
           )}
           <span className="s13 muted">
-            {nextTest ? `${nextTest.subject} · ${testDay}` : "None planned"}
+            {nextTest
+              ? testIn !== null && testIn <= 1
+                ? nextTest.subject
+                : `${nextTest.subject} · ${testDay}`
+              : "None planned"}
           </span>
         </button>
       </nav>
+
+      <Briefing />
 
       {next3.length > 0 && (
         <section className="card rows today-due rise d4" aria-label="Due next">

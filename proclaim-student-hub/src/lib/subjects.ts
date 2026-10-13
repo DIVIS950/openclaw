@@ -118,7 +118,10 @@ export function subjectTone(name: string): Tone {
  * School codes (year group, class letter, school year, teacher code) are dropped.
  */
 export function courseName(raw: string): string {
-  let s = raw.trim();
+  // Real class names are short; capping keeps the regexes below linear-time
+  // even for a hostile imported course of thousands of spaces.
+  const name = raw.trim().slice(0, 80).trim();
+  let s = name;
   // Leading year group / class: "Y9 P - ", "Y9 _ ", "Y9i ", "Y9 ", "9I ", "9i ".
   s = s.replace(
     /^(?:y\s?\d{1,2}[a-z]?|\d{1,2}[a-z])\b(?:\s*[a-z]\s*-\s*|\s*_\s*|\s*-\s*|\s+)/i,
@@ -133,5 +136,5 @@ export function courseName(raw: string): string {
   if (s.length > 3 && s === s.toUpperCase()) {
     s = s.charAt(0) + s.slice(1).toLowerCase();
   }
-  return s.trim() || raw.trim();
+  return s.trim() || name;
 }

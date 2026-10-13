@@ -36,3 +36,12 @@ describe("joinBold", () => {
     expect(out).toHaveLength(2);
   });
 });
+
+describe("courseName on hostile input", () => {
+  it("stays fast and short for a huge course name", () => {
+    const start = performance.now();
+    const out = courseName(`a${" ".repeat(60000)}x`);
+    expect(performance.now() - start).toBeLessThan(50);
+    expect(out.length).toBeLessThanOrEqual(80);
+  });
+});

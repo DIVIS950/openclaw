@@ -10,6 +10,7 @@ import {
   type NotifyPrefs,
   type Permission,
 } from "../lib/notify.ts";
+import { courseName } from "../lib/subjects.ts";
 
 // More › Notifications, as on the Bento canvas: a sample alert, one switch per
 // kind of reminder, and the Home Screen steps iPhone needs first.
@@ -157,8 +158,10 @@ export function Notifications() {
             <span className="muted s12">19:00</span>
           </div>
           <span style={{ fontSize: 14, color: "var(--ink2)" }}>
-            {next ? `${next.title}${next.course ? ` · ${next.course}` : ""}` : "Your homework"}. Tap
-            to start.
+            {next
+              ? `${next.title}${next.course ? ` · ${courseName(next.course)}` : ""}`
+              : "Your homework"}
+            . Tap to start.
           </span>
         </div>
       </div>
