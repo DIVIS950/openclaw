@@ -72,6 +72,32 @@ const OTHERS: AppTile[] = [
   { name: "Canva", url: "https://www.canva.com", icon: "palette", tint: "var(--violet)" },
 ];
 
+/** The newest things, big at the top of More. */
+const FEATURED: { screen: Screen; label: string; sub: string; icon: IconName; tone: string }[] = [
+  {
+    screen: "evening",
+    label: "Plan my evening",
+    sub: "Tonight in time blocks",
+    icon: "calendar",
+    tone: "blue",
+  },
+  { screen: "bag", label: "Pack my bag", sub: "Tomorrow's checklist", icon: "bag", tone: "yellow" },
+  {
+    screen: "levels",
+    label: "Levels & badges",
+    sub: "XP, streaks, 15 badges",
+    icon: "trophy",
+    tone: "pink",
+  },
+  {
+    screen: "change",
+    label: "Change the app",
+    sub: "Ask Claude for anything",
+    icon: "wand",
+    tone: "violet",
+  },
+];
+
 const HUB: { screen: Screen; label: string; icon: IconName; tone: string }[] = [
   { screen: "timetable", label: "Timetable", icon: "calendar", tone: "blue" },
   { screen: "tests", label: "Tests", icon: "timer", tone: "pink" },
@@ -97,7 +123,19 @@ export function Apps() {
         </h1>
       </header>
 
-      <section className="card profile-card rise d1">
+      <section
+        className="card profile-card rise d1"
+        role="button"
+        tabIndex={0}
+        aria-label={`${name}, level ${level(stats.xp).level}. Open Levels & badges`}
+        onClick={() => go("levels")}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            go("levels");
+          }
+        }}
+      >
         <span className="me" aria-hidden="true">
           {profile?.name?.trim() ? name[0].toUpperCase() : <Icon name="user" size={26} />}
         </span>
@@ -107,6 +145,22 @@ export function Apps() {
         </span>
         <span className="chip streak">Level {level(stats.xp).level}</span>
       </section>
+
+      <nav className="featured rise d2" aria-label="New">
+        {FEATURED.map((f) => (
+          <button
+            key={f.screen}
+            className={`card feat feat-${f.tone}`}
+            onClick={() => go(f.screen)}
+          >
+            <span className={`ic tone-${f.tone}`} aria-hidden="true">
+              <Icon name={f.icon} size={22} />
+            </span>
+            <strong>{f.label}</strong>
+            <span className="s12 muted">{f.sub}</span>
+          </button>
+        ))}
+      </nav>
 
       <section className="card apps-card rise d2">
         <nav className="app-grid hub-grid" aria-label="Apps">

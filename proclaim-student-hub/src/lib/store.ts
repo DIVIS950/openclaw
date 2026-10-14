@@ -60,10 +60,16 @@ export function nextProgress(p: Progress, gain: number, today: string): Progress
   return { xp: p.xp + gain, streak, lastDay: today };
 }
 
-/** Levels: 100 XP each, so progress is always visible. */
+/**
+ * Levels: each needs a bit more XP than the last (50, 200, 450, 800…), the same
+ * curve the Revision Lab shows. `percent` is the way into this level, `next` the XP still to go.
+ */
 export function level(xp: number): { level: number; percent: number; next: number } {
-  const lvl = Math.floor(xp / 100) + 1;
-  return { level: lvl, percent: xp % 100, next: lvl * 100 - xp };
+  const x = Math.max(0, xp);
+  const lvl = Math.floor(Math.sqrt(x / 50)) + 1;
+  const start = 50 * (lvl - 1) ** 2;
+  const end = 50 * lvl ** 2;
+  return { level: lvl, percent: Math.floor(((x - start) / (end - start)) * 100), next: end - x };
 }
 
 export const progress = {
@@ -82,6 +88,11 @@ export const progress = {
   add(gain: number): Progress {
     const next = nextProgress(progress.get(), gain, localDay());
     write("psh.progress", next);
+    // The best streak ever is kept for the streak badges.
+    const t = totals.get();
+    if (next.streak > (t.best ?? 0)) {
+      totals.save({ ...t, best: next.streak });
+    }
     weekLog.add("xp", gain);
     return next;
   },
@@ -89,7 +100,62 @@ export const progress = {
 
 // ---------- Week log (for the weekly report) ----------
 
-export type WeekKind = "xp" | "hw" | "lab" | "todo" | "focus";
+export type WeekKind = "xp" | "hw" | "lab" | "todo" | "focus" | "bag" | "plan";
+
+/** Fired when XP or a count changes, so the app can check for new badges. */
+export const PROGRESS_CHANGED = "psh:progress";
+
+function progressChanged() {
+  try {
+    window.dispatchEvent(new Event(PROGRESS_CHANGED));
+  } catch {
+    // No window (tests).
+  }
+}
+
+// ---------- All-time totals (badges count these) ----------
+
+export type Totals = Partial<Record<WeekKind, number>> & { best?: number };
+
+const TOTAL_KEYS: (WeekKind | "best")[] = [
+  "xp",
+  "hw",
+  "lab",
+  "todo",
+  "focus",
+  "bag",
+  "plan",
+  "best",
+];
+
+export const totals = {
+  get(): Totals {
+    const saved = read<Record<string, unknown> | null>("psh.totals", null);
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+      const out: Totals = {};
+      for (const k of TOTAL_KEYS) {
+        const v = Number(saved[k]);
+        if (Number.isFinite(v) && v > 0) {
+          out[k] = Math.floor(v);
+        }
+      }
+      return out;
+    }
+    // First run: start from what the week log still remembers (about five weeks).
+    const start: Totals = {};
+    for (const e of readList<WeekEvent>("psh.weeklog", ["day", "kind"])) {
+      const n = Number(e.n);
+      if (TOTAL_KEYS.includes(e.kind) && Number.isFinite(n) && n > 0) {
+        start[e.kind] = (start[e.kind] ?? 0) + n;
+      }
+    }
+    write("psh.totals", start);
+    return start;
+  },
+  save(t: Totals) {
+    write("psh.totals", t);
+  },
+};
 
 export interface WeekEvent {
   day: string;
@@ -109,13 +175,18 @@ export const weekLog = {
     cutoff.setDate(cutoff.getDate() - 35);
     const keep = weekLog.all().filter((e) => e.day >= localDay(cutoff));
     const same = keep.find((e) => e.day === day && e.kind === kind);
+    const t = totals.get();
     write(
       "psh.weeklog",
       same ? keep.map((e) => (e === same ? { ...e, n: e.n + n } : e)) : [...keep, { day, kind, n }],
     );
+    totals.save({ ...t, [kind]: (t[kind] ?? 0) + n });
+    progressChanged();
   },
   /** Takes back `n` of today's count (an Undo), never below zero. */
   take(kind: WeekKind, n: number, day = localDay()) {
+    const t = totals.get();
+    totals.save({ ...t, [kind]: Math.max(0, (t[kind] ?? 0) - n) });
     write(
       "psh.weeklog",
       weekLog

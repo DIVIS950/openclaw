@@ -16,6 +16,8 @@ import {
   type TutorSeed,
 } from "./context.ts";
 import { sampleAi, serverAi, type AiProvider } from "./lib/ai.ts";
+import { lastSeenVersion } from "./lib/appChanges.ts";
+import { newBadges } from "./lib/badges.ts";
 import { syncClassroomEmails } from "./lib/classroomSync.ts";
 import { ClaudeData } from "./lib/claudeData.ts";
 import { useCapability } from "./lib/claudeRuntime.ts";
@@ -25,7 +27,7 @@ import { GoogleData } from "./lib/googleData.ts";
 import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
 import { dueReminders, newHomeworkReminder, notifyPrefs, show } from "./lib/notify.ts";
 import { applyHomeworkSeed } from "./lib/seed.ts";
-import { timetable } from "./lib/store.ts";
+import { localDay, PROGRESS_CHANGED, timetable } from "./lib/store.ts";
 import { tutoring } from "./lib/study.ts";
 import { readTransferFromLocation, transferPreview } from "./lib/transfer.ts";
 import { tutorImport } from "./lib/tutorImport.ts";
@@ -158,6 +160,10 @@ const TodoScreen = lazy(() => study().then((m) => ({ default: m.TodoScreen })));
 const TestsScreen = lazy(() => study().then((m) => ({ default: m.TestsScreen })));
 const NotesScreen = lazy(() => study().then((m) => ({ default: m.NotesScreen })));
 const TutoringScreen = lazy(() => study().then((m) => ({ default: m.TutoringScreen })));
+const Change = lazy(() => import("./screens/Change.tsx").then((m) => ({ default: m.Change })));
+const Bag = lazy(() => import("./screens/Bag.tsx").then((m) => ({ default: m.Bag })));
+const Evening = lazy(() => import("./screens/Evening.tsx").then((m) => ({ default: m.Evening })));
+const Levels = lazy(() => import("./screens/Levels.tsx").then((m) => ({ default: m.Levels })));
 
 /** iPad landscape and bigger: Homework opens tasks beside the list (bento.css .split). */
 const WIDE = "(min-width: 1000px) and (min-height: 600px)";
@@ -286,6 +292,36 @@ function Shell({
     }
   }, []);
 
+  // Opens a screen from a toast button (the navigation is set up further down).
+  const goRef = useRef<(screen: Screen) => void>(() => {});
+
+  // New badges: announced once, with confetti.
+  useEffect(() => {
+    const check = () => {
+      const fresh = newBadges(localDay());
+      if (fresh.length > 0) {
+        toast(`New badge: ${fresh.map((b) => b.name).join(", ")}!`, {
+          label: "See",
+          run: () => goRef.current("levels"),
+        });
+      }
+    };
+    check();
+    window.addEventListener(PROGRESS_CHANGED, check);
+    return () => window.removeEventListener(PROGRESS_CHANGED, check);
+  }, [toast]);
+
+  // Just updated to a new version: say so once, with what changed.
+  useEffect(() => {
+    const seen = lastSeenVersion(__VERSION__);
+    if (seen && seen !== __VERSION__) {
+      toast(`Updated to version ${__VERSION__}`, {
+        label: "What's new",
+        run: () => goRef.current("change"),
+      });
+    }
+  }, [toast]);
+
   // Something a tutor sent (opened from their link).
   useEffect(() => {
     const got = tutorImport.take();
@@ -383,6 +419,8 @@ function Shell({
       writeHistory({ pshScreen: next, from }, replace);
     }
   }, []);
+
+  goRef.current = go;
 
   // "Back to …" buttons: step back when that is where we came from, else swap this entry.
   const back = useCallback(
@@ -729,6 +767,10 @@ function Shell({
             {current === "notes" && <NotesScreen />}
             {current === "tutoring" && <TutoringScreen />}
             {current === "notifications" && <Notifications />}
+            {current === "change" && <Change />}
+            {current === "bag" && <Bag />}
+            {current === "evening" && <Evening />}
+            {current === "levels" && <Levels />}
           </Suspense>
           {current === "classes" && (
             <Suspense fallback={null}>
@@ -767,7 +809,9 @@ function Shell({
         )}
         <LinkConfirm />
         {touring && <Tour onClose={() => setTouring(false)} />}
-        {toastMsg?.text.includes("XP") && <Confetti key={toastMsg.key} />}
+        {(toastMsg?.text.includes("XP") || toastMsg?.text.startsWith("New badge")) && (
+          <Confetti key={toastMsg.key} />
+        )}
         {toastMsg && (
           <div className="toast" role="status">
             <span style={{ flex: 1 }}>{toastMsg.text}</span>

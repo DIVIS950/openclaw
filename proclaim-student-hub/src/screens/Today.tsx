@@ -3,6 +3,7 @@ import { Briefing } from "../components/Briefing.tsx";
 import { CountUp } from "../components/CountUp.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { NowCard } from "../components/NowCard.tsx";
+import { TonightCard } from "../components/TonightCard.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
 import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
 import { dueLabel, greeting, isUrgent } from "../lib/format.ts";
@@ -245,6 +246,8 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
       </nav>
 
       <Briefing />
+
+      <TonightCard />
 
       {next3.length > 0 && (
         <section className="card rows today-due rise d4" aria-label="Due next">

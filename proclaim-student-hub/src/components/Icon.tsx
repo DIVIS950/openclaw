@@ -400,6 +400,40 @@ const PATHS: Record<string, ReactNode> = {
       <circle cx="15" cy="7.5" r="1" />
     </>
   ),
+  bag: (
+    <>
+      <path d="M5 9a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" />
+      <path d="M9 6V5a3 3 0 0 1 6 0v1" />
+      <path d="M8 14h8" />
+      <path d="M10 14v2" />
+    </>
+  ),
+  brain: (
+    <>
+      <path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a2 2 0 0 0-3-1z" />
+      <path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1" />
+    </>
+  ),
+  list: (
+    <>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4 6h.01M4 12h.01M4 18h.01" />
+    </>
+  ),
+  trophy: (
+    <>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0z" />
+      <path d="M8 6H5a2 2 0 0 0 2 4h1M16 6h3a2 2 0 0 1-2 4h-1" />
+      <path d="M12 13v4M8 21h8M9 21l1-4h4l1 4" />
+    </>
+  ),
+  rocket: (
+    <>
+      <path d="M12 15l-3-3c1-4 4-8 10-9-1 6-5 9-9 10z" />
+      <path d="M9 12l-4 1-2 3 4 1M12 15l-1 4 3 2 1-4" />
+      <circle cx="15" cy="9" r="1.5" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

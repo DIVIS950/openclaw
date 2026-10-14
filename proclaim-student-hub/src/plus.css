@@ -1,0 +1,565 @@
+/* ==========================================================================
+   Plus: the levelled-up Bold look (loads after bold.css).
+   Same colours, more premium: a glass tab bar, a glossier Now card, springy
+   presses, and the new screens (Tonight, Plan my evening, Pack my bag,
+   Levels & badges, Change the app). Motion is transform/opacity only.
+   ========================================================================== */
+
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --grad-violet: linear-gradient(135deg, #7b5cff 0%, #e5407a 100%);
+  --grad-blue: linear-gradient(135deg, #2f5bff 0%, #7b5cff 100%);
+  --grad-sun: linear-gradient(135deg, #ffc21a 0%, #ff6b1a 100%);
+}
+
+/* ---------- Glass tab bar ---------- */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app:not(.tutor-hub) .nav {
+    background: color-mix(in oklab, var(--card) 68%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(1.8);
+    backdrop-filter: blur(22px) saturate(1.8);
+    box-shadow:
+      0 0 0 1.5px color-mix(in oklab, var(--edge) 85%, transparent),
+      0 20px 40px -20px rgba(40, 20, 90, 0.45);
+  }
+}
+.app:not(.tutor-hub) .nav-item {
+  border-radius: 22px;
+  transition:
+    transform 0.25s var(--spring),
+    opacity 0.2s ease;
+}
+.app:not(.tutor-hub) .nav-item[aria-current="page"] {
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+}
+.app:not(.tutor-hub) .nav-item:active {
+  transform: scale(0.92);
+}
+
+/* ---------- Springy presses ---------- */
+.btn,
+.chip,
+.round,
+.feat,
+.tonight-tile,
+.level-chip,
+.badge,
+.bento-tile,
+.app-t {
+  transition:
+    transform 0.22s var(--spring),
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+.btn:active:not(:disabled),
+.feat:active,
+.tonight-tile:active,
+.level-chip:active,
+.app-t:active {
+  transform: scale(0.96);
+}
+@media (hover: hover) {
+  .feat:hover,
+  .tonight-tile:hover,
+  .bento-tile:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ---------- Now card: glossy gradient ---------- */
+.now-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    140deg,
+    var(--accent) 0%,
+    color-mix(in oklab, var(--accent) 55%, #7b5cff) 100%
+  );
+}
+.now-card::after {
+  content: "";
+  position: absolute;
+  inset: -40% 30% auto -20%;
+  height: 120%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.22), transparent);
+  pointer-events: none;
+}
+.now-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Shared bits for the new screens ---------- */
+.big-num {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.featured .ic,
+.tonight .ic,
+.timeline .ic,
+.release .ic {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  flex: none;
+}
+
+/* ---------- More: the four new things, big ---------- */
+.featured {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.feat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  border: 0;
+  cursor: pointer;
+  min-height: 132px;
+}
+.feat strong {
+  font-size: 16px;
+  margin-top: 4px;
+}
+.feat-violet {
+  background: linear-gradient(160deg, var(--violet-s), var(--card) 70%);
+}
+.feat-blue {
+  background: linear-gradient(160deg, var(--blue-s), var(--card) 70%);
+}
+.feat-yellow {
+  background: linear-gradient(160deg, var(--yellow-s), var(--card) 70%);
+}
+.feat-pink {
+  background: linear-gradient(160deg, var(--pink-s), var(--card) 70%);
+}
+@media (min-width: 768px) {
+  .featured {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.profile-card {
+  cursor: pointer;
+}
+
+/* ---------- Today: Tonight ---------- */
+.tonight {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.tonight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.tonight-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  min-height: 64px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--card-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tonight-tile strong {
+  font-size: 14px;
+}
+@media (max-width: 380px) {
+  .tonight-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.level-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--grad-violet);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #4421b8;
+}
+.level-chip .lv {
+  font-size: 13px;
+}
+.lv-bar {
+  width: 44px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+}
+.lv-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+}
+
+/* ---------- Change the app ---------- */
+.change-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(160deg, var(--violet-s) 0%, var(--card) 65%);
+}
+.change-card textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+.change-ideas .chip {
+  cursor: pointer;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+}
+.change-req {
+  align-items: flex-start;
+}
+.chip.req-live {
+  background: var(--green-s);
+  color: var(--green-t);
+}
+.chip.req-sent,
+.chip.req-building {
+  background: var(--violet-s);
+  color: var(--violet-t);
+}
+.chip.req-queued {
+  background: var(--yellow-s);
+  color: var(--yellow-t);
+}
+.chip.req-declined {
+  background: var(--seg);
+  color: var(--muted);
+}
+.release {
+  padding: 16px;
+}
+.release.latest {
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--violet) 45%, transparent),
+    0 4px 0 2px color-mix(in oklab, var(--violet) 45%, transparent);
+}
+.release-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+/* ---------- Pack my bag ---------- */
+.bag-hero,
+.evening-hero,
+.level-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+}
+.bag-hero {
+  background: linear-gradient(160deg, var(--yellow-s), var(--card) 70%);
+}
+.bag-ring,
+.level-ring {
+  --fill: 0;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--card) 72%, transparent 74%),
+    conic-gradient(
+      var(--ring, var(--orange)) calc(var(--fill) * 360deg),
+      color-mix(in oklab, var(--ring, var(--orange)) 22%, var(--card)) 0deg
+    );
+  color: var(--ring, var(--orange));
+}
+
+/* ---------- Plan my evening ---------- */
+.evening-hero {
+  background: linear-gradient(160deg, var(--blue-s), var(--card) 70%);
+}
+.evening-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.tblock {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.tblock.kind-break,
+.tblock.kind-dinner {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--edge);
+}
+.tblock.now {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 4px 0 2px color-mix(in oklab, var(--accent) 50%, transparent);
+}
+.tblock.done {
+  opacity: 0.6;
+}
+.tblock.done .tblock-title {
+  text-decoration: line-through;
+}
+.ttime {
+  width: 46px;
+  flex: none;
+  padding-top: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--muted);
+}
+.tblock-title {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  min-height: 24px;
+}
+.tblock-title:disabled {
+  cursor: default;
+}
+.tblock .cb {
+  margin-top: 10px;
+}
+
+/* ---------- Levels & badges ---------- */
+.level-hero {
+  background: linear-gradient(160deg, var(--violet-s), var(--card) 70%);
+}
+.level-ring {
+  --ring: var(--violet);
+  width: 88px;
+  height: 88px;
+}
+.level-num {
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--violet-t);
+}
+.xp-bar,
+.badge-bar {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--seg);
+  overflow: hidden;
+}
+.xp-bar span,
+.badge-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--grad-violet);
+}
+.badge-bar {
+  height: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+.level-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.level-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  color: var(--ink);
+}
+.level-stats .stat > svg {
+  color: var(--orange);
+}
+.level-stats .big-num {
+  font-size: 26px;
+}
+.xp-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  height: 120px;
+  margin: 12px 0 8px;
+}
+.xp-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 100%;
+}
+.xp-stick {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 8px;
+  background: var(--grad-violet);
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (min-width: 768px) {
+  .badge-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 14px 8px;
+  color: var(--ink);
+}
+.badge:not(.earned) {
+  background: var(--card-2);
+  box-shadow: none;
+}
+.badge:not(.earned) strong {
+  color: var(--muted);
+}
+.badge-ic {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin-bottom: 4px;
+}
+.badge.earned .badge-ic {
+  box-shadow: 0 3px 0 color-mix(in oklab, currentColor 40%, transparent);
+}
+
+/* ---------- Revision Lab: same look ---------- */
+.lab-home .xp-track {
+  height: 12px;
+}
+.lab-home .xp-track i {
+  background: var(--grad-violet);
+}
+.lab-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+  color: var(--ink);
+  min-height: 32px;
+}
+
+/* ---------- Tutor Hub: the same glossy, colourful finish in green ---------- */
+body.tutor-page {
+  background:
+    radial-gradient(60% 40% at 0% -4%, rgba(18, 176, 118, 0.14), transparent 70%),
+    radial-gradient(50% 36% at 104% 6%, rgba(47, 91, 255, 0.1), transparent 70%), var(--bg);
+}
+.tutor-hub .tutor-next {
+  position: relative;
+  overflow: hidden;
+}
+.tutor-hub .tutor-next::after {
+  content: "";
+  position: absolute;
+  inset: -40% 30% auto -20%;
+  height: 120%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.18), transparent);
+  pointer-events: none;
+}
+.tutor-hub .tutor-next > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Dark mode ---------- */
+:root[data-theme="dark"] .feat-violet,
+:root[data-theme="dark"] .change-card,
+:root[data-theme="dark"] .level-hero {
+  background: linear-gradient(160deg, #2a2350, var(--card) 70%);
+}
+:root[data-theme="dark"] .feat-blue,
+:root[data-theme="dark"] .evening-hero {
+  background: linear-gradient(160deg, #1d2a55, var(--card) 70%);
+}
+:root[data-theme="dark"] .feat-yellow,
+:root[data-theme="dark"] .bag-hero {
+  background: linear-gradient(160deg, #3a3018, var(--card) 70%);
+}
+:root[data-theme="dark"] .feat-pink {
+  background: linear-gradient(160deg, #3b1f33, var(--card) 70%);
+}
+:root[data-theme="dark"] .level-num {
+  color: #cbb8ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled),
+  .feat:active,
+  .tonight-tile:active,
+  .level-chip:active,
+  .app-t:active,
+  .app:not(.tutor-hub) .nav-item:active {
+    transform: none;
+  }
+  .feat:hover,
+  .tonight-tile:hover,
+  .bento-tile:hover {
+    transform: none;
+  }
+}

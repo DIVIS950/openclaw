@@ -68,7 +68,16 @@ export interface Downloads {
   save(file: { filename: string; data: string | Blob }): Promise<unknown>;
 }
 
+/** The page's own comment writes; only the "send to Claude" part is used here. */
+export interface Comments {
+  /** "available" | "writers_only" | "no_session" | "off" (anything else: unavailable). */
+  canSendToClaude(): Promise<string>;
+  anchorFor(el: Element): Promise<unknown>;
+  sendToClaude(target: { anchor: unknown; text: string }): Promise<{ threadId: string }>;
+}
+
 interface CapabilityMap {
+  comments: Comments;
   downloads: Downloads;
   sample: Sample;
   mcp: Mcp;

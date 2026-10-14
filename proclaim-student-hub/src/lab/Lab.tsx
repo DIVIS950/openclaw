@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../components/BackButton.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
+import { levelTitle } from "../lib/badges.ts";
 import { useCapability } from "../lib/claudeRuntime.ts";
 import { progress, schedule, weekLog } from "../lib/store.ts";
 import { labHandoff, labSubject, notes, packToNote, prepTests } from "../lib/study.ts";
@@ -557,7 +558,7 @@ function LabHome({
   const mixMinutes = Math.max(2, Math.round((due > 0 ? due : Math.min(total, 12)) / 3));
 
   return (
-    <main className="screen">
+    <main className="screen lab-home">
       <BackButton />
       <header className="stack rise" style={{ gap: 10 }}>
         <div className="between" style={{ alignItems: "center", gap: 10 }}>
@@ -581,7 +582,14 @@ function LabHome({
         </div>
         <div className="stack" style={{ gap: 6 }}>
           <div className="between">
-            <span style={{ fontWeight: 800 }}>Level {lvl.level}</span>
+            <button
+              className="text-link lab-level"
+              onClick={() => appGo("levels")}
+              aria-label={`Level ${lvl.level}, ${levelTitle(lvl.level)}. Open Levels & badges`}
+            >
+              Level {lvl.level} · {levelTitle(lvl.level)}
+              <Icon name="chevron" size={14} />
+            </button>
             <span className="s13 muted">
               {lvl.into.toLocaleString("en-GB")} / {lvl.span.toLocaleString("en-GB")} XP
             </span>
