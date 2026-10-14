@@ -101,9 +101,7 @@ export async function listRequests(link: ChangeLink): Promise<ChangeRequest[]> {
   return snap.docs
     .map((d) => {
       const v = d.data() ?? {};
-      const status = STATUSES.has(String(v.status))
-        ? (v.status as RequestStatus)
-        : "queued";
+      const status = STATUSES.has(String(v.status)) ? (v.status as RequestStatus) : "queued";
       return {
         id: d.id,
         text: typeof v.text === "string" ? v.text : "",

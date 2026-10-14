@@ -82,18 +82,22 @@ export function Levels() {
 
       <section className="card rise d2" aria-label="XP this week">
         <span className="eyebrow">XP this week</span>
-        <div className="xp-week">
-          {week.map((w) => (
-            <span key={w.day} className="xp-col" title={`${w.xp} XP`}>
-              <span className="xp-val s11 muted">{w.xp || ""}</span>
-              <span
-                className="xp-stick"
-                style={{ height: `${Math.max(4, (w.xp / top) * 100)}%` }}
-              />
-              <span className="s11 muted">{w.label}</span>
-            </span>
-          ))}
-        </div>
+        {week.every((w) => w.xp === 0) ? (
+          <p className="xp-empty">No XP yet this week. Tick off one homework for your first +5.</p>
+        ) : (
+          <div className="xp-week">
+            {week.map((w) => (
+              <span key={w.day} className="xp-col" title={`${w.xp} XP`}>
+                <span className="xp-val s11 muted">{w.xp || ""}</span>
+                <span
+                  className="xp-stick"
+                  style={{ height: `${Math.max(4, (w.xp / top) * 100)}%` }}
+                />
+                <span className="s11 muted">{w.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
         <p className="s12 muted" style={{ margin: 0 }}>
           XP: homework +5 · focus +10 · revision cards · bag packed +5 · evening plan +10 · to-dos
           +2
