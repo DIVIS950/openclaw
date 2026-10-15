@@ -1,0 +1,70 @@
+/* Jury round 1 fixes (tutor). Loaded after bento.css. */
+
+/* Tutor Hub hero: a deeper green so white text reads (5:1 and up). */
+.tutor-hub .tutor-next {
+  background: #0b7f55;
+  color: #fff;
+}
+.tutor-hub .tutor-next .now-eyebrow,
+.tutor-hub .tutor-next .now-sub,
+.tutor-hub .tutor-next .eyebrow,
+.tutor-hub .tutor-next .sub,
+.tutor-hub .tutor-next .test-count,
+.tutor-hub .tutor-next .test-count .num {
+  color: #fff !important;
+  opacity: 1;
+}
+.tutor-hub .tutor-next .btn {
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+}
+.tutor-hub .tutor-next .btn.primary {
+  background: #fff;
+  color: #0b6b48;
+}
+.tutor-hub .tutor-next .warm-text {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* "From Jan's link" is information, not a live status. */
+.tutor-hub .sync-chip {
+  white-space: nowrap;
+}
+
+/* iPad portrait (no side rail in the Tutor Hub): an even, centred column. */
+@media (min-width: 600px) and (max-width: 899.98px) {
+  .tutor-hub .tutor-screen {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+.tutor-damaged {
+  box-shadow:
+    inset 0 0 0 2px var(--warm, #ff8a3d),
+    var(--shadow);
+}
+
+/* "Bring this in?" sheet for #import= and #tutor= links. */
+.link-confirm .sheet {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+.link-lines {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.link-lines .li {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+/* Tutoring header: the link box drops to its own line when sharing failed. */
+header.between:has(> .share-box) {
+  flex-wrap: wrap;
+}
