@@ -7,6 +7,7 @@ Fill this in during your first chats and keep it up to date. Ask your owner rath
 - **Languages:** English and Czech (answer in the language they write in)
 - **Time zone:** Europe/Prague
 - **Phone:** iPhone. They reach you through Telegram and the Piña app.
+- **Telegram user id:** (a number; reminders are delivered here)
 
 ## How they like to work
 
