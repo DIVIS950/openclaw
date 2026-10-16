@@ -57,17 +57,17 @@ These hold in every session, including after a long chat is compacted.
 
 ## Reminders and schedules
 
-Use the `cron` tool. Reminders only reach your owner's phone when the job runs on its own
-(`sessionTarget: "isolated"`, payload `agentTurn`) and announces to Telegram. Main-session
-system events and heartbeats cannot post into a private Telegram chat.
+Use the `automations` tool (`cron` is an older name for the same tool). A job that runs on its
+own (`sessionTarget: "isolated"`, payload `agentTurn`) and announces to Telegram reaches your
+owner's phone even when they have not written to you.
 
 - One-off reminder ("remind me at 18:00 to call mom"):
-  `{"action":"add","job":{"name":"Call mom","schedule":{"kind":"at","at":"2026-10-16T18:00:00+02:00"},"sessionTarget":"isolated","payload":{"kind":"agentTurn","message":"Remind the owner to call mom now. One short friendly line."},"delivery":{"mode":"announce","channel":"telegram","to":"<owner's Telegram user id>"},"deleteAfterRun":true}}`
+  `{"action":"add","job":{"name":"Call mom","schedule":{"kind":"at","at":"2026-10-16T18:00:00+02:00"},"sessionTarget":"isolated","payload":{"kind":"agentTurn","message":"Remind the owner to call mom now. One short friendly line.","lightContext":true},"delivery":{"mode":"announce","channel":"telegram","to":"<owner's Telegram user id>"},"deleteAfterRun":true}}`
 - Recurring job (morning briefing at 07:30):
-  `{"action":"add","job":{"name":"Morning briefing","schedule":{"kind":"cron","expr":"30 7 * * *","tz":"Europe/Prague"},"sessionTarget":"isolated","payload":{"kind":"agentTurn","message":"Write the owner's morning briefing: today's calendar, important unread email, weather in their city. At most 12 lines."},"delivery":{"mode":"announce","channel":"telegram","to":"<owner's Telegram user id>"}}}`
-- Always write `at` times with the UTC offset (Prague is +02:00 in summer time and +01:00
-  from the last Sunday of October) and give recurring jobs `"tz": "Europe/Prague"`. This
-  computer's clock runs on UTC.
+  `{"action":"add","job":{"name":"Morning briefing","schedule":{"kind":"cron","expr":"30 7 * * *","tz":"Europe/Prague"},"sessionTarget":"isolated","payload":{"kind":"agentTurn","message":"Write the owner's morning briefing: today's calendar and important unread email (gog), plus the weather in their city. At most 12 lines.","timeoutSeconds":600},"delivery":{"mode":"announce","channel":"telegram","to":"<owner's Telegram user id>"}}}`
+- Always write `at` times with the UTC offset. A time without an offset is read as UTC. Prague is
+  +02:00 in summer time and +01:00 from the last Sunday of October. Relative times like "20m"
+  are rejected; compute the absolute time. Give recurring jobs `"tz"` with the owner's zone.
 - The owner's Telegram user id is in `USER.md`. If it is missing, ask for it.
 - Confirm the exact local time back to your owner after scheduling. List jobs with
   `{"action":"list"}` when they ask what is planned.

@@ -1,0 +1,382 @@
+<title>Piña Setup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a single reading column. A rind-lattice crown band opens the page, then numbered
+   steps in order, with optional parts folded away and the setup builder as the centrepiece. */
+:root{
+  --bg:#F6F8EC; --surface:#FFFFFF; --surface-2:#FFF2C2; --ink:#173A26; --ink-soft:#56705F;
+  --line:#DCE4D1; --flesh:#F4B400; --flesh-ink:#392900; --leaf:#1E6A3E; --on-leaf:#FFFFFF;
+  --rind:#9C6210; --lattice:rgba(156,98,16,.15); --ok:#1E7A45; --danger:#B3261E;
+  --code-bg:#EEF2E3;
+  --font-display:"Alfa Slab One","Rockwell","Roboto Slab",Georgia,serif;
+  --font-body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1912; --surface:#14241A; --surface-2:#2B2410; --ink:#EFF1DE; --ink-soft:#A8B8A5;
+    --line:#26392C; --flesh:#F7C433; --flesh-ink:#291D00; --leaf:#62C487; --on-leaf:#0D1912;
+    --rind:#DDA54E; --lattice:rgba(221,165,78,.13); --ok:#74D59D; --danger:#F28B82; --code-bg:#1B2D21;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1912; --surface:#14241A; --surface-2:#2B2410; --ink:#EFF1DE; --ink-soft:#A8B8A5;
+  --line:#26392C; --flesh:#F7C433; --flesh-ink:#291D00; --leaf:#62C487; --on-leaf:#0D1912;
+  --rind:#DDA54E; --lattice:rgba(221,165,78,.13); --ok:#74D59D; --danger:#F28B82; --code-bg:#1B2D21;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--font-body);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+a{color:var(--leaf);text-underline-offset:3px;font-weight:600}
+:focus-visible{outline:3px solid var(--flesh);outline-offset:2px}
+.wrap{max-width:680px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.crown{background-color:var(--surface-2);
+  background-image:repeating-linear-gradient(45deg,var(--lattice) 0 1.5px,transparent 1.5px 17px),
+                   repeating-linear-gradient(-45deg,var(--lattice) 0 1.5px,transparent 1.5px 17px);
+  border-bottom:1px solid var(--line)}
+.crown .wrap{padding-block:28px 24px;display:flex;gap:18px;align-items:center}
+.crown canvas{width:58px;height:82px;flex:none}
+h1{margin:0;font:400 34px/1.05 var(--font-display);color:var(--leaf);text-wrap:balance}
+.lede{margin:8px 0 0;max-width:52ch;color:var(--ink);font-size:16px}
+main .wrap{padding-block:24px 56px;display:flex;flex-direction:column;gap:30px}
+h2{margin:0;font:400 22px/1.2 var(--font-display);text-wrap:balance}
+h3{margin:0;font:700 17px/1.3 var(--font-body)}
+p{margin:0}
+.section{display:flex;flex-direction:column;gap:12px}
+.parts{display:grid;gap:10px}
+.part{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.part .tag{grid-row:span 2;align-self:start;font:700 10px/1 var(--font-body);letter-spacing:.07em;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:var(--flesh);color:var(--flesh-ink);white-space:nowrap}
+.part .tag.soft{background:var(--surface-2);color:var(--rind)}
+.part p{color:var(--ink-soft);font-size:15px}
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:26px;counter-reset:step}
+ol.steps > li{counter-increment:step;display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px}
+ol.steps > li::before{content:counter(step);font:400 20px/40px var(--font-display);text-align:center;width:40px;height:40px;border-radius:50%;background:var(--leaf);color:var(--on-leaf)}
+.step{display:flex;flex-direction:column;gap:10px;min-width:0}
+.step ul,.step ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.muted{color:var(--ink-soft);font-size:14px}
+code,.mono{font-family:var(--font-mono);font-size:.92em;background:var(--code-bg);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+pre{margin:0;background:var(--code-bg);border-radius:10px;padding:12px;overflow-x:auto;font:400 14px/1.5 var(--font-mono)}
+.callout{padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:15px}
+.callout strong{color:var(--ink)}
+/* Setup builder */
+.builder{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-weight:700;font-size:15px}
+.field .hint{font-size:13px;color:var(--ink-soft)}
+.field input{font:400 16px/1.3 var(--font-mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;width:100%;min-width:0}
+.field input[aria-invalid="true"]{border-color:var(--danger)}
+.field .err{font-size:13px;color:var(--danger);min-height:0}
+.optional{font-weight:500;color:var(--ink-soft);font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{min-height:46px;padding:0 18px;border-radius:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:700 15px/1 var(--font-body);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.btn-primary{background:var(--leaf);border-color:var(--leaf);color:var(--on-leaf)}
+.btn-gold{background:var(--flesh);border-color:var(--flesh);color:var(--flesh-ink)}
+.btn:disabled{opacity:.5;cursor:default}
+#setup-output{width:100%;min-height:150px;font:400 12px/1.45 var(--font-mono);color:var(--ink);background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:10px;resize:vertical}
+.status{font-size:14px;font-weight:600}
+.status.ok{color:var(--ok)} .status.bad{color:var(--danger)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0 14px}
+details[open]{padding-bottom:14px}
+summary{cursor:pointer;padding:14px 0;font-weight:700;list-style-position:outside}
+details > .step{padding-top:2px}
+.cant{display:grid;gap:8px}
+footer{border-top:1px solid var(--line)}
+footer .wrap{padding-block:18px 32px;color:var(--ink-soft);font-size:13px}
+</style>
+
+<header class="crown">
+  <div class="wrap">
+    <canvas id="pina" width="58" height="82" role="img" aria-label="Piña, a pineapple"></canvas>
+    <div>
+      <h1>Piña Setup</h1>
+      <p class="lede">Give your assistant its own computer in the cloud and talk to it from your iPhone. Plan on about 20 minutes, a few euros a month for the server, and whatever Piña uses on Anthropic.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <section class="section" aria-labelledby="what">
+    <h2 id="what">What you get</h2>
+    <div class="parts">
+      <div class="part"><span class="tag">Ready now</span><h3>The Piña app</h3><p>Your calendar, unread mail, a chat and a to-do list, in the Claude app. <a href="https://claude.ai/artifact/BDhQgrHqfr6UNE91dYxcTD" target="_blank" rel="noopener">Open the Piña app</a></p></div>
+      <div class="part"><span class="tag">This guide</span><h3>Piña on its own computer</h3><p>An always-on assistant you message in Telegram. It can browse, run programs, keep files, remind you, and read your Gmail and Google Calendar.</p></div>
+      <div class="part"><span class="tag soft">Optional</span><h3>The OpenClaw iPhone app</h3><p>Lets Piña use your phone's location, notifications, photos, calendar and reminders.</p></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="steps">
+    <h2 id="steps">Set it up</h2>
+    <ol class="steps">
+      <li><div class="step">
+        <h3>Make Piña's Telegram bot</h3>
+        <ul>
+          <li>In Telegram, open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> and send <code>/newbot</code>.</li>
+          <li>Name it <strong>Piña</strong>, then pick a username that ends in <code>bot</code>.</li>
+          <li>BotFather replies with a <strong>token</strong> like <span class="mono">123456789:AAE…</span>. Copy it.</li>
+          <li>Tap the link to your new bot and press <strong>Start</strong>, so it is allowed to message you.</li>
+        </ul>
+      </div></li>
+      <li><div class="step">
+        <h3>Find your Telegram number</h3>
+        <p>Open <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> and press Start. It replies with your <strong>Id</strong>, a number. Piña will only ever answer that number.</p>
+      </div></li>
+      <li><div class="step">
+        <h3>Get an Anthropic API key</h3>
+        <ul>
+          <li>Sign in at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> and add some credit under Billing.</li>
+          <li>Set a monthly spend limit, so there are no surprises.</li>
+          <li>Open API Keys, create a key named <strong>Piña</strong> and copy it. It starts with <span class="mono">sk-ant-</span>.</li>
+        </ul>
+        <p class="muted">Piña uses Claude Sonnet 5.5, with Opus 5.5 as a fallback. What it costs depends on how much you use it; the spend limit keeps it in check.</p>
+      </div></li>
+      <li><div class="step">
+        <h3>Optional keys</h3>
+        <ul>
+          <li><strong>Web search:</strong> get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Without it, Piña can still open pages you send it.</li>
+          <li><strong>OpenClaw iPhone app:</strong> install <a href="https://apps.apple.com/app/tailscale/id1470499037" target="_blank" rel="noopener">Tailscale</a> and sign in. In the <a href="https://login.tailscale.com/admin/dns" target="_blank" rel="noopener">Tailscale DNS settings</a>, turn on MagicDNS and HTTPS Certificates. Then <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noopener">generate an auth key</a> (one-off, not ephemeral) and copy it.</li>
+        </ul>
+      </div></li>
+      <li><div class="step">
+        <h3>Build your server setup</h3>
+        <p>Paste your keys here. This page puts them into the server setup and copies it for you. Nothing you type is stored or sent anywhere.</p>
+        <form class="builder" id="builder" autocomplete="off" novalidate>
+          <div class="field">
+            <label for="k-anthropic">Anthropic API key</label>
+            <input id="k-anthropic" type="password" placeholder="sk-ant-…" spellcheck="false" autocapitalize="off">
+            <span class="err" id="e-anthropic" hidden></span>
+          </div>
+          <div class="field">
+            <label for="k-telegram">Telegram bot token</label>
+            <input id="k-telegram" type="password" placeholder="123456789:AAE…" spellcheck="false" autocapitalize="off">
+            <span class="err" id="e-telegram" hidden></span>
+          </div>
+          <div class="field">
+            <label for="k-owner">Your Telegram Id</label>
+            <input id="k-owner" type="text" inputmode="numeric" placeholder="123456789" spellcheck="false">
+            <span class="err" id="e-owner" hidden></span>
+          </div>
+          <div class="field">
+            <label for="k-gemini">Gemini key <span class="optional">optional, for web search</span></label>
+            <input id="k-gemini" type="password" placeholder="AIza…" spellcheck="false" autocapitalize="off">
+            <span class="err" id="e-gemini" hidden></span>
+          </div>
+          <div class="field">
+            <label for="k-tailscale">Tailscale auth key <span class="optional">optional, for the iPhone app</span></label>
+            <input id="k-tailscale" type="password" placeholder="tskey-auth-…" spellcheck="false" autocapitalize="off">
+            <span class="err" id="e-tailscale" hidden></span>
+          </div>
+          <div class="field">
+            <label for="k-tz">Time zone</label>
+            <input id="k-tz" type="text" spellcheck="false" autocapitalize="off" list="tz-list">
+            <datalist id="tz-list"><option value="Europe/Prague"></option><option value="Europe/London"></option><option value="Europe/Berlin"></option><option value="America/New_York"></option><option value="America/Los_Angeles"></option></datalist>
+            <span class="hint">Used for reminders and the morning briefing.</span>
+            <span class="err" id="e-tz" hidden></span>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary" type="submit" id="build">Build and copy</button>
+            <button class="btn" type="button" id="clear">Clear</button>
+          </div>
+          <p class="status" id="status" aria-live="polite"></p>
+          <textarea id="setup-output" readonly hidden aria-label="Your server setup"></textarea>
+          <p class="muted" id="output-note" hidden>This text contains your keys. Paste it only into your cloud provider's setup box.</p>
+        </form>
+      </div></li>
+      <li><div class="step">
+        <h3>Create Piña's computer</h3>
+        <p>Any provider with Ubuntu 24.04 and a "cloud config" or "user data" box works. Hetzner is simple and cheap:</p>
+        <ol>
+          <li>Sign in at <a href="https://console.hetzner.cloud" target="_blank" rel="noopener">console.hetzner.cloud</a> and open a project.</li>
+          <li>Add a server. Pick any location, image <strong>Ubuntu 24.04</strong>, and a shared type with <strong>at least 2 GB RAM</strong> (4 GB if Piña will browse a lot).</li>
+          <li>Keep <strong>Public IPv4</strong> switched on. Piña needs it to download its software.</li>
+          <li>Paste your server setup into <strong>Cloud config</strong>, name the server <strong>pina</strong>, and create it.</li>
+        </ol>
+        <p class="muted">DigitalOcean (paste under Advanced, User data) and Oracle Cloud's free Ampere servers work too. AWS's user-data box is too small for this setup.</p>
+      </div></li>
+      <li><div class="step">
+        <h3>Say hi</h3>
+        <p>After about 5 to 10 minutes your bot sends <strong>"🍍 Piña is awake on its own computer. Say hi!"</strong> Try:</p>
+        <ul>
+          <li>"Hi Piña, I'm …. Call me …."</li>
+          <li>"Every day at 7:30 send me a morning briefing."</li>
+          <li>"Remind me tomorrow at 18:00 to call mom."</li>
+          <li>"Find a good pizza place near Wenceslas Square that is open tonight."</li>
+        </ul>
+        <p class="muted">No message after 15 minutes? Check that you pressed Start in your bot, then see Troubleshooting below.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="more">
+    <h2 id="more">Optional extras</h2>
+    <details>
+      <summary>Connect Gmail and Google Calendar</summary>
+      <div class="step">
+        <p>Google requires your own small "app" for this. You make it once in Google Cloud Console:</p>
+        <ol>
+          <li>Open <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> and create a project named <strong>Piña</strong>.</li>
+          <li>In APIs &amp; Services, Library, enable <strong>Gmail API</strong> and <strong>Google Calendar API</strong>.</li>
+          <li>Set up the OAuth consent screen: type External, app name Piña, your email. Then <strong>publish</strong> the app, or the login expires after 7 days.</li>
+          <li>Under Credentials, create an <strong>OAuth client ID</strong> of type <strong>Desktop app</strong> and download its JSON file.</li>
+          <li>In Telegram, send that file to Piña and say <strong>"connect my Gmail and Calendar"</strong>. Piña sends you a sign-in link and tells you what to paste back.</li>
+        </ol>
+        <div class="callout">Google may say the app is unverified. Tap Advanced and continue: it is your own app. Piña drafts emails freely but asks you before sending anything or changing your calendar.</div>
+      </div>
+    </details>
+    <details>
+      <summary>Pair the OpenClaw iPhone app</summary>
+      <div class="step">
+        <p>If you added a Tailscale auth key in step 5, the server is already set up. You get a pairing code in Telegram when Piña wakes up.</p>
+        <ol>
+          <li>Install <a href="https://apps.apple.com/app/openclaw-ai-that-does-things/id6780396132" target="_blank" rel="noopener">OpenClaw</a> from the App Store and turn Tailscale on.</li>
+          <li>In OpenClaw, choose Connect Manually, then Gateway Setup, then <strong>Enter setup code</strong>. Paste the code from Telegram and tap Trust and connect.</li>
+          <li>In OpenClaw's Settings, This iPhone, Permissions, grant what you want Piña to use.</li>
+          <li>The code lasts 10 minutes. For a new one, tell Piña: <strong>"send me a new iPhone setup code"</strong>.</li>
+        </ol>
+        <p class="muted">No Tailscale key in step 5? Open your server's console in Hetzner and run <code>sudo bash /opt/pina/iphone-setup.sh</code>. To let Piña add phone calendar events and reminders, add <code>--allow-phone-writes</code>.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="section" aria-labelledby="cant">
+    <h2 id="cant">Good to know</h2>
+    <div class="cant">
+      <p><strong>What an iPhone never allows.</strong> No app can tap buttons, read other apps' screens or open other apps. Piña sends notifications, reminders and calendar events instead, or does the job on its own computer.</p>
+      <p><strong>What Piña can reach.</strong> Its own computer, the web, and the accounts you connect. It answers only your Telegram number, and it has no open ports on the internet.</p>
+      <p><strong>Keys.</strong> Your keys live in one locked file on the server, <code>/opt/pina/.env</code>. Piña can technically read them because it runs on that computer, so use a spend limit on Anthropic and a key made only for Piña.</p>
+      <p><strong>Stopping everything.</strong> Delete the server at your provider, revoke the Anthropic key, and send <code>/revoke</code> to BotFather.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="trouble">
+    <h2 id="trouble">Troubleshooting</h2>
+    <p>Open the server console at your provider, log in as root (Hetzner emails you the password), and use these:</p>
+    <pre>tail -n 50 /var/log/pina-setup.log   # what setup did
+pina logs                            # Piña's live log
+pina channels status --probe         # is Telegram connected?
+pina security audit                  # safety check
+pina update                          # newer image, same settings
+pina backup                          # save Piña's memory and files</pre>
+    <p class="muted">Wrong key or number? Edit them with <code>sudo nano /opt/pina/.env</code>, then run <code>sudo bash /opt/pina/setup.sh</code> again. It keeps everything Piña already learned.</p>
+  </section>
+
+</div>
+</main>
+<footer><div class="wrap">Built for OpenClaw 2026.10.4. The server setup and every file in it live in the <code>pina/</code> folder of your openclaw repository.</div></footer>
+
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+
+// The pineapple mark, drawn from the theme's tokens.
+function tok(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function drawPina() {
+  const cv = $("#pina"), W = 58, H = 82, dpr = Math.min(3, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext("2d"); if (!c) return;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const bodyH = H * 0.6, rx = W * 0.37, ry = bodyH / 2, cx = W / 2, cy = H - ry - 1, crownH = H - bodyH - 1;
+  c.save(); c.translate(cx, cy - ry + 4);
+  [-62, -42, -24, -9, 9, 24, 42, 62].forEach((deg, i) => {
+    const len = crownH * (1.05 - Math.abs(deg) / 120) + 3;
+    c.save(); c.rotate(deg * 0.8 * Math.PI / 180); c.beginPath();
+    c.moveTo(-W * 0.05, 0); c.quadraticCurveTo(-W * 0.07, -len * 0.55, 0, -len);
+    c.quadraticCurveTo(W * 0.07, -len * 0.55, W * 0.05, 0); c.closePath();
+    c.fillStyle = tok("--leaf"); c.globalAlpha = (i === 3 || i === 4) ? 0.8 : 1; c.fill(); c.restore();
+  });
+  c.restore(); c.globalAlpha = 1;
+  c.save(); c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); c.fillStyle = tok("--flesh"); c.fill(); c.clip();
+  const g = c.createRadialGradient(cx - rx * 0.35, cy - ry * 0.4, rx * 0.15, cx, cy, ry * 1.05);
+  g.addColorStop(0, "rgba(255,255,255,0.38)"); g.addColorStop(0.55, "rgba(255,255,255,0)"); g.addColorStop(1, "rgba(0,0,0,0.2)");
+  c.fillStyle = g; c.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
+  const step = rx / 2.3; c.strokeStyle = tok("--rind"); c.globalAlpha = 0.6; c.lineWidth = 1;
+  for (let k = -9; k <= 9; k++) {
+    const x0 = cx + k * step;
+    c.beginPath(); c.moveTo(x0 - ry * 1.2, cy - ry * 1.2); c.lineTo(x0 + ry * 1.2, cy + ry * 1.2); c.stroke();
+    c.beginPath(); c.moveTo(x0 + ry * 1.2, cy - ry * 1.2); c.lineTo(x0 - ry * 1.2, cy + ry * 1.2); c.stroke();
+  }
+  c.globalAlpha = 0.85; c.fillStyle = tok("--rind");
+  for (let k = -9; k <= 9; k++) for (let m = -9; m <= 9; m++) {
+    const x = cx + (k + m + 1) * step / 2, y = cy + (m - k) * step / 2, nx = (x - cx) / rx, ny = (y - cy) / ry;
+    if (nx * nx + ny * ny > 0.92) continue;
+    c.beginPath(); c.arc(x, y, Math.max(0.9, step * 0.13), 0, Math.PI * 2); c.fill();
+  }
+  c.restore(); c.globalAlpha = 1;
+}
+drawPina();
+if (window.matchMedia) { const mq = matchMedia("(prefers-color-scheme: dark)"); if (mq.addEventListener) mq.addEventListener("change", drawPina); }
+new MutationObserver(drawPina).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// Default time zone from the phone.
+try { $("#k-tz").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Prague"; } catch { $("#k-tz").value = "Europe/Prague"; }
+
+// The server setup template is published next to this page.
+let template = "";
+const status = $("#status");
+fetch("cloud-init.txt").then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+  .then((t) => { template = t; })
+  .catch(() => { status.className = "status bad"; status.textContent = "The setup template did not load. Reload this page to try again."; });
+
+const FIELDS = [
+  { id: "anthropic", key: "ANTHROPIC_API_KEY", required: true, test: /^sk-ant-[A-Za-z0-9_-]{20,}$/, msg: "This should start with sk-ant- and have no spaces." },
+  { id: "telegram", key: "TELEGRAM_BOT_TOKEN", required: true, test: /^\d{5,}:[A-Za-z0-9_-]{30,}$/, msg: "Paste the whole token from BotFather: numbers, a colon, then letters." },
+  { id: "owner", key: "OWNER_TELEGRAM_ID", required: true, test: /^\d{4,15}$/, msg: "Use the number @userinfobot shows as Id, not your @username." },
+  { id: "gemini", key: "GEMINI_API_KEY", required: false, test: /^[A-Za-z0-9_-]{20,}$/, msg: "That does not look like a Gemini key. Leave it empty if unsure." },
+  { id: "tailscale", key: "TAILSCALE_AUTHKEY", required: false, test: /^tskey-[A-Za-z0-9-]+$/, msg: "Tailscale auth keys start with tskey-. Leave it empty if unsure." },
+];
+function setError(id, text) {
+  const input = $("#k-" + id), err = $("#e-" + id);
+  input.setAttribute("aria-invalid", text ? "true" : "false");
+  err.hidden = !text; err.textContent = text || "";
+}
+function validTz(tz) { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/.test(tz); } catch { return false; } }
+
+$("#builder").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  let ok = true;
+  const values = {};
+  for (const f of FIELDS) {
+    const v = $("#k-" + f.id).value.trim();
+    let err = "";
+    if (!v && f.required) err = "Needed.";
+    else if (v && !f.test.test(v)) err = f.msg;
+    setError(f.id, err);
+    if (err) ok = false;
+    values[f.key] = v;
+  }
+  const tz = $("#k-tz").value.trim();
+  setError("tz", validTz(tz) ? "" : "Use a name like Europe/Prague.");
+  if (!validTz(tz)) ok = false;
+  values.OPENCLAW_TZ = tz;
+  if (!ok) { status.className = "status bad"; status.textContent = "Fix the highlighted fields."; return; }
+  if (!template) { status.className = "status bad"; status.textContent = "The setup template has not loaded yet. Reload and try again."; return; }
+  let out = template;
+  for (const [key, v] of Object.entries(values)) {
+    const re = new RegExp("^(      " + key + "=).*$", "m");
+    if (!re.test(out)) { status.className = "status bad"; status.textContent = "The template is missing " + key + ". Reload the page."; return; }
+    out = out.replace(re, (_, p) => p + v);
+  }
+  const box = $("#setup-output");
+  box.value = out; box.hidden = false; $("#output-note").hidden = false;
+  try {
+    await navigator.clipboard.writeText(out);
+    status.className = "status ok"; status.textContent = "Copied. Now paste it into your server's Cloud config box (step 6).";
+  } catch {
+    box.focus(); box.select();
+    status.className = "status ok"; status.textContent = "Built. Copy the selected text below, then paste it in step 6.";
+  }
+});
+$("#clear").addEventListener("click", () => {
+  for (const f of FIELDS) { $("#k-" + f.id).value = ""; setError(f.id, ""); }
+  $("#setup-output").value = ""; $("#setup-output").hidden = true; $("#output-note").hidden = true;
+  status.textContent = "";
+});
+})();
+</script>

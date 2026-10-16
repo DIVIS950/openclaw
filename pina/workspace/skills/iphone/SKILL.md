@@ -11,6 +11,18 @@ then shows up as a **node**, and you reach it with the `nodes` tool. If no iPhon
 connected, say so in one sentence and continue without it. Pairing needs the private
 Tailscale step from the setup guide; until then there is simply no phone node.
 
+## A new pairing code
+
+If the owner asks for a new iPhone setup code (codes expire after 10 minutes), run this with
+`exec` and send them the `setupCode` value as its own message:
+
+```bash
+node /app/dist/index.js qr --json
+```
+
+It only works after the iPhone step of the setup guide has run (it needs the private Tailscale
+address). If it fails, tell the owner to run that step.
+
 ## Find the phone first
 
 ```json

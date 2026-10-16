@@ -1,5 +1,10 @@
 # iPhone app: missing permission prompts (documented fix, not applied)
 
+> Scope: this is about the iOS app in **this fork** (`apps/ios`, version 2026.2.x). The official
+> App Store app (OpenClaw 2026.10.x) already asks for Calendar, Contacts, Reminders, Photos and
+> Motion access from its Settings, This iPhone, Permissions page. Piña's setup uses the App Store
+> app, so this gap only matters if you build the fork's iOS app yourself.
+
 The OpenClaw iPhone app declares calendar, reminders, contacts, photos and motion commands.
 On the current build none of them can ever succeed. Each service only reads the current
 authorization status and never asks for access, and `Info.plist` has no usage strings for

@@ -124,4 +124,9 @@ fi
 curl -fsS -m 20 "https://api.telegram.org/bot$(env_get TELEGRAM_BOT_TOKEN)/sendMessage" \
   --data-urlencode "chat_id=$OWNER_ID" --data-urlencode "text=$text" >/dev/null \
   || echo "Could not send the Telegram hello. Open your bot in Telegram and tap Start, then message it."
+# 10. Optional: with a Tailscale auth key in .env, pair-ready the OpenClaw iPhone app right away.
+if [ -n "$(env_get TAILSCALE_AUTHKEY)" ]; then
+  echo "== Setting up private access for the OpenClaw iPhone app"
+  bash "$PINA/iphone-setup.sh" || echo "The iPhone step failed; run it again later: sudo bash $PINA/iphone-setup.sh"
+fi
 echo "== Piña setup finished $(date -u +%FT%TZ)"

@@ -65,5 +65,10 @@
     elevated: { enabled: false },
     // Settings stay in the owner's hands: no config-changing or plugin-installing tools.
     deny: ["gateway", "openclaw", "plugins"],
+    // Web search turns on by itself when GEMINI_API_KEY is set in /opt/pina/.env.
   },
+  // The -browser image ships Chromium; OpenClaw finds it automatically.
+  browser: { enabled: true, headless: true, noSandbox: true },
+  // Gmail + Google Calendar through the gog CLI baked into the image (log in once, see the guide).
+  skills: { entries: { gog: { enabled: true } } },
 }
