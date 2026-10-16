@@ -8,9 +8,10 @@ echo "== Piña setup started $(date -u +%FT%TZ)"
 
 PINA=/opt/pina
 ENV_FILE="$PINA/.env"
-STATE="$PINA/state"          # mounted at /home/node/.openclaw inside the container
-WORKSPACE="$STATE/workspace" # mounted at /home/node/.openclaw/workspace
+STATE="$PINA/config"         # mounted at /home/node/.openclaw inside the container
+WORKSPACE="$PINA/workspace"  # mounted at /home/node/.openclaw/workspace
 SECRETS="$PINA/auth-secrets" # mounted at /home/node/.config/openclaw
+BACKUPS="$PINA/backups"
 
 if [ "$(id -u)" -ne 0 ]; then echo "Run as root (sudo)."; exit 1; fi
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE. Fill in the values from the setup guide first."; exit 1; }
@@ -42,6 +43,8 @@ fi
 [ -n "$(env_get OPENCLAW_GATEWAY_TOKEN)" ] || env_set OPENCLAW_GATEWAY_TOKEN "$(openssl rand -hex 32)"
 [ -n "$(env_get GOG_KEYRING_PASSWORD)" ] || env_set GOG_KEYRING_PASSWORD "$(openssl rand -hex 24)"
 [ -n "$(env_get OPENCLAW_TZ)" ] || env_set OPENCLAW_TZ "Europe/Prague"
+OWNER_TZ="$(env_get OPENCLAW_TZ)"
+[ -f "/usr/share/zoneinfo/$OWNER_TZ" ] || { echo "OPENCLAW_TZ=$OWNER_TZ is not a known time zone (example: Europe/Prague)."; exit 1; }
 
 # 3. Swap, so a 1-2 GB server does not run out of memory when the browser starts.
 if ! swapon --show | grep -q . && [ "$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)" -lt 3500 ]; then
@@ -59,12 +62,13 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
 fi
 
 # 5. Folders the container writes to belong to its user (uid 1000), and nobody else.
-install -d -m 700 -o 1000 -g 1000 "$STATE" "$WORKSPACE" "$SECRETS"
+install -d -m 700 -o 1000 -g 1000 "$STATE" "$WORKSPACE" "$SECRETS" "$BACKUPS"
 
 # 6. First run only: copy the starter config and Piña's workspace files into place.
 #    Later runs never overwrite what Piña or you changed.
 if [ ! -f "$STATE/openclaw.json" ]; then
-  sed "s/__OWNER_TELEGRAM_ID__/$OWNER_ID/g" "$PINA/template/openclaw.json5" > "$STATE/openclaw.json"
+  sed -e "s/__OWNER_TELEGRAM_ID__/$OWNER_ID/g" -e "s#__OWNER_TZ__#$OWNER_TZ#g" \
+    "$PINA/template/openclaw.json5" > "$STATE/openclaw.json"
 fi
 cp -rn "$PINA/template/workspace/." "$WORKSPACE/"
 for name in USER IDENTITY; do
@@ -73,14 +77,19 @@ for name in USER IDENTITY; do
   fi
 done
 sed -i "s/__OWNER_TELEGRAM_ID__/$OWNER_ID/g" "$WORKSPACE/USER.md"
-chown -R 1000:1000 "$STATE" "$SECRETS"
+chown -R 1000:1000 "$STATE" "$WORKSPACE" "$SECRETS" "$BACKUPS"
 chmod 600 "$STATE/openclaw.json"
 
 # 7. Build the small image layer (adds the Gmail/Calendar tool) and start Piña.
 cd "$PINA"
 echo "== Building and starting Piña (this can take a few minutes)"
 docker compose build --pull
-docker compose up -d
+# Check the config before starting: an invalid config would make the container restart forever.
+if ! docker compose run -T --rm --no-deps --entrypoint node openclaw-gateway dist/index.js config validate; then
+  echo "The config in $STATE/openclaw.json is not valid. Fix it, then run: sudo bash $PINA/setup.sh"
+  exit 1
+fi
+docker compose up -d openclaw-gateway
 
 # 8. A shortcut for later: `pina <openclaw command>` runs the OpenClaw CLI inside the stack.
 cat > /usr/local/bin/pina <<'SH'
@@ -89,8 +98,10 @@ cd /opt/pina || exit 1
 case "${1:-}" in
   logs) exec docker compose logs -f --tail=100 openclaw-gateway ;;
   restart) exec docker compose restart openclaw-gateway ;;
-  update) docker compose build --pull && exec docker compose up -d ;;
-  ""|help) echo "Usage: pina logs | restart | update | <any openclaw command>, e.g. pina channels status --probe"; exit 0 ;;
+  update) docker compose build --pull && exec docker compose up -d openclaw-gateway ;;
+  backup) exec docker compose run --rm -v /opt/pina/backups:/backups openclaw-cli backup create --output /backups --verify ;;
+  ""|help) echo "Usage: pina logs | restart | update | backup | <any openclaw command>"
+           echo "Examples: pina channels status --probe   pina security audit   pina nodes pending"; exit 0 ;;
   *) exec docker compose run --rm openclaw-cli "$@" ;;
 esac
 SH

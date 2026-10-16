@@ -1,0 +1,76 @@
+# Piña on OpenClaw 2026.10.4. Derived from the release's own docker-compose.yml.
+# Default: Telegram only, no published ports, gateway reachable only inside the container.
+# The optional iPhone app step adds docker-compose.iphone.yml (see the setup guide).
+name: pina
+
+x-common: &common
+  image: pina-openclaw:local
+  env_file:
+    - path: .env
+      required: true
+  environment: &env
+    HOME: /home/node
+    OPENCLAW_HOME: /home/node
+    TERM: xterm-256color
+    OPENCLAW_STATE_DIR: /home/node/.openclaw
+    OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+    OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+    OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+    OPENCLAW_GATEWAY_PORT: "18789"
+    OPENCLAW_DISABLE_BONJOUR: "1"
+    TZ: ${OPENCLAW_TZ:-UTC}
+    # gog (Gmail + Google Calendar) keeps its login on the state volume.
+    GOG_HOME: /home/node/.openclaw/gogcli
+    GOG_KEYRING_BACKEND: file
+  volumes:
+    - ./config:/home/node/.openclaw
+    - ./workspace:/home/node/.openclaw/workspace
+    - ./auth-secrets:/home/node/.config/openclaw
+  cap_drop:
+    - NET_RAW
+    - NET_ADMIN
+  security_opt:
+    - no-new-privileges:true
+  init: true
+
+services:
+  openclaw-gateway:
+    <<: *common
+    build:
+      context: .
+      args:
+        OPENCLAW_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:2026.10.4-browser}
+    restart: unless-stopped
+    # Keep the image's entrypoint: it runs `openclaw doctor --fix` before starting the gateway.
+    command: ["node", "dist/index.js", "gateway", "--bind", "${OPENCLAW_GATEWAY_BIND:-loopback}", "--port", "18789"]
+    healthcheck:
+      test: ["CMD", "node", "dist/docker-healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pina
+
+  # One-off CLI runs: `docker compose run --rm openclaw-cli <command>` (or the `pina` shortcut).
+  openclaw-cli:
+    <<: *common
+    profiles: ["cli"]
+    network_mode: "service:openclaw-gateway"
+    pid: "service:openclaw-gateway"
+    environment:
+      <<: *env
+      BROWSER: echo
+    stdin_open: true
+    tty: true
+    entrypoint: ["node", "dist/index.js"]
+    depends_on:
+      - openclaw-gateway
+
+networks:
+  pina:
+    # A fixed subnet, so the optional iPhone step knows which proxy address to trust.
+    ipam:
+      config:
+        - subnet: 172.30.255.0/24
+          gateway: 172.30.255.1

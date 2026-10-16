@@ -1,36 +1,69 @@
 // Piña: one personal-assistant agent on its own cloud computer, reached from an iPhone.
-// Secrets come from environment variables (see ../cloud/.env.example); never paste keys here.
+// Written for OpenClaw 2026.10.4 (image ghcr.io/openclaw/openclaw:2026.10.4-browser).
+// Secrets never go in this file. They come from /opt/pina/.env:
+//   ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, OPENCLAW_GATEWAY_TOKEN (and optional search keys).
+// setup.sh replaces __OWNER_TELEGRAM_ID__ and __OWNER_TZ__ on first install.
+// Note: the image runs `openclaw doctor --fix` on every start, which may rewrite this file as plain JSON.
 {
-  agents: {
-    defaults: {
-      model: { primary: "anthropic/claude-sonnet-4-6" },
-      userTimezone: "Europe/Prague",
-    },
-    list: [
-      {
-        id: "pina",
-        default: true,
-        name: "Piña",
-        workspace: "~/.openclaw/workspace-pina",
-        identity: { name: "Piña", emoji: "🍍" },
-      },
-    ],
-  },
   gateway: {
     mode: "local",
+    port: 18789,
+    // Only processes inside the container can reach the gateway. Telegram needs no open port.
     bind: "loopback",
-    auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+    auth: { mode: "token" },
+    controlUi: { enabled: false },
+    tailscale: { mode: "off" },
+  },
+  discovery: { mdns: { mode: "off" } },
+  agents: {
+    defaults: {
+      model: {
+        primary: "anthropic/claude-sonnet-5-5",
+        fallbacks: ["anthropic/claude-opus-5-5"],
+      },
+      thinkingDefault: "medium",
+      userTimezone: "__OWNER_TZ__",
+      // Check-ins run as scheduled automations instead (see AGENTS.md).
+      heartbeat: { every: "0m" },
+      // The workspace ships ready-made, so skip the first-run interview.
+      skipBootstrap: true,
+      // Re-read the hard rules after a long chat is compacted.
+      compaction: { postCompactionSections: ["Session Startup", "Red Lines"] },
+    },
+    entries: {
+      pina: {
+        name: "Piña",
+        identity: { name: "Piña", emoji: "🍍", theme: "warm, quick, straightforward personal assistant" },
+        sandbox: { mode: "off" },
+      },
+    },
+  },
+  // No embedding key needed: memory search stays keyword-based.
+  memory: { search: { provider: "none" } },
+  commands: {
+    // The owner may use owner-only tools (automations, nodes) and every command.
+    ownerAllowFrom: ["telegram:__OWNER_TELEGRAM_ID__"],
+    bash: false,
+    config: false,
   },
   channels: {
     telegram: {
-      enabled: true,
-      botToken: "${TELEGRAM_BOT_TOKEN}",
-      dmPolicy: "pairing",
+      enabled: true, // token comes from TELEGRAM_BOT_TOKEN
+      dmPolicy: "allowlist",
+      allowFrom: ["__OWNER_TELEGRAM_ID__"],
       groupPolicy: "disabled",
+      joinIntro: false,
+      configWrites: false,
+      streaming: { mode: "off" },
+      capabilities: { inlineButtons: "dm" },
+      execApprovals: { enabled: true, approvers: ["__OWNER_TELEGRAM_ID__"], target: "dm" },
     },
   },
   tools: {
-    web: { search: { provider: "brave", apiKey: "${BRAVE_API_KEY}" } },
+    // Piña's own computer: shell commands run freely inside the container, for the owner only.
+    exec: { host: "gateway", mode: "full" },
+    elevated: { enabled: false },
+    // Settings stay in the owner's hands: no config-changing or plugin-installing tools.
+    deny: ["gateway", "openclaw", "plugins"],
   },
-  plugins: { entries: { "phone-control": { enabled: true } } },
 }

@@ -14,8 +14,11 @@ const out = path.join(here, "cloud-init.yaml");
 // [source path inside pina/, destination on the server]
 const files = [
   ["cloud/setup.sh", "/opt/pina/setup.sh", "0755"],
+  ["cloud/iphone-setup.sh", "/opt/pina/iphone-setup.sh", "0755"],
   ["cloud/docker-compose.yml", "/opt/pina/docker-compose.yml", "0644"],
+  ["cloud/docker-compose.iphone.yml", "/opt/pina/docker-compose.iphone.yml", "0644"],
   ["cloud/Dockerfile", "/opt/pina/Dockerfile", "0644"],
+  ["cloud/install-gog.mjs", "/opt/pina/install-gog.mjs", "0644"],
   ["config/openclaw.json5", "/opt/pina/template/openclaw.json5", "0644"],
 ];
 // Every workspace file except the CLAUDE.md symlink (a repo convention, not part of the agent's home).
