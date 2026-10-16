@@ -1,0 +1,36 @@
+// Piña: one personal-assistant agent on its own cloud computer, reached from an iPhone.
+// Secrets come from environment variables (see ../cloud/.env.example); never paste keys here.
+{
+  agents: {
+    defaults: {
+      model: { primary: "anthropic/claude-sonnet-4-6" },
+      userTimezone: "Europe/Prague",
+    },
+    list: [
+      {
+        id: "pina",
+        default: true,
+        name: "Piña",
+        workspace: "~/.openclaw/workspace-pina",
+        identity: { name: "Piña", emoji: "🍍" },
+      },
+    ],
+  },
+  gateway: {
+    mode: "local",
+    bind: "loopback",
+    auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+  },
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      dmPolicy: "pairing",
+      groupPolicy: "disabled",
+    },
+  },
+  tools: {
+    web: { search: { provider: "brave", apiKey: "${BRAVE_API_KEY}" } },
+  },
+  plugins: { entries: { "phone-control": { enabled: true } } },
+}
