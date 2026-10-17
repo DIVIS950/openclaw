@@ -1,0 +1,45 @@
+// Pinaple main config. Secrets come from ~/.openclaw/.env (never put keys in this file).
+{
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+      // Sonnet is the best price/quality for a daily assistant.
+      // Change to "anthropic/claude-opus-5-5" for the smartest (and most expensive) brain.
+      model: {
+        primary: "anthropic/claude-sonnet-5-5",
+        fallbacks: ["anthropic/claude-haiku-5-5"],
+      },
+      // Heartbeat runs cost tokens every time. Off by default to save money.
+      // Pinaple can still message you on its own via reminders (cron).
+      heartbeat: { every: "0m" },
+    },
+    entries: {
+      main: {
+        name: "Pinaple",
+        identity: { name: "Pinaple", theme: "loyal personal assistant", emoji: "🍍" },
+      },
+    },
+  },
+
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      // Only people you approve can talk to Pinaple. You approve yourself once.
+      dmPolicy: "pairing",
+      groups: { "*": { requireMention: true } },
+    },
+  },
+
+  // Semantic memory search needs an OpenAI key. Off by default; Pinaple still
+  // remembers through its workspace notes. See README to turn it on.
+  memory: { search: { enabled: false } },
+
+  gateway: {
+    mode: "local",
+    // Private by default. Reach the dashboard through SSH tunnel or Tailscale.
+    bind: "loopback",
+    port: 18789,
+    auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+  },
+}

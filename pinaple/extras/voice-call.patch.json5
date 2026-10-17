@@ -1,0 +1,25 @@
+// Pinaple phone calls (optional). Apply with:
+//   openclaw plugins install @openclaw/voice-call
+//   openclaw config patch --file voice-call.patch.json5
+// Fill in the two phone numbers first. Twilio keys come from ~/.openclaw/.env
+// (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN). Voice needs OPENAI_API_KEY for speech.
+{
+  plugins: {
+    entries: {
+      "voice-call": {
+        enabled: true,
+        config: {
+          provider: "twilio",
+          fromNumber: "+15550001234", // your Twilio number
+          toNumber: "+15550005678", // YOUR phone number: Pinaple calls this one
+          // Only your own phone may call Pinaple.
+          inboundPolicy: "allowlist",
+          allowFrom: ["+15550005678"],
+          // Twilio must reach this server. Tailscale Funnel gives a free public HTTPS URL.
+          tailscale: { mode: "funnel", port: 8443, path: "/voice/webhook" },
+          outbound: { defaultMode: "conversation" },
+        },
+      },
+    },
+  },
+}
