@@ -1,0 +1,67 @@
+# Muse front door. Caddy gets an HTTPS certificate for MUSE_SITE automatically.
+#   /desktop/*     the live cloud desktop (watch or take over) and the approvals page.
+#                  Needs the watch key once (?key=...), then a cookie.
+#   everything else  the OpenClaw gateway: web chat (Control UI), the chat API Pineapple uses,
+#                  and its WebSocket. The gateway checks its own token.
+{$MUSE_SITE} {
+	encode zstd gzip
+
+	# Never expose these over the internet: direct tool calls and server-to-server hooks.
+	@private path /tools/invoke /tools/invoke/* /hooks /hooks/*
+	handle @private {
+		respond 404
+	}
+
+	# First visit with the watch key: remember it in a cookie and drop it from the address bar.
+	@watchKey {
+		path /desktop /desktop/*
+		query key={$MUSE_WATCH_KEY}
+	}
+	handle @watchKey {
+		header Set-Cookie "muse_watch={$MUSE_WATCH_KEY}; Path=/desktop; Max-Age=31536000; Secure; HttpOnly; SameSite=Lax"
+		redir * /desktop/muse.html 302
+	}
+
+	@watchCookie {
+		path /desktop /desktop/*
+		header_regexp watch Cookie (^|;\s*)muse_watch={$MUSE_WATCH_KEY}(;|$)
+	}
+	handle @watchCookie {
+		# Approvals and take-over: forwarded to the guard plugin with the gateway token added here,
+		# so the watch page never sees that token.
+		handle_path /desktop/api/* {
+			rewrite * /api/channels/muse-sentinel{path}
+			reverse_proxy {$MUSE_GATEWAY_ADDR} {
+				header_up Authorization "Bearer {$OPENCLAW_GATEWAY_TOKEN}"
+			}
+		}
+		handle /desktop {
+			redir * /desktop/muse.html 302
+		}
+		# The VNC password for the watch page; only reachable with the watch cookie.
+		handle /desktop/session {
+			header Content-Type application/json
+			header Cache-Control no-store
+			respond `{"vncPassword":"{$MUSE_VNC_PASSWORD}"}` 200
+		}
+		# noVNC files, the watch page and the VNC WebSocket, served by the desktop container.
+		handle_path /desktop/* {
+			reverse_proxy {$MUSE_DESKTOP_ADDR}
+		}
+	}
+
+	@desktopAny path /desktop /desktop/*
+	handle @desktopAny {
+		respond "Open the desktop link from your Muse installer or from Pineapple." 401
+	}
+
+	handle {
+		reverse_proxy {$MUSE_GATEWAY_ADDR} {
+			# Long agent runs can stay quiet for minutes; keep the chat stream open.
+			transport http {
+				read_timeout 30m
+			}
+			flush_interval -1
+		}
+	}
+}

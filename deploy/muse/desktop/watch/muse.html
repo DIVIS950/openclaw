@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#16120d" />
+  <title>Muse desktop</title>
+  <style>
+    :root {
+      --bg: #16120d;
+      --panel: #221b14;
+      --line: #3a2f22;
+      --text: #f6eee2;
+      --soft: #c9b89e;
+      --gold: #ffc540;
+      --good: #5be49b;
+      --bad: #e5547a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+    header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 17px; margin: 0; flex: 1; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--soft); display: inline-block; margin-right: 6px; }
+    .dot.on { background: var(--good); }
+    button { font: inherit; border: 0; border-radius: 12px; padding: 9px 14px; cursor: pointer; }
+    .primary { background: var(--gold); color: #2b1d05; font-weight: 600; }
+    .ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .good { background: var(--good); color: #062716; font-weight: 600; }
+    .bad { background: var(--bad); color: #fff; font-weight: 600; }
+    #screen { flex: 1; min-height: 0; position: relative; background: #000; }
+    #banner { display: none; position: absolute; left: 12px; right: 12px; top: 12px; z-index: 2;
+      background: var(--gold); color: #2b1d05; border-radius: 12px; padding: 8px 12px; font-weight: 600; text-align: center; }
+    #banner.show { display: block; }
+    #message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--soft); padding: 20px; text-align: center; }
+    #approvals { border-top: 1px solid var(--line); background: var(--panel); max-height: 45vh; overflow: auto;
+      padding: 0 14px calc(10px + env(safe-area-inset-bottom)); }
+    #approvals:empty { display: none; }
+    .card { border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-top: 10px; background: var(--bg); }
+    .card .what { font-weight: 600; margin-bottom: 4px; }
+    .card .detail { color: var(--soft); font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+    .card .row { display: flex; gap: 8px; margin-top: 10px; }
+    .card .row button { flex: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span id="statusDot" class="dot"></span>Muse desktop</h1>
+    <button id="control" class="ghost" type="button" disabled>Take over</button>
+  </header>
+  <div id="screen">
+    <div id="banner">You are in control. Muse is paused until you give it back.</div>
+    <div id="message">Connecting to your cloud desktop…</div>
+  </div>
+  <section id="approvals" aria-label="Waiting for your approval"></section>
+
+  <script type="module">
+    import RFB from "./core/rfb.js";
+
+    const screen = document.getElementById("screen");
+    const message = document.getElementById("message");
+    const banner = document.getElementById("banner");
+    const statusDot = document.getElementById("statusDot");
+    const control = document.getElementById("control");
+    const approvals = document.getElementById("approvals");
+
+    let rfb = null;
+    let inControl = false;
+    let retryTimer = null;
+
+    async function api(path, body) {
+      const res = await fetch(`api/${path}`, body === undefined
+        ? { credentials: "same-origin" }
+        : { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function connect() {
+      clearTimeout(retryTimer);
+      let password = "";
+      try {
+        const session = await fetch("session", { credentials: "same-origin" }).then((r) => r.json());
+        password = session.vncPassword || "";
+      } catch {
+        // No password configured is fine; the desktop then accepts the proxied connection as is.
+      }
+      const scheme = location.protocol === "https:" ? "wss" : "ws";
+      const url = `${scheme}://${location.host}${location.pathname.replace(/[^/]*$/, "")}websockify`;
+      rfb = new RFB(screen, url, { shared: true, credentials: { password } });
+      rfb.scaleViewport = true;
+      rfb.resizeSession = false;
+      rfb.viewOnly = !inControl;
+      rfb.background = "#000";
+      rfb.addEventListener("connect", () => {
+        message.style.display = "none";
+        statusDot.classList.add("on");
+        control.disabled = false;
+      });
+      rfb.addEventListener("disconnect", () => {
+        statusDot.classList.remove("on");
+        control.disabled = true;
+        message.style.display = "flex";
+        message.textContent = "The desktop disconnected. Reconnecting…";
+        retryTimer = setTimeout(connect, 3000);
+      });
+      rfb.addEventListener("credentialsrequired", () => rfb.sendCredentials({ password }));
+    }
+
+    async function setControl(next) {
+      control.disabled = true;
+      try {
+        const state = await api(next ? "pause" : "resume", {});
+        inControl = Boolean(state.paused);
+      } catch (error) {
+        alert(`Could not ${next ? "pause" : "resume"} Muse: ${error.message}`);
+      }
+      if (rfb) rfb.viewOnly = !inControl;
+      banner.classList.toggle("show", inControl);
+      control.textContent = inControl ? "Give back" : "Take over";
+      control.className = inControl ? "primary" : "ghost";
+      control.disabled = false;
+    }
+    control.addEventListener("click", () => setControl(!inControl));
+
+    function renderPending(pending) {
+      approvals.replaceChildren(...pending.map((item) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        const what = document.createElement("div");
+        what.className = "what";
+        what.textContent = item.summary;
+        const detail = document.createElement("div");
+        detail.className = "detail";
+        detail.textContent = item.detail || "";
+        const row = document.createElement("div");
+        row.className = "row";
+        for (const [label, decision, cls] of [["Allow", "approve", "good"], ["Don't", "deny", "bad"]]) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = cls;
+          b.textContent = label;
+          b.addEventListener("click", async () => {
+            b.disabled = true;
+            try {
+              await api("decide", { id: item.id, decision });
+              await refresh();
+            } catch (error) {
+              alert(error.message);
+              b.disabled = false;
+            }
+          });
+          row.append(b);
+        }
+        card.append(what, detail, row);
+        return card;
+      }));
+    }
+
+    async function refresh() {
+      try {
+        const state = await api("state");
+        renderPending(state.pending || []);
+        if (Boolean(state.paused) !== inControl) {
+          inControl = Boolean(state.paused);
+          if (rfb) rfb.viewOnly = !inControl;
+          banner.classList.toggle("show", inControl);
+          control.textContent = inControl ? "Give back" : "Take over";
+          control.className = inControl ? "primary" : "ghost";
+        }
+      } catch {
+        // The gateway may be restarting; try again on the next tick.
+      }
+    }
+
+    connect();
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>
