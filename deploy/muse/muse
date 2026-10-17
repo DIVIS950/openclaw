@@ -30,8 +30,27 @@ set_env() {
 }
 
 regen_config() {
-  python3 "$COMPOSE_DIR/make-config.py" --env-file "$MUSE_ENV_FILE" --out "$MUSE_DATA_DIR/openclaw/openclaw.json"
-  chown 1000:1000 "$MUSE_DATA_DIR/openclaw/openclaw.json"
+  # Rewrites openclaw.json from muse.env; adds the Muse persona files to the workspace if missing.
+  local ws="$MUSE_DATA_DIR/openclaw/workspace"
+  python3 "$COMPOSE_DIR/make-config.py" --env-file "$MUSE_ENV_FILE" \
+    --out "$MUSE_DATA_DIR/openclaw/openclaw.json" --workspace "$ws" || return 1
+  # The gateway container runs as uid 1000 (node).
+  chown 1000:1000 "$MUSE_DATA_DIR/openclaw/openclaw.json" "$ws" "$ws/AGENTS.md" "$ws/IDENTITY.md"
+}
+
+# change_setting KEY VALUE: save one setting and rewrite the config; undo it if the config rejects it.
+change_setting() {
+  local backup
+  backup="$(mktemp)"
+  cp "$MUSE_ENV_FILE" "$backup"
+  set_env "$1" "$2"
+  if ! regen_config; then
+    install -m 600 "$backup" "$MUSE_ENV_FILE"
+    rm -f "$backup"
+    echo "Nothing changed." >&2
+    exit 1
+  fi
+  rm -f "$backup"
 }
 
 # Calls the chat API through Caddy on this machine, even before DNS or the certificate is ready.
@@ -42,16 +61,40 @@ chat() {
     -H "Content-Type: application/json" \
     -H "x-openclaw-session-key: agent:main:doctor" \
     -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"openclaw:main","stream":False,"messages":[{"role":"user","content":sys.argv[1]}]}))' "$message")" \
-    "https://$MUSE_SITE/v1/chat/completions"
+    "https://$MUSE_SITE/v1/chat/completions" || printf '{"transport_error":%s}' "$?"
 }
 
 reply_text() {
   python3 -c 'import json,sys
 try:
     d = json.load(sys.stdin)
-    print(d["choices"][0]["message"]["content"])
+    if "transport_error" in d:
+        print("TRANSPORT")
+    else:
+        print(d["choices"][0]["message"]["content"])
 except Exception:
     print("ERROR")'
+}
+
+# The gateway must never run without the Muse Sentinel: a plugin that fails to load leaves the
+# browser and message tools unguarded. Wait for its health route; stop the gateway if it never answers.
+sentinel_check() {
+  local out i
+  for i in $(seq 1 60); do
+    out="$(curl -sS --max-time 5 --resolve "$MUSE_SITE:443:127.0.0.1" -k \
+      -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
+      "https://$MUSE_SITE/api/channels/muse-sentinel/health" 2>/dev/null || true)"
+    if printf '%s' "$out" | grep -q '"ok": *true'; then return 0; fi
+    sleep 2
+  done
+  dc stop gateway
+  echo "The Muse Sentinel is not running, so the gateway was stopped (Muse must not act unguarded). See: muse logs gateway" >&2
+  return 1
+}
+
+restart_gateway() {
+  dc restart gateway
+  sentinel_check
 }
 
 cmd="${1:-help}"
@@ -60,33 +103,41 @@ case "$cmd" in
   up)
     dc build
     dc up -d --remove-orphans
+    sentinel_check
     ;;
+  sentinel-check) sentinel_check && echo "Muse Sentinel is on." ;;
   down) dc down ;;
-  restart) dc restart "$@" ;;
+  restart)
+    dc restart "$@"
+    sentinel_check
+    ;;
   status) dc ps ;;
   logs) dc logs -f --tail 200 "$@" ;;
   cli) oc "$@" ;;
   health)
-    dc exec -T gateway node dist/index.js health --token "$OPENCLAW_GATEWAY_TOKEN"
+    dc exec -T gateway node dist/index.js health
     ;;
   doctor)
     say "Asking Claude to say OK (model: ${MUSE_MODEL})"
     answer="$(chat 'Reply with exactly: OK' 180 | reply_text)"
+    if [ "$answer" = "TRANSPORT" ]; then
+      echo "Could not reach Muse through Caddy (certificate not ready yet, or ports 80/443 blocked?). Check: muse logs caddy" >&2
+      exit 2
+    fi
     if ! printf '%s' "$answer" | grep -qi '\bok\b' || printf '%s' "$answer" | grep -qi '^error'; then
       echo "Answer: $answer"
       if [ "$MUSE_MODEL" != "$FALLBACK_MODEL" ]; then
         say "That model did not work here. Switching to $FALLBACK_MODEL and trying again."
         set_env MUSE_MODEL "$FALLBACK_MODEL"
         regen_config
-        dc restart gateway
-        sleep 20
+        restart_gateway
         answer="$(chat 'Reply with exactly: OK' 180 | reply_text)"
       fi
     fi
     echo "Claude said: $answer"
     printf '%s' "$answer" | grep -qi '\bok\b' || { echo "Claude did not answer. Check: muse logs gateway" >&2; exit 1; }
     say "Asking Muse to use its cloud browser"
-    answer="$(chat 'Open https://example.com in your browser and tell me the page title in one line.' 300 | reply_text)"
+    answer="$(chat 'Open https://example.com in your browser and tell me the page title in one line.' 300 | reply_text || true)"
     echo "Muse said: $answer"
     ;;
   info)
@@ -113,32 +164,37 @@ EOF
 
 EOF
     ;;
+  revoke-devices)
+    # Forget every paired browser and app (they keep access through their own device tokens otherwise).
+    dc exec -T gateway node dist/index.js devices clear --yes --pending
+    ;;
   approve-device)
-    oc devices list
-    oc devices approve --latest
+    dc exec gateway node dist/index.js devices list
+    dc exec gateway node dist/index.js devices approve --latest
     ;;
   whatsapp)
+    [ -n "${MUSE_WHATSAPP_OWNER:-}" ] || {
+      echo "Set your number first: muse whatsapp-owner +<country><number>" >&2
+      exit 1
+    }
     say "Scan this code in WhatsApp > Settings > Linked devices"
     oc channels login --channel whatsapp
-    dc restart gateway
+    restart_gateway
     ;;
   telegram-owner)
     [ -n "${1:-}" ] || { echo "Usage: muse telegram-owner <numeric id>" >&2; exit 1; }
-    set_env MUSE_TELEGRAM_OWNER "$1"
-    regen_config
-    dc restart gateway
+    change_setting MUSE_TELEGRAM_OWNER "$(printf '%s' "$*" | tr -d '[:space:]')"
+    restart_gateway
     ;;
   whatsapp-owner)
     [ -n "${1:-}" ] || { echo "Usage: muse whatsapp-owner +<country><number>" >&2; exit 1; }
-    set_env MUSE_WHATSAPP_OWNER "$1"
-    regen_config
-    dc restart gateway
+    change_setting MUSE_WHATSAPP_OWNER "$(printf '%s' "$*" | tr -d '[:space:]().-')"
+    restart_gateway
     ;;
   model)
     [ -n "${1:-}" ] || { echo "Current model: $MUSE_MODEL. Usage: muse model anthropic/<model id>" >&2; exit 1; }
-    set_env MUSE_MODEL "$1"
-    regen_config
-    dc restart gateway
+    change_setting MUSE_MODEL "$1"
+    restart_gateway
     ;;
   pause | resume)
     curl -sS --resolve "$MUSE_SITE:443:127.0.0.1" -k -X POST \
@@ -154,17 +210,24 @@ EOF
     ;;
   update)
     git -C "$MUSE_CODE_DIR" pull --ff-only
-    regen_config
+    # Install the new helper too (atomic rename: safe while bash is still reading this file).
+    install -m 0755 "$COMPOSE_DIR/muse" /usr/local/bin/muse.new && mv /usr/local/bin/muse.new /usr/local/bin/muse
     dc build
+    regen_config
     dc up -d --remove-orphans
+    sentinel_check
     ;;
   backup)
     out="${1:-/root/muse-backup-$(date +%Y%m%d-%H%M%S).tar.gz}"
     say "Backing up $MUSE_DATA_DIR and the browser profile to $out"
+    # The archive holds every secret (keys, WhatsApp link, browser cookies): owner-only.
+    umask 077
     dc stop desktop
-    docker run --rm -v muse_chrome:/data/chrome:ro -v "$MUSE_DATA_DIR:/data/muse:ro" -v "$(dirname "$out"):/out" \
-      busybox tar czf "/out/$(basename "$out")" /data/chrome /data/muse
-    dc start desktop
+    trap 'dc start desktop' EXIT
+    # Reuse the local desktop image (GNU tar), so nothing has to be pulled.
+    docker run --rm --user 0 --entrypoint tar -v muse_chrome:/data/chrome:ro -v "$MUSE_DATA_DIR:/data/muse:ro" \
+      -v "$(dirname "$out"):/out" muse-desktop:local czf "/out/$(basename "$out")" /data/chrome /data/muse
+    chmod 600 "$out"
     ;;
   help | *)
     cat <<'EOF'
@@ -173,6 +236,8 @@ muse info              web chat link, desktop link and the Pineapple pairing cod
 muse doctor            check that Claude and the cloud browser work (switches model if needed)
 muse health            gateway health check
 muse approve-device    approve the newest browser or app that wants to use the web chat
+muse revoke-devices    unpair every browser and app (after changing the gateway token)
+muse sentinel-check    make sure the approval guard is running (stops the gateway if not)
 muse whatsapp          link WhatsApp (shows a QR code)
 muse telegram-owner ID | whatsapp-owner +NUMBER | model PROVIDER/MODEL
 muse pause | resume    stop Muse from using the browser while you use it, then give it back

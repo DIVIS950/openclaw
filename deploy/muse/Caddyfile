@@ -3,6 +3,12 @@
 #                  Needs the watch key once (?key=...), then a cookie.
 #   everything else  the OpenClaw gateway: web chat (Control UI), the chat API Pineapple uses,
 #                  and its WebSocket. The gateway checks its own token.
+{
+	# No admin API, and do not save the adapted config (it holds the gateway token and watch key).
+	admin off
+	persist_config off
+}
+
 {$MUSE_SITE} {
 	encode zstd gzip
 

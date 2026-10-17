@@ -865,6 +865,7 @@
                 "pages": [
                   "install/fly",
                   "install/hetzner",
+                  "install/muse",
                   "install/gcp",
                   "install/macos-vm",
                   "install/exe-dev",

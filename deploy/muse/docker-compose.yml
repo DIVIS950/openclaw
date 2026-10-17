@@ -9,15 +9,24 @@
 # only lets the gateway's address connect to CDP.
 name: muse
 
+# Bounded logs: the json-file default grows forever on a small always-on server.
+x-logging: &logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   gateway:
     image: muse-openclaw:local
     build:
       context: ../..
       dockerfile: Dockerfile
-    env_file:
-      - ${MUSE_ENV_FILE:-/srv/muse/muse.env}
+    # Only the secrets OpenClaw uses; the watch key and VNC password stay out of this container.
     environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in muse.env}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?set OPENCLAW_GATEWAY_TOKEN in muse.env}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       HOME: /home/node
       TERM: xterm-256color
       NODE_ENV: production
@@ -26,6 +35,7 @@ services:
     command: ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]
     init: true
     restart: unless-stopped
+    logging: *logging
     depends_on:
       - desktop
     networks:
@@ -45,6 +55,7 @@ services:
       - chrome:/data/chrome
     init: false
     restart: unless-stopped
+    logging: *logging
     networks:
       muse:
         ipv4_address: 172.30.0.10
@@ -67,19 +78,22 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     restart: unless-stopped
+    logging: *logging
     depends_on:
       - gateway
     networks:
       muse:
         ipv4_address: 172.30.0.3
 
-  # One-off OpenClaw commands: `muse cli devices list`, `muse cli channels login`, ...
+  # One-off OpenClaw commands: `muse cli devices list`, `muse cli channels login`, ... (gateway must be up)
   cli:
     image: muse-openclaw:local
     profiles: ["cli"]
-    env_file:
-      - ${MUSE_ENV_FILE:-/srv/muse/muse.env}
+    # Only the secrets OpenClaw uses; the watch key and VNC password stay out of this container.
     environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in muse.env}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?set OPENCLAW_GATEWAY_TOKEN in muse.env}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       HOME: /home/node
       TERM: xterm-256color
       NODE_ENV: production
@@ -90,8 +104,9 @@ services:
     stdin_open: true
     tty: true
     init: true
-    networks:
-      - muse
+    logging: *logging
+    # Share the gateway's network: OpenClaw commands reach the gateway on loopback as a local client.
+    network_mode: "service:gateway"
 
 networks:
   muse:

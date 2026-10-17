@@ -252,3 +252,7 @@
   - changed-files:
       - any-glob-to-any-file:
           - "extensions/talk-voice/**"
+"extensions: muse-sentinel":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/muse-sentinel/**"

@@ -8,6 +8,7 @@ Docs: https://docs.openclaw.ai
 
 - Android/Chat: improve streaming delivery handling and markdown rendering quality in the native Android chat UI, including better GitHub-flavored markdown behavior. (#26079) Thanks @obviyus.
 - Branding/Docs + Apple surfaces: replace remaining `bot.molt` launchd label, bundle-id, logging subsystem, and command examples with `ai.openclaw` across docs, iOS app surfaces, helper scripts, and CLI test fixtures.
+- Deploy/Muse: add a one-command Hetzner installer for Muse, an always-on OpenClaw cloud computer with a Chromium desktop you can watch and take over from your phone, HTTPS web chat, WhatsApp/Telegram, and the new Muse Sentinel plugin that asks the owner before the agent sends, posts, submits forms, books, buys or deletes anything.
 
 ### Fixes
 
