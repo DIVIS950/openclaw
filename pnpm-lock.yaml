@@ -375,6 +375,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
 
+  extensions/muse-sentinel: {}
+
   extensions/nextcloud-talk: {}
 
   extensions/nostr:

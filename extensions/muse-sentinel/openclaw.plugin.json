@@ -1,0 +1,80 @@
+{
+  "id": "muse-sentinel",
+  "name": "Muse Sentinel",
+  "description": "Asks the owner on their phone before the agent does anything that leaves the machine: sending, posting, submitting forms, booking, buying or deleting.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "owners": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "telegram": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Numeric Telegram user ids allowed to approve actions."
+          },
+          "whatsapp": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "WhatsApp numbers in E.164 form (+420123456789) allowed to approve actions."
+          }
+        }
+      },
+      "notify": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "telegram": {
+            "type": "string",
+            "description": "Telegram chat id that receives approval prompts (default: first Telegram owner)."
+          },
+          "whatsapp": {
+            "type": "string",
+            "description": "WhatsApp number that receives approval prompts (default: first WhatsApp owner)."
+          }
+        }
+      },
+      "guardModel": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Anthropic model that judges unclear browser actions (default: claude-haiku-5-5)."
+      },
+      "approvalTtlMinutes": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 1440,
+        "description": "How long an approval request stays open (default: 30)."
+      },
+      "mode": {
+        "type": "string",
+        "enum": ["outbound", "money", "off"],
+        "description": "outbound: ask before anything that leaves the machine. money: ask only for payments and purchases. off: allow everything except the always-denied tools."
+      }
+    }
+  },
+  "uiHints": {
+    "owners": {
+      "label": "Owners",
+      "help": "Telegram user ids and WhatsApp numbers whose /ok and /no replies count as approvals."
+    },
+    "notify": {
+      "label": "Notify",
+      "help": "Where approval prompts are sent. Defaults to the first owner on each channel."
+    },
+    "guardModel": {
+      "label": "Guard model",
+      "help": "Separate model that judges unclear browser actions. Uses ANTHROPIC_API_KEY.",
+      "advanced": true
+    },
+    "approvalTtlMinutes": {
+      "label": "Approval time limit (minutes)",
+      "advanced": true
+    },
+    "mode": {
+      "label": "Mode",
+      "help": "outbound (default), money or off."
+    }
+  }
+}

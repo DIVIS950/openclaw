@@ -1,0 +1,12 @@
+{
+  "name": "@openclaw/muse-sentinel",
+  "version": "2026.2.25",
+  "private": true,
+  "description": "OpenClaw plugin that asks the owner before the agent sends, posts, buys or deletes anything",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
