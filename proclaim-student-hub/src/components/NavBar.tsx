@@ -36,11 +36,13 @@ export function NavBar({
   const active = (names: Screen[]) => (names.includes(screen) ? "page" : undefined);
   return (
     <nav className="nav" aria-label="Main">
-      {/* Side bar only (rail.css hides these on a phone). */}
-      <button className="nav-item rail-only" aria-label="Search" onClick={onSearch}>
-        <Icon name="search" />
-        Search
-      </button>
+      {/* Side bar only: not on a phone, where they'd be hidden yet still "current". */}
+      {rail && (
+        <button className="nav-item rail-only" aria-label="Search" onClick={onSearch}>
+          <Icon name="search" />
+          Search
+        </button>
+      )}
       <button className="nav-item" aria-current={active(["today"])} onClick={() => go("today")}>
         <Icon name="sun" />
         Today
@@ -73,17 +75,18 @@ export function NavBar({
         <Icon name="sparkles" />
         AI help
       </button>
-      {RAIL.map((r) => (
-        <button
-          key={r.screen}
-          className="nav-item rail-only"
-          aria-current={active([r.screen, ...(r.also ?? [])])}
-          onClick={() => go(r.screen)}
-        >
-          <Icon name={r.icon} />
-          {r.label}
-        </button>
-      ))}
+      {rail &&
+        RAIL.map((r) => (
+          <button
+            key={r.screen}
+            className="nav-item rail-only"
+            aria-current={active([r.screen, ...(r.also ?? [])])}
+            onClick={() => go(r.screen)}
+          >
+            <Icon name={r.icon} />
+            {r.label}
+          </button>
+        ))}
       <button
         className="nav-item"
         aria-current={active(
