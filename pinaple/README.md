@@ -74,13 +74,26 @@ The installer asks you:
 
 1. Your Anthropic key.
 2. Where to chat: **1** WhatsApp, **2** Telegram, **3** both.
-3. Your WhatsApp number with country code, for example `+420601234567`.
+3. WhatsApp mode: **1** Pinaple has its own number and is a contact (recommended), or **2** Pinaple uses your number.
+   Then your personal WhatsApp number with country code, for example `+420601234567`.
 4. Your Telegram bot token, only if you chose Telegram.
 5. Your Groq key, or press Enter to skip.
 
 Then it installs everything and starts Pinaple as a background service that survives reboots.
 
 ### Step 4: link WhatsApp and test
+
+**If Pinaple has its own number (contact mode):**
+
+1. Put a second SIM or eSIM in your phone. Install **WhatsApp Business** and register it with Pinaple's number.
+   Name the profile "Pinaple 🍍".
+2. When the installer shows the **QR code**, open WhatsApp Business → **Settings → Linked devices → Link a device** and scan it.
+3. In your normal WhatsApp, add Pinaple's number as a new contact: **New chat → New contact**.
+4. Open the chat with Pinaple and write `Hi Pinaple!`.
+
+Only your personal number can talk to Pinaple. Anyone else who writes to it is ignored.
+
+**If Pinaple uses your own number (self mode):**
 
 At the end the installer shows a **QR code** in the terminal.
 

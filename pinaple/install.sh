@@ -67,8 +67,19 @@ else
   esac
 
   PHONE=""
+  WA_MODE=""
   if [[ ",$CHANNELS," == *",whatsapp,"* ]]; then
-    read -r -p "Your WhatsApp number with country code, no spaces (example +420601234567): " PHONE
+    echo
+    echo "How should Pinaple work in WhatsApp?"
+    echo "  1) Pinaple has its own number (second SIM). You save it as a contact and chat with it."
+    echo "  2) Pinaple uses YOUR number. You chat with it in \"Message yourself\"."
+    read -r -p "Choose 1 or 2 [1]: " wa_choice
+    case "${wa_choice:-1}" in
+      1) WA_MODE="contact" ;;
+      2) WA_MODE="self" ;;
+      *) die "Please choose 1 or 2." ;;
+    esac
+    read -r -p "YOUR personal WhatsApp number with country code (example +420601234567): " PHONE
     PHONE="${PHONE// /}"
     [[ "$PHONE" =~ ^\+[0-9]{7,15}$ ]] || die "That number does not look right. Use + and digits only."
   fi
@@ -90,6 +101,7 @@ else
     echo "OPENCLAW_GATEWAY_TOKEN=$GATEWAY_TOKEN"
     echo "PINAPLE_CHANNELS=$CHANNELS"
     [ -z "$PHONE" ] || echo "PINAPLE_WHATSAPP_NUMBER=$PHONE"
+    [ -z "$WA_MODE" ] || echo "PINAPLE_WHATSAPP_MODE=$WA_MODE"
     [ -z "$TELEGRAM_BOT_TOKEN" ] || echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN"
     [ -z "$GROQ_API_KEY" ] || echo "GROQ_API_KEY=$GROQ_API_KEY"
   } > "$ENV_FILE"
@@ -98,6 +110,8 @@ fi
 
 CHANNELS="$(env_get PINAPLE_CHANNELS)"
 PHONE="$(env_get PINAPLE_WHATSAPP_NUMBER)"
+WA_MODE="$(env_get PINAPLE_WHATSAPP_MODE)"
+WA_MODE="${WA_MODE:-self}"
 has_channel() { [[ ",$CHANNELS," == *",$1,"* ]]; }
 
 # 4) Config (back up any existing one)
@@ -136,8 +150,10 @@ if has_channel whatsapp; then
   [ -n "$PHONE" ] || die "PINAPLE_WHATSAPP_NUMBER is missing in $ENV_FILE."
   say "Adding WhatsApp..."
   ensure_plugin whatsapp @openclaw/whatsapp
-  # Self-chat mode: Pinaple lives in your own "Message yourself" chat and
-  # never answers anyone else who writes to your number.
+  # Only YOUR number may talk to Pinaple; everyone else is ignored.
+  # contact mode: Pinaple owns its own number and you message it like a contact.
+  # self mode: Pinaple lives in your own "Message yourself" chat.
+  if [ "$WA_MODE" = "contact" ]; then SELF_CHAT=false; else SELF_CHAT=true; fi
   cat > "$PATCH" <<JSON
 {
   channels: {
@@ -145,7 +161,7 @@ if has_channel whatsapp; then
       enabled: true,
       dmPolicy: "allowlist",
       allowFrom: ["$PHONE"],
-      selfChatMode: true,
+      selfChatMode: $SELF_CHAT,
       groupPolicy: "disabled",
     },
   },
@@ -193,7 +209,11 @@ openclaw gateway install --force
 
 # 9) Link WhatsApp by scanning a QR code with your phone
 if has_channel whatsapp; then
-  say "Link WhatsApp: on your phone open WhatsApp > Settings > Linked devices > Link a device."
+  if [ "$WA_MODE" = "contact" ]; then
+    say "Link WhatsApp: open WhatsApp (or WhatsApp Business) that runs on PINAPLE's number, then Settings > Linked devices > Link a device."
+  else
+    say "Link WhatsApp: on your phone open WhatsApp > Settings > Linked devices > Link a device."
+  fi
   read -r -p "Ready to scan the QR code now? [Y/n]: " link || link="n"
   if [[ "${link:-y}" =~ ^[Yy]$ ]]; then
     openclaw channels login --channel whatsapp
@@ -204,7 +224,15 @@ if has_channel whatsapp; then
 fi
 
 say "Pinaple is installed and running!"
-if has_channel whatsapp; then
+if has_channel whatsapp && [ "$WA_MODE" = "contact" ]; then
+  cat <<'MSG'
+
+WhatsApp test:
+  On YOUR phone, add Pinaple's number as a new contact named "Pinaple 🍍".
+  Open the chat with Pinaple and write: Hi Pinaple!
+  Pinaple answers with text and a voice message.
+MSG
+elif has_channel whatsapp; then
   cat <<'MSG'
 
 WhatsApp test:
