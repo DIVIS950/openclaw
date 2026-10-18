@@ -11,6 +11,19 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.2.0",
+    date: "2026-10-18",
+    title: "Fuller iPad side bar, search, sync and late warnings",
+    items: [
+      "iPad side bar: Search, Timetable, Tests, Revise, Tutoring, Notes, Inbox, Evening, Bag and Reminders, one tap away",
+      "Search everything: homework, tests, notes, revision cards, to-dos and lessons (Ctrl/⌘K on a keyboard)",
+      "Drag a photo, screenshot or text onto the app and the AI files it",
+      "Weekend mode: on Saturday and Sunday, Today shows what's due Monday",
+      "Late homework shows in red at the top of Today and Homework, with a number on the Homework button",
+      "Sync my devices (website): the same data on phone and iPad, through your own Google Drive",
+    ],
+  },
+  {
     version: "1.1.0",
     date: "2026-10-14",
     title: "Level-up redesign and four new features",

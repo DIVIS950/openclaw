@@ -81,7 +81,21 @@ const MANUAL_KINDS: { kind: SortKind; label: string }[] = [
   { kind: "note", label: "Save as note" },
 ];
 
-export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved?: () => void }) {
+/** What the sheet opens with: things dragged onto the app. */
+export interface AddStart {
+  files?: File[];
+  text?: string;
+}
+
+export function AddAnything({
+  onClose,
+  onSaved,
+  start,
+}: {
+  onClose: () => void;
+  onSaved?: () => void;
+  start?: AddStart;
+}) {
   const app = useApp();
   const { data, toast, handleError, reloadHomework } = app;
   // On the website the AI provider always exists, but it only works with a key:
@@ -106,7 +120,7 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
   const camera = useRef<HTMLInputElement>(null);
   const today = dayOf(new Date());
 
-  const addPhotos = async (files: FileList | null) => {
+  const addPhotos = async (files: FileList | File[] | null) => {
     if (!files?.length) {
       return;
     }
@@ -117,6 +131,16 @@ export function AddAnything({ onClose, onSaved }: { onClose: () => void; onSaved
       handleError(err);
     }
   };
+
+  // Dropped on the app: the text joins what's typed, the photos are attached.
+  useEffect(() => {
+    if (start?.text) {
+      const dropped = start.text;
+      setText((t) => (t.trim() ? `${t.trim()}\n\n${dropped}` : dropped));
+    }
+    void addPhotos(start?.files ?? null);
+    // Once, when the sheet opens.
+  }, []);
 
   const sort = async () => {
     if (!ai) {

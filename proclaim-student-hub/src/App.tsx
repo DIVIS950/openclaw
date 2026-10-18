@@ -1,11 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, ImageInput, TutorMode } from "../shared/api.ts";
-import { AddAnythingButton } from "./components/AddAnything.tsx";
+import { AddAnything, type AddStart } from "./components/AddAnything.tsx";
 import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
 import { AskAi } from "./components/AskAi.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
 import { LinkConfirm } from "./components/LinkConfirm.tsx";
+import { NavBar } from "./components/NavBar.tsx";
+import { Overlay } from "./components/Overlay.tsx";
+import { SearchSheet } from "./components/Search.tsx";
 import { Tour, tour } from "./components/Tour.tsx";
 import {
   Ctx,
@@ -22,6 +25,7 @@ import { syncClassroomEmails } from "./lib/classroomSync.ts";
 import { ClaudeData } from "./lib/claudeData.ts";
 import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
+import { lateHomework } from "./lib/format.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
 import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
@@ -35,9 +39,12 @@ import { importReplyFromLocation } from "./lib/tutorLink.ts";
 import { upcomingTutoring } from "./lib/tutorSchedule.ts";
 import type { DataSource, Homework, Profile } from "./lib/types.ts";
 import { reloadToUpdate, watchForUpdates } from "./lib/updates.ts";
+import { useDropToAdd } from "./lib/useDrop.ts";
 import { gmailLink, withGmail } from "./pages/gmailLink.ts";
 import { PAGES } from "./pages/runtime.ts";
 import { pagesImport } from "./pages/runtime.ts";
+import { syncNow } from "./pages/SyncCard.tsx";
+import { useAutoSync } from "./pages/useAutoSync.ts";
 import { Assignment } from "./screens/Assignment.tsx";
 import { HomeworkScreen } from "./screens/Homework.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -167,20 +174,22 @@ const Levels = lazy(() => import("./screens/Levels.tsx").then((m) => ({ default:
 
 /** iPad landscape and bigger: Homework opens tasks beside the list (bento.css .split). */
 const WIDE = "(min-width: 1000px) and (min-height: 600px)";
+/** The side bar instead of the tab bar (bento.css draws it from this width). */
+const RAIL_MQ = "(min-width: 768px) and (min-height: 600px)";
 
-function useWide(): boolean {
+function useWide(query = WIDE): boolean {
   const [wide, setWide] = useState(
-    () => typeof matchMedia === "function" && matchMedia(WIDE).matches,
+    () => typeof matchMedia === "function" && matchMedia(query).matches,
   );
   useEffect(() => {
     if (typeof matchMedia !== "function") {
       return;
     }
-    const mq = matchMedia(WIDE);
+    const mq = matchMedia(query);
     const on = () => setWide(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
-  }, []);
+  }, [query]);
   return wide;
 }
 
@@ -263,6 +272,9 @@ function Shell({
   } | null>(null);
   const [toastMsg, setToastMsg] = useState<ToastState | null>(null);
   const [needReconnect, setNeedReconnect] = useState(false);
+  const [searching, setSearching] = useState(false);
+  // Something dragged onto the app (iPad Split View, a laptop): Add anything opens with it.
+  const [dropped, setDropped] = useState<(AddStart & { key: number }) | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const toast = useCallback((message: string, action?: ToastAction) => {
@@ -520,7 +532,8 @@ function Shell({
   useEffect(() => setAskMini(false), [screen]);
 
   // Keyboard (laptop, iPad keyboard): 1–4 switch tabs, N adds something, / asks
-  // the AI. Ignored while typing, with modifier keys, or when a sheet is open.
+  // the AI, Ctrl/Cmd+K searches. Ignored while typing, with other modifier keys,
+  // or when a sheet is open.
   useEffect(() => {
     const TABS: Screen[] = ["today", "homework", "tutor", "apps"];
     // The box appears a frame or two later (sheet animation, lazy screen).
@@ -538,6 +551,17 @@ function Shell({
     };
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
+      // Ctrl/Cmd+K: Search everything, even from a text box (as in most apps).
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.altKey &&
+        e.key.toLowerCase() === "k" &&
+        !document.querySelector("[role='dialog'], .tour")
+      ) {
+        e.preventDefault();
+        setSearching(true);
+        return;
+      }
       if (
         e.defaultPrevented ||
         e.altKey ||
@@ -564,6 +588,9 @@ function Shell({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [go]);
+
+  // Drag and drop: a photo, screenshot or text dropped on the app opens Add anything with it.
+  const dragging = useDropToAdd(toast, (start) => setDropped({ ...start, key: Date.now() }));
 
   // The tour: once on a new device, when Today has drawn; again from More.
   // Leaving Today before it starts cancels it (it comes back on the next visit).
@@ -598,6 +625,9 @@ function Shell({
     const id = window.setInterval(tick, 60_000);
     return () => window.clearInterval(id);
   }, []);
+
+  // Sync my devices (website); a banner on Today asks for a tap when Google needs one.
+  const [syncTap, setSyncTap] = useAutoSync(toast);
 
   const ctx = useMemo<AppContext>(
     () => ({
@@ -651,6 +681,7 @@ function Shell({
           }
         }, 400);
       },
+      openSearch: () => setSearching(true),
     }),
     [
       data,
@@ -672,6 +703,8 @@ function Shell({
 
   const current = screen === "assignment" && !assignment ? "homework" : screen;
   const wide = useWide();
+  const rail = useWide(RAIL_MQ);
+  const late = lateHomework(homework ?? []).length;
   const split = wide && (current === "homework" || current === "assignment");
   // Shown at the top of Today in demo mode; it scrolls away with the screen.
   const demoBanner = data.demo ? (
@@ -709,6 +742,22 @@ function Shell({
             <button className="btn small dark" onClick={reloadToUpdate}>
               Update now
             </button>
+          </div>
+        )}
+        {syncTap && current === "today" && (
+          <div className="banner between" role="status" style={{ margin: "12px 16px 0" }}>
+            <span>Sync with your other devices.</span>
+            <span className="row" style={{ gap: 6 }}>
+              <button className="btn small ghost" onClick={() => setSyncTap(false)}>
+                Later
+              </button>
+              <button
+                className="btn small dark"
+                onClick={() => syncNow(toast).then(() => setSyncTap(false), handleError)}
+              >
+                Sync
+              </button>
+            </span>
           </div>
         )}
         {needReconnect && auth && (
@@ -804,10 +853,35 @@ function Shell({
         {(current !== "assignment" || wide) && (
           <>
             <div className="nav-fade" aria-hidden="true" />
-            <NavBar screen={current} go={go} />
+            <NavBar
+              screen={current}
+              go={go}
+              rail={rail}
+              late={late}
+              onSearch={() => setSearching(true)}
+            />
           </>
         )}
         <LinkConfirm />
+        {searching && (
+          <Overlay>
+            <SearchSheet onClose={() => setSearching(false)} />
+          </Overlay>
+        )}
+        {dropped && (
+          <Overlay>
+            <AddAnything key={dropped.key} start={dropped} onClose={() => setDropped(null)} />
+          </Overlay>
+        )}
+        {dragging && (
+          <div className="drop-zone" aria-hidden="true">
+            <span className="drop-card">
+              <Icon name="plus" size={28} />
+              <strong>Drop to add</strong>
+              <span className="s13">The AI sorts it into homework, tests or notes.</span>
+            </span>
+          </div>
+        )}
         {touring && <Tour onClose={() => setTouring(false)} />}
         {(toastMsg?.text.includes("XP") || toastMsg?.text.startsWith("New badge")) && (
           <Confetti key={toastMsg.key} />
@@ -839,56 +913,5 @@ function Shell({
         )}
       </div>
     </Ctx.Provider>
-  );
-}
-
-function NavBar({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
-  const active = (names: Screen[]) => (names.includes(screen) ? "page" : undefined);
-  return (
-    <nav className="nav" aria-label="Main">
-      <button className="nav-item" aria-current={active(["today"])} onClick={() => go("today")}>
-        <Icon name="sun" />
-        Today
-      </button>
-      <button
-        className="nav-item"
-        data-tour="homework"
-        aria-current={active(["homework", "assignment", "classes"])}
-        onClick={() => go("homework")}
-      >
-        <Icon name="bookClosed" />
-        Homework
-      </button>
-      {/* The big centre button: paste, photo, voice or type and the AI files it. */}
-      <AddAnythingButton variant="fab" />
-      <button
-        className="nav-item"
-        data-tour="ai"
-        aria-current={active(["tutor", "call"])}
-        onClick={() => go("tutor")}
-      >
-        <Icon name="sparkles" />
-        AI help
-      </button>
-      <button
-        className="nav-item"
-        aria-current={active([
-          "apps",
-          "todo",
-          "tests",
-          "notes",
-          "revise",
-          "games",
-          "timetable",
-          "tutoring",
-          "inbox",
-          "notifications",
-        ])}
-        onClick={() => go("apps")}
-      >
-        <Icon name="grid" />
-        More
-      </button>
-    </nav>
   );
 }

@@ -147,7 +147,7 @@ export function Notifications() {
         </span>
       </header>
       <h1 className="h1 rise d1" style={{ fontSize: 34 }}>
-        Notifications
+        Reminders
       </h1>
 
       <div className="notif-sample rise d1" aria-label="Example notification">

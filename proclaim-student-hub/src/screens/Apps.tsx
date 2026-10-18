@@ -8,6 +8,7 @@ import { notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
 import { KEY_EVENT, keyHandoff } from "../pages/keyHandoff.ts";
 import { PAGES } from "../pages/runtime.ts";
+import { SyncRow } from "../pages/SyncCard.tsx";
 import {
   AiKeyRow,
   CLAUDE_PAGE,
@@ -110,7 +111,7 @@ const HUB: { screen: Screen; label: string; icon: IconName; tone: string }[] = [
 ];
 
 export function Apps() {
-  const { profile, data, signOut, go, startTour } = useApp();
+  const { profile, data, signOut, go, startTour, openSearch } = useApp();
   const [moreApps, setMoreApps] = useState(false);
   const [stats] = useState(progress.get);
   const [alerts] = useState(() => alertsLabel(notifyPrefs.get(), permission()));
@@ -122,6 +123,11 @@ export function Apps() {
           More
         </h1>
       </header>
+
+      <button className="search-bar rise d1" onClick={openSearch}>
+        <Icon name="search" size={18} />
+        <span>Search homework, notes, tests…</span>
+      </button>
 
       <section
         className="card profile-card rise d1"
@@ -181,7 +187,7 @@ export function Apps() {
           <span className="ic tone-orange" aria-hidden="true">
             <Icon name="bell" size={18} />
           </span>
-          <span className="label">Notifications</span>
+          <span className="label">Reminders</span>
           <span className="muted s13">{alerts}</span>
           <Icon name="chevron" size={18} />
         </button>
@@ -192,6 +198,7 @@ export function Apps() {
           <span className="label">Replay the tour</span>
           <Icon name="chevron" size={18} />
         </button>
+        {PAGES && <SyncRow />}
         {PAGES && <PrivateLinkRow />}
         {PAGES && <ParentSetup />}
         {PAGES && <PagesSettings />}
@@ -265,7 +272,7 @@ export function Apps() {
               : "Connected through Claude"}
       </p>
       <p className="muted s12 key-hint" style={{ textAlign: "center", margin: 0 }}>
-        Keyboard: 1–4 tabs · N add · / ask AI · Esc close
+        Keyboard: 1–4 tabs · N add · / ask AI · Ctrl/⌘K search · Esc close
       </p>
       {!PAGES && (
         // Which build this device has, for when something needs checking.

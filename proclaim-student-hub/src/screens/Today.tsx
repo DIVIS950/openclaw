@@ -6,7 +6,7 @@ import { NowCard } from "../components/NowCard.tsx";
 import { TonightCard } from "../components/TonightCard.tsx";
 import { useAiContext, useApp, type Screen } from "../context.ts";
 import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
-import { dueLabel, greeting, isUrgent } from "../lib/format.ts";
+import { dueLabel, greeting, isUrgent, lateHomework, lateLabel } from "../lib/format.ts";
 import { level, progress, timetable, todoXp } from "../lib/store.ts";
 import { addDays, dayOf, daysBetween, groupTodos, prepTests, todos } from "../lib/study.ts";
 import { courseName } from "../lib/subjects.ts";
@@ -62,6 +62,30 @@ export function dayList(lessons: Lesson[], now = new Date()): { label: string; l
     }
   }
   return { label: "", lessons: [] };
+}
+
+/**
+ * Weekend mode: on a day with no lessons (Saturday, Sunday), Today looks ahead
+ * to the next school day ("Due Monday") instead of showing "Due today 0".
+ * Null on a school day. Without a timetable, Monday to Friday are school days.
+ */
+export function schoolBreak(
+  lessons: Lesson[],
+  now = new Date(),
+): { date: string; name: string } | null {
+  const has = (idx: number) =>
+    lessons.length > 0 ? lessons.some((l) => WEEKDAYS.indexOf(l.day) === idx) : idx < 5;
+  const todayIdx = (now.getDay() + 6) % 7;
+  if (has(todayIdx)) {
+    return null;
+  }
+  for (let step = 1; step <= 7; step++) {
+    const idx = (todayIdx + step) % 7;
+    if (has(idx)) {
+      return { date: addDays(dayOf(now), step), name: LONG_DAY[WEEKDAYS[idx]] };
+    }
+  }
+  return null;
 }
 
 /** The three open homework items due soonest (undated ones last). */
@@ -131,7 +155,9 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
   const lvl = level(stats.xp);
 
   const open = (homework ?? []).filter((h) => !h.done);
-  const next3 = dueNext(open);
+  const late = lateHomework(open);
+  // Late work has its own card at the top, so "Due next" lists what's still on time.
+  const next3 = dueNext(open.filter((h) => !late.includes(h)));
   // Open to-dos, most urgent first: overdue, today, this week, any time.
   const today = dayOf(new Date());
   const todoGroups = groupTodos(
@@ -153,13 +179,18 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
         .join("; "),
   );
 
-  // The two big numbers: homework due today, and days to the next test.
+  // The two big numbers: homework due today (on a weekend: due on the next
+  // school day), and days to the next test. Late work is counted in its own card.
+  const off = schoolBreak(lessons);
+  const focusDay = off?.date ?? today;
   const weekEnd = addDays(today, 7);
   const dueDay = (iso?: string) => (iso ? dayOf(new Date(iso)) : "");
-  const dueToday = open.filter((h) => dueDay(h.due) <= today && h.due).length;
+  const dueToday = open.filter(
+    (h) => h.due && dueDay(h.due) >= today && dueDay(h.due) <= focusDay,
+  ).length;
   const dueWeek = open.filter((h) => {
     const d = dueDay(h.due);
-    return d > today && d <= weekEnd;
+    return d > focusDay && d <= weekEnd;
   }).length;
   const nextTest = tests
     .filter((t) => t.date >= today)
@@ -207,12 +238,46 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
         </div>
       </header>
 
+      {late.length > 0 && (
+        <section className="card late-card rise d2" aria-label="Late homework">
+          <div className="between" style={{ gap: 10 }}>
+            <span className="row" style={{ gap: 8 }}>
+              <span className="ic tone-pink" aria-hidden="true">
+                <Icon name="flag" size={16} />
+              </span>
+              <strong className="h2">{late.length} late</strong>
+            </span>
+            <button className="text-link" onClick={() => go("homework")}>
+              All homework
+            </button>
+          </div>
+          {late.slice(0, 3).map((h) => (
+            <button key={h.id} className="li" onClick={() => openAssignment(h)}>
+              <span className="stack li-main" style={{ gap: 1 }}>
+                <span className="li-title">{h.title}</span>
+                <span className="s12 muted li-course">{courseName(h.course)}</span>
+              </span>
+              <span className="s13 late-when">{h.due ? lateLabel(h.due) : "Late"}</span>
+            </button>
+          ))}
+          {late.length > 3 && (
+            <button
+              className="text-link"
+              style={{ alignSelf: "flex-start" }}
+              onClick={() => go("homework")}
+            >
+              +{late.length - 3} more
+            </button>
+          )}
+        </section>
+      )}
+
       <NowCard />
 
       {/* Numbers first: on a phone they sit above the brief, so the reading order matches. */}
       <nav className="bento-tiles rise d3" aria-label="Numbers">
         <button className="bento-tile" onClick={() => go("homework")}>
-          <span className="eyebrow">Due today</span>
+          <span className="eyebrow">{off ? `Due ${off.name}` : "Due today"}</span>
           <span className="big t-orange">
             {/* Still loading: a dash, never a "0" that reads as "nothing due". */}
             {homework === null ? "–" : <CountUp n={dueToday} />}

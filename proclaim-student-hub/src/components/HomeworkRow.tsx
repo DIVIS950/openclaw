@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useApp } from "../context.ts";
-import { dueLabel, isUrgent } from "../lib/format.ts";
+import { dueLabel, isUrgent, lateHomework, lateLabel } from "../lib/format.ts";
 import { homeworkXp } from "../lib/store.ts";
 import { courseName, subjectVars } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
@@ -104,7 +104,11 @@ export function HomeworkRow({ hw, style }: { hw: Homework; style?: React.CSSProp
             {label}
           </a>
         )}
-        <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
+        {hw.due && lateHomework([hw]).length > 0 ? (
+          <span className="chip late-chip">{lateLabel(hw.due)}</span>
+        ) : (
+          <span className={`chip${isUrgent(hw.due) ? " warm" : ""}`}>{dueLabel(hw.due)}</span>
+        )}
       </div>
     </div>
   );

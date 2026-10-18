@@ -93,6 +93,8 @@ export interface AppContext {
   signOut: (() => void) | null;
   /** Shows the tutorial tour over Today. */
   startTour: () => void;
+  /** Opens Search everything. */
+  openSearch: () => void;
 }
 
 export const Ctx = createContext<AppContext | null>(null);

@@ -11,6 +11,7 @@ const LINK_KEY = "psh.undo.link";
 const SKIP = [
   "psh.backup.",
   "psh.undo.",
+  "psh.sync.",
   "psh.ai.key",
   "psh.token",
   "psh.seed.",

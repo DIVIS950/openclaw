@@ -6,7 +6,7 @@ import { SwipeDone } from "../components/SwipeDone.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { findHomeworkInEmails, type FoundTask } from "../lib/aiFeatures.ts";
 import { syncStatus } from "../lib/classroomSync.ts";
-import { dueLabel, groupByDue, isUrgent } from "../lib/format.ts";
+import { dueLabel, groupByDue, isUrgent, lateHomework, lateLabel } from "../lib/format.ts";
 import { subjectChips } from "../lib/homeworkFilter.ts";
 import { courses, homeworkXp } from "../lib/store.ts";
 import { courseName, sameCourse, subjectTone } from "../lib/subjects.ts";
@@ -173,7 +173,7 @@ export function HomeworkScreen() {
                 className={`stack rise d${Math.min(g + 1, 5)}`}
                 style={{ gap: 8 }}
               >
-                <h2 className={`sec${title === "Overdue" ? " late" : ""}`}>{title}</h2>
+                <h2 className={`sec${title === "Late" ? " late" : ""}`}>{title}</h2>
                 <div className="card rows" onClickCapture={guardTaps}>
                   {items.map((hw) => (
                     <HomeworkItem
@@ -258,13 +258,13 @@ export function HomeworkScreen() {
   );
 }
 
-/** Overdue, Due today, This week, Later, then No date (as on the canvas). */
+/** Late, Due today, This week, Later, then No date (as on the canvas). */
 function weekGroups(list: Homework[]): [string, Homework[]][] {
   const groups = groupByDue(list);
   const today = groups.week.filter((h) => dueLabel(h.due) === "Today");
   const week = groups.week.filter((h) => dueLabel(h.due) !== "Today");
   return [
-    ["Overdue", groups.overdue],
+    ["Late", groups.overdue],
     ["Due today", today],
     ["This week", week],
     ["Later", groups.later],
@@ -359,7 +359,11 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
               {courseName(hw.course)}
             </span>
           )}
-          <span className={urgent ? "chip due" : "chip"}>{dueText(hw)}</span>
+          {hw.due && lateHomework([hw]).length > 0 ? (
+            <span className="chip late-chip">{lateLabel(hw.due)}</span>
+          ) : (
+            <span className={urgent ? "chip due" : "chip"}>{dueText(hw)}</span>
+          )}
           {hw.source !== "Classroom" && hw.source !== "Other" && (
             <span className="chip">{hw.source}</span>
           )}

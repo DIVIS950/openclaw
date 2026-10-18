@@ -54,9 +54,9 @@ interface StoredToken {
   expiresAt: number;
 }
 
-function readStored(): StoredToken | null {
+function readStored(key: string): StoredToken | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(key);
     const parsed = raw ? (JSON.parse(raw) as StoredToken) : null;
     return parsed && parsed.expiresAt > Date.now() + 60_000 ? parsed : null;
   } catch {
@@ -64,12 +64,12 @@ function readStored(): StoredToken | null {
   }
 }
 
-function writeStored(value: StoredToken | null) {
+function writeStored(key: string, value: StoredToken | null) {
   try {
     if (value) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      sessionStorage.setItem(key, JSON.stringify(value));
     } else {
-      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(key);
     }
   } catch {
     // Private browsing can block storage; the token then lives in memory only.
@@ -102,14 +102,18 @@ export class SignInNeededError extends Error {
 }
 
 export class GoogleAuth {
-  private current: StoredToken | null = readStored();
+  private current: StoredToken | null;
   private client: TokenClient | null = null;
   private pending: { resolve: (t: string) => void; reject: (e: Error) => void } | null = null;
 
   constructor(
     private readonly clientId: string,
     private readonly scopes: string[] = SCOPES,
-  ) {}
+    /** Where this sign-in's token is kept, so sign-ins with other permissions don't mix. */
+    private readonly storageKey = STORAGE_KEY,
+  ) {
+    this.current = readStored(storageKey);
+  }
 
   get isSignedIn(): boolean {
     return this.current !== null && this.current.expiresAt > Date.now();
@@ -140,7 +144,7 @@ export class GoogleAuth {
           token: response.access_token,
           expiresAt: Date.now() + (response.expires_in ?? 3600) * 1000,
         };
-        writeStored(this.current);
+        writeStored(this.storageKey, this.current);
         pending?.resolve(response.access_token);
       },
       error_callback: (error) => {
@@ -166,6 +170,6 @@ export class GoogleAuth {
       window.google?.accounts.oauth2.revoke(this.current.token);
     }
     this.current = null;
-    writeStored(null);
+    writeStored(this.storageKey, null);
   }
 }

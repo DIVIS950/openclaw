@@ -20,6 +20,7 @@ import "./fix-flow.css";
 import "./fix-polish.css";
 import "./bold.css";
 import "./plus.css";
+import "./rail.css";
 
 async function start() {
   // Bento look, light unless the student chose otherwise in More › Look.

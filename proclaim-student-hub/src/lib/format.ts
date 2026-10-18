@@ -29,6 +29,29 @@ export function dueLabel(iso: string | undefined, now = new Date()): string {
   return due.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+/** Homework not done whose due day has passed: late, oldest first. */
+export function lateHomework<T extends { due?: string; done: boolean; title?: string }>(
+  list: T[],
+  now = new Date(),
+): T[] {
+  const today = startOfDay(now);
+  return list
+    .filter((h) => {
+      const due = h.due ? new Date(h.due) : null;
+      return !h.done && due && !Number.isNaN(due.getTime()) && startOfDay(due) < today;
+    })
+    .toSorted(
+      (a, b) =>
+        (a.due ?? "").localeCompare(b.due ?? "") || (a.title ?? "").localeCompare(b.title ?? ""),
+    );
+}
+
+/** "1 day late", "3 days late". */
+export function lateLabel(iso: string, now = new Date()): string {
+  const days = Math.round((startOfDay(now) - startOfDay(new Date(iso))) / DAY);
+  return `${days} ${days === 1 ? "day" : "days"} late`;
+}
+
 export function isUrgent(iso: string | undefined, now = new Date()): boolean {
   if (!iso) {
     return false;
