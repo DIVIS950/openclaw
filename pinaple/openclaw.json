@@ -21,13 +21,19 @@
     },
   },
 
-  channels: {
-    telegram: {
-      enabled: true,
-      botToken: "${TELEGRAM_BOT_TOKEN}",
-      // Only people you approve can talk to Pinaple. You approve yourself once.
-      dmPolicy: "pairing",
-      groups: { "*": { requireMention: true } },
+  // Chat apps (WhatsApp, Telegram) are added by install.sh from your answers.
+
+  // Pinaple talks: every reply also comes as a voice message.
+  // Microsoft voice is free (no key). The "Multilingual" voice speaks your language.
+  // In chat: "/tts off" = text only, "/tts on" = voice again.
+  tts: {
+    auto: "always",
+    provider: "microsoft",
+    providers: {
+      microsoft: {
+        enabled: true,
+        speakerVoice: "en-US-AndrewMultilingualNeural",
+      },
     },
   },
 

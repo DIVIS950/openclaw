@@ -1,28 +1,31 @@
 # 🍍 Pinaple — your personal AI assistant
 
 Pinaple is your own AI assistant. It lives on its own computer in the cloud,
-is online 24/7, and you talk to it in **Telegram**, like texting a friend.
+is online 24/7, and you talk to it in **WhatsApp** or **Telegram**, like texting a friend.
+It answers with text **and its own voice**.
 
 Pinaple runs on top of [OpenClaw](https://docs.openclaw.ai), an open-source
-assistant engine. This folder gives OpenClaw the Pinaple name, personality and
-safe settings, plus a one-command installer.
+assistant engine. This folder gives OpenClaw the Pinaple name, personality, voice
+and safe settings, plus a one-command installer.
 
 ## What Pinaple can do
 
-- Chat with you in Telegram, in your language.
+- Chat with you in WhatsApp or Telegram, in your language.
+- **Talk:** every answer also comes as a voice message.
+- **Listen:** send it a voice message and it understands you (free Groq key).
 - Use its own computer: search the web, open websites, run programs, write files.
 - Remember you: it keeps notes about you and your projects.
 - Text you first: "remind me tomorrow at 8", "every Monday send me my plan".
-- Understand voice messages (optional, see below).
 - Call you on the phone (optional add-on, see below).
-- Connect to more services later (email, calendar, GitHub, smart home...).
 
 ## What it costs
 
 | Part | Price |
 | --- | --- |
 | Server (Oracle Cloud Always Free) | $0 |
-| Telegram bot | $0 |
+| WhatsApp / Telegram | $0 |
+| Pinaple's voice (Microsoft voice) | $0 |
+| Understanding your voice messages (Groq) | $0 on the free tier |
 | The brain (Anthropic API) | pay per use, you control the limit |
 | Phone calls (Twilio, optional) | a few $ per month + per minute |
 
@@ -30,15 +33,18 @@ Tip: set a monthly spending limit in the Anthropic Console so you never get a su
 
 ## Setup (about 30 minutes)
 
-### Step 1: get your two keys
+### Step 1: get your keys
 
-1. **Anthropic API key** (the brain): go to https://console.anthropic.com,
+1. **Anthropic API key** (the brain, required): go to https://console.anthropic.com,
    add credits, then **API Keys → Create Key**. It starts with `sk-ant-`.
-2. **Telegram bot token** (free): in Telegram open **@BotFather**,
-   send `/newbot`, pick a name (for example `Pinaple`) and a username
-   ending in `bot`. Copy the token it gives you.
+2. **Groq API key** (hearing, optional but recommended, free): go to
+   https://console.groq.com/keys and create a key. It starts with `gsk_`.
+3. **Telegram bot token** (only if you want Telegram, free): in Telegram open
+   **@BotFather**, send `/newbot`, pick a name and a username ending in `bot`.
 
-Keep both secret. Never post them anywhere.
+WhatsApp needs no key. You link it with a QR code, like WhatsApp Web.
+
+Keep all keys secret. Never post them anywhere.
 
 ### Step 2: get a free server
 
@@ -64,26 +70,54 @@ cd openclaw/pinaple
 bash install.sh
 ```
 
-Paste your two keys when asked. The installer:
+The installer asks you:
 
-- installs Node.js 24 and the OpenClaw engine,
-- saves your keys privately in `~/.openclaw/.env`,
-- installs Pinaple's config and personality,
-- starts Pinaple as a background service that survives reboots.
+1. Your Anthropic key.
+2. Where to chat: **1** WhatsApp, **2** Telegram, **3** both.
+3. Your WhatsApp number with country code, for example `+420601234567`.
+4. Your Telegram bot token, only if you chose Telegram.
+5. Your Groq key, or press Enter to skip.
 
-### Step 4: say hi
+Then it installs everything and starts Pinaple as a background service that survives reboots.
 
-1. In Telegram, send any message to your bot. It replies with a **pairing code**.
-2. On the server, approve yourself (only once):
+### Step 4: link WhatsApp and test
+
+At the end the installer shows a **QR code** in the terminal.
+
+1. On your phone open **WhatsApp → Settings → Linked devices → Link a device**.
+2. Scan the QR code. Make the terminal window big so the code fits.
+3. In WhatsApp open the chat with yourself (**"Message yourself"**, your own name at the top of the contact list).
+4. Write: `Hi Pinaple!` You get an answer with text and a voice message.
+5. Hold the microphone button and speak. Pinaple understands you if you added a Groq key.
+
+Pinaple only answers in your own "Message yourself" chat. It never replies to
+your friends, family or groups.
+
+QR code expired or you skipped it? Run `openclaw channels login --channel whatsapp`
+and then `openclaw gateway restart`.
+
+### Telegram test (if you chose it)
+
+1. Send any message to your bot. It answers with a pairing code.
+2. On the server approve yourself (only once):
 
    ```bash
    openclaw pairing list telegram
    openclaw pairing approve telegram <CODE>
    ```
 
-3. Talk to Pinaple. On the first chat it asks your name, timezone and what you need.
+## Voice controls (type in the chat)
 
-Only people you approve can talk to Pinaple. Strangers get nothing.
+| Command | What it does |
+| --- | --- |
+| `/tts off` | text only |
+| `/tts on` | voice messages again |
+| `/tts status` | show voice settings |
+
+The voice is Microsoft's free "Andrew Multilingual", which speaks your language.
+To change it, edit `speakerVoice` in `~/.openclaw/openclaw.json` and restart.
+For a more natural voice you can switch to ElevenLabs or OpenAI (paid):
+https://docs.openclaw.ai/tools/tts
 
 ## Everyday commands (on the server)
 
@@ -94,6 +128,9 @@ openclaw gateway restart     # restart Pinaple
 openclaw doctor              # find and fix problems
 sudo npm install -g openclaw@latest && openclaw gateway restart   # update
 ```
+
+To change your answers (apps, number, keys), edit `~/.openclaw/.env` and run
+`bash install.sh` again. It keeps Pinaple's memory.
 
 ## Make Pinaple yours
 
@@ -108,19 +145,7 @@ Edit them with `nano ~/.openclaw/workspace/SOUL.md`. Changes apply from the next
 Want a smarter (more expensive) brain? Edit `~/.openclaw/openclaw.json` and change
 `claude-sonnet-5-5` to `claude-opus-5-5`, then run `openclaw gateway restart`.
 
-## Optional add-ons
-
-### Voice messages
-
-Claude cannot hear audio by itself. Add a speech key to `~/.openclaw/.env`, for example
-`GROQ_API_KEY=...` (Groq has a free tier) or `OPENAI_API_KEY=...`, then restart.
-Pinaple then understands your Telegram voice messages.
-Docs: https://docs.openclaw.ai/nodes/audio
-
-An `OPENAI_API_KEY` also unlocks smart memory search. Turn it on with
-`openclaw config set memory.search.enabled true`.
-
-### Phone calls
+## Optional: phone calls
 
 Pinaple can call you and you can call Pinaple, through Twilio (paid).
 
@@ -143,15 +168,14 @@ Pinaple can call you and you can call Pinaple, through Twilio (paid).
 
 Docs: https://docs.openclaw.ai/plugins/voice-call
 
-### More channels
-
-Pinaple also works in WhatsApp, Discord, Signal, Slack and more.
-Docs: https://docs.openclaw.ai/channels
-
 ## Safety
 
 - Your keys stay on your server in `~/.openclaw/.env`. Never commit that file.
 - Pinaple asks before it spends money, messages other people, or deletes things.
+- WhatsApp works like WhatsApp Web: the server becomes a linked device of your account.
+  You can remove it any time in **WhatsApp → Linked devices**.
+- WhatsApp does not officially allow bots on personal accounts. Small personal use is
+  common, but if you worry about your number, use a second SIM just for Pinaple.
 - The dashboard is private by default. Open it safely with an SSH tunnel:
   `ssh -L 18789:127.0.0.1:18789 ubuntu@YOUR_SERVER_IP`, then visit http://127.0.0.1:18789.
   The login token is the `OPENCLAW_GATEWAY_TOKEN` value in `~/.openclaw/.env`.
