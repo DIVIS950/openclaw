@@ -71,6 +71,41 @@ export function mergeBoth(key: string, local: unknown, remote: unknown): unknown
   return local;
 }
 
+/** The data on this device that travels between devices. */
+export function collectLocal(storage: Storage): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (!key || !syncable(key)) {
+      continue;
+    }
+    try {
+      out[key] = JSON.parse(storage.getItem(key) ?? "null");
+    } catch {
+      // Not JSON (a plain setting): leave it on this device.
+    }
+  }
+  return out;
+}
+
+/** Writes what the merge brought in (undefined: remove). Returns how many values changed. */
+export function applyLocal(storage: Storage, toLocal: Record<string, unknown>): number {
+  let changed = 0;
+  for (const [key, value] of Object.entries(toLocal)) {
+    try {
+      if (value === undefined) {
+        storage.removeItem(key);
+      } else {
+        storage.setItem(key, JSON.stringify(value));
+      }
+      changed++;
+    } catch {
+      // Out of space: that value waits for the next sync.
+    }
+  }
+  return changed;
+}
+
 export interface SyncResult {
   /** Everything after the merge: what goes up to the other devices. */
   merged: Record<string, unknown>;

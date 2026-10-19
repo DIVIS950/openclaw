@@ -1,5 +1,5 @@
 import { GoogleAuth } from "../lib/googleAuth.ts";
-import { mergeSync, syncable } from "../lib/syncMerge.ts";
+import { applyLocal, collectLocal, mergeSync } from "../lib/syncMerge.ts";
 import { gmailClientId } from "./gmailLink.ts";
 
 // Sync between the student's devices on the website, through their own Google
@@ -29,23 +29,6 @@ function readJson<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
-}
-
-/** The data on this device that travels between devices. */
-function collectLocal(): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key || !syncable(key)) {
-      continue;
-    }
-    try {
-      out[key] = JSON.parse(localStorage.getItem(key) ?? "null");
-    } catch {
-      // Not JSON (a plain setting): leave it on this device.
-    }
-  }
-  return out;
 }
 
 /** A Drive request; 401 means the hour-long sign-in ran out. */
@@ -189,20 +172,8 @@ class DriveSync {
     const token = auth.getToken();
     const id = await findFile(token);
     const remote = id ? await readFile(token, id) : {};
-    const result = mergeSync(readJson(BASE_KEY, {}), collectLocal(), remote);
-    let changed = 0;
-    for (const [key, value] of Object.entries(result.toLocal)) {
-      try {
-        if (value === undefined) {
-          localStorage.removeItem(key);
-        } else {
-          localStorage.setItem(key, JSON.stringify(value));
-        }
-        changed++;
-      } catch {
-        // Out of space: that value waits for the next sync.
-      }
-    }
+    const result = mergeSync(readJson(BASE_KEY, {}), collectLocal(localStorage), remote);
+    const changed = applyLocal(localStorage, result.toLocal);
     if (result.upload || !id) {
       await writeFile(token, id, result.merged);
     }

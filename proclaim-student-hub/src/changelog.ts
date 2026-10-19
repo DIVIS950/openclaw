@@ -11,6 +11,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.2.1",
+    date: "2026-10-19",
+    title: "Everything syncs in the Claude app",
+    items: [
+      "Notes, to-dos, tests, timetable, levels and revision packs now sync between your phone, iPad and computer in the Claude app",
+      "No setup: it goes through your Claude account and syncs by itself when you open the app",
+      "More › Sync my devices shows when it last synced, with a Sync now button",
+    ],
+  },
+  {
     version: "1.2.0",
     date: "2026-10-18",
     title: "Fuller iPad side bar, search, sync and late warnings",

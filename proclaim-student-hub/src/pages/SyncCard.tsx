@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
+import { accountSync } from "../lib/accountSync.ts";
 import { driveSync, SyncSignInError } from "./driveSync.ts";
 
-// More › Sync my devices (website): the same homework, notes, tests and ticks
-// on the phone and the iPad, kept in the student's own Google Drive.
+// More › Sync my devices: the same homework, notes, tests and ticks on the
+// phone and the iPad. On the website it's kept in the student's own Google
+// Drive; in the Claude app, in their Claude account (always on, no setup).
 
 /** "2 min ago", "at 14:05", "on 3 Oct". */
 function whenLabel(iso: string): string {
@@ -93,6 +95,50 @@ export function SyncRow() {
           in a hidden app folder in your own Google Drive.
         </span>
       )}
+    </div>
+  );
+}
+
+/** More › Sync my devices in the Claude app: always on, with a button to sync right now. */
+export function AccountSyncRow() {
+  const { toast, handleError } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [, redraw] = useState(0);
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      const changed = await accountSync.sync();
+      if (changed > 0) {
+        toast("Synced. Updating with your other devices' changes…");
+        window.setTimeout(() => window.location.reload(), 900);
+      } else {
+        toast("Synced. Everything was already up to date.");
+      }
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setBusy(false);
+      redraw((n) => n + 1);
+    }
+  };
+
+  return (
+    <div className="crow sync-row">
+      <span className="ico cyan r40" aria-hidden="true">
+        <Icon name="sync" size={18} />
+      </span>
+      <span className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+        <span style={{ fontWeight: 700 }}>Sync my devices</span>
+        <span className="s11 muted">
+          {accountSync.lastSync
+            ? `On · synced ${whenLabel(accountSync.lastSync)}`
+            : "On · through your Claude account"}
+        </span>
+      </span>
+      <button className="btn sm primary" disabled={busy} onClick={() => void run()}>
+        {busy ? "Syncing…" : "Sync now"}
+      </button>
     </div>
   );
 }

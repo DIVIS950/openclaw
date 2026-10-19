@@ -8,7 +8,7 @@ import { notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
 import { KEY_EVENT, keyHandoff } from "../pages/keyHandoff.ts";
 import { PAGES } from "../pages/runtime.ts";
-import { SyncRow } from "../pages/SyncCard.tsx";
+import { AccountSyncRow, SyncRow } from "../pages/SyncCard.tsx";
 import {
   AiKeyRow,
   CLAUDE_PAGE,
@@ -198,7 +198,7 @@ export function Apps() {
           <span className="label">Replay the tour</span>
           <Icon name="chevron" size={18} />
         </button>
-        {PAGES && <SyncRow />}
+        {PAGES ? <SyncRow /> : !data.demo && <AccountSyncRow />}
         {PAGES && <PrivateLinkRow />}
         {PAGES && <ParentSetup />}
         {PAGES && <PagesSettings />}
