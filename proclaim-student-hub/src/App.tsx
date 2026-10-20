@@ -25,6 +25,7 @@ import { syncClassroomEmails } from "./lib/classroomSync.ts";
 import { ClaudeData } from "./lib/claudeData.ts";
 import { useCapability } from "./lib/claudeRuntime.ts";
 import { DemoData } from "./lib/demoData.ts";
+import { errorReports, isBug } from "./lib/errorReports.ts";
 import { lateHomework } from "./lib/format.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
@@ -291,10 +292,31 @@ function Shell({
         return;
       }
       console.error(err);
+      // A programming mistake (not a friendly "couldn't reach Gmail"): Claude gets a report.
+      if (isBug(err)) {
+        const screen = window.location.hash.slice(1).split(/[?/]/)[0] || "today";
+        const kept = errorReports.capture(err, `${screen} · handled`);
+        toast(
+          kept && errorReports.canReach
+            ? "Something went wrong. Claude got a report and will fix it."
+            : "Something went wrong. Try again.",
+        );
+        return;
+      }
       toast(err instanceof Error ? err.message : "Something went wrong.");
     },
     [toast],
   );
+
+  // Bugs nobody caught: said once, so the student knows Claude is on it.
+  useEffect(() => {
+    void errorReports.flush();
+    return errorReports.onReport((r) => {
+      if (errorReports.canReach && !r.where.endsWith("handled")) {
+        toast("Something broke in the background. Claude got a report and will fix it.");
+      }
+    });
+  }, [toast]);
 
   // A newer build on the website: offer a reload (a home-screen app keeps the old one).
   const [updateReady, setUpdateReady] = useState(false);

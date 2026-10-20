@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ImageInput } from "../../shared/api.ts";
 import { Icon } from "../components/Icon.tsx";
 import { useAiContext, useApp } from "../context.ts";
+import { googleFile, googleFilesAvailable, readGoogleFile } from "../lib/googleFiles.ts";
 import { imageSrc, photoToImageInput, smallCopy } from "../lib/image.ts";
 import {
   dayString,
@@ -56,7 +57,10 @@ export function Scan({
   /** Filled in when another screen (a test, a note, tutoring) sent the material here. */
   initial?: { subject: Subject; topic: string; text: string; photos: string[] };
 }) {
-  const { ai, handleError } = useApp();
+  const { ai, handleError, toast } = useApp();
+  const [link, setLink] = useState("");
+  const [bringing, setBringing] = useState(false);
+  const [googleOk, setGoogleOk] = useState(false);
   const [images, setImages] = useState<ImageInput[]>(() =>
     (initial?.photos ?? []).flatMap((p) => fromDataUrl(p) ?? []).slice(0, MAX_PAGES),
   );
@@ -82,6 +86,30 @@ export function Scan({
     );
     return () => window.clearInterval(timer);
   }, [running]);
+
+  // Google Docs and Slides come in through the Claude app's connectors only.
+  useEffect(() => {
+    let live = true;
+    void googleFilesAvailable().then((ok) => live && setGoogleOk(ok));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const bringIn = async () => {
+    setBringing(true);
+    setError(null);
+    try {
+      const file = await readGoogleFile(link);
+      setText((prev) => (prev.trim() ? `${prev.trim()}\n\n${file.text}` : file.text));
+      setLink("");
+      toast(file.title ? `Brought in “${file.title}”.` : "Brought in. Check the notes box.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't read that file.");
+    } finally {
+      setBringing(false);
+    }
+  };
 
   const add = async (files: FileList | null) => {
     if (!files) {
@@ -271,6 +299,38 @@ export function Scan({
           placeholder="e.g. vocab list, key facts…"
         />
       </label>
+      {googleOk && (
+        <form
+          className="stack"
+          style={{ gap: 6 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void bringIn();
+          }}
+        >
+          <span className="h2">Or bring in a Google Doc or Slides</span>
+          <div className="row" style={{ gap: 8 }}>
+            <input
+              className="field"
+              style={{ flex: 1, minWidth: 0 }}
+              type="url"
+              inputMode="url"
+              aria-label="Google Docs or Slides link"
+              placeholder="Paste the docs.google.com link"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+            />
+            <button className="btn" type="submit" disabled={bringing || !googleFile(link)}>
+              <Icon
+                name={bringing ? "loader" : "doc"}
+                size={16}
+                className={bringing ? "spin" : undefined}
+              />
+              {bringing ? "Reading…" : "Bring in"}
+            </button>
+          </div>
+        </form>
+      )}
 
       {error && (
         <div className="banner" role="alert">

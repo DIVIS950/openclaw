@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Briefing } from "../components/Briefing.tsx";
 import { ConnectionLine } from "../components/Connections.tsx";
 import { CountUp } from "../components/CountUp.tsx";
+import { CalendarCard } from "../components/GoogleCalendar.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { NowCard } from "../components/NowCard.tsx";
 import { TonightCard } from "../components/TonightCard.tsx";
@@ -368,6 +369,8 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
           ))}
         </section>
       )}
+
+      <CalendarCard />
 
       {upcoming.lessons.length > 0 && (
         <section className="card rows today-day rise d4">

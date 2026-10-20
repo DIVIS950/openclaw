@@ -5,6 +5,7 @@ import { App } from "./App.tsx";
 import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
 import { LinkConfirm } from "./components/LinkConfirm.tsx";
 import { backups } from "./lib/backup.ts";
+import { errorReports } from "./lib/errorReports.ts";
 import { trackKeyboard } from "./lib/keyboard.ts";
 import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
@@ -22,6 +23,18 @@ import "./bold.css";
 import "./plus.css";
 import "./rail.css";
 import "./looks.css";
+
+/** The screen the student is on, for bug reports ("today", "revise"…). */
+const screenNow = () => window.location.hash.slice(1).split(/[?/]/)[0] || "today";
+
+// Anything that breaks without being caught goes to Claude as a bug report
+// (lib/errorReports.ts). Friendly errors shown in a toast are not reported.
+window.addEventListener("error", (e) => {
+  errorReports.capture(e.error ?? e.message, `${screenNow()} · uncaught`);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  errorReports.capture(e.reason, `${screenNow()} · unhandled promise`);
+});
 
 async function start() {
   // Bento look, light unless the student chose otherwise in More › Look.

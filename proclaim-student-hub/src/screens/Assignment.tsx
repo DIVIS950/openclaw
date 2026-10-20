@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FocusButton } from "../components/FocusTimer.tsx";
+import { CalendarButton } from "../components/GoogleCalendar.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { Overlay } from "../components/Overlay.tsx";
 import { PresentButton } from "../components/Present.tsx";
@@ -9,6 +10,7 @@ import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
 import { makeCanvaDesign } from "../lib/canva.ts";
 import { draftCopy, pickDraft } from "../lib/draftCopy.ts";
 import { dueLabel } from "../lib/format.ts";
+import { EVENING_BEFORE } from "../lib/googleCalendar.ts";
 import { photoToImageInput } from "../lib/image.ts";
 import {
   applyEdits,
@@ -221,6 +223,20 @@ export function Assignment({ hw }: { hw: Homework }) {
         <h1 className="h1" style={{ fontSize: 30 }}>
           {hw.title}
         </h1>
+        {hw.due && !hw.done && (
+          <div className="row" style={{ gap: 8 }}>
+            <CalendarButton
+              small
+              item={{
+                key: `hw:${hw.id}`,
+                title: `Due: ${hw.title}`,
+                date: dayOf(new Date(hw.due)),
+                details: [courseName(hw.course), hw.link].filter(Boolean).join("\n"),
+                reminders: [EVENING_BEFORE],
+              }}
+            />
+          </div>
+        )}
         <div className="do-steps" aria-label="Progress">
           {["Read brief", "Write it", "Hand in"].map((label, i) => {
             // "Read brief" only counts as done when there was a brief to read.

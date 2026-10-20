@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { CalendarButton } from "../components/GoogleCalendar.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { Overlay } from "../components/Overlay.tsx";
 import { useAiContext, useApp } from "../context.ts";
@@ -7,6 +8,7 @@ import { packFromTopic } from "../lab/scan.ts";
 import { examHandoff, labPacks, settings } from "../lab/store.ts";
 import { autoPackInBackground } from "../lib/autoPack.ts";
 import { cleanTopic } from "../lib/daySummary.ts";
+import { EVENING_BEFORE, TWO_EVENINGS_BEFORE } from "../lib/googleCalendar.ts";
 import { courses } from "../lib/store.ts";
 import {
   daysBetween,
@@ -509,9 +511,21 @@ function TestPlan({
         <h2 className="h1" style={{ fontSize: 24 }}>
           {test.topic}
         </h2>
-        <span className="chip accent" style={{ alignSelf: "flex-start" }}>
-          {countdown(test.date, today)}
-        </span>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <span className="chip accent">{countdown(test.date, today)}</span>
+          {test.date >= today && (
+            <CalendarButton
+              small
+              item={{
+                key: `test:${test.id}`,
+                title: `Test: ${test.subject} – ${test.topic}`,
+                date: test.date,
+                details: "Revise with Student Hub › Tests.",
+                reminders: [EVENING_BEFORE, TWO_EVENINGS_BEFORE],
+              }}
+            />
+          )}
+        </div>
       </header>
 
       <section className="card stack">

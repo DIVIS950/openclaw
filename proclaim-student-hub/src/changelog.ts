@@ -11,6 +11,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.4.0",
+    date: "2026-10-20",
+    title: "Google Calendar, Docs and Slides, and bugs fixed by themselves",
+    items: [
+      "Tests and homework: Add to Google Calendar, with a phone reminder the evening before",
+      "Revise › Scan: paste a Google Docs or Slides link and it becomes a revision pack",
+      "When something breaks, the app tells Claude by itself; see it in Change the app › Problems Claude is fixing",
+    ],
+  },
+  {
     version: "1.3.0",
     date: "2026-10-20",
     title: "Pick your style, see Gmail and sync, smoother on iPhone",

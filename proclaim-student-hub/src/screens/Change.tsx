@@ -13,6 +13,7 @@ import {
   type ChangeLink,
   type ChangeRequest,
 } from "../lib/appChanges.ts";
+import { errorReports, REPORT_LABEL, sendReport, type ErrorReport } from "../lib/errorReports.ts";
 import { PAGES } from "../pages/runtime.ts";
 
 // More › Change the app: write a wish, send it to Claude, watch it go live.
@@ -44,6 +45,8 @@ export function Change() {
   const [link, setLink] = useState<ChangeLink | null | undefined>(undefined);
   const [ready, setReady] = useState(false);
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
+  const [reports, setReports] = useState<ErrorReport[]>([]);
+  const [sentNow, setSentNow] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const card = useRef<HTMLElement>(null);
@@ -62,6 +65,7 @@ export function Change() {
       if (l) {
         setReady(await canSendNow(l));
         setRequests(await listRequests(l).catch(() => []));
+        setReports(await errorReports.list().catch(() => []));
       }
     });
     return () => {
@@ -78,6 +82,10 @@ export function Change() {
       if (document.visibilityState === "visible") {
         void listRequests(link)
           .then(setRequests)
+          .catch(() => {});
+        void errorReports
+          .list()
+          .then(setReports)
           .catch(() => {});
         void canSendNow(link).then(setReady);
       }
@@ -109,6 +117,19 @@ export function Change() {
     } finally {
       setSending(false);
     }
+  };
+
+  const sendNow = async (r: ErrorReport, el: HTMLElement) => {
+    if (!link?.comments) {
+      return;
+    }
+    const ok = await sendReport(link.comments, r, el);
+    if (ok) {
+      setSentNow((ids) => [...ids, r.id]);
+    }
+    toast(
+      ok ? "Sent. Claude starts on it now." : "Couldn't send now; it goes at the hourly check.",
+    );
   };
 
   const openClaudeApp = async () => {
@@ -203,6 +224,44 @@ export function Change() {
                   </span>
                 </span>
                 <span className={`chip req-${r.status}`}>{STATUS_LABEL[r.status]}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {reports.length > 0 && (
+        <section className="stack rise d2" style={{ gap: 8 }} aria-label="Problems">
+          <h2 className="eyebrow" style={{ paddingLeft: 4, margin: 0 }}>
+            Problems Claude is fixing
+          </h2>
+          <p className="s12 muted" style={{ margin: "0 4px" }}>
+            When something breaks, the app tells Claude by itself. You don't need to do anything.
+          </p>
+          <div className="card rows">
+            {reports.slice(0, 8).map((r) => (
+              <div key={r.id} className="item change-req">
+                <span className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}>
+                  <span style={{ fontWeight: 650, overflowWrap: "anywhere" }}>
+                    {r.message.replace(/^\w*Error: /, "")}
+                  </span>
+                  {r.reply && <span className="s13 muted">{r.reply}</span>}
+                  <span className="s11 muted">
+                    {when(r.at)} · {r.where.split(" · ")[0]}
+                    {r.count > 1 ? ` · ${r.count} times` : ""}
+                    {r.fixedIn ? ` · fixed in ${r.fixedIn}` : ""}
+                  </span>
+                  {r.status === "new" && ready && !sentNow.includes(r.id) && (
+                    <button
+                      className="btn small"
+                      style={{ alignSelf: "flex-start" }}
+                      onClick={(e) => void sendNow(r, e.currentTarget)}
+                    >
+                      <Icon name="send" size={14} /> Send to Claude now
+                    </button>
+                  )}
+                </span>
+                <span className={`chip rep-${r.status}`}>{REPORT_LABEL[r.status]}</span>
               </div>
             ))}
           </div>

@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { backups } from "../lib/backup.ts";
+import { errorReports } from "../lib/errorReports.ts";
 
 // One damaged list (a bad link, a broken saved copy) must never leave the
 // student with a blank app: they get a way back without clearing anything.
@@ -21,10 +22,12 @@ const savedAt = (iso: string) => {
 interface State {
   failed: boolean;
   restored: boolean;
+  /** A bug report went to Claude (the Claude app), or is waiting to. */
+  reported: boolean;
 }
 
 export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: boolean }, State> {
-  state: State = { failed: false, restored: false };
+  state: State = { failed: false, restored: false, reported: false };
 
   static getDerivedStateFromError(): Partial<State> {
     return { failed: true };
@@ -32,6 +35,8 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
 
   componentDidCatch(err: unknown) {
     console.error("Student Hub crashed", err);
+    const screen = window.location.hash.slice(1).split(/[?/]/)[0] || "today";
+    this.setState({ reported: errorReports.capture(err, `${screen} · crash`) });
   }
 
   private done = () => {
@@ -84,6 +89,11 @@ export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: 
             This screen hit a problem, often from a damaged link. Nothing has been deleted. Reload
             to try again, or go back to an automatic save.
           </p>
+          {this.state.reported && errorReports.canReach && (
+            <p className="s13 muted" style={{ margin: 0 }}>
+              Claude got a report about this and will fix it in the next version.
+            </p>
+          )}
           {this.state.restored ? (
             <p style={{ margin: 0, fontWeight: 700 }}>Restored. Reloading…</p>
           ) : (

@@ -242,12 +242,15 @@
 .change-req {
   align-items: flex-start;
 }
-.chip.req-live {
+.chip.req-live,
+.chip.rep-fixed {
   background: var(--green-s);
   color: var(--green-t);
 }
 .chip.req-sent,
-.chip.req-building {
+.chip.req-building,
+.chip.rep-new,
+.chip.rep-fixing {
   background: var(--violet-s);
   color: var(--violet-t);
 }
@@ -255,7 +258,8 @@
   background: var(--yellow-s);
   color: var(--yellow-t);
 }
-.chip.req-declined {
+.chip.req-declined,
+.chip.rep-watching {
   background: var(--seg);
   color: var(--muted);
 }
