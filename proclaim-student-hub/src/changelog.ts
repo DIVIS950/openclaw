@@ -11,6 +11,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.3.0",
+    date: "2026-10-20",
+    title: "Pick your style, see Gmail and sync, smoother on iPhone",
+    items: [
+      "Four styles in More › Look: Classic (as before), Calm, Dark and Playful",
+      "Today shows if Gmail is on and when your devices last synced; tap it to connect or sync now",
+      "iPhone: typing no longer zooms the page in, and buttons react to the first tap",
+    ],
+  },
+  {
     version: "1.2.1",
     date: "2026-10-19",
     title: "Everything syncs in the Claude app",

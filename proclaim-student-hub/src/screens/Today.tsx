@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Briefing } from "../components/Briefing.tsx";
+import { ConnectionLine } from "../components/Connections.tsx";
 import { CountUp } from "../components/CountUp.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { NowCard } from "../components/NowCard.tsx";
@@ -215,6 +216,7 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
           <h1 className="h1">
             <Hello name={profile?.name} />
           </h1>
+          <ConnectionLine />
         </div>
         <div className="stack" style={{ gap: 8, alignItems: "flex-end", flex: "none" }}>
           <button

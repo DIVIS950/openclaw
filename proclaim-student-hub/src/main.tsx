@@ -8,7 +8,7 @@ import { backups } from "./lib/backup.ts";
 import { trackKeyboard } from "./lib/keyboard.ts";
 import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
 import { applyLocalSeed } from "./lib/seed.ts";
-import { applyAccent, applyTheme, watchTheme } from "./lib/theme.ts";
+import { applyAccent, applyStyle, watchTheme } from "./lib/theme.ts";
 import { readTransferFromLocation, transferPreview } from "./lib/transfer.ts";
 import { importReplyFromLocation } from "./lib/tutorLink.ts";
 import { unlockSeed } from "./pages/lockedSeed.ts";
@@ -21,10 +21,11 @@ import "./fix-polish.css";
 import "./bold.css";
 import "./plus.css";
 import "./rail.css";
+import "./looks.css";
 
 async function start() {
   // Bento look, light unless the student chose otherwise in More › Look.
-  applyTheme();
+  applyStyle();
   applyAccent();
   watchTheme();
   trackKeyboard();

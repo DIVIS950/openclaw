@@ -94,6 +94,8 @@ export interface DataSource {
   inbox(): Promise<Email[]>;
   /** Emails matching a Gmail search, where Gmail is connected. */
   searchEmails?(query: string): Promise<Email[]>;
+  /** False when this page can't reach Gmail at all (no connectors here). */
+  readonly gmailReachable?: boolean;
   events(): Promise<CalEvent[]>;
   setDone(hw: Homework, done: boolean): Promise<void>;
   /** Gives homework a due date (YYYY-MM-DD) after it arrived without one. */

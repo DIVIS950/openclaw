@@ -75,6 +75,10 @@ function asSource(v: unknown): Source {
 export class ClaudeData implements DataSource {
   readonly demo = false;
   readonly hasClassroom = false;
+
+  get gmailReachable(): boolean {
+    return this.mcp !== null;
+  }
   readonly labels = {
     saved: "Saved",
     workNote: "Saved in your Student Hub, only you can see it",

@@ -9,16 +9,16 @@ import { driveSync, SyncSignInError } from "./driveSync.ts";
 // Drive; in the Claude app, in their Claude account (always on, no setup).
 
 /** "2 min ago", "at 14:05", "on 3 Oct". */
-function whenLabel(iso: string): string {
+export function whenLabel(iso: string, now = Date.now()): string {
   const at = new Date(iso);
-  const min = Math.round((Date.now() - at.getTime()) / 60_000);
+  const min = Math.round((now - at.getTime()) / 60_000);
   if (min < 1) {
     return "just now";
   }
   if (min < 60) {
     return `${min} min ago`;
   }
-  return at.toDateString() === new Date().toDateString()
+  return at.toDateString() === new Date(now).toDateString()
     ? `at ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
     : `on ${at.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
 }

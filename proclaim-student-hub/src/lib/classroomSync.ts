@@ -245,6 +245,16 @@ export async function syncClassroomEmails(
   if (data.demo || !data.searchEmails) {
     return [];
   }
+  if (data.gmailReachable === false) {
+    // Not "Gmail on" just because there was nothing to read.
+    syncStatus.set({
+      at: now.toISOString(),
+      checked: 0,
+      added: 0,
+      error: "Gmail can't be reached here. Open Student Hub in the Claude app and allow Gmail.",
+    });
+    return [];
+  }
   let emails: Email[];
   try {
     emails = await data.searchEmails(CLASSROOM_QUERY);

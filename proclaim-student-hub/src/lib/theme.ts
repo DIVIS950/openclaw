@@ -15,6 +15,10 @@ export function themePref(): ThemePref {
 }
 
 function resolve(pref: ThemePref): "dark" | "light" {
+  // The Dark style is dark whatever More › Look says.
+  if (stylePref() === "dark") {
+    return "dark";
+  }
   if (pref !== "auto") {
     return pref;
   }
@@ -23,13 +27,21 @@ function resolve(pref: ThemePref): "dark" | "light" {
   return light ? "light" : "dark";
 }
 
+/** The browser bar's colour: each style's own background. */
+const BAR: Record<Style, Record<"dark" | "light", string>> = {
+  classic: { light: "#F6F3FF", dark: "#0F0E1A" },
+  calm: { light: "#F6F7F9", dark: "#111214" },
+  dark: { light: "#0D0F1A", dark: "#0D0F1A" },
+  playful: { light: "#E8F3FF", dark: "#15132A" },
+};
+
 /** Writes data-theme on <html> so the CSS tokens switch. */
 export function applyTheme(pref: ThemePref = themePref()): "dark" | "light" {
   const mode = resolve(pref);
   document.documentElement.dataset.theme = mode;
   // Both metas (light/dark media): the app's own choice wins over the device setting.
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
-    meta.setAttribute("content", mode === "dark" ? "#0F0E1A" : "#F6F3FF");
+    meta.setAttribute("content", BAR[stylePref()][mode]);
   }
   return mode;
 }
@@ -86,4 +98,42 @@ export function watchTheme(): void {
       applyTheme("auto");
     }
   });
+}
+
+/**
+ * The look as a whole (More › Look › Style). Classic is the colourful sticker
+ * look the app has had since 1.1; Calm, Dark and Playful came with 1.3. Stored
+ * on this device, so a phone and an iPad can look different.
+ */
+export type Style = "classic" | "calm" | "dark" | "playful";
+export const STYLES: Style[] = ["classic", "calm", "dark", "playful"];
+const STYLE_KEY = "psh.style";
+
+export function stylePref(): Style {
+  try {
+    const raw = localStorage.getItem(STYLE_KEY) ?? "";
+    const v = raw.startsWith('"') ? (JSON.parse(raw) as unknown) : raw;
+    return STYLES.find((st) => st === v) ?? "classic";
+  } catch {
+    return "classic";
+  }
+}
+
+/** Writes data-style on <html> (none for Classic), then the theme, which Dark overrides. */
+export function applyStyle(style: Style = stylePref()): void {
+  if (style === "classic") {
+    delete document.documentElement.dataset.style;
+  } else {
+    document.documentElement.dataset.style = style;
+  }
+  applyTheme();
+}
+
+export function setStylePref(style: Style): void {
+  try {
+    localStorage.setItem(STYLE_KEY, style);
+  } catch {
+    // Private mode: lasts until the tab closes.
+  }
+  applyStyle(style);
 }

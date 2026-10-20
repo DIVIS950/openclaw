@@ -1,0 +1,673 @@
+/* ==========================================================================
+   Looks: More › Look › Style. Loads last. Classic (the Bold sticker look) has
+   no attribute and is untouched; the other three set data-style on <html>:
+     Calm     clean and quiet like iOS: the phone's own font, white cards with
+              a hairline, one navy accent, a full-width tab bar on phones.
+     Dark     game-like and always dark: Chakra Petch headings, flat dark
+              cards, a blue Now card and amber for XP, quests and Add.
+     Playful  bright and bouncy: Fredoka headings, thick ink outlines with a
+              solid offset shadow, sunny colour blocks, slightly tilted tiles.
+   Each style swaps the tokens first, then the few parts that draw their own
+   colours (Now card, number tiles, daily brief, late card, tab bar, buttons).
+   The last section is for every style: iPhone fixes.
+   ========================================================================== */
+
+/* ---------- Calm: tokens ---------- */
+:root[data-style="calm"] {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --card-2: #f1f3f6;
+  --surface: #ffffff;
+  --surface2: #f1f3f6;
+  --seg: #e9ecf1;
+  --line: rgba(20, 22, 26, 0.08);
+  --line-soft: rgba(20, 22, 26, 0.05);
+  --ink: #14161a;
+  --ink2: #3f4550;
+  --text2: #3f4550;
+  --muted: #5d6470;
+  --edge: #e3e6eb;
+  --lip: transparent;
+  --shadow: 0 0 0 1px var(--edge);
+  --shadow-lg: 0 0 0 1px var(--edge), 0 12px 30px -18px rgba(20, 22, 26, 0.28);
+  --glass: #f6f7f9;
+  --hero: #ffffff;
+  --radius: 20px;
+  --serif:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif;
+  --sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+}
+:root[data-style="calm"]:not([data-accent]) {
+  --accent: #2443c4;
+  --accent-ink: #2443c4;
+  --accent-t: #2443c4;
+  --accent-soft: #e9eefc;
+  --link: #2443c4;
+}
+:root[data-style="calm"][data-theme="dark"] {
+  --bg: #111214;
+  --card: #1b1c1f;
+  --card-2: #24262a;
+  --surface: #1b1c1f;
+  --surface2: #24262a;
+  --seg: #24262a;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-soft: rgba(255, 255, 255, 0.04);
+  --ink: #f2f3f5;
+  --ink2: #c5c9d1;
+  --text2: #c5c9d1;
+  --muted: #9aa0aa;
+  --edge: #2c2e33;
+  --glass: #111214;
+  --hero: #1b1c1f;
+}
+:root[data-style="calm"][data-theme="dark"]:not([data-accent]) {
+  --accent: #3d5ce0;
+  --accent-ink: #a9b8ff;
+  --accent-t: #a9b8ff;
+  --accent-soft: rgba(127, 151, 255, 0.16);
+  --link: #a9b8ff;
+}
+
+/* ---------- Dark: tokens (the theme is forced dark in theme.ts) ---------- */
+:root[data-style="dark"] {
+  --bg: #0d0f1a;
+  --card: #161a2b;
+  --card-2: #1e2338;
+  --surface: #161a2b;
+  --surface2: #1e2338;
+  --seg: #1e2338;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-soft: rgba(255, 255, 255, 0.04);
+  --ink: #eef0f8;
+  --ink2: #c3c8dc;
+  --text2: #c3c8dc;
+  --muted: #9aa1bd;
+  --edge: #272d47;
+  --lip: transparent;
+  --shadow: 0 0 0 1px var(--edge);
+  --shadow-lg: 0 0 0 1px var(--edge), 0 18px 40px -20px rgba(0, 0, 0, 0.8);
+  --glass: #0d0f1a;
+  --hero: #161a2b;
+  --radius: 18px;
+  --xp: #ffb020;
+  --serif: "Chakra Petch", "Bricolage Grotesque", system-ui, sans-serif;
+  color-scheme: dark;
+}
+:root[data-style="dark"]:not([data-accent]) {
+  --accent: #3d5eff;
+  --accent-ink: #a3b4ff;
+  --accent-t: #a3b4ff;
+  --accent-soft: rgba(91, 124, 255, 0.18);
+  --link: #a3b4ff;
+}
+
+/* ---------- Playful: tokens ---------- */
+:root[data-style="playful"] {
+  --bg: #e8f3ff;
+  --card: #ffffff;
+  --card-2: #f3f6ff;
+  --surface: #ffffff;
+  --surface2: #f3f6ff;
+  --seg: #dceafb;
+  --line: rgba(29, 27, 47, 0.12);
+  --ink: #1d1b2f;
+  --ink2: #3b3956;
+  --text2: #3b3956;
+  --muted: #4a4766;
+  /* The outline and the solid offset shadow under it. */
+  --pl-line: #1d1b2f;
+  --pl-drop: #1d1b2f;
+  --edge: var(--pl-line);
+  --lip: var(--pl-drop);
+  --shadow: 0 0 0 2.5px var(--pl-line), 4px 4px 0 2.5px var(--pl-drop);
+  --shadow-lg: 0 0 0 2.5px var(--pl-line), 6px 6px 0 2.5px var(--pl-drop);
+  --glass: #e8f3ff;
+  --hero: #ffffff;
+  --radius: 24px;
+  --serif: "Fredoka", "Figtree", system-ui, sans-serif;
+  --pl-sun: #ffd23f;
+  --pl-sky: #8fd0ff;
+  --pl-tomato: #d8401f;
+  --pl-grape: #b9a8ff;
+}
+:root[data-style="playful"]:not([data-accent]) {
+  --accent: #5b3fd6;
+  --accent-ink: #4a2fc4;
+  --accent-t: #4a2fc4;
+  --accent-soft: #ece7ff;
+  --link: #4a2fc4;
+}
+:root[data-style="playful"][data-theme="dark"] {
+  --bg: #15132a;
+  --card: #221f3d;
+  --card-2: #2b2850;
+  --surface: #221f3d;
+  --surface2: #2b2850;
+  --seg: #2b2850;
+  --line: rgba(255, 255, 255, 0.1);
+  --ink: #f4f2ff;
+  --ink2: #d6d2f5;
+  --text2: #d6d2f5;
+  --muted: #b0abd6;
+  --pl-line: #c9c3ff;
+  --pl-drop: #05040c;
+  --glass: #15132a;
+  --hero: #221f3d;
+}
+:root[data-style="playful"][data-theme="dark"]:not([data-accent]) {
+  --accent: #6a4cff;
+  --accent-ink: #c9bcff;
+  --accent-t: #c9bcff;
+  --accent-soft: rgba(106, 76, 255, 0.22);
+  --link: #c9bcff;
+}
+
+/* ---------- All three: a plain ground (Classic keeps its colour washes) ---------- */
+:root[data-style] body:not(.tutor-page),
+:root[data-style] .app:not(.tutor-hub) {
+  background: var(--bg);
+}
+
+/* ==========================================================================
+   Calm
+   ========================================================================== */
+:root[data-style="calm"] .card,
+:root[data-style="calm"] .tile,
+:root[data-style="calm"] .bento-tile {
+  border-radius: 20px;
+}
+:root[data-style="calm"] .h1,
+:root[data-style="calm"] .h2,
+:root[data-style="calm"] .now-card .now-title,
+:root[data-style="calm"] .bento-tile strong,
+:root[data-style="calm"] .big-num {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+:root[data-style="calm"] .now-card {
+  background: var(--accent);
+  box-shadow: none;
+}
+:root[data-style="calm"] .now-card::after {
+  display: none;
+}
+:root[data-style="calm"] .bento-tiles .bento-tile:nth-child(1),
+:root[data-style="calm"] .bento-tiles .bento-tile:nth-child(2) {
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+:root[data-style="calm"] .card.ai.brief-card {
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+:root[data-style="calm"] .card.ai.brief-card .brief {
+  color: var(--ink);
+  font-weight: 500;
+}
+:root[data-style="calm"] .card.ai.brief-card .brief b {
+  color: var(--ink);
+  font-weight: 700;
+  background: linear-gradient(
+    transparent 62%,
+    color-mix(in oklab, var(--accent) 18%, transparent) 62%
+  );
+}
+:root[data-style="calm"] .brief-card .s12.muted {
+  color: var(--muted);
+}
+:root[data-style="calm"] .card.ai.brief-card .chip.violet,
+:root[data-style="calm"] .brief-card .brief-chip.due {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: none;
+}
+:root[data-style="calm"] .brief-card .brief-chip {
+  background: var(--card-2);
+  color: var(--ink);
+  border-color: var(--edge);
+}
+:root[data-style="calm"] .brief-card .btn.link {
+  color: var(--accent-t);
+}
+:root[data-style="calm"] .late-card {
+  background: color-mix(in oklab, #c2560c 6%, var(--card));
+  box-shadow: 0 0 0 1px color-mix(in oklab, #c2560c 28%, var(--edge));
+}
+:root[data-style="calm"] .btn,
+:root[data-style="calm"] .btn.primary,
+:root[data-style="calm"] .fchip.on,
+:root[data-style="calm"] .nav-fab,
+:root[data-style="calm"] .round,
+:root[data-style="calm"] .today-head .avatar {
+  box-shadow: none;
+}
+:root[data-style="calm"] .btn:active:not(:disabled),
+:root[data-style="calm"] .nav-fab:active {
+  transform: none;
+  opacity: 0.8;
+  box-shadow: none;
+}
+:root[data-style="calm"] .round,
+:root[data-style="calm"] .today-head .avatar {
+  box-shadow: 0 0 0 1px var(--edge);
+}
+:root[data-style="calm"] .chip[class*="tone-"],
+:root[data-style="calm"] .chip.due,
+:root[data-style="calm"] .chip.cyan,
+:root[data-style="calm"] .chip.violet,
+:root[data-style="calm"] .chip.streak {
+  box-shadow: none;
+}
+:root[data-style="calm"] .ask {
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.45);
+}
+:root[data-style="calm"] .app:not(.tutor-hub) .nav {
+  box-shadow: 0 0 0 1px var(--edge);
+}
+:root[data-style="calm"] .app:not(.tutor-hub) .nav-item[aria-current="page"] {
+  background: none;
+  color: var(--accent-t);
+}
+/* Phones: a full-width bar fixed to the bottom, like iOS. */
+@media (max-width: 767.98px), (max-height: 599.98px) {
+  :root[data-style="calm"] .app:not(.tutor-hub) .nav {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(env(safe-area-inset-bottom) + 64px);
+    padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+      max(8px, env(safe-area-inset-left));
+    border-radius: 0;
+    background: color-mix(in oklab, var(--card) 96%, transparent);
+    box-shadow: 0 -1px 0 var(--edge);
+  }
+  :root[data-style="calm"] .nav-fab {
+    width: 48px;
+    height: 48px;
+    margin-top: 0;
+  }
+  :root[data-style="calm"] .ask {
+    bottom: calc(env(safe-area-inset-bottom) + 80px);
+  }
+}
+
+/* ==========================================================================
+   Dark
+   ========================================================================== */
+:root[data-style="dark"] .card,
+:root[data-style="dark"] .tile,
+:root[data-style="dark"] .bento-tile {
+  border-radius: 18px;
+}
+:root[data-style="dark"] .now-card .now-title {
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+:root[data-style="dark"] .today-head .h1,
+:root[data-style="dark"] .h1 {
+  letter-spacing: 0;
+}
+:root[data-style="dark"] .today-head .eyebrow,
+:root[data-style="dark"] .eyebrow {
+  letter-spacing: 0.14em;
+}
+:root[data-style="dark"] .now-card {
+  background: var(--accent);
+  box-shadow: none;
+}
+:root[data-style="dark"] .now-card::after {
+  display: none;
+}
+:root[data-style="dark"] .bento-tiles .bento-tile:nth-child(1),
+:root[data-style="dark"] .bento-tiles .bento-tile:nth-child(2) {
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+/* The daily brief is today's quest: an amber outline. */
+:root[data-style="dark"] .card.ai.brief-card {
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--xp);
+}
+:root[data-style="dark"] .card.ai.brief-card .brief {
+  color: var(--ink);
+}
+:root[data-style="dark"] .card.ai.brief-card .brief b {
+  color: #fff;
+  background: linear-gradient(transparent 60%, rgba(255, 176, 32, 0.4) 60%);
+}
+:root[data-style="dark"] .brief-card .s12.muted {
+  color: var(--muted);
+}
+:root[data-style="dark"] .card.ai.brief-card .chip.violet,
+:root[data-style="dark"] .brief-card .brief-chip.due {
+  background: var(--xp);
+  border-color: var(--xp);
+  color: #0d0f1a;
+  box-shadow: none;
+}
+:root[data-style="dark"] .brief-card .brief-chip {
+  background: var(--card-2);
+  color: var(--ink);
+  border-color: var(--edge);
+}
+:root[data-style="dark"] .brief-card .btn.link {
+  color: var(--xp);
+}
+:root[data-style="dark"] .late-card {
+  background: color-mix(in oklab, #ff5c8a 10%, var(--card));
+  box-shadow: 0 0 0 1px color-mix(in oklab, #ff5c8a 45%, var(--edge));
+}
+:root[data-style="dark"] .chip.streak {
+  background: color-mix(in oklab, var(--xp) 18%, transparent);
+  color: var(--xp);
+}
+:root[data-style="dark"] .btn,
+:root[data-style="dark"] .btn.primary,
+:root[data-style="dark"] .fchip.on,
+:root[data-style="dark"] .round,
+:root[data-style="dark"] .today-head .avatar {
+  box-shadow: none;
+}
+:root[data-style="dark"] .round,
+:root[data-style="dark"] .today-head .avatar {
+  box-shadow: 0 0 0 1px var(--edge);
+}
+:root[data-style="dark"] .btn:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: none;
+}
+:root[data-style="dark"] .ask {
+  background: var(--xp);
+  color: #0d0f1a;
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.8);
+}
+:root[data-style="dark"] .app:not(.tutor-hub) .nav {
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--edge),
+    0 18px 30px -18px rgba(0, 0, 0, 0.9);
+}
+:root[data-style="dark"] .app:not(.tutor-hub) .nav-item[aria-current="page"] {
+  background: none;
+  color: var(--xp);
+}
+:root[data-style="dark"] .app:not(.tutor-hub) .nav-item[aria-current="page"]::after {
+  background: var(--xp);
+}
+:root[data-style="dark"] .nav-fab {
+  background: var(--xp);
+  color: #0d0f1a;
+  border-radius: 16px;
+  box-shadow: none;
+}
+:root[data-style="dark"] .nav-fab:active {
+  transform: scale(0.96);
+  box-shadow: none;
+}
+:root[data-style="dark"] .nav-badge {
+  box-shadow: 0 0 0 2px var(--card);
+}
+
+/* ==========================================================================
+   Playful
+   ========================================================================== */
+:root[data-style="playful"] .h1,
+:root[data-style="playful"] .h2,
+:root[data-style="playful"] .now-card .now-title,
+:root[data-style="playful"] .big-num {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:root[data-style="playful"] .now-card {
+  background: var(--pl-tomato);
+  box-shadow: var(--shadow-lg);
+  transform: rotate(-0.8deg);
+}
+:root[data-style="playful"] .now-card::after {
+  display: none;
+}
+/* Sunny tiles with dark text in both themes, tilted the other ways. */
+:root[data-style="playful"] .bento-tiles .bento-tile:nth-child(1),
+:root[data-style="playful"] .bento-tiles .bento-tile:nth-child(2) {
+  box-shadow: var(--shadow);
+  color: #1d1b2f;
+}
+:root[data-style="playful"] .bento-tiles .bento-tile:nth-child(1) {
+  background: var(--pl-sun);
+  transform: rotate(0.8deg);
+}
+:root[data-style="playful"] .bento-tiles .bento-tile:nth-child(2) {
+  background: var(--pl-sky);
+  transform: rotate(-1deg);
+}
+:root[data-style="playful"] .bento-tiles .bento-tile *,
+:root[data-style="playful"] .bento-tiles .bento-tile .eyebrow,
+:root[data-style="playful"] .bento-tiles .bento-tile .s13.muted {
+  color: #1d1b2f;
+}
+:root[data-style="playful"] .card.ai.brief-card {
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+:root[data-style="playful"] .card.ai.brief-card .brief {
+  color: var(--ink);
+}
+:root[data-style="playful"] .card.ai.brief-card .brief b {
+  color: var(--ink);
+  background: linear-gradient(
+    transparent 55%,
+    color-mix(in oklab, var(--pl-sun) 75%, transparent) 55%
+  );
+}
+:root[data-style="playful"] .brief-card .s12.muted {
+  color: var(--muted);
+}
+:root[data-style="playful"] .card.ai.brief-card .chip.violet,
+:root[data-style="playful"] .brief-card .brief-chip.due {
+  background: var(--accent);
+  border-color: var(--pl-line);
+  color: #fff;
+  box-shadow: 2px 2px 0 var(--pl-drop);
+}
+:root[data-style="playful"] .brief-card .brief-chip {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--pl-line);
+}
+:root[data-style="playful"] .brief-card .btn.link {
+  color: var(--accent-t);
+}
+:root[data-style="playful"] .late-card {
+  background: color-mix(in oklab, var(--pl-grape) 40%, var(--card));
+  box-shadow: var(--shadow);
+}
+:root[data-style="playful"] .chip.streak {
+  background: var(--pl-sun);
+  color: #1d1b2f;
+  box-shadow: 0 0 0 2px var(--pl-line);
+}
+:root[data-style="playful"] .btn {
+  box-shadow:
+    0 0 0 2px var(--pl-line),
+    3px 3px 0 2px var(--pl-drop);
+}
+:root[data-style="playful"] .btn.ghost,
+:root[data-style="playful"] .btn.link,
+:root[data-style="playful"] .link-btn {
+  box-shadow: none;
+}
+:root[data-style="playful"] .btn:active:not(:disabled),
+:root[data-style="playful"] .btn.primary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow:
+    0 0 0 2px var(--pl-line),
+    1px 1px 0 2px var(--pl-drop);
+}
+:root[data-style="playful"] .fchip.on {
+  box-shadow: 2px 2px 0 var(--pl-drop);
+  border-color: var(--pl-line);
+}
+:root[data-style="playful"] .round,
+:root[data-style="playful"] .today-head .avatar {
+  background: var(--pl-sun);
+  color: #1d1b2f;
+  box-shadow:
+    0 0 0 2px var(--pl-line),
+    3px 3px 0 2px var(--pl-drop);
+}
+:root[data-style="playful"] .ask {
+  background: var(--accent);
+  color: #fff;
+  box-shadow:
+    0 0 0 2px var(--pl-line),
+    3px 3px 0 2px var(--pl-drop);
+}
+:root[data-style="playful"] .app:not(.tutor-hub) .nav {
+  background: var(--card);
+  box-shadow:
+    0 0 0 2.5px var(--pl-line),
+    4px 4px 0 2.5px var(--pl-drop);
+}
+:root[data-style="playful"] .app:not(.tutor-hub) .nav-item[aria-current="page"] {
+  background: var(--pl-sun);
+  color: #1d1b2f;
+  box-shadow: 0 0 0 2px var(--pl-line);
+}
+:root[data-style="playful"] .nav-fab {
+  background: var(--pl-tomato);
+  color: #fff;
+  box-shadow:
+    0 0 0 2.5px var(--pl-line),
+    3px 3px 0 2.5px var(--pl-drop);
+}
+:root[data-style="playful"] .nav-fab:active {
+  transform: translate(2px, 2px);
+  box-shadow:
+    0 0 0 2.5px var(--pl-line),
+    1px 1px 0 2.5px var(--pl-drop);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-style="playful"] .now-card,
+  :root[data-style="playful"] .bento-tiles .bento-tile {
+    transform: none;
+  }
+}
+
+/* ---------- The style picker (More › Look) ---------- */
+.style-set {
+  flex-wrap: wrap;
+}
+.style-picker {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+.style-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card-2);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: inset 0 0 0 2px transparent;
+}
+.style-opt strong {
+  font-size: 14px;
+}
+.style-opt .s11 {
+  color: var(--muted);
+}
+.style-opt.on {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* A little sample of each style: its ground and its main colour. */
+.style-dot {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 9px;
+}
+.style-classic .style-dot {
+  background: linear-gradient(135deg, #f6f3ff 50%, #2f5bff 50%);
+  box-shadow: 0 0 0 2px #e3dcf5;
+}
+.style-calm .style-dot {
+  background: linear-gradient(135deg, #ffffff 50%, #2443c4 50%);
+  box-shadow: 0 0 0 1px #d5d9e0;
+}
+.style-dark .style-dot {
+  background: linear-gradient(135deg, #161a2b 50%, #ffb020 50%);
+}
+.style-playful .style-dot {
+  background: linear-gradient(135deg, #ffd23f 50%, #d8401f 50%);
+  box-shadow: 0 0 0 2px #1d1b2f;
+}
+
+/* ---------- Today: the Gmail and sync line under the greeting ---------- */
+.conn-line {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  margin: -2px 0 0 -2px;
+  padding: 4px 10px 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, #c2560c 12%, transparent);
+  color: var(--ink2);
+  font: 600 13px/1.2 var(--sans);
+  position: relative;
+}
+.conn-line::before {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
+}
+.conn-line.on {
+  background: transparent;
+  padding-left: 2px;
+}
+.conn-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: #c2560c;
+}
+.conn-line.on .conn-dot {
+  background: #12a46c;
+}
+.conn-line:disabled {
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   iPhone fixes (every style)
+   ========================================================================== */
+/* Safari zooms the whole page into any text box under 16px: keep them at 16. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+/* No double-tap zoom on buttons: taps react straight away. */
+button,
+a,
+[role="button"],
+label {
+  touch-action: manipulation;
+}
