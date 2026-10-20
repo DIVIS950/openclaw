@@ -119,7 +119,9 @@ export function withGmail(data: DataSource): DataSource {
   }
   // Same object underneath (drafts, homework), Gmail methods on top. Answers
   // also go into Google Docs while the sign-in is fresh (pages/googleDocs.ts).
-  return Object.assign(Object.create(data) as DataSource, {
+  // gmailReachable is a getter underneath, so it's defined here, not assigned.
+  const over = Object.create(data, { gmailReachable: { value: true } }) as DataSource;
+  return Object.assign(over, {
     searchEmails: (query: string) => gmailLink.search(query),
     inbox: () => gmailLink.inbox(),
     loadDraft: async (hw: Homework) => withDocLink(hw, await data.loadDraft(hw)),

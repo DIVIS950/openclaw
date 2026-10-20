@@ -105,4 +105,14 @@ describe("Classroom check without Gmail", () => {
     expect(status?.error).toMatch(/Gmail can't be reached/);
     expect(connections(status, "").label).toBe("Connect Gmail");
   });
+
+  it("the website with Google sign-in connected can reach Gmail", async () => {
+    localStorage.setItem("psh.google.client", "123456-abc.apps.googleusercontent.com");
+    localStorage.setItem("psh.gmail.granted", "1");
+    const { ClaudeData } = await import("../src/lib/claudeData.ts");
+    const { withGmail } = await import("../src/pages/gmailLink.ts");
+    const plain = new ClaudeData(null, null, null, null);
+    expect(plain.gmailReachable).toBe(false);
+    expect(withGmail(plain).gmailReachable).toBe(true);
+  });
 });
