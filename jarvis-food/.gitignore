@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+.vercel
+
+# The parent repo ignores lockfiles; this app needs its own so Vercel installs with npm.
+!package-lock.json
