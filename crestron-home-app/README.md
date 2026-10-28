@@ -1,6 +1,9 @@
 # Home Control: a nicer iPhone and iPad app for your Crestron system
 
-A native SwiftUI app for iPhone and iPad, made to replace Crestron Go with a design closer to the new Crestron Home look: big room cards, scene tiles, and controls you can drag.
+Two apps with the same design, made to replace Crestron Go with something closer to the new Crestron Home look: big room cards, scene tiles, and controls you can drag.
+
+- **Web app** (`web/`): works on every iPad, iPhone, Android phone and computer. Add it to the Home Screen and it runs full screen like an app. It needs a small home server running on any always-on computer at home. **This is the quickest way to start.**
+- **Native iOS app** (`HomeControl/`): SwiftUI, built with Xcode on a Mac.
 
 It controls:
 
@@ -27,7 +30,34 @@ The app can talk to the house in two ways, and you pick one in **Settings**:
 
 You can also try the app first with **Demo house**, which needs no setup at all.
 
-## 2. Build and install the app (needs a Mac)
+## 2a. Run the web app (any computer at home)
+
+A browser can't talk to the Crestron processor directly, so a tiny home server does that part. It has no extra packages, only Node.js.
+
+1. Pick a computer that stays on and is on the same network as the processor: a Mac mini, a PC, a Raspberry Pi, or a NAS that runs Docker.
+2. Install **Node.js 22** from nodejs.org, then:
+   ```bash
+   cd crestron-home-app/web
+   npm start
+   ```
+   Or with Docker:
+   ```bash
+   cd crestron-home-app
+   docker build -t home-control .
+   docker run -d --name home-control --restart unless-stopped --network host -v home-control-data:/data home-control
+   ```
+3. On the iPad or phone, open `http://COMPUTER-IP:8080` in Safari, then **Share › Add to Home Screen**.
+4. Open **Setup** in the app and connect (see section 3 below; the fields are the same).
+
+Options (environment variables):
+
+- `PORT`: the port to use (default `8080`).
+- `ADMIN_PIN`: asks for a PIN before anyone can open Setup. It's a good idea, because Setup holds the Web API token.
+- `DATA_DIR`: where settings are saved (default `web/data/`, which git ignores).
+
+The server pushes live changes to every open screen at once, so the wall iPad and the phones always match. Camera pictures go through the server, so camera passwords never reach the browsers.
+
+## 2b. Build and install the native iOS app (needs a Mac)
 
 1. Install **Xcode** (free, from the Mac App Store).
 2. Install XcodeGen and generate the project:
@@ -91,7 +121,7 @@ Username and password are supported, with both Basic and Digest login. Passwords
 
 ## 5. Set up the mounted iPad
 
-1. In the app: **Settings › This device › Wall panel mode** turns on (the screen stays on and a clock screensaver appears).
+1. In the app: turn on **Wall panel mode** (native app: Settings › This device; web app: Setup › This device). The screen stays on and a clock screensaver appears when nobody touches it.
 2. On the iPad: **Settings › Accessibility › Guided Access**, turn it on and set a passcode. Then open the app and triple-click the side/top button to lock the iPad to it.
 3. Keep the iPad on power, and on the same Wi-Fi as the processor.
 
@@ -100,6 +130,11 @@ Room photos: open a room, tap **⋯**, then **Choose Room Photo**.
 ## How the code is organized
 
 ```
+web/
+  server/index.js                 home server: web app, live updates, setup, camera proxy
+  server/backends/                Crestron Home Web API, touch-panel (CIP) client, join map
+  public/                         the web app (no build step): app.js, app.css, icons.js
+  public/shared/                  data model + demo house, used by both browser and server
 HomeControl/
   App/            app entry, iPad sidebar / iPhone tabs, screensaver timer
   Model/          data types, HomeStore (state + optimistic updates), settings, Keychain
@@ -112,7 +147,7 @@ HomeControl/
   Views/          dashboard, rooms, lights, shades, media, security/gate, cameras, settings
 ```
 
-To add another kind of system, implement the small `HomeBackend` protocol in `Backends/HomeBackend.swift`.
+To add another kind of system, implement the small `HomeBackend` protocol in `Backends/HomeBackend.swift` (iOS) and the matching class in `web/server/backends/` (web).
 
 ## Honest notes and limits
 

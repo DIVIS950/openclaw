@@ -3,3 +3,5 @@ HomeControl/Info.plist
 xcuserdata/
 DerivedData/
 .build/
+# Home server settings: holds the Web API token and camera passwords
+web/data/
