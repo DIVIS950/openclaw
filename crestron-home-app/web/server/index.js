@@ -13,6 +13,7 @@ import { DemoEngine } from "../public/shared/demo.js";
 import { applyCommand, emptyHome, stateKey, validateCommand } from "../public/shared/model.js";
 import { CrestronHomeBackend } from "./backends/crestron-home.js";
 import { CustomProgramBackend, parseJoinMap } from "./backends/custom-program.js";
+import { assistantErrorMessage, runAssistant } from "./assistant.js";
 import { fetchSnapshot } from "./camera.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -43,6 +44,7 @@ const DEFAULT_CONFIG = {
   port: 41794,
   joinMap: readExampleJoinMap(),
   cameras: [], // { id, name, snapshotURL, username, password }
+  assistantKey: "", // Anthropic API key for the AI assistant (or set ANTHROPIC_API_KEY)
 };
 
 function loadConfig() {
@@ -72,8 +74,12 @@ function publicConfig() {
     port: config.port,
     joinMap: config.joinMap,
     cameras: config.cameras.map(({ password, ...c }) => ({ ...c, hasPassword: Boolean(password) })),
+    hasAssistantKey: Boolean(config.assistantKey),
+    assistantFromEnv: Boolean(process.env.ANTHROPIC_API_KEY),
   };
 }
+
+const assistantAvailable = () => Boolean(config.assistantKey || process.env.ANTHROPIC_API_KEY);
 
 // ---------- store ----------
 
@@ -91,6 +97,7 @@ function payload() {
     status: { ...status, mode: config.mode },
     homeName: config.homeName,
     cameras: config.cameras.map((c) => ({ id: c.id, name: c.name })),
+    assistant: { available: assistantAvailable() },
   };
 }
 
@@ -260,6 +267,27 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { ok: true });
     }
 
+    if (p === "/api/assistant" && req.method === "POST") {
+      const body = await readJSON(req);
+      const message = typeof body.message === "string" ? body.message.trim() : "";
+      if (!message) return sendJSON(res, 400, { error: "Say or type what you'd like to do." });
+      if (!assistantAvailable()) return sendJSON(res, 503, { error: "Add an Anthropic API key in Setup › AI assistant to use the assistant." });
+      if (!backend) return sendJSON(res, 503, { error: "The home server isn't connected to your system yet." });
+      try {
+        const result = await runAssistant({
+          message,
+          history: Array.isArray(body.history) ? body.history : [],
+          getHome: () => home,
+          perform,
+          apiKey: config.assistantKey || undefined,
+        });
+        return sendJSON(res, 200, result);
+      } catch (err) {
+        console.error("assistant:", err);
+        return sendJSON(res, 502, { error: assistantErrorMessage(err) });
+      }
+    }
+
     if (p === "/api/config") {
       if (!pinOK(req)) return sendJSON(res, 401, { error: "Enter the setup PIN." });
       if (req.method === "GET") return sendJSON(res, 200, publicConfig());
@@ -271,6 +299,8 @@ const server = http.createServer(async (req, res) => {
         if (Number.isInteger(body.port) && body.port > 0 && body.port < 65536) next.port = body.port;
         // An empty token field means "keep the saved one".
         if (typeof body.token === "string" && body.token.trim()) next.token = body.token.trim();
+        if (typeof body.assistantKey === "string" && body.assistantKey.trim()) next.assistantKey = body.assistantKey.trim();
+        if (body.removeAssistantKey === true) next.assistantKey = "";
         if (typeof body.joinMap === "string") {
           if (next.mode === "customProgram") parseJoinMap(body.joinMap); // reject a broken map before saving
           next.joinMap = body.joinMap;
@@ -290,9 +320,12 @@ const server = http.createServer(async (req, res) => {
               };
             });
         }
+        // Only a change to how we reach the processor needs a reconnect (not the AI key or cameras).
+        const reconnect = ["mode", "host", "token", "ipId", "port", "joinMap"].some((k) => next[k] !== config[k]);
         config = next;
         saveConfig(config);
-        connect();
+        if (reconnect) connect();
+        else broadcast();
         return sendJSON(res, 200, publicConfig());
       }
     }

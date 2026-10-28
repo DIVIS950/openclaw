@@ -4,6 +4,8 @@
 FROM node:22-alpine
 WORKDIR /app/web
 COPY joinmap.example.json /app/joinmap.example.json
+COPY web/package.json web/package-lock.json /app/web/
+RUN npm ci --omit=dev
 COPY web/ /app/web/
 ENV DATA_DIR=/data PORT=8080
 VOLUME /data

@@ -1,6 +1,7 @@
 // Home Control web app. Talks to the home server (server/index.js) when it is
 // there; otherwise runs the demo house right in the browser.
 import { icon, roomIcon, sceneIcon } from "./icons.js";
+import { applyControlCall, ASSISTANT_RULES, CONTROL_TOOL_DESCRIPTION, CONTROL_TOOL_NAME, CONTROL_TOOL_SCHEMA, homeForModel } from "./shared/assistant-core.js";
 import { DemoEngine } from "./shared/demo.js";
 import {
   applyCommand, clamp01, emptyHome, GATE_TITLES, homeScenes, pct, roomOf, SECURITY_TITLES, stateKey,
@@ -65,6 +66,7 @@ async function start() {
   }
   render();
   startTimers();
+  initAssistant();
 }
 
 function startLocal() {
@@ -86,6 +88,8 @@ function receive(p) {
   app.status = p.status ?? app.status;
   app.homeName = p.homeName || "Home";
   app.cameras = p.cameras ?? [];
+  app.assistant = p.assistant ?? { available: false };
+  updateAskFab();
   scheduleRender();
 }
 
@@ -229,20 +233,22 @@ function statusInfo() {
 
 // ---------- pieces ----------
 
-const HUES = [222, 256, 198, 164, 18, 332, 284, 206, 40, 140];
-function hue(name) {
-  let n = 0;
-  for (const ch of String(name)) n = (n * 31 + ch.codePointAt(0)) >>> 0;
-  return HUES[n % HUES.length];
+// Every room owns one bright color, in system order. [background, ink]
+const ROOM_COLORS = [
+  ["var(--tangerine)", "var(--ink)"], ["var(--mint)", "var(--ink)"], ["var(--violet)", "#ffffff"], ["var(--sky)", "var(--ink)"],
+  ["var(--pink)", "var(--ink)"], ["var(--lime)", "var(--ink)"], ["var(--cobalt)", "#ffffff"], ["var(--lemon)", "var(--ink)"],
+];
+function roomStyle(roomId) {
+  const i = Math.max(0, app.home.rooms.findIndex((r) => r.id === roomId));
+  const [c, on] = ROOM_COLORS[i % ROOM_COLORS.length];
+  return `--c:${c};--on-c:${on}`;
 }
 
-function roomGlow(lights) {
+function roomLevel(lights) {
   if (!lights.length) return 0;
-  const avg = lights.reduce((sum, l) => sum + (isOn(l) ? l.level : 0), 0) / lights.length;
-  return Math.min(1, avg * 1.5);
+  return lights.reduce((sum, l) => sum + (isOn(l) ? l.level : 0), 0) / lights.length;
 }
 
-const leds = (lights) => `<span class="leds" aria-hidden="true">${lights.map((l) => `<i class="led${isOn(l) ? " on" : ""}"></i>`).join("")}</span>`;
 const sourceName = (m) => m.sources.find((s) => s.id === m.sourceId)?.name ?? "On";
 const roomHref = (id) => `#room-${encodeURIComponent(id)}`;
 
@@ -251,21 +257,29 @@ function roomCard(room) {
   const lights = h.lights.filter((l) => l.roomId === room.id);
   const on = lights.filter(isOn).length;
   const playing = h.media.find((m) => m.roomId === room.id && m.on);
+  const alive = on > 0 || Boolean(playing);
   const meta = [
-    on ? `<span>${icon("bulb")}${on} on</span>` : lights.length ? "<span>Lights off</span>" : "",
-    playing ? `<span>${icon("music")}${esc(sourceName(playing))}</span>` : "",
-  ].join("");
-  return `<a class="room" href="${roomHref(room.id)}" style="--h:${hue(room.name)};--glow:${roomGlow(lights).toFixed(2)}">
-    <div class="room-top"><span class="room-glyph">${icon(roomIcon(room.name))}</span>${leds(lights)}</div>
-    <div><div class="room-name">${esc(room.name)}</div><div class="room-meta">${meta}</div></div>
+    on ? `${on} light${on === 1 ? "" : "s"} on` : lights.length ? "Lights off" : "",
+    playing ? esc(sourceName(playing)) : "",
+  ].filter(Boolean).join(" · ");
+  // Rooms with something on wear their color; quiet rooms go white.
+  return `<a class="room${alive ? "" : " off"}" href="${roomHref(room.id)}" style="${roomStyle(room.id)};--lvl:${roomLevel(lights).toFixed(2)}">
+    <div class="room-top"><span class="room-glyph">${icon(roomIcon(room.name))}</span><span class="room-count num">${on || ""}</span></div>
+    <div><div class="room-name">${esc(room.name)}</div><div class="room-meta">${meta}</div><div class="room-bar"><i></i></div></div>
   </a>`;
 }
 
-function sceneTile(scene) {
+const SCENE_COLORS = [
+  ["var(--lemon)", "var(--ink)"], ["var(--panel)", "#ffffff"], ["var(--cobalt)", "#ffffff"], ["var(--tangerine)", "var(--ink)"],
+  ["var(--violet)", "#ffffff"], ["var(--mint)", "var(--ink)"], ["var(--pink)", "var(--ink)"], ["var(--sky)", "var(--ink)"],
+];
+
+function sceneTile(scene, i = 0) {
   const room = roomOf(app.home, scene.roomId);
-  return `<button class="scene${scene.active ? " active" : ""}" data-act="scene" data-id="${esc(scene.id)}" data-key="scene:${esc(scene.id)}" aria-pressed="${scene.active}">
+  const [c, on] = SCENE_COLORS[i % SCENE_COLORS.length];
+  return `<button class="scene${scene.active ? " active" : ""}" style="--c:${c};--on-c:${on}" data-act="scene" data-id="${esc(scene.id)}" data-key="scene:${esc(scene.id)}" aria-pressed="${scene.active}" aria-label="${esc(scene.name)}${room ? `, ${esc(room.name)}` : ""}">
     <span class="scene-icon">${icon(sceneIcon(scene))}</span>
-    <span><span class="scene-name">${esc(scene.name)}</span><br><span class="scene-where">${room ? esc(room.name) : "Whole house"}</span></span>
+    <span class="scene-name">${esc(scene.name)}</span>
   </button>`;
 }
 
@@ -275,12 +289,13 @@ function fmtValue(v, format) {
 }
 
 function slider({ kind, id, value, tint, iconName, label, thin = false, format = "pct", disabled = false }) {
+  const text = fmtValue(value, format);
   return `<div class="slider ${tint}${thin ? " thin" : ""}" role="slider" tabindex="0" data-key="slider:${kind}:${esc(id)}"
       aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(value * 100)}"
-      aria-valuetext="${fmtValue(value, format)}"${disabled ? ' aria-disabled="true"' : ""}
+      aria-valuetext="${text}"${disabled ? ' aria-disabled="true"' : ""}
       data-slider="${kind}" data-id="${esc(id)}" data-format="${format}" style="--v:${value.toFixed(3)}">
-    <div class="slider-fill"></div>
-    <div class="slider-label">${icon(iconName)}<span class="name">${esc(label)}</span><span class="value">${fmtValue(value, format)}</span></div>
+    <div class="slider-label">${icon(iconName)}<span class="name">${esc(label)}</span><span class="value">${text}</span></div>
+    <div class="slider-fill"><div class="slider-label on-fill" aria-hidden="true">${icon(iconName)}<span class="name">${esc(label)}</span><span class="value">${text}</span></div></div>
   </div>`;
 }
 
@@ -327,27 +342,32 @@ function mediaCard(m) {
 }
 
 function gateCard(g) {
-  const tone = { open: "tone-bad", closed: "tone-ok", moving: "tone-lamp", unknown: "tone-gate" }[g.state] ?? "tone-gate";
-  const b = (label, ic, action, primary) =>
-    `<button class="btn grow${primary ? " gate" : ""}" data-act="gate" data-id="${esc(g.id)}" data-action="${action}" data-key="gate:${esc(g.id)}:${action}">${icon(ic)}${label}</button>`;
-  const buttons = g.separateOpenClose
-    ? [b("Open", "open", "open", g.state !== "open"), g.canStop ? b("Stop", "stop", "stop", false) : "", b("Close", "closeIn", "close", g.state === "open")]
-    : [b(g.state === "open" ? "Close gate" : "Open gate", "bolt", "trigger", true), g.canStop ? b("Stop", "stop", "stop", false) : ""];
-  return `<div class="card status-card ${tone}${g.state === "moving" ? " moving" : ""}">
+  const isOpen = g.state === "open";
+  const openAction = g.separateOpenClose ? "open" : "trigger";
+  const b = (label, ic, action, solid = false) =>
+    `<button class="btn grow${solid ? " solid" : ""}" data-act="gate" data-id="${esc(g.id)}" data-action="${action}" data-key="gate:${esc(g.id)}:${action}">${icon(ic)}${label}</button>`;
+  // Opening is a deliberate slide all the way across, so a stray tap never opens the gate.
+  const main = isOpen
+    ? b("Close gate", "closeIn", g.separateOpenClose ? "close" : "trigger", true)
+    : `<div class="slide" data-slide="gate" data-id="${esc(g.id)}" data-action="${openAction}" role="button" tabindex="0" aria-label="Open ${esc(g.name)}: slide right, or press Enter">
+        <span class="slide-track-text">Slide to open</span><span class="slide-knob">${icon("arrowRight")}</span></div>`;
+  const extra = [g.canStop ? b("Stop", "stop", "stop") : "", g.separateOpenClose && !isOpen ? b("Close", "closeIn", "close") : ""].join("");
+  return `<div class="status-card tone-gate${g.state === "moving" ? " moving" : ""}">
     <div class="status-top">
       <span class="status-glyph">${icon("gate")}</span>
       <div><div class="status-name">${esc(g.name)}</div><div class="status-state">${GATE_TITLES[g.state] ?? "Ready"}</div></div>
     </div>
-    <div class="btn-row">${buttons.join("")}</div>
+    ${main}
+    ${extra ? `<div class="btn-row">${extra}</div>` : ""}
   </div>`;
 }
 
 function alarmCard(p) {
-  const tone = { disarmed: "tone-shade", armedHome: "tone-ok", armedAway: "tone-ok", alarm: "tone-bad" }[p.mode] ?? "tone-muted";
+  const tone = p.mode === "alarm" ? "tone-alert alarm" : "tone-alarm";
   const glyph = p.mode === "disarmed" ? "shield" : p.mode === "alarm" ? "shieldAlert" : "shieldCheck";
   const b = (label, ic, mode) =>
     `<button class="btn grow mode-btn${p.mode === mode ? " active" : ""}" data-act="arm" data-id="${esc(p.id)}" data-mode="${mode}" data-key="arm:${esc(p.id)}:${mode}">${icon(ic)}${label}</button>`;
-  return `<div class="card status-card ${tone}${p.mode === "alarm" ? " alarm" : ""}">
+  return `<div class="status-card ${tone}">
     <div class="status-top">
       <span class="status-glyph">${icon(glyph)}</span>
       <div><div class="status-name">${esc(p.name)}</div><div class="status-state">${SECURITY_TITLES[p.mode] ?? "Unknown"}</div></div>
@@ -362,10 +382,10 @@ function alarmCard(p) {
 
 function lockRow(l) {
   const unlocked = l.locked === false;
-  return `<div class="card lock ${unlocked ? "tone-bad" : "tone-ok"}">
+  return `<div class="status-card lock ${unlocked ? "tone-bad" : "tone-ok"}">
     <span class="status-glyph">${icon(unlocked ? "unlock" : "lock")}</span>
-    <div class="lock-text"><div class="status-name">${esc(l.name)}</div><div class="muted">${l.locked === null ? "Status unknown" : unlocked ? "Unlocked" : "Locked"}</div></div>
-    <button class="btn${unlocked ? " ok" : ""}" data-act="lock" data-id="${esc(l.id)}" data-target="${unlocked ? "lock" : "unlock"}" data-key="lock:${esc(l.id)}">${unlocked ? `${icon("lock")}Lock` : "Unlock"}</button>
+    <div class="lock-text"><div class="status-name">${esc(l.name)}</div><div class="status-state">${l.locked === null ? "Unknown" : unlocked ? "Unlocked" : "Locked"}</div></div>
+    <button class="btn${unlocked ? " solid" : ""}" data-act="lock" data-id="${esc(l.id)}" data-target="${unlocked ? "lock" : "unlock"}" data-key="lock:${esc(l.id)}">${unlocked ? `${icon("lock")}Lock` : "Unlock"}</button>
   </div>`;
 }
 
@@ -398,7 +418,15 @@ function greeting(d) {
   return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 const fmtDate = (d) => d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-const fmtTime = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+/** The big clock: hours and minutes large, AM/PM (where the locale uses it) small. */
+function clockHTML(d) {
+  const parts = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).formatToParts(d);
+  const period = parts.find((p) => p.type === "dayPeriod")?.value ?? "";
+  const time = parts.filter((p) => p.type !== "dayPeriod").map((p) => p.value).join("").trim();
+  return `${esc(time)}${period ? `<span class="ampm">${esc(period)}</span>` : ""}`;
+}
 
 const VIEWS = {
   home: {
@@ -408,30 +436,35 @@ const VIEWS = {
       const lightsOn = h.lights.filter(isOn).length;
       const unlocked = h.locks.filter((l) => l.locked === false).length;
       const playing = h.media.filter((m) => m.on);
-      const chips = [
-        `<span class="chip lamp">${icon("bulb")}${lightsOn ? `${lightsOn} light${lightsOn === 1 ? "" : "s"} on` : "All lights off"}</span>`,
-        ...h.security.map((p) => `<span class="chip ${p.mode === "alarm" ? "bad" : "ok"}">${icon("shield")}${SECURITY_TITLES[p.mode]}</span>`),
-        h.locks.length ? `<span class="chip ${unlocked ? "bad" : "ok"}">${icon(unlocked ? "unlock" : "lock")}${unlocked ? `${unlocked} unlocked` : "Doors locked"}</span>` : "",
-        ...h.gates.map((g) => `<span class="chip gate">${icon("gate")}${esc(g.name)}: ${GATE_TITLES[g.state]}</span>`),
-        playing.length ? `<span class="chip media">${icon("music")}${playing.length} playing</span>` : "",
+      const st = statusInfo();
+      const stats = [
+        `<span class="stat">${lightsOn ? `${lightsOn} light${lightsOn === 1 ? "" : "s"} on` : "All lights off"}</span>`,
+        playing.length ? `<span class="stat">${playing.length} playing</span>` : "",
+        unlocked ? `<span class="stat warn">${unlocked} door${unlocked === 1 ? "" : "s"} unlocked</span>` : "",
+        ...h.security.filter((p) => p.mode === "alarm").map(() => '<span class="stat warn">ALARM</span>'),
       ].join("");
       const scenes = homeScenes(h);
-      const statusCards = [...h.gates.map(gateCard), ...h.security.map(alarmCard)];
       return `
-        <header class="dash-head">
-          <div>
-            <p class="eyebrow"><span data-clock="date">${fmtDate(now)}</span>${app.homeName !== "Home" ? ` · ${esc(app.homeName)}` : ""}</p>
-            <h1 class="greeting" data-clock="greeting">${greeting(now)}</h1>
-          </div>
-          <div class="head-right">
-            <span class="clock" data-clock="time">${fmtTime(now)}</span>
-            <a class="icon-btn phone-only" href="#setup" aria-label="Setup">${icon("sliders")}</a>
-          </div>
-        </header>
+        <div class="bento">
+          <section class="hello" aria-label="Today">
+            <div class="hello-top">
+              <span class="hello-date" data-clock="date">${fmtDate(now)}</span>
+              <span class="row" style="gap:8px">
+                <span class="pill" title="${esc(app.status.message ?? st.label)}"><span class="dot ${st.dot}"></span><span class="pill-label">${esc(st.label)}</span></span>
+                <a class="icon-btn phone-only" href="#setup" aria-label="Setup">${icon("sliders")}</a>
+              </span>
+            </div>
+            <div>
+              <div class="clock" data-clock="clock">${clockHTML(now)}</div>
+              <h1 class="greeting" data-clock="greeting">${greeting(now)}</h1>
+            </div>
+            <div class="hello-stats">${stats}</div>
+          </section>
+          ${h.gates.map(gateCard).join("")}
+          ${h.security.map(alarmCard).join("")}
+        </div>
         ${statusNotice()}
-        <div class="chips" data-scroll="chips">${chips}</div>
-        ${scenes.length ? section("Scenes", `<div class="grid grid-scenes">${scenes.map(sceneTile).join("")}</div>`) : ""}
-        ${statusCards.length ? `<div class="grid grid-cards">${statusCards.join("")}</div>` : ""}
+        ${scenes.length ? section("Scenes", `<div class="grid grid-scenes">${scenes.map(sceneTile).join("")}</div>`, "One tap, whole house") : ""}
         ${h.rooms.length ? section("Rooms", `<div class="grid grid-rooms">${h.rooms.map(roomCard).join("")}</div>`, `${h.rooms.length} rooms`) : ""}
         ${playing.length ? section("Now playing", `<div class="grid grid-cards">${playing.map(mediaCard).join("")}</div>`) : ""}
         ${!h.rooms.length && app.status.connection !== "connecting" ? empty("home", "Nothing here yet", "Rooms and devices show up once the app is connected. Open Setup to connect your system.") : ""}`;
@@ -466,14 +499,14 @@ const VIEWS = {
       ].filter(Boolean);
       return `
         <button class="back" data-act="back">${icon("back")}Back</button>
-        <div class="room hero" style="--h:${hue(room.name)};--glow:${roomGlow(lights).toFixed(2)}">
-          <div class="room-top"><span class="room-glyph">${icon(roomIcon(room.name))}</span>${leds(lights)}</div>
-          <div class="stack">
-            <div><h1 class="room-name">${esc(room.name)}</h1>
-              <div class="room-meta"><span>${lights.length ? (on ? `${on} of ${lights.length} lights on` : "Lights off") : "No lights"}</span></div></div>
+        <div class="room hero" style="${roomStyle(id)};--lvl:${roomLevel(lights).toFixed(2)}">
+          <div class="room-top"><span class="room-glyph">${icon(roomIcon(room.name))}</span><span class="room-count num">${on || ""}</span></div>
+          <div>
+            <h1 class="room-name">${esc(room.name)}</h1>
+            <div class="room-meta">${lights.length ? (on ? `${on} of ${lights.length} lights on` : "Lights off") : "No lights"}</div>
             ${lights.length ? `<div class="hero-actions">
-              <button class="btn on-photo" data-act="all-lights" data-id="${esc(id)}" data-level="1">${icon("sun")}All on</button>
-              <button class="btn on-photo" data-act="all-lights" data-id="${esc(id)}" data-level="0">${icon("power")}All off</button>
+              <button class="btn on-color" data-act="all-lights" data-id="${esc(id)}" data-level="1">${icon("sun")}All on</button>
+              <button class="btn on-color outline" data-act="all-lights" data-id="${esc(id)}" data-level="0">${icon("power")}All off</button>
             </div>` : ""}
           </div>
         </div>
@@ -575,6 +608,18 @@ function setupHTML() {
       <p class="help">Use each camera's JPEG snapshot URL. Hikvision: <code>/ISAPI/Streaming/channels/101/picture</code> · Dahua: <code>/cgi-bin/snapshot.cgi</code> · Axis: <code>/axis-cgi/jpg/image.cgi</code>. Passwords stay on the home server.</p>
       <div id="cam-list" class="stack"></div>
     </section>`}
+    <section class="card form" aria-labelledby="ai-title">
+      <h2 class="section-title" id="ai-title">AI assistant</h2>
+      ${app.transport === "local"
+        ? `<p class="help">In this demo, the assistant uses your own Claude account. The first time you ask, you'll be asked to allow it.</p>`
+        : `<p class="help">The assistant uses Claude to understand requests like “turn off the kitchen lights” or “good night”. It needs an Anthropic API key from console.anthropic.com; each request costs a fraction of a cent. The key stays on the home server. Unlocking doors and opening the gate always need a tap to confirm, and the assistant can't disarm the alarm.</p>
+      <div class="field"><label for="f-ai">Anthropic API key</label><input class="input" id="f-ai" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"></div>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn ink" type="button" data-act="ai-save">${icon("check")}Save key</button>
+        <button class="btn ghost" type="button" data-act="ai-remove">Remove key</button>
+        <span class="status-line" id="ai-status"></span>
+      </div>`}
+    </section>
     <section class="card form" aria-labelledby="dev-title">
       <h2 class="section-title" id="dev-title">This device</h2>
       <div class="field"><span class="label">Appearance</span>
@@ -620,6 +665,31 @@ async function mountSetup() {
   setupConfig = await res.json();
   renderConnectionForm();
   renderCameraList();
+  updateAiStatus();
+}
+
+function updateAiStatus() {
+  const el = $("#ai-status");
+  if (!el || !setupConfig) return;
+  const ready = setupConfig.hasAssistantKey || setupConfig.assistantFromEnv;
+  el.className = `status-line${ready ? " ok" : ""}`;
+  el.innerHTML = `<span class="dot ${ready ? "ok" : "warn"}"></span>${setupConfig.hasAssistantKey ? "Key saved" : setupConfig.assistantFromEnv ? "Using the server's ANTHROPIC_API_KEY" : "No key yet"}`;
+}
+
+async function saveAiKey(remove) {
+  const input = $("#f-ai");
+  if (!remove && !input.value.trim()) { input.focus(); return; }
+  const body = remove ? { removeAssistantKey: true } : { assistantKey: input.value.trim() };
+  try {
+    const res = await fetch("api/config", { method: "PUT", headers: { "Content-Type": "application/json", ...pinHeader() }, body: JSON.stringify(body) });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? `Error ${res.status}`);
+    setupConfig = json;
+    input.value = "";
+    updateAiStatus();
+  } catch (err) {
+    toast(err.message);
+  }
 }
 
 function renderConnectionForm() {
@@ -839,7 +909,8 @@ function updateClock() {
   const now = new Date();
   for (const el of $$("[data-clock]")) {
     const kind = el.dataset.clock;
-    el.textContent = kind === "time" ? fmtTime(now) : kind === "date" ? fmtDate(now) : greeting(now);
+    if (kind === "clock") el.innerHTML = clockHTML(now);
+    else el.textContent = kind === "time" ? fmtTime(now) : kind === "date" ? fmtDate(now) : greeting(now);
   }
 }
 
@@ -910,7 +981,7 @@ function handleAction(el) {
       const opens = action === "open" || (action === "trigger" && gate?.state !== "open");
       const cmd = { type: "gate", id, action };
       if (!opens) return send(cmd);
-      return confirmModal({ title: `Open ${gate?.name ?? "the gate"}?`, text: "Make sure the way is clear.", label: "Open", tone: "gate", onConfirm: () => send(cmd) });
+      return confirmModal({ title: `Open ${gate?.name ?? "the gate"}?`, text: "Make sure the way is clear.", label: "Open", tone: "lemon", onConfirm: () => send(cmd) });
     }
     case "arm": {
       const panel = h.security.find((p) => p.id === id);
@@ -968,6 +1039,21 @@ function handleAction(el) {
       setupConfig.cameras.splice(Number(el.dataset.index), 1);
       renderCameraList();
       return;
+    case "ai-save": return saveAiKey(false);
+    case "ai-remove": return saveAiKey(true);
+    case "ask-open": return openAsk();
+    case "ask-close": return closeAsk();
+    case "ask-suggest": return sendAsk(el.dataset.text ?? "");
+    case "ask-mic": return toggleListening();
+    case "ask-confirm": {
+      const entry = ask.log[Number(el.dataset.index)];
+      if (entry?.kind === "confirm" && !entry.done) {
+        send(entry.command);
+        entry.done = "Done";
+        renderAskLog();
+      }
+      return;
+    }
     case "theme":
       app.device.theme = el.dataset.value;
       prefs.set("theme", app.device.theme);
@@ -1001,6 +1087,12 @@ document.addEventListener("change", (e) => {
 document.addEventListener("keydown", (e) => {
   app.lastTouch = Date.now();
   if (e.key === "Escape" && modal) return closeModal();
+  if (e.key === "Escape" && ask.open) return closeAsk();
+  const gateSlide = e.target.closest?.(".slide");
+  if (gateSlide && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault();
+    return confirmSlide(gateSlide);
+  }
   const s = e.target.closest?.(".slider");
   if (!s) return;
   const step = { ArrowRight: 0.05, ArrowUp: 0.05, ArrowLeft: -0.05, ArrowDown: -0.05 }[e.key];
@@ -1030,8 +1122,7 @@ function setSlider(el, v) {
   el.setAttribute("aria-valuenow", String(Math.round(v * 100)));
   const text = fmtValue(v, el.dataset.format);
   el.setAttribute("aria-valuetext", text);
-  const label = $(".value", el);
-  if (label) label.textContent = text;
+  for (const label of $$(".value", el)) label.textContent = text;
 }
 
 function commitSlider(el, v) {
@@ -1093,6 +1184,312 @@ document.addEventListener("pointercancel", (e) => {
   const { el, moved, value } = drag;
   endDrag();
   if (moved && value !== null) commitSlider(el, value);
+});
+
+// ---------- slide to open ----------
+
+// The gate opens only after the knob is dragged (almost) all the way across.
+let slide = null;
+
+function confirmSlide(el) {
+  const gate = app.home.gates.find((g) => g.id === el.dataset.id);
+  confirmModal({
+    title: `Open ${gate?.name ?? "the gate"}?`, text: "Make sure the way is clear.", label: "Open", tone: "lemon",
+    onConfirm: () => send({ type: "gate", id: el.dataset.id, action: el.dataset.action }),
+  });
+}
+
+function endSlide() {
+  if (!slide) return;
+  slide.el.classList.remove("dragging");
+  slide = null;
+  app.dragging = false;
+  if (app.pendingRender) { app.pendingRender = false; scheduleRender(); }
+}
+
+document.addEventListener("pointerdown", (e) => {
+  const el = e.target.closest(".slide");
+  if (!el || e.button > 0) return;
+  slide = { el, x: e.clientX, y: e.clientY, pointer: e.pointerId, max: el.clientWidth - 64, moved: false, at: 0 };
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (!slide || e.pointerId !== slide.pointer) return;
+  const dx = e.clientX - slide.x;
+  const dy = e.clientY - slide.y;
+  if (!slide.moved) {
+    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+    if (Math.abs(dy) > Math.abs(dx)) { slide = null; return; }
+    slide.moved = true;
+    app.dragging = true;
+    slide.el.classList.add("dragging");
+    try { slide.el.setPointerCapture(e.pointerId); } catch {}
+  }
+  e.preventDefault();
+  slide.at = Math.max(0, Math.min(slide.max, dx));
+  slide.el.style.setProperty("--x", String(slide.at));
+});
+
+document.addEventListener("pointerup", (e) => {
+  if (!slide || e.pointerId !== slide.pointer) return;
+  const { el, moved, at, max } = slide;
+  endSlide();
+  if (moved && at >= max * 0.85) {
+    el.style.setProperty("--x", String(max));
+    send({ type: "gate", id: el.dataset.id, action: el.dataset.action });
+    return;
+  }
+  // Not far enough (or just a tap): spring back, with a little nudge as a hint.
+  el.style.setProperty("--x", moved ? "0" : "26");
+  if (!moved) setTimeout(() => el.style.setProperty("--x", "0"), 260);
+});
+
+document.addEventListener("pointercancel", (e) => {
+  if (!slide || e.pointerId !== slide.pointer) return;
+  const { el } = slide;
+  endSlide();
+  el.style.setProperty("--x", "0");
+});
+
+// ---------- assistant ----------
+
+const ask = { open: false, log: [], turns: [], busy: false, ctl: null, rec: null, listening: false, sample: null, localReady: false };
+const SUGGESTIONS = ["Turn off all the lights", "Good night", "Dim the living room to 30%", "Is the front door locked?", "Play Spotify in the kitchen", "Open the gate"];
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+async function initAssistant() {
+  // The demo in this browser asks Claude through the page's own `sample` capability (the viewer's
+  // Claude account, after they allow it). It needs page tools; without them the button stays hidden.
+  if (app.transport === "local" && window.claude?.use) {
+    try {
+      const sample = await window.claude.use("sample");
+      const limits = sample ? await sample.limits().catch(() => null) : null;
+      if (sample && limits?.tools) {
+        ask.sample = sample;
+        ask.localReady = true;
+      }
+    } catch {}
+  }
+  updateAskFab();
+}
+
+function updateAskFab() {
+  const fab = $("#ask-fab");
+  if (!fab) return;
+  if (!fab.innerHTML.trim()) fab.innerHTML = `<span class="orb">${icon("sparkle")}</span><span class="ask-label">Ask</span>`;
+  fab.hidden = ask.open || (app.transport === "local" ? !ask.localReady : app.transport !== "server");
+}
+
+function openAsk() {
+  ask.open = true;
+  const panel = $("#ask-panel");
+  panel.hidden = false;
+  updateAskFab();
+  renderAsk();
+  $("#ask-input")?.focus({ preventScroll: true });
+}
+
+function closeAsk() {
+  ask.open = false;
+  ask.ctl?.abort();
+  stopListening();
+  $("#ask-panel").hidden = true;
+  updateAskFab();
+}
+
+const keyMissing = () => app.transport === "server" && !app.assistant?.available;
+
+function renderAsk() {
+  const missing = keyMissing();
+  $("#ask-panel").innerHTML = `
+    <div class="ask-head">
+      <span class="orb">${icon("sparkle")}</span>
+      <div><div class="ask-title">Home assistant</div><div class="ask-sub">${app.transport === "local" ? "Demo house · uses your Claude account" : SpeechRec ? "Type, or tap the mic and speak" : "Type what you'd like"}</div></div>
+      <button class="ask-close" type="button" data-act="ask-close" aria-label="Close assistant">${icon("close")}</button>
+    </div>
+    <div class="ask-log" id="ask-log" aria-live="polite"></div>
+    <form class="ask-form" id="ask-form">
+      <input class="input" id="ask-input" autocomplete="off" enterkeyhint="send" placeholder="Turn off the kitchen lights…" aria-label="Ask the home assistant"${missing ? " disabled" : ""}>
+      ${SpeechRec && !missing ? `<button type="button" class="ask-mic${ask.listening ? " listening" : ""}" data-act="ask-mic" aria-label="${ask.listening ? "Stop listening" : "Speak"}">${icon("mic")}</button>` : ""}
+      <button type="submit" class="ask-send" id="ask-send" aria-label="Send"${missing || ask.busy ? " disabled" : ""}>${icon("send")}</button>
+    </form>`;
+  renderAskLog();
+}
+
+function renderAskLog() {
+  const log = $("#ask-log");
+  if (!log) return;
+  if (keyMissing()) {
+    log.innerHTML = `<div class="ask-hello"><p>To use the assistant, add an Anthropic API key in <a href="#setup" data-act="ask-close"><u>Setup › AI assistant</u></a>.</p></div>`;
+    return;
+  }
+  log.innerHTML = ask.log.length ? ask.log.map((e, i) => {
+    switch (e.kind) {
+      case "me": return `<div class="bubble me">${esc(e.text)}</div>`;
+      case "ai": return `<div class="bubble ai${e.thinking ? " thinking" : ""}">${esc(e.text)}</div>`;
+      case "err": return `<div class="bubble err">${esc(e.text)}</div>`;
+      case "did": return `<div class="did">${e.items.map((t) => `<span>${esc(t)}</span>`).join("")}${e.failed.map((t) => `<span class="fail">${esc(t)}</span>`).join("")}</div>`;
+      case "confirm": return `<div class="confirm-card${e.done ? " done" : ""}"><span>${esc(e.label)}</span>${e.done
+        ? `<b>${icon("check")} ${esc(e.done)}</b>`
+        : `<button class="btn ink" type="button" data-act="ask-confirm" data-index="${i}">Confirm</button>`}</div>`;
+      default: return "";
+    }
+  }).join("") : `<div class="ask-hello"><p>Ask for anything in the house, in your own words.</p>
+      <div class="ask-suggest">${SUGGESTIONS.map((t) => `<button type="button" data-act="ask-suggest" data-text="${esc(t)}">${esc(t)}</button>`).join("")}</div></div>`;
+  log.scrollTop = log.scrollHeight;
+  const sendBtn = $("#ask-send");
+  if (sendBtn) sendBtn.disabled = ask.busy;
+}
+
+async function sendAsk(raw) {
+  const text = String(raw).trim();
+  if (!text || ask.busy || keyMissing()) return;
+  ask.busy = true;
+  app.lastTouch = Date.now();
+  ask.log.push({ kind: "me", text });
+  const reply = { kind: "ai", text: "Thinking…", thinking: true };
+  ask.log.push(reply);
+  renderAskLog();
+  try {
+    const result = app.transport === "local" ? await askLocal(text, reply) : await askServer(text);
+    reply.text = result.reply;
+    reply.thinking = false;
+    const extra = [];
+    if (result.done.length || result.failed.length) extra.push({ kind: "did", items: result.done, failed: result.failed });
+    for (const c of result.confirm) extra.push({ kind: "confirm", label: c.label, command: c.command });
+    ask.log.push(...extra);
+    ask.turns.push({ role: "user", text }, { role: "assistant", text: result.reply });
+    ask.turns = ask.turns.slice(-12);
+  } catch (err) {
+    ask.log.splice(ask.log.indexOf(reply), 1);
+    if (err?.code !== "cancelled") ask.log.push({ kind: "err", text: err?.message || "Something went wrong." });
+  } finally {
+    ask.busy = false;
+    renderAskLog();
+  }
+}
+
+async function askServer(text) {
+  const res = await fetch("api/assistant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text, history: ask.turns }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error ?? `The home server answered ${res.status}.`);
+  return { reply: json.reply ?? "Done.", done: json.done ?? [], confirm: json.confirm ?? [], failed: json.failed ?? [] };
+}
+
+const SAMPLE_ERRORS = {
+  not_granted: "The assistant needs your OK to use Claude. Reload the page to be asked again.",
+  rate_limited: "Too many requests right now. Try again in a minute.",
+  sampling_disabled: "Claude isn't available for this account.",
+  session_expired: "Sign in to Claude again to use the assistant.",
+  refused: "Sorry, I can't help with that one.",
+  tools_unavailable: "The assistant can't control the demo house in this view.",
+};
+
+async function askLocal(text, reply) {
+  const done = [];
+  const confirm = [];
+  const failed = [];
+  ask.ctl = new AbortController();
+  // `sample` has no system prompt: the rules go in a leading user turn that is always kept.
+  const input = [
+    { role: "user", content: `${ASSISTANT_RULES}\n\nThis is a demo house running in the browser.` },
+    ...ask.turns.map((t) => ({ role: t.role, content: t.text })),
+    { role: "user", content: `Current home state:\n${JSON.stringify(homeForModel(app.home))}\n\n${text}` },
+  ];
+  try {
+    const result = await ask.sample(input, {
+      modelTier: "quick",
+      signal: ask.ctl.signal,
+      onText: ({ text: soFar }) => {
+        reply.text = soFar.split(/\n\s*\n/).filter((t) => t.trim()).at(-1) ?? soFar;
+        reply.thinking = false;
+        renderAskLog();
+      },
+      tools: [{
+        name: CONTROL_TOOL_NAME,
+        description: CONTROL_TOOL_DESCRIPTION,
+        inputSchema: CONTROL_TOOL_SCHEMA,
+        execute: async (toolInput, context) => {
+          if (context.signal.aborted) throw new Error("Stopped.");
+          const outcome = await applyControlCall(toolInput, { getHome: () => app.home, perform: async (cmd) => send(cmd) });
+          done.push(...outcome.done);
+          confirm.push(...outcome.confirm);
+          failed.push(...outcome.failed);
+          if (outcome.isError) throw new Error(outcome.text);
+          return outcome.text;
+        },
+      }],
+    });
+    // With tools, the text of every round comes back joined; the last paragraph is the answer.
+    const answer = result.text.split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).at(-1) ?? "Done.";
+    return { reply: answer, done, confirm, failed };
+  } catch (e) {
+    const err = new Error(SAMPLE_ERRORS[e?.code] ?? "The assistant had a problem. Try again.");
+    err.code = e?.code;
+    throw err;
+  } finally {
+    ask.ctl = null;
+  }
+}
+
+function toggleListening() {
+  if (ask.listening) return stopListening();
+  try {
+    const rec = new SpeechRec();
+    rec.lang = navigator.language || "en-US";
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      const said = Array.from(e.results).map((r) => r[0].transcript).join("");
+      const input = $("#ask-input");
+      if (input) input.value = said;
+      if (e.results[e.results.length - 1].isFinal) {
+        stopListening();
+        if (input) input.value = "";
+        sendAsk(said);
+      }
+    };
+    rec.onerror = (e) => {
+      stopListening();
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("Voice isn't allowed here. Check microphone access for this site.");
+    };
+    rec.onend = () => {
+      ask.listening = false;
+      updateMic();
+    };
+    rec.start();
+    ask.rec = rec;
+    ask.listening = true;
+    updateMic();
+  } catch {
+    toast("Voice isn't available on this device.");
+  }
+}
+
+function stopListening() {
+  try { ask.rec?.stop(); } catch {}
+  ask.rec = null;
+  ask.listening = false;
+  updateMic();
+}
+
+function updateMic() {
+  const b = $('[data-act="ask-mic"]');
+  if (!b) return;
+  b.classList.toggle("listening", ask.listening);
+  b.setAttribute("aria-label", ask.listening ? "Stop listening" : "Speak");
+}
+
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "ask-form") return;
+  e.preventDefault();
+  const input = $("#ask-input");
+  sendAsk(input.value);
+  input.value = "";
 });
 
 start();

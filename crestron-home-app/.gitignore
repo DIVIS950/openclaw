@@ -5,3 +5,4 @@ DerivedData/
 .build/
 # Home server settings: holds the Web API token and camera passwords
 web/data/
+web/node_modules/

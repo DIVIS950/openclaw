@@ -38,6 +38,7 @@ A browser can't talk to the Crestron processor directly, so a tiny home server d
 2. Install **Node.js 22** from nodejs.org, then:
    ```bash
    cd crestron-home-app/web
+   npm install
    npm start
    ```
    Or with Docker:
@@ -54,6 +55,7 @@ Options (environment variables):
 - `PORT`: the port to use (default `8080`).
 - `ADMIN_PIN`: asks for a PIN before anyone can open Setup. It's a good idea, because Setup holds the Web API token.
 - `DATA_DIR`: where settings are saved (default `web/data/`, which git ignores).
+- `ANTHROPIC_API_KEY`: the key for the AI assistant. You can also paste it in **Setup › AI assistant**.
 
 The server pushes live changes to every open screen at once, so the wall iPad and the phones always match. Camera pictures go through the server, so camera passwords never reach the browsers.
 
@@ -109,7 +111,31 @@ Join map rules:
 
 > If the processor has **authentication** turned on (common on 4-Series), the touch-panel connection may be refused. Your installer can allow it or turn it off for that IP ID.
 
-## 4. Cameras
+## 4. AI assistant
+
+Tap the black **Ask** button and type or speak, for example:
+
+- "Turn off all the lights"
+- "Good night"
+- "Dim the living room to 30%"
+- "Play Spotify in the kitchen"
+- "Is the front door locked?"
+
+The assistant uses Claude (model `claude-opus-5-5`, low effort, so answers come fast) and runs on the home server. To turn it on:
+
+1. Create an API key at console.anthropic.com. Each request costs a fraction of a cent.
+2. Paste the key in **Setup › AI assistant**. It's stored on the home server only; browsers never see it.
+
+Safety rules are built into the code, not just the instructions to the AI:
+
+- Lights, shades, scenes, media, locking doors and arming the alarm happen right away.
+- **Unlocking a door and opening the gate** always show a **Confirm** button you have to tap.
+- The assistant **can't disarm the alarm**; use the keypad for that.
+- If Anthropic's safety system declines a request, it automatically retries on its recommended fallback model.
+
+Voice uses the browser's own speech recognition, which works in Safari on iPhone and iPad and in Chrome. Allow the microphone when asked.
+
+## 5. Cameras
 
 Go to **Settings › Cameras › Add Camera** and enter the camera's **snapshot URL** (a link that returns a JPEG image). The app refreshes the picture every second, and twice a second in full screen. Common URLs:
 
@@ -119,7 +145,7 @@ Go to **Settings › Cameras › Add Camera** and enter the camera's **snapshot 
 
 Username and password are supported, with both Basic and Digest login. Passwords are stored in the iOS Keychain.
 
-## 5. Set up the mounted iPad
+## 6. Set up the mounted iPad
 
 1. In the app: turn on **Wall panel mode** (native app: Settings › This device; web app: Setup › This device). The screen stays on and a clock screensaver appears when nobody touches it.
 2. On the iPad: **Settings › Accessibility › Guided Access**, turn it on and set a passcode. Then open the app and triple-click the side/top button to lock the iPad to it.
@@ -133,8 +159,9 @@ Room photos: open a room, tap **⋯**, then **Choose Room Photo**.
 web/
   server/index.js                 home server: web app, live updates, setup, camera proxy
   server/backends/                Crestron Home Web API, touch-panel (CIP) client, join map
+  server/assistant.js             AI assistant (Claude API, one control_home tool)
   public/                         the web app (no build step): app.js, app.css, icons.js
-  public/shared/                  data model + demo house, used by both browser and server
+  public/shared/                  data model, demo house and assistant rules, shared by browser and server
 HomeControl/
   App/            app entry, iPad sidebar / iPhone tabs, screensaver timer
   Model/          data types, HomeStore (state + optimistic updates), settings, Keychain
@@ -154,5 +181,6 @@ To add another kind of system, implement the small `HomeBackend` protocol in `Ba
 - **Not yet tested on a real system.** It was written without access to your processor, so expect a round of small fixes the first time you connect. Testing with Demo mode first is the easiest start.
 - **Crestron Home:** the endpoint paths and field names follow traffic captured from real processors by the open-source [CH2HA](https://github.com/jonahshem/CH2HA) integration. Arming and disarming security through the Web API is **not verified** anywhere, and some systems return no security devices at all. Climate isn't included because you didn't ask for it; it's easy to add.
 - **Custom program:** the touch-panel protocol follows the open-source [python-cipclient](https://pypi.org/project/python-cipclient/) project. It isn't an official Crestron SDK, but it's the same connection Crestron Go uses.
+- **AI assistant:** tested against a simulated Claude API (there was no real key in my workspace). It checks the safety rules, the tool calls and the request settings, but not real answers. Try it with your key and tell me how it handles your phrasing.
 - Crestron processors use self-signed HTTPS certificates. The app accepts the certificate **only for the processor address you type in**.
 - Only use this on your own home network. For control away from home, use a VPN (for example WireGuard or Tailscale on your router) rather than opening ports on the router.

@@ -45,6 +45,9 @@ const P = {
   open: '<path d="M12 4.5v15"/><path d="M9 12H3.5M6 9l-3 3 3 3"/><path d="M15 12h5.5M18 9l3 3-3 3"/>',
   closeIn: '<path d="M12 4.5v15"/><path d="M3 12h6M6 9l3 3-3 3"/><path d="M21 12h-6M18 9l-3 3 3 3"/>',
   bolt: '<path d="M13 3 5.5 13h6l-1 8L18 11h-6z"/>',
+  arrowRight: '<path d="M5 12h13M13 6l6 6-6 6"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
+  send: '<path d="M12 19V5.5M6.5 11 12 5.5l5.5 5.5"/>',
   wifi: '<path d="M4.5 10a11 11 0 0 1 15 0"/><path d="M7.5 13.3a6.6 6.6 0 0 1 9 0"/><path d="M12 17.2h.01"/>',
 };
 
