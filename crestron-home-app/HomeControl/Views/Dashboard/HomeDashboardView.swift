@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct HomeDashboardView: View {
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
@@ -117,6 +118,7 @@ struct HomeDashboardView: View {
     }
 }
 
+@MainActor
 struct RoomCard: View {
     @Environment(HomeStore.self) private var store
     @Environment(RoomPhotos.self) private var photos
@@ -164,6 +166,7 @@ struct RoomCard: View {
 }
 
 /// The room's photo if one was picked, otherwise its color gradient.
+@MainActor
 struct RoomBackground: View {
     @Environment(RoomPhotos.self) private var photos
     let room: Room
@@ -177,6 +180,7 @@ struct RoomBackground: View {
     }
 }
 
+@MainActor
 struct ConnectionBadge: View {
     @Environment(HomeStore.self) private var store
 

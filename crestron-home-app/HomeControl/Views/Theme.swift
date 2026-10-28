@@ -92,6 +92,7 @@ extension View {
     }
 }
 
+@MainActor
 struct SectionHeader: View {
     let title: String
     var trailing: String?

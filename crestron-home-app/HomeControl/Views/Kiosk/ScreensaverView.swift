@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Dim clock shown on the wall iPad when nobody has touched it for a while.
 /// Any tap wakes it.
+@MainActor
 struct ScreensaverView: View {
     @Environment(HomeStore.self) private var store
     let onWake: () -> Void

@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftUI
 
+@MainActor
 struct RoomsView: View {
     @Environment(HomeStore.self) private var store
 
@@ -24,6 +25,7 @@ struct RoomsView: View {
     }
 }
 
+@MainActor
 struct RoomDetailView: View {
     @Environment(HomeStore.self) private var store
     @Environment(RoomPhotos.self) private var photos
@@ -146,6 +148,7 @@ struct RoomDetailView: View {
 }
 
 /// Every light in the house, grouped by room (iPad sidebar).
+@MainActor
 struct LightsView: View {
     @Environment(HomeStore.self) private var store
 
@@ -158,6 +161,7 @@ struct LightsView: View {
 }
 
 /// Every shade in the house, grouped by room (iPad sidebar).
+@MainActor
 struct ShadesView: View {
     @Environment(HomeStore.self) private var store
 
@@ -169,6 +173,7 @@ struct ShadesView: View {
     }
 }
 
+@MainActor
 private struct DeviceListByRoom<Rows: View>: View {
     @Environment(HomeStore.self) private var store
     let title: String

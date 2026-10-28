@@ -113,7 +113,11 @@ struct JoinMap: Codable {
 
     static func parse(_ json: String) throws -> JoinMap {
         do {
-            return try JSONDecoder().decode(JoinMap.self, from: Data(json.utf8))
+            // The iOS keyboard turns typed quotes into curly ones; JSON needs straight quotes.
+            let straight = json
+                .replacingOccurrences(of: "[\u{201C}\u{201D}\u{201E}]", with: "\"", options: .regularExpression)
+                .replacingOccurrences(of: "[\u{2018}\u{2019}]", with: "'", options: .regularExpression)
+            return try JSONDecoder().decode(JoinMap.self, from: Data(straight.utf8))
         } catch let DecodingError.keyNotFound(key, context) {
             throw BackendError.badResponse("Join map: “\(key.stringValue)” is missing at \(Self.path(context)).")
         } catch let DecodingError.typeMismatch(_, context) {

@@ -200,8 +200,10 @@ final class CIPClient {
             if p.starts(with: [0xFF, 0xFF]) {
                 registrationRejected = true
                 wantsConnection = false
-                state = .failed(String(format: "IP ID %02X isn't defined in the processor program. Ask your installer to add an XPanel on this IP ID.", Int(ipId)))
+                heartbeatTask?.cancel()
                 connection?.cancel()
+                connection = nil
+                state = .failed(String(format: "IP ID %02X isn't defined in the processor program. Ask your installer to add an XPanel on this IP ID.", Int(ipId)))
             } else {
                 // Registered: ask for the current value of every join.
                 send([0x05, 0x00, 0x05, 0x00, 0x00, 0x02, 0x03, 0x00])

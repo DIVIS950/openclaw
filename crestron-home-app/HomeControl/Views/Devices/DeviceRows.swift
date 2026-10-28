@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct SceneTile: View {
     @Environment(HomeStore.self) private var store
     let scene: HomeScene
@@ -32,6 +33,7 @@ struct SceneTile: View {
     }
 }
 
+@MainActor
 struct LightRow: View {
     @Environment(HomeStore.self) private var store
     let light: Light
@@ -61,6 +63,7 @@ struct LightRow: View {
     }
 }
 
+@MainActor
 struct ShadeRow: View {
     @Environment(HomeStore.self) private var store
     let shade: Shade
@@ -102,6 +105,7 @@ struct ShadeRow: View {
     }
 }
 
+@MainActor
 struct LockRow: View {
     @Environment(HomeStore.self) private var store
     let lock: DoorLock

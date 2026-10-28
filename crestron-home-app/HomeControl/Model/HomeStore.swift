@@ -70,6 +70,8 @@ final class HomeStore {
     func disconnect() {
         loopTask?.cancel()
         loopTask = nil
+        backend?.onChange = nil
+        backend?.onStatusChange = nil
         backend?.disconnect()
         backend = nil
         recent.removeAll()

@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct SecurityView: View {
     @Environment(HomeStore.self) private var store
 
@@ -31,6 +32,7 @@ struct SecurityView: View {
     }
 }
 
+@MainActor
 struct GateCard: View {
     @Environment(HomeStore.self) private var store
     let gate: Gate
@@ -73,10 +75,9 @@ struct GateCard: View {
             }
         }
         .card()
-        .confirmationDialog(confirmTitle, isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }), titleVisibility: .visible) {
-            Button("Open", role: .destructive) {
-                if let confirm { store.perform(.gate(id: gate.id, action: confirm)) }
-            }
+        .confirmationDialog(confirmTitle, isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
+                            titleVisibility: .visible, presenting: confirm) { action in
+            Button("Open", role: .destructive) { store.perform(.gate(id: gate.id, action: action)) }
         }
     }
 
@@ -99,6 +100,7 @@ struct GateCard: View {
     }
 }
 
+@MainActor
 struct SecurityPanelCard: View {
     @Environment(HomeStore.self) private var store
     let panel: SecurityPanel
@@ -161,6 +163,7 @@ extension SecurityMode: Identifiable {
     var id: String { rawValue }
 }
 
+@MainActor
 struct KeypadSheet: View {
     @Environment(\.dismiss) private var dismiss
     let title: String

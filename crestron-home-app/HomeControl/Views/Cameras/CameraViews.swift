@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 
+@MainActor
 struct CamerasView: View {
     @Environment(AppSettings.self) private var settings
     @State private var fullScreen: CameraConfig?
@@ -42,6 +43,7 @@ struct CamerasView: View {
     }
 }
 
+@MainActor
 struct CameraTile: View {
     let camera: CameraConfig
 
@@ -62,9 +64,12 @@ struct CameraTile: View {
 
 /// Shows a camera by refreshing its JPEG snapshot URL. Works with nearly every IP
 /// camera/NVR (Hikvision, Dahua, Axis, Luma, Reolink…) without a video library.
+@MainActor
 struct CameraSnapshotView: View {
     let camera: CameraConfig
     var interval: Duration = .seconds(1)
+    /// Unsaved password to try (the camera editor's preview); nil = the saved one.
+    var password: String?
     @State private var image: UIImage?
     @State private var failed: String?
 
@@ -85,7 +90,7 @@ struct CameraSnapshotView: View {
             }
         }
         .task(id: camera) {
-            let loader = CameraLoader(camera: camera)
+            let loader = CameraLoader(camera: camera, password: password)
             defer { loader.invalidate() }
             while !Task.isCancelled {
                 do {
@@ -109,10 +114,10 @@ final class CameraLoader: NSObject, URLSessionTaskDelegate {
     private let password: String
     private var session: URLSession!
 
-    init(camera: CameraConfig) {
+    init(camera: CameraConfig, password: String? = nil) {
         url = URL(string: camera.snapshotURL.trimmingCharacters(in: .whitespacesAndNewlines))
         username = camera.username
-        password = camera.password
+        self.password = password ?? camera.password
         super.init()
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 8

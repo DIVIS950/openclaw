@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 
+@MainActor
 struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(HomeStore.self) private var store
@@ -131,6 +132,7 @@ struct SettingsView: View {
     }
 }
 
+@MainActor
 struct JoinMapEditor: View {
     @Environment(AppSettings.self) private var settings
     @State private var result: String?
@@ -185,6 +187,7 @@ struct JoinMapEditor: View {
     }
 }
 
+@MainActor
 struct CameraEditor: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
@@ -209,7 +212,7 @@ struct CameraEditor: View {
                 SecureField("Password", text: $password)
             }
             Section("Preview") {
-                CameraSnapshotView(camera: camera)
+                CameraSnapshotView(camera: camera, password: password)
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .id(camera.snapshotURL + camera.username + password)
@@ -217,7 +220,6 @@ struct CameraEditor: View {
         }
         .navigationTitle(camera.name)
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: password) { _, value in camera.password = value }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {

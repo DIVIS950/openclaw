@@ -52,6 +52,8 @@ private extension UIImage {
         guard longest > maxSide else { return self }
         let scale = maxSide / longest
         let target = CGSize(width: size.width * scale, height: size.height * scale)
-        return UIGraphicsImageRenderer(size: target).image { _ in draw(in: CGRect(origin: .zero, size: target)) }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1 // otherwise the renderer multiplies by the screen scale
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in draw(in: CGRect(origin: .zero, size: target)) }
     }
 }

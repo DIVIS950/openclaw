@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct MediaZoneCard: View {
     @Environment(HomeStore.self) private var store
     let zone: MediaZone
@@ -60,6 +61,7 @@ struct MediaZoneCard: View {
     }
 }
 
+@MainActor
 struct MediaView: View {
     @Environment(HomeStore.self) private var store
 
@@ -79,6 +81,7 @@ struct MediaView: View {
     }
 }
 
+@MainActor
 struct EmptyState: View {
     let icon: String
     let title: String

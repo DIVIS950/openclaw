@@ -86,7 +86,7 @@ final class AppSettings {
     /// IP IDs are written in hex in SIMPL (e.g. "03", "1A").
     var parsedIpId: UInt8? {
         let text = cipIpId.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: "0x", with: "")
-        guard let value = UInt8(text, radix: 16), value >= 0x03 else { return nil }
+        guard let value = UInt8(text, radix: 16), (0x03...0xFE).contains(value) else { return nil }
         return value
     }
 
@@ -100,7 +100,7 @@ final class AppSettings {
             guard let ipId = parsedIpId else {
                 throw BackendError.notConfigured("The IP ID must be a hex number from 03 to FE (e.g. 03 or 1A).")
             }
-            guard let port = UInt16(exactly: cipPort) else {
+            guard let port = UInt16(exactly: cipPort), port > 0 else {
                 throw BackendError.notConfigured("The port must be between 1 and 65535.")
             }
             return CustomProgramBackend(host: host, ipId: ipId, port: port, map: try JoinMap.parse(joinMapJSON))

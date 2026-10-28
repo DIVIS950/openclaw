@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Big pill slider in the style of Control Center. Drag anywhere on it; it sends
 /// values at most every 0.3 s while dragging and always sends the final value.
+@MainActor
 struct LevelSlider: View {
     let value: Double
     let tint: Color
@@ -41,7 +42,7 @@ struct LevelSlider: View {
                     .onChanged { gesture in
                         // Leave mostly-vertical swipes alone so the page can still scroll.
                         if dragValue == nil && abs(gesture.translation.height) > abs(gesture.translation.width) { return }
-                        let v = (gesture.location.x / max(1, geo.size.width)).clamped01
+                        let v = Double(gesture.location.x / max(1, geo.size.width)).clamped01
                         dragValue = v
                         if Date().timeIntervalSince(lastSent) > 0.3 {
                             lastSent = Date()
@@ -50,13 +51,13 @@ struct LevelSlider: View {
                     }
                     .onEnded { gesture in
                         guard dragValue != nil else { return }
-                        let v = (gesture.location.x / max(1, geo.size.width)).clamped01
+                        let v = Double(gesture.location.x / max(1, geo.size.width)).clamped01
                         onChange(v)
                         dragValue = nil
                     }
             )
             .onTapGesture { location in
-                onChange((location.x / max(1, geo.size.width)).clamped01)
+                onChange(Double(location.x / max(1, geo.size.width)).clamped01)
             }
         }
         .frame(height: height)
@@ -74,6 +75,7 @@ struct LevelSlider: View {
 }
 
 /// Round icon button used for power / toggle actions.
+@MainActor
 struct CircleButton: View {
     let icon: String
     var isOn: Bool = false
@@ -103,6 +105,7 @@ struct PressableStyle: ButtonStyle {
     }
 }
 
+@MainActor
 struct StatusChip: View {
     let icon: String
     let text: String

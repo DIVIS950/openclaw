@@ -3,6 +3,7 @@ import UIKit
 
 /// iPad: sidebar + detail (works great mounted on the wall).
 /// iPhone: tab bar.
+@MainActor
 struct RootView: View {
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
@@ -58,6 +59,7 @@ private enum SidebarItem: Hashable {
     case room(String)
 }
 
+@MainActor
 private struct SplitRoot: View {
     @Environment(HomeStore.self) private var store
     @State private var selection: SidebarItem? = .home
@@ -111,6 +113,7 @@ private struct SplitRoot: View {
     }
 }
 
+@MainActor
 private struct TabRoot: View {
     @State private var showSettings = false
 
@@ -133,6 +136,7 @@ private struct TabRoot: View {
     }
 }
 
+@MainActor
 private struct ErrorBanner: View {
     @Environment(HomeStore.self) private var store
 

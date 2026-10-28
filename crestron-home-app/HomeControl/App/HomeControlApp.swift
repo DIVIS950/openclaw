@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main
+@MainActor
 struct HomeControlApp: App {
     @State private var settings = AppSettings()
     @State private var store = HomeStore()
