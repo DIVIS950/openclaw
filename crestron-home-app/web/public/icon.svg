@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#ffd43b"/>
-  <circle cx="404" cy="112" r="56" fill="#ff7a2f"/>
-  <path d="M96 252 256 120l160 132v176a24 24 0 0 1-24 24H120a24 24 0 0 1-24-24z" fill="#14131c"/>
-  <rect x="214" y="320" width="84" height="132" rx="20" fill="#ffd43b"/>
+  <defs>
+    <linearGradient id="dusk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c6cff"/><stop offset="0.5" stop-color="#b06bff"/><stop offset="1" stop-color="#ff8fb1"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.38" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#fff4b8"/><stop offset="0.65" stop-color="#ffcf4d"/><stop offset="1" stop-color="#ffb84d"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#dusk)"/>
+  <circle cx="392" cy="128" r="70" fill="url(#sun)"/>
+  <path d="M100 254 256 128l156 126v170a26 26 0 0 1-26 26H126a26 26 0 0 1-26-26z" fill="#ffffff"/>
+  <rect x="216" y="322" width="80" height="128" rx="22" fill="#b06bff"/>
 </svg>

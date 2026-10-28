@@ -233,15 +233,12 @@ function statusInfo() {
 
 // ---------- pieces ----------
 
-// Every room owns one bright color, in system order. [background, ink]
-const ROOM_COLORS = [
-  ["var(--tangerine)", "var(--ink)"], ["var(--mint)", "var(--ink)"], ["var(--violet)", "#ffffff"], ["var(--sky)", "var(--ink)"],
-  ["var(--pink)", "var(--ink)"], ["var(--lime)", "var(--ink)"], ["var(--cobalt)", "#ffffff"], ["var(--lemon)", "var(--ink)"],
-];
+// Every room owns one candy gradient, in system order (CSS tokens: gradient + solid partner).
+const CANDY = ["peach", "mint", "lilac", "sky", "rose", "lime", "periwinkle", "butter"];
+const candyStyle = (name) => `--c:var(--${name});--cs:var(--${name}-solid)`;
 function roomStyle(roomId) {
   const i = Math.max(0, app.home.rooms.findIndex((r) => r.id === roomId));
-  const [c, on] = ROOM_COLORS[i % ROOM_COLORS.length];
-  return `--c:${c};--on-c:${on}`;
+  return candyStyle(CANDY[i % CANDY.length]);
 }
 
 function roomLevel(lights) {
@@ -269,15 +266,13 @@ function roomCard(room) {
   </a>`;
 }
 
-const SCENE_COLORS = [
-  ["var(--lemon)", "var(--ink)"], ["var(--panel)", "#ffffff"], ["var(--cobalt)", "#ffffff"], ["var(--tangerine)", "var(--ink)"],
-  ["var(--violet)", "#ffffff"], ["var(--mint)", "var(--ink)"], ["var(--pink)", "var(--ink)"], ["var(--sky)", "var(--ink)"],
-];
+const SCENE_CANDY = ["butter", "lilac", "sky", "peach", "rose", "mint", "periwinkle", "lime"];
 
 function sceneTile(scene, i = 0) {
   const room = roomOf(app.home, scene.roomId);
-  const [c, on] = SCENE_COLORS[i % SCENE_COLORS.length];
-  return `<button class="scene${scene.active ? " active" : ""}" style="--c:${c};--on-c:${on}" data-act="scene" data-id="${esc(scene.id)}" data-key="scene:${esc(scene.id)}" aria-pressed="${scene.active}" aria-label="${esc(scene.name)}${room ? `, ${esc(room.name)}` : ""}">
+  // A scene that was just tapped pops and sparkles once (the tile is re-rendered, so remember it briefly).
+  const popped = app.pop?.id === scene.id && Date.now() - app.pop.at < 700;
+  return `<button class="scene${scene.active ? " active" : ""}${popped ? " pop" : ""}" style="${candyStyle(SCENE_CANDY[i % SCENE_CANDY.length])}" data-act="scene" data-id="${esc(scene.id)}" data-key="scene:${esc(scene.id)}" aria-pressed="${scene.active}" aria-label="${esc(scene.name)}${room ? `, ${esc(room.name)}` : ""}">
     <span class="scene-icon">${icon(sceneIcon(scene))}</span>
     <span class="scene-name">${esc(scene.name)}</span>
   </button>`;
@@ -623,7 +618,7 @@ function setupHTML() {
     <section class="card form" aria-labelledby="dev-title">
       <h2 class="section-title" id="dev-title">This device</h2>
       <div class="field"><span class="label">Appearance</span>
-        <div class="segmented">${seg("theme", "auto", "Automatic", d.theme)}${seg("theme", "dark", "Dark", d.theme)}${seg("theme", "light", "Light", d.theme)}</div>
+        <div class="segmented" style="grid-template-columns: repeat(2, minmax(0, 1fr))">${seg("theme", "light", "Day", d.theme === "dark" ? "dark" : "light")}${seg("theme", "dark", "Night", d.theme === "dark" ? "dark" : "light")}</div>
       </div>
       <div class="row" style="justify-content:space-between">
         <div><div class="status-name">Wall panel mode</div><p class="help">Keeps the screen on and shows a clock when nobody has touched it for a while.</p></div>
@@ -806,14 +801,11 @@ function checkJoinMap() {
 
 // ---------- device settings ----------
 
+/** Day is the look everywhere; Night is only used when chosen in Setup (not from the system setting). */
 function applyTheme() {
   const root = document.documentElement;
-  if (app.device.theme === "auto") {
-    if (root.dataset.themeByApp) { delete root.dataset.theme; delete root.dataset.themeByApp; }
-  } else {
-    root.dataset.theme = app.device.theme;
-    root.dataset.themeByApp = "1";
-  }
+  if (app.device.theme === "dark") root.dataset.appTheme = "dark";
+  else delete root.dataset.appTheme;
 }
 
 let wakeLock = null;
@@ -946,7 +938,9 @@ function handleAction(el) {
   const id = el.dataset.id;
   const h = app.home;
   switch (act) {
-    case "scene": return send({ type: "recallScene", id });
+    case "scene":
+      app.pop = { id, at: Date.now() };
+      return send({ type: "recallScene", id });
     case "light-toggle": {
       const light = h.lights.find((l) => l.id === id);
       if (light) send({ type: "setLight", id, level: isOn(light) ? 0 : 1 });
