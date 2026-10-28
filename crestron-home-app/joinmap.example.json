@@ -1,0 +1,40 @@
+{
+  "rooms": [
+    { "id": "living", "name": "Living Room" },
+    { "id": "kitchen", "name": "Kitchen" }
+  ],
+  "lights": [
+    { "name": "Ceiling", "room": "living", "level": 11 },
+    { "name": "Pendants", "room": "kitchen", "level": 12 },
+    { "name": "Patio Lights", "on": 41, "off": 42, "onFeedback": 41 }
+  ],
+  "shades": [
+    { "name": "Window Shades", "room": "living", "position": 21, "open": 51, "close": 52, "stop": 53 }
+  ],
+  "scenes": [
+    { "name": "Good Night", "press": 101 },
+    { "name": "Movie", "room": "living", "press": 102 }
+  ],
+  "media": [
+    {
+      "name": "Living Room", "room": "living",
+      "powerOn": 201, "powerOff": 202, "powerFeedback": 201,
+      "volume": 31, "mute": 203,
+      "sources": [
+        { "name": "Apple TV", "press": 211 },
+        { "name": "Cable", "press": 212 }
+      ]
+    }
+  ],
+  "locks": [
+    { "name": "Front Door", "lock": 301, "unlock": 302, "lockedFeedback": 301 }
+  ],
+  "security": [
+    { "name": "Alarm", "armAway": 401, "armHome": 402, "disarm": 403, "code": 401,
+      "armedAwayFeedback": 401, "armedHomeFeedback": 402, "disarmedFeedback": 403, "alarmFeedback": 404 }
+  ],
+  "gates": [
+    { "name": "Driveway Gate", "open": 501, "close": 502, "stop": 503,
+      "openFeedback": 504, "closedFeedback": 505 }
+  ]
+}

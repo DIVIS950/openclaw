@@ -1,0 +1,5 @@
+*.xcodeproj/
+HomeControl/Info.plist
+xcuserdata/
+DerivedData/
+.build/
