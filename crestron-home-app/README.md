@@ -59,6 +59,18 @@ Options (environment variables):
 
 The server pushes live changes to every open screen at once, so the wall iPad and the phones always match. Camera pictures go through the server, so camera passwords never reach the browsers.
 
+### Home View: the iPad design
+
+The same server also has **Home View**, a version made for the iPad (especially a wall-mounted one), in the style of Apple's Home app. Open `http://COMPUTER-IP:8080/ipad/` and add it to the Home Screen.
+
+- A sidebar with every room, and a soft background whose colors follow the time of day (each room has its own colors).
+- Tiles like Apple Home: **tap the icon** to switch something on or off, **tap the name** for the big controls (brightness, shade position, volume and sources).
+- The gate opens with **slide to open**, and doors unlock with **press and hold**, so a stray tap does nothing.
+- **StandBy**: in wall panel mode the iPad shows a big clock with the house status when nobody touches it.
+- **Ask Home**: the AI assistant, with the glowing screen edge while it listens.
+
+Settings in Home View (the gear button) cover appearance and wall panel mode. Connection, cameras and the AI key are set up in **Setup** in the classic view; Home View links there.
+
 ## 2b. Build and install the native iOS app (needs a Mac)
 
 1. Install **Xcode** (free, from the Mac App Store).
@@ -161,6 +173,7 @@ web/
   server/backends/                Crestron Home Web API, touch-panel (CIP) client, join map
   server/assistant.js             AI assistant (Claude API, one control_home tool)
   public/                         the web app (no build step): app.js, app.css, icons.js
+  public/ipad/                    Home View, the iPad design (views, sheets, Ask Home)
   public/shared/                  data model, demo house and assistant rules, shared by browser and server
 HomeControl/
   App/            app entry, iPad sidebar / iPhone tabs, screensaver timer

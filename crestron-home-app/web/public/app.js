@@ -628,6 +628,7 @@ function setupHTML() {
         <select class="select" id="saver-min" data-change="saver">${[1, 2, 5, 10, 15, 30].map((m) => `<option value="${m}"${m === d.saverMin ? " selected" : ""}>${m} minute${m === 1 ? "" : "s"}</option>`).join("")}</select>
       </div>
       <p class="help">On a mounted iPad: add this page to the Home Screen (Share › Add to Home Screen), then turn on Guided Access in iPad Settings › Accessibility to lock it to the app.</p>
+      <a class="btn" href="ipad/">${icon("grid")}Open Home View, the iPad design</a>
     </section>`;
 }
 

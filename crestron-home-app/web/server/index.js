@@ -231,7 +231,12 @@ function pinOK(req) {
 }
 
 function serveStatic(req, res, pathname) {
-  const rel = pathname === "/" ? "index.html" : decodeURIComponent(pathname).replace(/^\/+/, "");
+  // Folders serve their index.html; "/ipad" needs its slash so the page's relative links work.
+  if (pathname === "/ipad") {
+    res.writeHead(301, { Location: "/ipad/" });
+    return res.end();
+  }
+  const rel = decodeURIComponent(pathname).replace(/^\/+/, "").replace(/(^|\/)$/, "$1index.html");
   const file = path.resolve(PUBLIC_DIR, rel);
   if (!file.startsWith(PUBLIC_DIR + path.sep)) return sendJSON(res, 403, { error: "Forbidden" });
   fs.readFile(file, (err, data) => {

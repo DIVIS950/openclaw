@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Home View</title>
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Home View">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- On iPad the system font (SF Pro) is used; Inter is only the stand-in elsewhere. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&display=swap">
+  <link rel="stylesheet" href="homeview.css">
+</head>
+<body>
+  <div class="wallpaper" id="wallpaper" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="frame">
+    <aside class="sidebar" id="sidebar" aria-label="Rooms and controls"></aside>
+    <main class="content" id="content"></main>
+  </div>
+  <div id="sheet-root"></div>
+  <div class="island" id="island" role="status" aria-live="polite" hidden></div>
+  <div class="glow" id="glow" aria-hidden="true" hidden></div>
+  <section class="siri" id="siri" aria-label="Ask Home" hidden></section>
+  <div class="standby" id="standby" hidden></div>
+  <script type="module" src="homeview.js"></script>
+</body>
+</html>
