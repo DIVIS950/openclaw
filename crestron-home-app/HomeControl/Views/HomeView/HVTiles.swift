@@ -644,9 +644,11 @@ struct HVVolumeBar: View {
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .gesture(
-                    DragGesture(minimumDistance: 0)
+                    DragGesture(minimumDistance: 4)
                         .onChanged { value in
-                            let level = (value.location.x / max(1, geo.size.width)).clamped01
+                            // Leave mostly-vertical swipes alone so the page can still scroll.
+                            if dragValue == nil && abs(value.translation.height) > abs(value.translation.width) { return }
+                            let level = Double(value.location.x / max(1, geo.size.width)).clamped01
                             dragValue = level
                             // Send while dragging, but not faster than the processor likes.
                             if Date().timeIntervalSince(lastSent) > 0.22 {
@@ -659,6 +661,9 @@ struct HVVolumeBar: View {
                             dragValue = nil
                         }
                 )
+                .onTapGesture { location in
+                    store.perform(.mediaVolume(zoneId: zone.id, level: Double(location.x / max(1, geo.size.width)).clamped01))
+                }
             }
             .frame(height: 30)
             Image(systemName: "speaker.wave.3.fill").font(.caption).foregroundStyle(.secondary)

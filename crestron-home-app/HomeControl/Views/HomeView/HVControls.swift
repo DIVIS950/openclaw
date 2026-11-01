@@ -106,7 +106,7 @@ struct HVBigSlider: View {
                     .onChanged { drag in
                         if dragValue == nil { start = value }
                         let moved = abs(drag.translation.height) > 4
-                        let next = moved ? (start - drag.translation.height / height).clamped01 : (dragValue ?? value)
+                        let next = moved ? (start - Double(drag.translation.height / height)).clamped01 : (dragValue ?? value)
                         dragValue = next
                         if moved, Date().timeIntervalSince(lastSent) > 0.22 {
                             lastSent = Date()
@@ -114,11 +114,11 @@ struct HVBigSlider: View {
                         }
                     }
                     .onEnded { drag in
-                        var final = dragValue ?? value
+                        var level = dragValue ?? value
                         if abs(drag.translation.height) <= 4 {
-                            final = (((1 - drag.location.y / height) * 20).rounded() / 20).clamped01
+                            level = (((1 - Double(drag.location.y / height)) * 20).rounded() / 20).clamped01
                         }
-                        onChange(final)
+                        onChange(level)
                         dragValue = nil
                     }
             )

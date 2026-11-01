@@ -29,7 +29,8 @@ final class HVAskModel {
         log.append(Entry(kind: .me, text: text))
         let history = turns
         task = Task {
-            defer { busy = false }
+            // After cancel() a newer request may own `busy`; leave it alone.
+            defer { if !Task.isCancelled { busy = false } }
             do {
                 let reply = try await HomeAssistant.run(message: text, history: history, store: store, apiKey: apiKey)
                 log.append(Entry(kind: .answer, text: reply.text))

@@ -178,6 +178,8 @@ enum HomeAssistant {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            // URLSession reports a cancelled task as URLError(.cancelled), not CancellationError.
+            if Task.isCancelled { throw CancellationError() }
             throw Failure.offline
         }
         let (data, response) = result
@@ -210,7 +212,8 @@ enum HomeAssistant {
         var outcome = Outcome(text: "", isError: commands.isEmpty)
         var lines: [String] = []
         for raw in commands {
-            let (parsed, problem) = command(from: raw)
+            // Qualified: the local `command` declared below would shadow the static func.
+            let (parsed, problem) = Self.command(from: raw)
             guard let command = parsed else {
                 lines.append("\(raw["type"] as? String ?? "?") \(raw["id"] as? String ?? ""): rejected (\(problem ?? "invalid"))")
                 continue
