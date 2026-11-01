@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     /// Shown as a sheet on iPhone (needs a Done button); a sidebar page on iPad.
     var isSheet = false
+    /// Opened from Home View (the iPad design): use the system's own light/dark styling.
+    var homeView = false
     @State private var editingCamera: CameraConfig?
 
     var body: some View {
@@ -86,7 +88,20 @@ struct SettingsView: View {
             }
 
             Section {
+                SecureField("Anthropic API key", text: $settings.assistantKey, prompt: Text("sk-ant-…"))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("AI assistant")
+            } footer: {
+                Text("Ask Home uses Claude to understand requests like “turn off the kitchen lights” or “good night”. Create a key at console.anthropic.com; each request costs a fraction of a cent. The key stays in this iPad's Keychain. Unlocking doors and opening the gate always need a tap to confirm, and the assistant can't disarm the alarm.")
+            }
+
+            Section {
                 TextField("Home name", text: $settings.homeName)
+                Picker("Appearance", selection: $settings.appearance) {
+                    ForEach(Appearance.allCases) { Text($0.title).tag($0) }
+                }
                 Toggle("Wall panel mode", isOn: $settings.kioskMode)
                 if settings.kioskMode {
                     Stepper("Screensaver after \(settings.screensaverMinutes) min", value: $settings.screensaverMinutes, in: 1...60)
@@ -94,11 +109,11 @@ struct SettingsView: View {
             } header: {
                 Text("This device")
             } footer: {
-                Text("Wall panel mode keeps the screen on and shows a clock screensaver when idle. For a mounted iPad also turn on Guided Access (Settings › Accessibility) to lock it to this app.")
+                Text("Wall panel mode keeps the screen on and shows StandBy (a big clock with the house at a glance) when idle. For a mounted iPad also turn on Guided Access (Settings › Accessibility) to lock it to this app.")
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Theme.background.ignoresSafeArea())
+        .scrollContentBackground(homeView ? .automatic : .hidden)
+        .background { if !homeView { Theme.background.ignoresSafeArea() } }
         .navigationTitle("Settings")
         .toolbar {
             if isSheet {

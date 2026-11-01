@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 enum ConnectionMode: String, CaseIterable, Identifiable {
     case demo, crestronHome, customProgram
@@ -22,6 +23,29 @@ enum ConnectionMode: String, CaseIterable, Identifiable {
             "For systems set up with the Crestron Home setup app (CP4-R, MC4-R, PRO4…). Uses the processor's built-in Web API."
         case .customProgram:
             "For systems your installer programmed in SIMPL, controlled today with Crestron Go. The app connects like a touch panel on its own IP ID and uses a join map."
+        }
+    }
+}
+
+/// Light or dark look for Home View (the iPad design). Automatic follows the iPad.
+enum Appearance: String, CaseIterable, Identifiable {
+    case automatic, light, dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .automatic: nil
+        case .light: .light
+        case .dark: .dark
         }
     }
 }
@@ -53,6 +77,9 @@ final class AppSettings {
     var kioskMode: Bool
     var screensaverMinutes: Int
     var cameras: [CameraConfig]
+    var appearance: Appearance
+    /// Anthropic API key for Ask Home (kept in the Keychain).
+    var assistantKey: String
 
     @ObservationIgnored private let defaults = UserDefaults.standard
 
@@ -68,6 +95,8 @@ final class AppSettings {
         kioskMode = d.bool(forKey: Keys.kiosk)
         screensaverMinutes = d.object(forKey: Keys.saver) as? Int ?? 5
         cameras = (d.data(forKey: Keys.cameras)).flatMap { try? JSONDecoder().decode([CameraConfig].self, from: $0) } ?? []
+        appearance = Appearance(rawValue: d.string(forKey: Keys.appearance) ?? "") ?? .automatic
+        assistantKey = Keychain.read(Keys.assistantKey) ?? ""
     }
 
     func save() {
@@ -81,6 +110,8 @@ final class AppSettings {
         defaults.set(kioskMode, forKey: Keys.kiosk)
         defaults.set(screensaverMinutes, forKey: Keys.saver)
         defaults.set(try? JSONEncoder().encode(cameras), forKey: Keys.cameras)
+        defaults.set(appearance.rawValue, forKey: Keys.appearance)
+        Keychain.write(assistantKey.trimmingCharacters(in: .whitespacesAndNewlines), for: Keys.assistantKey)
     }
 
     /// IP IDs are written in hex in SIMPL (e.g. "03", "1A").
@@ -118,5 +149,7 @@ final class AppSettings {
         static let kiosk = "kioskMode"
         static let saver = "screensaverMinutes"
         static let cameras = "cameras"
+        static let appearance = "appearance"
+        static let assistantKey = "anthropic.apikey"
     }
 }

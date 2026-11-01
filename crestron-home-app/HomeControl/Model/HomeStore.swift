@@ -23,6 +23,8 @@ final class HomeStore {
     @ObservationIgnored private var loopTask: Task<Void, Never>?
     @ObservationIgnored private var errorTask: Task<Void, Never>?
     @ObservationIgnored private var recent: [String: (command: HomeCommand, at: Date)] = [:]
+    /// Brightness each light had before it was turned off, so tapping it back on restores it.
+    @ObservationIgnored private var lastLevels: [String: Double] = [:]
 
     func connect(using settings: AppSettings) {
         disconnect()
@@ -81,6 +83,9 @@ final class HomeStore {
 
     func perform(_ command: HomeCommand) {
         lastUserAction = Date()
+        if case let .setLight(id, _) = command, let light = home.lights.first(where: { $0.id == id }), light.isOn {
+            lastLevels[id] = light.level
+        }
         home.apply(command)
         if let key = command.stateKey { recent[key] = (command, Date()) }
         guard let backend else { return }
@@ -91,6 +96,13 @@ final class HomeStore {
                 self?.showError(error.localizedDescription)
             }
         }
+    }
+
+    /// Tap-to-toggle for a light: off, or back to the brightness it had.
+    func toggle(light id: String) {
+        guard let light = home.lights.first(where: { $0.id == id }) else { return }
+        let level = light.isOn ? 0 : (light.isDimmable ? lastLevels[id] ?? 1 : 1)
+        perform(.setLight(id: id, level: level))
     }
 
     func noteInteraction() {

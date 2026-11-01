@@ -13,8 +13,6 @@ struct HomeControlApp: App {
                 .environment(settings)
                 .environment(store)
                 .environment(photos)
-                .preferredColorScheme(.dark)
-                .tint(Theme.light)
                 .task { store.connect(using: settings) }
         }
     }

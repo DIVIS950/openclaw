@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// iPad: sidebar + detail (works great mounted on the wall).
+/// iPad: Home View (sidebar, wallpaper, Apple Home style tiles), made for a wall-mounted iPad.
 /// iPhone: tab bar.
 @MainActor
 struct RootView: View {
@@ -15,12 +15,17 @@ struct RootView: View {
     var body: some View {
         Group {
             if sizeClass == .regular {
-                SplitRoot()
+                // iPad: Home View, in the appearance chosen in Settings.
+                HVRoot()
+                    .preferredColorScheme(settings.appearance.colorScheme)
             } else {
+                // iPhone keeps the dark design.
                 TabRoot()
+                    .preferredColorScheme(.dark)
+                    .tint(Theme.light)
             }
         }
-        .overlay(alignment: .top) { ErrorBanner() }
+        .overlay(alignment: .top) { if sizeClass != .regular { ErrorBanner() } }
         .overlay {
             if showSaver {
                 ScreensaverView {
@@ -51,65 +56,6 @@ struct RootView: View {
     private func applyKiosk() {
         UIApplication.shared.isIdleTimerDisabled = settings.kioskMode
         if !settings.kioskMode { showSaver = false }
-    }
-}
-
-private enum SidebarItem: Hashable {
-    case home, rooms, lights, shades, media, security, cameras, settings
-    case room(String)
-}
-
-@MainActor
-private struct SplitRoot: View {
-    @Environment(HomeStore.self) private var store
-    @State private var selection: SidebarItem? = .home
-
-    var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                Section {
-                    row(.home, "Home", "house.fill")
-                    row(.lights, "Lights", "lightbulb.fill")
-                    row(.shades, "Shades", "blinds.horizontal.closed")
-                    row(.media, "Media", "hifispeaker.2.fill")
-                    row(.security, "Security & Gate", "shield.lefthalf.filled")
-                    row(.cameras, "Cameras", "video.fill")
-                }
-                if !store.home.rooms.isEmpty {
-                    Section("Rooms") {
-                        ForEach(store.home.rooms) { room in
-                            row(.room(room.id), room.name, Theme.roomSymbol(room.name))
-                        }
-                    }
-                }
-                Section {
-                    row(.settings, "Settings", "gearshape.fill")
-                }
-            }
-            .scrollContentBackground(.hidden)
-            .background(Theme.backgroundTop.ignoresSafeArea())
-            .navigationTitle("Home")
-        } detail: {
-            NavigationStack {
-                switch selection ?? .home {
-                case .home, .rooms: HomeDashboardView()
-                case .lights: LightsView()
-                case .shades: ShadesView()
-                case .media: MediaView()
-                case .security: SecurityView()
-                case .cameras: CamerasView()
-                case .settings: SettingsView()
-                case let .room(id): RoomDetailView(roomId: id)
-                }
-            }
-            // Reset the stack when switching sidebar items.
-            .id(selection)
-        }
-        .navigationSplitViewStyle(.balanced)
-    }
-
-    private func row(_ item: SidebarItem, _ title: String, _ icon: String) -> some View {
-        Label(title, systemImage: icon).tag(item)
     }
 }
 

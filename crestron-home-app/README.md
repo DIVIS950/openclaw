@@ -3,7 +3,7 @@
 Two apps with the same design, made to replace Crestron Go with something closer to the new Crestron Home look: big room cards, scene tiles, and controls you can drag.
 
 - **Web app** (`web/`): works on every iPad, iPhone, Android phone and computer. Add it to the Home Screen and it runs full screen like an app. It needs a small home server running on any always-on computer at home. **This is the quickest way to start.**
-- **Native iOS app** (`HomeControl/`): SwiftUI, built with Xcode on a Mac.
+- **Native iOS app** (`HomeControl/`): SwiftUI, built with Xcode on a Mac. On iPad it opens in **Home View**, the same iPad design as the web version, with Ask Home built in. iPhone keeps the dark design.
 
 It controls:
 
@@ -85,6 +85,14 @@ Settings in Home View (the gear button) cover appearance and wall panel mode. Co
    - Choose your Apple ID team. A free Apple ID works, but free installs expire every 7 days. A paid developer account ($99/year) lasts a year and allows TestFlight.
    - Change the **Bundle Identifier** to something unique, like `com.yourname.homecontrol`.
 4. Plug in the iPad or iPhone, pick it at the top of Xcode, and press **Run** (▶).
+
+### Home View in the native app (iPad)
+
+On iPad the native app opens straight into Home View: the room sidebar, the wallpaper that follows the time of day, Apple Home–style tiles (tap the icon to switch, tap the name for the big controls), slide to open the gate, press and hold to unlock, and StandBy in wall panel mode. Other touches:
+
+- **Room photos:** open a room and tap **Room photo**; the photo becomes that room's background.
+- **Appearance:** Settings › This device › Appearance (Automatic follows the iPad, or pick Light or Dark).
+- **Ask Home:** paste an Anthropic API key in **Settings › AI assistant**. The app calls Claude directly (no home server needed), with the same safety rules as the web app. To speak instead of typing, use the microphone key on the iPad keyboard.
 
 ## 3. Connect it to your house
 
@@ -184,7 +192,9 @@ HomeControl/
     CustomProgramBackend.swift   join map ↔ app model
     CIPClient.swift              touch-panel protocol (TCP 41794)
     JoinMap.swift                join map format + example
-  Views/          dashboard, rooms, lights, shades, media, security/gate, cameras, settings
+  Views/HomeView/ Home View, the iPad design: sidebar, wallpaper, tiles, widgets, detail cards, Ask Home
+  Views/          iPhone screens: dashboard, rooms, media, security/gate, cameras, settings
+  Assistant/      Ask Home: Claude API call, the control_home tool and its safety rules
 ```
 
 To add another kind of system, implement the small `HomeBackend` protocol in `Backends/HomeBackend.swift` (iOS) and the matching class in `web/server/backends/` (web).
@@ -194,6 +204,7 @@ To add another kind of system, implement the small `HomeBackend` protocol in `Ba
 - **Not yet tested on a real system.** It was written without access to your processor, so expect a round of small fixes the first time you connect. Testing with Demo mode first is the easiest start.
 - **Crestron Home:** the endpoint paths and field names follow traffic captured from real processors by the open-source [CH2HA](https://github.com/jonahshem/CH2HA) integration. Arming and disarming security through the Web API is **not verified** anywhere, and some systems return no security devices at all. Climate isn't included because you didn't ask for it; it's easy to add.
 - **Custom program:** the touch-panel protocol follows the open-source [python-cipclient](https://pypi.org/project/python-cipclient/) project. It isn't an official Crestron SDK, but it's the same connection Crestron Go uses.
+- **Native app:** written without a Mac, so it hasn't been compiled yet. Expect a few small build fixes the first time you open it in Xcode; tell me the errors and I'll fix them.
 - **AI assistant:** tested against a simulated Claude API (there was no real key in my workspace). It checks the safety rules, the tool calls and the request settings, but not real answers. Try it with your key and tell me how it handles your phrasing.
 - Crestron processors use self-signed HTTPS certificates. The app accepts the certificate **only for the processor address you type in**.
 - Only use this on your own home network. For control away from home, use a VPN (for example WireGuard or Tailscale on your router) rather than opening ports on the router.
