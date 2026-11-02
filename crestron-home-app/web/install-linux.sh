@@ -24,6 +24,26 @@ fi
 echo "Installing the app's packages…"
 npm install --omit=dev --no-audit --no-fund
 
+# The Setup PIN protects the page that holds the Crestron token. It is kept in a
+# root-only file (not in the service file, which anyone on the computer can read).
+ENV_FILE=/etc/home-control.env
+if [ -z "${ADMIN_PIN:-}" ] && sudo test -f "$ENV_FILE"; then
+  ADMIN_PIN="$(sudo sed -n 's/^ADMIN_PIN=//p' "$ENV_FILE")"
+fi
+if [ -z "${ADMIN_PIN:-}" ] && [ -t 0 ]; then
+  while :; do
+    read -rsp "Choose a Setup PIN (4 or more digits, protects the Crestron settings): " ADMIN_PIN; echo
+    [[ "$ADMIN_PIN" =~ ^[0-9]{4,}$ ]] && break
+    echo "Use at least 4 digits."
+  done
+fi
+if [ -n "${ADMIN_PIN:-}" ]; then
+  printf 'ADMIN_PIN=%s\n' "$ADMIN_PIN" | sudo tee "$ENV_FILE" >/dev/null
+  sudo chmod 600 "$ENV_FILE"
+else
+  echo "Warning: no Setup PIN set. Anyone on your Wi-Fi could open Setup. Run again with ADMIN_PIN=1234 ./install-linux.sh"
+fi
+
 echo "Setting up the service…"
 sudo tee /etc/systemd/system/home-control.service >/dev/null <<EOF
 [Unit]
@@ -35,6 +55,7 @@ Wants=network-online.target
 User=$(id -un)
 WorkingDirectory=$APP_DIR
 Environment=PORT=$PORT
+EnvironmentFile=-$ENV_FILE
 ExecStart=$(command -v node) server/index.js
 Restart=always
 RestartSec=5
