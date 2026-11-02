@@ -134,7 +134,7 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
 
   function greeting() {
     const h = new Date().getHours();
-    return h >= 5 && h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening.";
+    return h >= 5 && h < 12 ? "Good morning." : h >= 12 && h < 17 ? "Good afternoon." : "Good evening.";
   }
 
   function renderLog() {

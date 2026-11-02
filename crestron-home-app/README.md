@@ -122,6 +122,22 @@ On iPad the native app opens straight into Home View: the room sidebar, the wall
 - **Appearance:** Settings › This device › Appearance (Automatic follows the iPad, or pick Light or Dark).
 - **Ask Home:** paste an Anthropic API key in **Settings › AI assistant**. The app calls Claude directly (no home server needed), with the same safety rules as the web app. To speak instead of typing, use the microphone key on the iPad keyboard.
 
+### Home pages, room cards and motion (iPad)
+
+- **Home pages:** Home is now a few pages. Swipe left or right, or tap the tabs under the title: **Home** (your Edit Home layout), **Rooms**, **Security**, **Music** and **Cameras**. A page only shows when the house has something for it. Each page scrolls by itself, the dots at the bottom show where you are, and the iPad remembers the last page.
+- **Rooms page:** a big card for every room, with its photo (or the room's colors). The card glows warmer when the lights are brighter. The round button at the top right switches the room's lights on or off. Small badges show shades, music and the door (orange when unlocked). Tap a card to open the room. At the top: **All lights off**, **Close all shades** and **All music off**.
+- **Room page:** a large card at the top with the room photo, the lights, shades, music and door at a glance, and the quick buttons (lights, shades, room photo).
+- **Motion:** light icons glow as bright as the light, a tile bounces with a small ring when you change it, a scene sends a wave of its color across the screen, and cards lean a little toward your finger. The weather widget has a small moving picture (sun, moon and stars, clouds, rain, snow, storm or fog), and the gate widget has a little gate that opens and closes with the real one. With **Reduce Motion** on (iPad Settings › Accessibility › Motion) all of this stays still.
+
+### Ask Home on the iPad: timers, schedules, Undo
+
+- Ask Home knows **which room is on screen**: in a room, "turn off the lights in here" means that room. A small "In Kitchen" label shows this.
+- **Timers:** "turn off the kitchen lights in 30 minutes" or "sleep timer for an hour". Only lights, shades, scenes, music and locking can go on a timer, never unlocking, the gate or the alarm.
+- **Schedules:** "every night at 11 close the shades" or "weekdays at sunset turn on the patio lights". The new schedule shows on the Automations page, where you can change or delete it.
+- **Undo:** after Ask Home changes lights, shades or music, tap **Undo** to put them back as they were. Undo never touches locks, the gate or the alarm.
+- **Read answers out loud:** tap the speaker button at the top of Ask Home. The iPad remembers this.
+- Before you ask, Ask Home shows ideas that fit the house right now, for example "Lock the front door" when it is unlocked.
+
 ### More on the iPad: favorites, weather, schedules, doorbell
 
 The iPad app has the same extras as the web Home View. Each iPad keeps its own choices.
@@ -241,9 +257,9 @@ HomeControl/
     CustomProgramBackend.swift   join map ↔ app model
     CIPClient.swift              touch-panel protocol (TCP 41794)
     JoinMap.swift                join map format + example
-  Views/HomeView/ Home View, the iPad design: sidebar, wallpaper, tiles, widgets, detail cards, Ask Home
+  Views/HomeView/ Home View, the iPad design: sidebar, wallpaper, Home pages, room cards, tiles, widgets, motion, detail cards, Ask Home
   Views/          iPhone screens: dashboard, rooms, media, security/gate, cameras, settings
-  Assistant/      Ask Home: Claude API call, the control_home tool and its safety rules
+  Assistant/      Ask Home: Claude API call, the control_home, set_timer and create_schedule tools and their safety rules
 ```
 
 To add another kind of system, implement the small `HomeBackend` protocol in `Backends/HomeBackend.swift` (iOS) and the matching class in `web/server/backends/` (web).

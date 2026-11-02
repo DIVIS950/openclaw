@@ -34,6 +34,8 @@ struct HVRoot: View {
                     content(compact: compact)
                 }
 
+                HVRippleLayer(ripple: nav.ripple)
+
                 if compact && nav.sidebarOpen {
                     Color.black.opacity(0.25)
                         .ignoresSafeArea()
@@ -120,11 +122,23 @@ struct HVRoot: View {
         return nil
     }
 
+    @ViewBuilder
     private func content(compact: Bool) -> some View {
+        if nav.route == .home {
+            // Home has its own pages, each scrolling by itself.
+            HVHomePager(compact: compact)
+                .id(nav.route)
+                .transition(.opacity.combined(with: .offset(y: 12)))
+        } else {
+            page(compact: compact)
+        }
+    }
+
+    private func page(compact: Bool) -> some View {
         ScrollView {
             Group {
                 switch nav.route {
-                case .home: HVHomePage()
+                case .home: EmptyView()
                 case let .room(id): HVRoomPage(roomId: id)
                 case .lights: HVLightsPage()
                 case .shades: HVShadesPage()

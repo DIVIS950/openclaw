@@ -1,11 +1,13 @@
 import Foundation
 
 /// Ask Home: plain requests ("turn off the kitchen lights", "good night") become house
-/// commands, using Claude with one tool, `control_home`. Mirrors the web app's assistant
-/// (web/public/shared/assistant-core.js and web/server/assistant.js).
+/// commands, using Claude with three tools: `control_home`, `set_timer` and
+/// `create_schedule`. Mirrors the web app's assistant (web/public/shared/assistant-core.js
+/// and web/server/assistant.js).
 ///
 /// Safety lives in code, not just in the instructions: unlocking a door and opening the
-/// gate come back as Confirm buttons the person must tap, and disarming is refused.
+/// gate come back as Confirm buttons the person must tap, disarming is refused, and timers
+/// and schedules can't open anything.
 enum HomeAssistant {
     static let model = "claude-opus-5-5"
     private static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -23,6 +25,8 @@ enum HomeAssistant {
     - For questions ("is the front door locked?", "what's on?"), answer from the state without calling the tool.
     - Unlocking doors and opening the gate need the person to confirm: request them with the tool anyway; the app shows a confirm button. Say that they need to tap it.
     - You cannot disarm the alarm; tell the person to use the keypad.
+    - "Later" requests ("turn off the kitchen lights in 30 minutes", "sleep timer for an hour") use set_timer. Repeating requests ("every night at 11 close the shades", "weekdays at sunset turn on the patio lights") use create_schedule. Confirm what you set up in one sentence.
+    - "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
 
     How to answer:
     - One or two short, friendly sentences in the person's language. No lists, no markdown, no ids.
@@ -30,6 +34,8 @@ enum HomeAssistant {
     """
 
     static let toolName = "control_home"
+    static let timerToolName = "set_timer"
+    static let scheduleToolName = "create_schedule"
 
     private static let toolDescription =
         "Send one or more commands to the house. Each command needs `type` and the device `id` from the home state, plus the field its type uses: " +
@@ -38,35 +44,106 @@ enum HomeAssistant {
         "Returns one line per command saying whether it was done, needs the person to confirm, or was refused."
 
     private static var toolSchema: [String: Any] {
-        [
+        let commands: [String: Any] = ["type": "array", "minItems": 1, "items": commandItemSchema]
+        return [
             "type": "object",
-            "properties": [
-                "commands": [
-                    "type": "array",
-                    "minItems": 1,
-                    "items": [
-                        "type": "object",
-                        "properties": [
-                            "type": ["type": "string", "enum": ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume",
-                                                                "mediaMute", "mediaSource", "setLock", "setSecurity", "gate"]],
-                            "id": ["type": "string", "description": "Device, scene, media room, lock, alarm or gate id from the home state."],
-                            "level": ["type": "number", "minimum": 0, "maximum": 1],
-                            "position": ["type": "number", "minimum": 0, "maximum": 1],
-                            "on": ["type": "boolean"],
-                            "muted": ["type": "boolean"],
-                            "sourceId": ["type": "string"],
-                            "locked": ["type": "boolean"],
-                            "mode": ["type": "string", "enum": ["armedAway", "armedHome", "disarmed"]],
-                            "action": ["type": "string", "enum": ["open", "close", "stop", "trigger"]],
-                        ],
-                        "required": ["type", "id"],
-                        "additionalProperties": false,
-                    ],
-                ],
-            ],
+            "properties": ["commands": commands] as [String: Any],
             "required": ["commands"],
             "additionalProperties": false,
         ]
+    }
+
+    private static let timerToolDescription =
+        "Run commands once, later: after the given number of minutes (1 to 1440). Use it for \"in 30 minutes\", \"sleep timer\" and similar. " +
+        "Only lights, shades, scenes, music and locking (never unlocking, the gate or the alarm) can be timed."
+
+    private static var timerToolSchema: [String: Any] {
+        let minutes: [String: Any] = ["type": "integer", "minimum": 1, "maximum": 1440]
+        let label: [String: Any] = ["type": "string", "description": "Short name shown in the app, e.g. \"Kitchen lights off\"."]
+        let commands: [String: Any] = ["type": "array", "minItems": 1, "items": commandItemSchema]
+        return [
+            "type": "object",
+            "properties": ["minutes": minutes, "label": label, "commands": commands] as [String: Any],
+            "required": ["minutes", "label", "commands"],
+            "additionalProperties": false,
+        ]
+    }
+
+    private static let scheduleToolDescription =
+        "Create a repeating schedule that the home runs by itself. when.type is \"time\" (with time \"HH:MM\", 24-hour) or \"sunrise\"/\"sunset\" (with offset in minutes, negative = before). " +
+        "days are 0-6 (0 = Sunday). Actions: scene (id), lights (roomId or null for all, level 0-1), shades (roomId or null, position 0 or 1), mediaOff, lockAll."
+
+    private static var scheduleToolSchema: [String: Any] {
+        let whenType: [String: Any] = ["type": "string", "enum": ["time", "sunrise", "sunset"]]
+        let whenTime: [String: Any] = ["type": "string", "description": "HH:MM, 24-hour, for type time"]
+        let whenOffset: [String: Any] = ["type": "integer", "minimum": -180, "maximum": 180]
+        let when: [String: Any] = [
+            "type": "object",
+            "properties": ["type": whenType, "time": whenTime, "offset": whenOffset] as [String: Any],
+            "required": ["type"],
+            "additionalProperties": false,
+        ]
+        let day: [String: Any] = ["type": "integer", "minimum": 0, "maximum": 6]
+        let days: [String: Any] = ["type": "array", "items": day, "minItems": 1]
+        let actionType: [String: Any] = ["type": "string", "enum": ["scene", "lights", "shades", "mediaOff", "lockAll"]]
+        let actionId: [String: Any] = ["type": "string", "description": "scene id, for type scene"]
+        let roomId: [String: Any] = ["type": ["string", "null"], "description": "room id, or null for the whole house"]
+        let level: [String: Any] = ["type": "number", "minimum": 0, "maximum": 1]
+        let position: [String: Any] = ["type": "number", "minimum": 0, "maximum": 1]
+        let action: [String: Any] = [
+            "type": "object",
+            "properties": ["type": actionType, "id": actionId, "roomId": roomId, "level": level, "position": position] as [String: Any],
+            "required": ["type"],
+            "additionalProperties": false,
+        ]
+        let actions: [String: Any] = ["type": "array", "minItems": 1, "items": action]
+        let name: [String: Any] = ["type": "string"]
+        return [
+            "type": "object",
+            "properties": ["name": name, "when": when, "days": days, "actions": actions] as [String: Any],
+            "required": ["name", "when", "days", "actions"],
+            "additionalProperties": false,
+        ]
+    }
+
+    /// One command, as control_home and set_timer take it.
+    private static var commandItemSchema: [String: Any] {
+        let commandTypes = ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume",
+                            "mediaMute", "mediaSource", "setLock", "setSecurity", "gate"]
+        let unit: [String: Any] = ["type": "number", "minimum": 0, "maximum": 1]
+        let properties: [String: Any] = [
+            "type": ["type": "string", "enum": commandTypes] as [String: Any],
+            "id": ["type": "string", "description": "Device, scene, media room, lock, alarm or gate id from the home state."],
+            "level": unit,
+            "position": unit,
+            "on": ["type": "boolean"],
+            "muted": ["type": "boolean"],
+            "sourceId": ["type": "string"],
+            "locked": ["type": "boolean"],
+            "mode": ["type": "string", "enum": ["armedAway", "armedHome", "disarmed"]] as [String: Any],
+            "action": ["type": "string", "enum": ["open", "close", "stop", "trigger"]] as [String: Any],
+        ]
+        return [
+            "type": "object",
+            "properties": properties,
+            "required": ["type", "id"],
+            "additionalProperties": false,
+        ]
+    }
+
+    private static var tools: [[String: Any]] {
+        [
+            ["name": toolName, "description": toolDescription, "input_schema": toolSchema],
+            ["name": timerToolName, "description": timerToolDescription, "input_schema": timerToolSchema],
+            ["name": scheduleToolName, "description": scheduleToolDescription, "input_schema": scheduleToolSchema],
+        ]
+    }
+
+    /// What the person is looking at and the weather, for the model. The time, schedules
+    /// and timers are added from the clock and AutomationStore.
+    struct Context {
+        var viewingRoom: String?
+        var weather: WeatherNow?
     }
 
     struct Confirmation: Identifiable {
@@ -102,13 +179,15 @@ enum HomeAssistant {
 
     /// Runs one request: asks Claude, carries out its tool calls, and loops until it answers.
     @MainActor
-    static func run(message: String, history: [(role: String, text: String)], store: HomeStore, apiKey: String) async throws -> Reply {
+    static func run(message: String, history: [(role: String, text: String)], store: HomeStore, automations: AutomationStore,
+                    context: Context, apiKey: String) async throws -> Reply {
         var messages: [[String: Any]] = []
         for turn in history.suffix(12) where !turn.text.isEmpty {
             messages.append(["role": turn.role, "content": String(turn.text.prefix(2000))])
         }
         // The live state goes in the newest user turn, after the cached instructions and tool.
-        let state = String(data: try JSONSerialization.data(withJSONObject: homeForModel(store.home), options: [.sortedKeys]), encoding: .utf8) ?? "{}"
+        let snapshot = homeForModel(store.home, context: context, automations: automations)
+        let state = String(data: try JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys]), encoding: .utf8) ?? "{}"
         messages.append(["role": "user", "content": [
             ["type": "text", "text": "Current home state:\n\(state)"],
             ["type": "text", "text": String(message.prefix(2000))],
@@ -137,9 +216,15 @@ enum HomeAssistant {
             messages.append(["role": "assistant", "content": content])
             var results: [[String: Any]] = []
             for use in toolUses {
-                let outcome: Outcome = (use["name"] as? String) == toolName
-                    ? apply(use["input"] as? [String: Any] ?? [:], store: store)
-                    : Outcome(text: "Unknown tool \(use["name"] as? String ?? "")", isError: true)
+                let input = use["input"] as? [String: Any] ?? [:]
+                let name = use["name"] as? String ?? ""
+                let outcome: Outcome
+                switch name {
+                case toolName: outcome = apply(input, store: store)
+                case timerToolName: outcome = applyTimer(input, automations: automations)
+                case scheduleToolName: outcome = applySchedule(input, home: store.home, automations: automations)
+                default: outcome = Outcome(text: "Unknown tool \(name)", isError: true)
+                }
                 reply.done += outcome.done
                 reply.confirm += outcome.confirm
                 reply.failed += outcome.failed
@@ -165,7 +250,7 @@ enum HomeAssistant {
             // Short home requests don't need deep reasoning; low effort keeps answers quick.
             "output_config": ["effort": "low"],
             "system": [["type": "text", "text": rules, "cache_control": ["type": "ephemeral"]]],
-            "tools": [["name": toolName, "description": toolDescription, "input_schema": toolSchema]],
+            "tools": tools,
             "messages": messages,
             // If a safety classifier declines a request, Anthropic re-runs it on its recommended model.
             "fallbacks": "default",
@@ -235,6 +320,93 @@ enum HomeAssistant {
         }
         outcome.text = lines.isEmpty ? "No commands were given." : lines.joined(separator: "\n")
         return outcome
+    }
+
+    /// Applies one set_timer call: checks every command can be timed (nothing that opens the
+    /// house), then adds one timer for all of them.
+    @MainActor
+    static func applyTimer(_ input: [String: Any], automations: AutomationStore) -> Outcome {
+        let rawMinutes = (input["minutes"] as? NSNumber)?.doubleValue ?? .nan
+        let label = String((input["label"] as? String ?? "Timer").trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        let name = label.isEmpty ? "Timer" : label
+        // Checked before converting, so a huge or missing number can't crash Int().
+        guard rawMinutes.isFinite, rawMinutes.rounded() >= 1, rawMinutes.rounded() <= 1440 else {
+            return Outcome(text: "Refused: minutes must be 1 to 1440.", isError: true)
+        }
+        let minutes = Int(rawMinutes.rounded())
+        var timed: [TimerCommand] = []
+        for raw in input["commands"] as? [[String: Any]] ?? [] {
+            let (read, _) = Self.command(from: raw)
+            guard let parsed = read, let command = TimerCommand(parsed) else {
+                return Outcome(text: "Refused: \(raw["type"] as? String ?? "that command") can't be put on a timer.", isError: true)
+            }
+            timed.append(command)
+        }
+        guard !timed.isEmpty else { return Outcome(text: "Refused: no commands.", isError: true) }
+        automations.addTimer(minutes: minutes, label: name, commands: timed)
+        let when = minutes >= 60 && minutes % 60 == 0 ? "\(minutes / 60) h" : "\(minutes) min"
+        return Outcome(text: "Timer set: \(name) in \(when).", done: ["Timer: \(name) in \(when)"])
+    }
+
+    /// Applies one create_schedule call: reads and checks the schedule, then saves it.
+    /// Schedule actions can't open anything (lockAll only locks).
+    @MainActor
+    static func applySchedule(_ input: [String: Any], home: HomeSnapshot, automations: AutomationStore) -> Outcome {
+        // Qualified: the local `schedule` below would shadow the static func.
+        let (parsed, problem) = Self.schedule(from: input)
+        guard let schedule = parsed else {
+            return Outcome(text: "Refused: \(problem ?? "bad schedule")", isError: true)
+        }
+        automations.save(schedule)
+        let when = AutomationRules.describeWhen(schedule)
+        let what = schedule.actions.map { AutomationRules.describe($0, home: home) }.joined(separator: ", ")
+        return Outcome(text: "Schedule created: \(schedule.name), \(when): \(what).", done: ["Schedule: \(schedule.name) · \(when)"])
+    }
+
+    /// Reads a schedule from create_schedule input. Returns the schedule, or the problem.
+    static func schedule(from input: [String: Any]) -> (HomeSchedule?, String?) {
+        var schedule = HomeSchedule(name: String((input["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(60)))
+        let when = input["when"] as? [String: Any] ?? [:]
+        let whenType = when["type"] as? String ?? ""
+        switch whenType {
+        case "time":
+            let parts = (when["time"] as? String ?? "").split(separator: ":")
+            guard parts.count == 2, (1...2).contains(parts[0].count), parts[1].count == 2,
+                  let hour = Int(parts[0]), let minute = Int(parts[1]), (0..<24).contains(hour), (0..<60).contains(minute)
+            else { return (nil, "Pick a time.") }
+            schedule.trigger = .time
+            schedule.minutes = hour * 60 + minute
+        case "sunrise", "sunset":
+            schedule.trigger = whenType == "sunrise" ? .sunrise : .sunset
+            let offset = (when["offset"] as? NSNumber)?.doubleValue ?? 0
+            schedule.offset = offset.isFinite ? Int(min(max(offset, -1440), 1440).rounded()) : 0
+        default:
+            return (nil, "Pick when it runs.")
+        }
+        let days = input["days"] as? [Any] ?? []
+        var daySet = Set<Int>()
+        for day in days {
+            guard let number = day as? NSNumber, let value = Int(exactly: number.doubleValue), (0...6).contains(value) else {
+                return (nil, "Pick the days.")
+            }
+            daySet.insert(value)
+        }
+        schedule.days = daySet.sorted()
+        var actions: [AutomationAction] = []
+        for raw in input["actions"] as? [[String: Any]] ?? [] {
+            let number = { (key: String) in (raw[key] as? NSNumber)?.doubleValue ?? 0 }
+            switch raw["type"] as? String ?? "" {
+            case "scene": actions.append(.scene(id: raw["id"] as? String ?? ""))
+            case "lights": actions.append(.lights(roomId: raw["roomId"] as? String, level: number("level").clamped01))
+            case "shades": actions.append(.shades(roomId: raw["roomId"] as? String, position: number("position") >= 0.5 ? 1 : 0))
+            case "mediaOff": actions.append(.mediaOff)
+            case "lockAll": actions.append(.lockAll)
+            default: return (nil, "Unknown action.")
+            }
+        }
+        schedule.actions = actions
+        if let problem = AutomationRules.validate(schedule) { return (nil, problem) }
+        return (schedule, nil)
     }
 
     /// Commands the AI may ask for but a person must confirm by tapping.
@@ -327,7 +499,31 @@ enum HomeAssistant {
         }
     }
 
-    /// A compact view of the house for the model: names, ids and state, nothing else.
+    /// A compact view of the house for the model: names, ids and state, plus what the person
+    /// is looking at, the time, the weather and what is already scheduled.
+    @MainActor
+    static func homeForModel(_ home: HomeSnapshot, context: Context, automations: AutomationStore, now: Date = Date()) -> [String: Any] {
+        var out = homeForModel(home)
+        out["roomIds"] = home.rooms.map { ["id": $0.id, "name": $0.name] }
+        if let room = context.viewingRoom { out["viewingRoom"] = room }
+        let clock = DateFormatter()
+        clock.locale = Locale(identifier: "en_US")
+        clock.dateFormat = "EEEE h:mm a"
+        out["localTime"] = clock.string(from: now)
+        if let w = context.weather {
+            out["weather"] = "\(w.temp)°\(w.unit.rawValue), high \(w.high)°, low \(w.low)°"
+        }
+        out["schedules"] = automations.schedules.map { (schedule: HomeSchedule) -> String in
+            "\(schedule.name) (\(AutomationRules.describeWhen(schedule))\(schedule.enabled ? "" : ", off"))"
+        }
+        out["timers"] = automations.timers.map { (timer: HomeTimer) -> String in
+            let minutes = max(1, Int((timer.at.timeIntervalSince(now) / 60).rounded()))
+            return "\(timer.label) in \(minutes) min"
+        }
+        return out
+    }
+
+    /// The house part of the state: names, ids and state, nothing else.
     static func homeForModel(_ home: HomeSnapshot) -> [String: Any] {
         let room = { (id: String?) -> Any in home.room(id).map { $0.name as Any } ?? NSNull() }
         let pct = { (value: Double) in Int((value * 100).rounded()) }

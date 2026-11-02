@@ -20,6 +20,9 @@ final class HomeStore {
     private(set) var lastUserAction = Date()
     /// Goes up when something needs the screen awake (the doorbell); RootView hides StandBy.
     private(set) var wakeRequests = 0
+    /// Goes up each time a device is changed from this iPad (keys like "light:l1"), so its
+    /// tile can play a short "just changed" animation.
+    private(set) var pulses: [String: Int] = [:]
 
     @ObservationIgnored private var backend: HomeBackend?
     @ObservationIgnored private var loopTask: Task<Void, Never>?
@@ -91,6 +94,7 @@ final class HomeStore {
         }
         home.apply(command)
         if let key = command.stateKey { recent[key] = (command, Date()) }
+        if fromUser, let key = command.tileKey { pulses[key, default: 0] += 1 }
         guard let backend else { return }
         Task { [weak self] in
             do {
@@ -107,6 +111,9 @@ final class HomeStore {
         let level = light.isOn ? 0 : (light.isDimmable ? lastLevels[id] ?? 1 : 1)
         perform(.setLight(id: id, level: level))
     }
+
+    /// How many times the device behind a tile was changed from this iPad (see `pulses`).
+    func pulse(_ key: String) -> Int { pulses[key] ?? 0 }
 
     func noteInteraction() {
         lastUserAction = Date()
@@ -144,6 +151,20 @@ final class HomeStore {
             try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled else { return }
             self?.commandError = nil
+        }
+    }
+}
+
+extension HomeCommand {
+    /// Key of the tile this command changes, for the "just changed" animation.
+    var tileKey: String? {
+        switch self {
+        case let .setLight(id, _): "light:\(id)"
+        case let .setShade(id, _): "shade:\(id)"
+        case let .mediaPower(id, _), let .mediaSource(id, _): "media:\(id)"
+        case let .setLock(id, _): "lock:\(id)"
+        case let .recallScene(id): "scene:\(id)"
+        case .stopShade, .mediaVolume, .mediaMute, .mediaTransport, .setSecurity, .gate: nil
         }
     }
 }

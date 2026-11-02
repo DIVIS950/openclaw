@@ -106,10 +106,15 @@ struct HVTile: View {
     var offline = false
     /// Brightness, shown as a soft wash across the tile.
     var level: Double?
+    /// Lights: the icon glows as bright as the light is set (and gently breathes).
+    var glow: Double?
+    /// Changes each time the device was just changed from this iPad: the icon bounces and a ring bursts.
+    var pulse = 0
     let toggleLabel: String
     let onToggle: () -> Void
     let onOpen: () -> Void
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 12) {
@@ -117,9 +122,10 @@ struct HVTile: View {
                 Image(systemName: symbol)
                     .font(.system(size: 19, weight: .semibold))
                     .foregroundStyle(isOn ? Color.white : Color.secondary)
+                    .symbolEffect(.bounce, value: reduceMotion ? 0 : pulse)
                     .frame(width: 46, height: 46)
-                    .background(Circle().fill(isOn ? color : Color.primary.opacity(0.08)))
-                    .shadow(color: isOn ? color.opacity(0.45) : .clear, radius: 8, y: 4)
+                    .background { iconCircle }
+                    .overlay { HVRingBurst(trigger: pulse, color: color) }
                     .contentShape(Circle())
             }
             .buttonStyle(HVPress())
@@ -154,6 +160,17 @@ struct HVTile: View {
         .animation(.easeOut(duration: 0.25), value: isOn)
     }
 
+    /// The colored circle behind the icon. Lights glow by level; the rest keep a plain shadow.
+    @ViewBuilder
+    private var iconCircle: some View {
+        let circle = Circle().fill(isOn ? color : Color.primary.opacity(0.08))
+        if let glow {
+            circle.modifier(HVLampGlow(color: color, level: isOn ? max(glow, 0.05) : 0))
+        } else {
+            circle.shadow(color: isOn ? color.opacity(0.45) : .clear, radius: 8, y: 4)
+        }
+    }
+
     @ViewBuilder
     private var background: some View {
         let shape = RoundedRectangle(cornerRadius: HV.tileRadius, style: .continuous)
@@ -181,11 +198,16 @@ struct HVSceneTile: View {
     @Environment(HomeStore.self) private var store
     @Environment(HVNav.self) private var nav
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var runs = 0
+    /// Where the icon is on screen, for the color ripple. A plain object, so updating it while
+    /// the page scrolls doesn't redraw the tile.
+    @State private var spot = HVSpot()
 
     var body: some View {
         Button {
             runs += 1
+            if !reduceMotion, let center = spot.center { nav.showRipple(at: center, color: color) }
             HVAct.scene(store, nav, scene)
         } label: {
             HStack(spacing: 12) {
@@ -194,7 +216,15 @@ struct HVSceneTile: View {
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
                     .background(Circle().fill(color))
-                    .symbolEffect(.bounce, value: runs)
+                    .symbolEffect(.bounce, value: reduceMotion ? 0 : store.pulse("scene:\(scene.id)"))
+                    .overlay { HVRingBurst(trigger: store.pulse("scene:\(scene.id)"), color: color) }
+                    .background {
+                        GeometryReader { geo in
+                            let frame = geo.frame(in: .global)
+                            Color.clear.preference(key: HVCenterKey.self, value: CGPoint(x: frame.midX, y: frame.midY))
+                        }
+                    }
+                    .onPreferenceChange(HVCenterKey.self) { center in spot.center = center }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(scene.name).font(.subheadline.weight(.semibold)).lineLimit(1)
                     Text(scene.isActive ? "Active" : "Scene").font(.footnote.weight(.medium)).foregroundStyle(.secondary)
@@ -254,7 +284,8 @@ struct HVLightTile: View {
     var body: some View {
         HVTile(symbol: light.isOn ? "lightbulb.fill" : "lightbulb", name: light.name, state: HVText.light(light),
                color: HV.light, isOn: light.isOn, room: room, offline: !light.isOnline,
-               level: light.isDimmable ? light.level : nil, toggleLabel: "\(light.name): turn \(light.isOn ? "off" : "on")",
+               level: light.isDimmable ? light.level : nil, glow: light.level, pulse: store.pulse("light:\(light.id)"),
+               toggleLabel: "\(light.name): turn \(light.isOn ? "off" : "on")",
                onToggle: { store.toggle(light: light.id) }, onOpen: { nav.sheet = .light(light.id) })
     }
 }
@@ -269,7 +300,7 @@ struct HVShadeTile: View {
     var body: some View {
         let open = shade.position > 0.02
         HVTile(symbol: open ? "blinds.horizontal.open" : "blinds.horizontal.closed", name: shade.name, state: HVText.shade(shade.position),
-               color: HV.shade, isOn: open, room: room, offline: !shade.isOnline,
+               color: HV.shade, isOn: open, room: room, offline: !shade.isOnline, pulse: store.pulse("shade:\(shade.id)"),
                toggleLabel: "\(shade.name): \(open ? "close" : "open")",
                onToggle: { store.perform(.setShade(id: shade.id, position: open ? 0 : 1)) }, onOpen: { nav.sheet = .shade(shade.id) })
     }
@@ -285,7 +316,7 @@ struct HVMediaTile: View {
     var body: some View {
         let state = zone.isOn ? "\(zone.currentSource?.name ?? "On")\(zone.hasVolume ? " · \(zone.isMuted ? "Muted" : zone.volume.percentText)" : "")" : "Off"
         HVTile(symbol: HV.symbol(for: zone), name: store.home.tileName(zone), state: state, color: HV.media, isOn: zone.isOn,
-               room: room, toggleLabel: "\(zone.name): turn \(zone.isOn ? "off" : "on")",
+               room: room, pulse: store.pulse("media:\(zone.id)"), toggleLabel: "\(zone.name): turn \(zone.isOn ? "off" : "on")",
                onToggle: { store.perform(.mediaPower(zoneId: zone.id, on: !zone.isOn)) }, onOpen: { nav.sheet = .media(zone.id) })
     }
 }
@@ -301,9 +332,22 @@ struct HVLockTile: View {
         let unlocked = lock.isLocked == false
         HVTile(symbol: unlocked ? "lock.open.fill" : "lock.fill", name: lock.name, state: HVText.lock(lock),
                color: unlocked ? .orange : .green, isOn: lock.isLocked != nil, room: room, warn: unlocked,
-               toggleLabel: unlocked ? "Lock \(lock.name)" : "Unlock \(lock.name)",
+               pulse: store.pulse("lock:\(lock.id)"), toggleLabel: unlocked ? "Lock \(lock.name)" : "Unlock \(lock.name)",
                onToggle: { HVAct.lockTapped(store, nav, lock) }, onOpen: { nav.sheet = .lock(lock.id) })
     }
+}
+
+/// Where a view's center is on screen.
+private struct HVCenterKey: PreferenceKey {
+    static let defaultValue: CGPoint? = nil
+    static func reduce(value: inout CGPoint?, nextValue: () -> CGPoint?) {
+        value = nextValue() ?? value
+    }
+}
+
+/// Holds a point without SwiftUI watching it.
+final class HVSpot {
+    var center: CGPoint?
 }
 
 extension HV {
@@ -499,11 +543,12 @@ struct HVWideButton: View {
 }
 
 extension View {
-    /// The frosted card every Home widget sits on.
+    /// The frosted card every Home widget sits on. It leans a little toward the finger.
     func hvWidget() -> some View {
         padding(18)
             .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
             .hvGlass(HV.widgetRadius)
+            .hvTilt(3)
     }
 }
 
@@ -516,6 +561,7 @@ struct HVGateWidget: View {
         VStack(alignment: .leading, spacing: 14) {
             HVWidgetTop(symbol: gate.state == .open ? "door.garage.open" : "door.garage.closed", color: HV.gate, name: gate.name,
                         state: gate.state.title, more: { nav.sheet = .gate(gate.id) })
+            HVGateArt(state: gate.state, color: HV.gate)
             Spacer(minLength: 0)
             HVGateControls(gate: gate)
         }

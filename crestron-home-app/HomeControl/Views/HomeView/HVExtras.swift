@@ -17,6 +17,8 @@ struct HVWeatherWidget: View {
             if let location = settings.effectiveLocation {
                 if let w = weather.weather {
                     HVWidgetTop(symbol: w.symbol, color: w.isDay ? .orange : .indigo, name: location.place, state: w.text)
+                        // Room for the drawing at the top right.
+                        .padding(.trailing, 92)
                     HStack(alignment: .center, spacing: 14) {
                         Text("\(w.temp)°")
                             .font(.system(size: 58, weight: .light))
@@ -51,6 +53,13 @@ struct HVWeatherWidget: View {
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 HVWideButton(title: "Set location", symbol: "gearshape.fill", tint: .blue, primary: true) { nav.sheet = .settings }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .topTrailing) {
+            if settings.effectiveLocation != nil, let w = weather.weather {
+                HVWeatherArt(kind: HVWeatherArt.Kind(code: w.code, isDay: w.isDay), night: !w.isDay)
+                    .offset(x: 8, y: -10)
             }
         }
         .hvWidget()

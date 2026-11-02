@@ -7,17 +7,50 @@ enum ScheduleTrigger: String, Codable, Hashable, CaseIterable {
     case time, sunrise, sunset
 }
 
-/// One device set to a value, for timers ("turn off in 30 min").
+/// One device set to a value, for timers ("turn off in 30 min"). Ask Home can time any of
+/// these; nothing here can open the house (locks can only be locked).
 enum TimerCommand: Codable, Hashable {
     case light(id: String, level: Double)
     case shade(id: String, position: Double)
     case mediaPower(id: String, on: Bool)
+    case stopShade(id: String)
+    case scene(id: String)
+    case mediaVolume(id: String, level: Double)
+    case mediaMute(id: String, muted: Bool)
+    case mediaSource(id: String, sourceId: String)
+    case lock(id: String)
 
     var homeCommand: HomeCommand {
         switch self {
         case let .light(id, level): return .setLight(id: id, level: level)
         case let .shade(id, position): return .setShade(id: id, position: position)
         case let .mediaPower(id, on): return .mediaPower(zoneId: id, on: on)
+        case let .stopShade(id): return .stopShade(id: id)
+        case let .scene(id): return .recallScene(id: id)
+        case let .mediaVolume(id, level): return .mediaVolume(zoneId: id, level: level)
+        case let .mediaMute(id, muted): return .mediaMute(zoneId: id, muted: muted)
+        case let .mediaSource(id, sourceId): return .mediaSource(zoneId: id, sourceId: sourceId)
+        case let .lock(id): return .setLock(id: id, locked: true)
+        }
+    }
+
+    /// The timer version of a house command, or nil for commands that can't be timed
+    /// (unlocking, the gate, the alarm, play/pause).
+    init?(_ command: HomeCommand) {
+        switch command {
+        case let .setLight(id, level): self = .light(id: id, level: level)
+        case let .setShade(id, position): self = .shade(id: id, position: position)
+        case let .stopShade(id): self = .stopShade(id: id)
+        case let .recallScene(id): self = .scene(id: id)
+        case let .mediaPower(id, on): self = .mediaPower(id: id, on: on)
+        case let .mediaVolume(id, level): self = .mediaVolume(id: id, level: level)
+        case let .mediaMute(id, muted): self = .mediaMute(id: id, muted: muted)
+        case let .mediaSource(id, sourceId): self = .mediaSource(id: id, sourceId: sourceId)
+        case let .setLock(id, locked):
+            guard locked else { return nil }
+            self = .lock(id: id)
+        case .mediaTransport, .setSecurity, .gate:
+            return nil
         }
     }
 }
@@ -139,6 +172,19 @@ enum AutomationRules {
                 return "\(home.shades.first(where: { $0.id == id })?.name ?? "Shade") \(position >= 0.5 ? "open" : "closed")"
             case let .mediaPower(id, on):
                 return "\(home.media.first(where: { $0.id == id })?.name ?? "Music") \(on ? "on" : "off")"
+            case let .stopShade(id):
+                return "\(home.shades.first(where: { $0.id == id })?.name ?? "Shade") stop"
+            case let .scene(id):
+                return "Scene: \(home.scenes.first(where: { $0.id == id })?.name ?? "removed scene")"
+            case let .mediaVolume(id, level):
+                return "\(home.media.first(where: { $0.id == id })?.name ?? "Music") volume \(level.percentText)"
+            case let .mediaMute(id, muted):
+                return "\(home.media.first(where: { $0.id == id })?.name ?? "Music") \(muted ? "muted" : "unmuted")"
+            case let .mediaSource(id, sourceId):
+                let zone = home.media.first(where: { $0.id == id })
+                return "\(zone?.name ?? "Music") → \(zone?.sources.first(where: { $0.id == sourceId })?.name ?? "source")"
+            case let .lock(id):
+                return "Lock \(home.locks.first(where: { $0.id == id })?.name ?? "door")"
             }
         }
     }

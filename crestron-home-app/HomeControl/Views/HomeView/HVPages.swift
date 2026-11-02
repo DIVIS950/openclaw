@@ -1,4 +1,3 @@
-import PhotosUI
 import SwiftUI
 
 private struct HVCompactKey: EnvironmentKey {
@@ -96,7 +95,7 @@ struct HVHeader: View {
 }
 
 @MainActor
-private struct HVConnectionNotice: View {
+struct HVConnectionNotice: View {
     @Environment(HomeStore.self) private var store
 
     var body: some View {
@@ -112,8 +111,10 @@ private struct HVConnectionNotice: View {
 
 // MARK: - Home
 
+/// The Home overview page: the parts chosen in Edit Home, in their order. The header,
+/// page tabs and the other Home pages are in HVHomePager.
 @MainActor
-struct HVHomePage: View {
+struct HVOverviewBody: View {
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
     @Environment(HomeLayout.self) private var layout
@@ -136,11 +137,6 @@ struct HVHomePage: View {
         let home = store.home
         let nothing = home.rooms.isEmpty && home.lights.isEmpty && home.scenes.isEmpty
         VStack(alignment: .leading, spacing: 28) {
-            TimelineView(.everyMinute) { context in
-                HVHeader(eyebrow: context.date.formatted(.dateTime.weekday(.wide).month(.wide).day()),
-                         title: greeting(context.date), subtitle: nothing ? nil : summary(home), isHome: true)
-            }
-            HVConnectionNotice()
             ForEach(blocks(home)) { block in
                 switch block {
                 case let .widgets(parts):
@@ -241,31 +237,6 @@ struct HVHomePage: View {
             EmptyView()
         }
     }
-
-    private func greeting(_ date: Date) -> String {
-        switch Calendar.current.component(.hour, from: date) {
-        case 5..<12: "Good morning"
-        case 12..<17: "Good afternoon"
-        default: "Good evening"
-        }
-    }
-
-    private func summary(_ home: HomeSnapshot) -> String {
-        var parts: [String] = []
-        let on = home.lightsOnCount
-        parts.append(on == 0 ? "All lights off" : "\(on) \(on == 1 ? "light" : "lights") on")
-        let unlocked = home.locks.filter { $0.isLocked == false }
-        if !unlocked.isEmpty {
-            parts.append("\(unlocked.map(\.name).joined(separator: " and ")) \(unlocked.count == 1 ? "is" : "are") unlocked")
-        } else if !home.locks.isEmpty {
-            parts.append("Doors locked")
-        }
-        let playing = home.media.filter(\.isOn)
-        if !playing.isEmpty {
-            parts.append("Playing in \(playing.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: " and "))")
-        }
-        return parts.joined(separator: " · ")
-    }
 }
 
 /// Every room with its accessories, then "Other" for devices without a known room.
@@ -302,40 +273,16 @@ private struct HVRoomsPart: View {
 struct HVRoomPage: View {
     let roomId: String
     @Environment(HomeStore.self) private var store
-    @Environment(RoomPhotos.self) private var photos
-    @State private var photoItem: PhotosPickerItem?
 
     var body: some View {
         let home = store.home
         let room = home.room(roomId) ?? Room(id: roomId, name: "Room")
         let lights = home.lights(in: roomId), shades = home.shades(in: roomId)
         let scenes = home.scenes(in: roomId), media = home.media(in: roomId), locks = home.locks(in: roomId)
-        let on = lights.filter(\.isOn).count
         VStack(alignment: .leading, spacing: 28) {
             HVHeader(eyebrow: eyebrow(lights: lights.count, shades: shades.count, media: !media.isEmpty), title: room.name,
                      subtitle: subtitle(lights: lights, media: media), showBack: true)
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    if !lights.isEmpty {
-                        capsule(on > 0 ? "Lights off" : "Lights on", on > 0 ? "lightbulb.slash" : "lightbulb.fill") {
-                            for light in lights { store.perform(.setLight(id: light.id, level: on > 0 ? 0 : 1)) }
-                        }
-                    }
-                    if !shades.isEmpty {
-                        capsule("Open shades", "arrow.up") { for shade in shades { store.perform(.setShade(id: shade.id, position: 1)) } }
-                        capsule("Close shades", "arrow.down") { for shade in shades { store.perform(.setShade(id: shade.id, position: 0)) } }
-                    }
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        capsuleLabel(photos.image(for: roomId) == nil ? "Room photo" : "Change photo", "photo")
-                    }
-                    .buttonStyle(HVPress())
-                    if photos.image(for: roomId) != nil {
-                        capsule("Remove photo", "xmark") { photos.removeImage(for: roomId) }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .scrollIndicators(.hidden)
+            HVRoomHero(roomId: roomId)
             if !scenes.isEmpty {
                 HVSection(title: "Scenes") {
                     LazyVGrid(columns: HV.tileColumns, spacing: 12) {
@@ -361,15 +308,6 @@ struct HVRoomPage: View {
                 ContentUnavailableView("Nothing here yet", systemImage: Theme.roomSymbol(room.name), description: Text("This room has no lights, shades or media."))
             }
         }
-        .onChange(of: photoItem) { _, item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    photos.setImage(data, for: roomId)
-                }
-                photoItem = nil
-            }
-        }
     }
 
     private func eyebrow(lights: Int, shades: Int, media: Bool) -> String {
@@ -386,19 +324,6 @@ struct HVRoomPage: View {
         if !lights.isEmpty { parts.append(on == 0 ? "Lights off" : "\(on) of \(lights.count) lights on") }
         for zone in media where zone.isOn { parts.append("Playing \(zone.currentSource?.name ?? "")") }
         return parts.joined(separator: " · ")
-    }
-
-    private func capsule(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { capsuleLabel(title, symbol) }.buttonStyle(HVPress())
-    }
-
-    private func capsuleLabel(_ title: String, _ symbol: String) -> some View {
-        Label(title, systemImage: symbol)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 11)
-            .hvGlass(30)
     }
 }
 
@@ -459,11 +384,24 @@ struct HVMediaPage: View {
     @Environment(HVNav.self) private var nav
 
     var body: some View {
-        let home = store.home
-        let playing = home.media.filter(\.isOn).count
-        let lead = home.media.first { $0.isOn && $0.currentSource != nil }
+        let playing = store.home.media.filter(\.isOn).count
         VStack(alignment: .leading, spacing: 28) {
             HVHeader(eyebrow: "Media", title: playing == 0 ? "Nothing playing" : "Playing in \(playing) \(playing == 1 ? "room" : "rooms")")
+            HVMediaBody()
+        }
+    }
+}
+
+/// The Media page without its header (also the Music page of Home).
+@MainActor
+struct HVMediaBody: View {
+    @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        let home = store.home
+        let lead = home.media.first { $0.isOn && $0.currentSource != nil }
+        VStack(alignment: .leading, spacing: 28) {
             if let lead, home.media.count > 1 {
                 HStack(spacing: 8) {
                     HVQuickButton(title: "Play \(lead.currentSource?.name ?? "this") everywhere", symbol: "hifispeaker.2.fill") {
@@ -495,6 +433,20 @@ struct HVSecurityPage: View {
             HVHeader(eyebrow: "Security",
                      title: unlocked > 0 ? "\(unlocked) \(unlocked == 1 ? "door is" : "doors are") unlocked" : home.locks.isEmpty ? "Security" : "Everything is locked",
                      subtitle: home.security.first.map { "Alarm: \($0.mode.title)" })
+            HVSecurityBody()
+        }
+    }
+}
+
+/// The Security page without its header (also the Security page of Home).
+@MainActor
+struct HVSecurityBody: View {
+    @Environment(HomeStore.self) private var store
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        let home = store.home
+        VStack(alignment: .leading, spacing: 28) {
             if !home.security.isEmpty || !home.gates.isEmpty {
                 LazyVGrid(columns: HV.widgetColumns, spacing: 14) {
                     ForEach(home.security) { HVSecurityWidget(panel: $0) }
@@ -526,6 +478,19 @@ struct HVCamerasPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
             HVHeader(eyebrow: "Cameras", title: "Cameras", subtitle: settings.cameras.isEmpty ? nil : "\(settings.cameras.count) live")
+            HVCamerasBody()
+        }
+    }
+}
+
+/// The Cameras page without its header (also the Cameras page of Home).
+@MainActor
+struct HVCamerasBody: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 28) {
             if !settings.cameras.isEmpty {
                 HStack(spacing: 8) {
                     HVQuickButton(title: "Camera wall", symbol: "square.grid.2x2.fill") { nav.cameraWall = true }
@@ -562,7 +527,7 @@ private struct HVByRoom<Content: View>: View {
     }
 }
 
-private struct HVQuickButton: View {
+struct HVQuickButton: View {
     let title: String
     let symbol: String
     let action: () -> Void

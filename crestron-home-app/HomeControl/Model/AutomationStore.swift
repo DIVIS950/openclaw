@@ -78,8 +78,14 @@ final class AutomationStore {
     }
 
     func addTimer(minutes: Int, label: String, command: TimerCommand) {
+        addTimer(minutes: minutes, label: label, commands: [command])
+    }
+
+    /// One timer that runs several commands at once (Ask Home: "in 30 minutes turn off the kitchen").
+    func addTimer(minutes: Int, label: String, commands: [TimerCommand]) {
+        guard !commands.isEmpty else { return }
         let timer = HomeTimer(label: String(label.prefix(80)), at: Date().addingTimeInterval(Double(minutes) * 60),
-                              actions: [.command(command)])
+                              actions: commands.map { AutomationAction.command($0) })
         automations.timers = Array((automations.timers + [timer]).suffix(50))
         save()
     }

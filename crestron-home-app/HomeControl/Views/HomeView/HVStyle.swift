@@ -63,6 +63,14 @@ final class HVNav {
         var color: Color
     }
 
+    /// A wash of color spreading over the screen from where a scene was started.
+    struct Ripple: Identifiable, Equatable {
+        let id = UUID()
+        /// In global (screen) coordinates.
+        var center: CGPoint
+        var color: Color
+    }
+
     var route: Route = .home
     var sheet: Sheet?
     var notice: Notice?
@@ -70,12 +78,24 @@ final class HVNav {
     var sidebarOpen = false
     var cameraWall = false
     var doorbell: DoorbellAlert?
+    var ripple: Ripple?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
+    @ObservationIgnored private var rippleTask: Task<Void, Never>?
 
     func go(_ route: Route) {
         withAnimation(.easeOut(duration: 0.25)) {
             self.route = route
             sidebarOpen = false
+        }
+    }
+
+    func showRipple(at center: CGPoint, color: Color) {
+        ripple = Ripple(center: center, color: color)
+        rippleTask?.cancel()
+        rippleTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.1))
+            guard !Task.isCancelled else { return }
+            self?.ripple = nil
         }
     }
 
@@ -130,6 +150,12 @@ enum HV {
         case 17..<20.5: return [22, 300, 252] // dusk
         default: return [232, 268, 196] // night
         }
+    }
+
+    /// The room's two wallpaper hues (degrees), also used for its card when it has no photo.
+    static func roomHuePalette(_ home: HomeSnapshot, _ roomId: String) -> [Double] {
+        let index = max(0, home.rooms.firstIndex { $0.id == roomId } ?? 0)
+        return roomHues[index % roomHues.count]
     }
 
     static func roomColor(_ home: HomeSnapshot, _ roomId: String) -> Color {
