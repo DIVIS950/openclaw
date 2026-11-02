@@ -12,6 +12,7 @@ struct JoinMap: Codable {
     var locks: [LockEntry]
     var security: [SecurityEntry]
     var gates: [GateEntry]
+    var doorbells: [DoorbellEntry]
 
     struct RoomEntry: Codable {
         var id: String
@@ -58,6 +59,17 @@ struct JoinMap: Codable {
         var mute: Int?
         var muteFeedback: Int?
         var sources: [SourceEntry]?
+        /// Optional transport buttons. With only one of play/pause, it's used for both.
+        var play: Int?
+        var pause: Int?
+        var next: Int?
+        var previous: Int?
+        /// High while playing (defaults to the power feedback).
+        var playingFeedback: Int?
+        /// Serial joins with the song or show name.
+        var title: Int?
+        var artist: Int?
+        var album: Int?
     }
 
     struct SourceEntry: Codable {
@@ -98,6 +110,16 @@ struct JoinMap: Codable {
         var closedFeedback: Int?
     }
 
+    struct DoorbellEntry: Codable {
+        var name: String
+        /// Digital join that goes high when someone presses the button.
+        var ring: Int
+        /// Name of the camera to show, as set up in Settings › Cameras.
+        var camera: String?
+        /// Name of the lock (from "locks") to offer hold-to-unlock for.
+        var lock: String?
+    }
+
     init(from decoder: Decoder) throws {
         // Every section is optional so a map can start small (just lights, say).
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -109,6 +131,7 @@ struct JoinMap: Codable {
         locks = try c.decodeIfPresent([LockEntry].self, forKey: .locks) ?? []
         security = try c.decodeIfPresent([SecurityEntry].self, forKey: .security) ?? []
         gates = try c.decodeIfPresent([GateEntry].self, forKey: .gates) ?? []
+        doorbells = try c.decodeIfPresent([DoorbellEntry].self, forKey: .doorbells) ?? []
     }
 
     static func parse(_ json: String) throws -> JoinMap {
@@ -155,6 +178,8 @@ struct JoinMap: Codable {
           "name": "Living Room", "room": "living",
           "powerOn": 201, "powerOff": 202, "powerFeedback": 201,
           "volume": 31, "mute": 203,
+          "play": 221, "pause": 222, "next": 223, "previous": 224, "playingFeedback": 221,
+          "title": 1, "artist": 2, "album": 3,
           "sources": [
             { "name": "Apple TV", "press": 211 },
             { "name": "Cable", "press": 212 }
@@ -167,6 +192,9 @@ struct JoinMap: Codable {
       "security": [
         { "name": "Alarm", "armAway": 401, "armHome": 402, "disarm": 403, "code": 401,
           "armedAwayFeedback": 401, "armedHomeFeedback": 402, "disarmedFeedback": 403, "alarmFeedback": 404 }
+      ],
+      "doorbells": [
+        { "name": "Front Door", "ring": 601, "camera": "Front Door", "lock": "Front Door" }
       ],
       "gates": [
         { "name": "Driveway Gate", "open": 501, "close": 502, "stop": 503,

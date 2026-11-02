@@ -11,7 +11,7 @@ import UIKit
 @Observable
 final class HVNav {
     enum Route: Hashable {
-        case home, lights, shades, media, security, cameras
+        case home, lights, shades, media, security, cameras, automations
         case room(String)
     }
 
@@ -21,6 +21,8 @@ final class HVNav {
         case keypad(panelId: String, mode: SecurityMode)
         case confirmGate(String, GateAction)
         case settings
+        case editHome, favorites
+        case schedule(HomeSchedule)
 
         var id: String {
             switch self {
@@ -33,8 +35,25 @@ final class HVNav {
             case let .keypad(id, mode): "keypad:\(id):\(mode.rawValue)"
             case let .confirmGate(id, action): "confirm:\(id):\(action.rawValue)"
             case .settings: "settings"
+            case .editHome: "edit-home"
+            case .favorites: "favorites"
+            case let .schedule(draft): "schedule:\(draft.id)"
             }
         }
+
+        /// Longer cards that scroll: shown at the standard sheet size, not fitted to content.
+        var isList: Bool {
+            switch self {
+            case .editHome, .favorites, .schedule: true
+            default: false
+            }
+        }
+    }
+
+    /// The doorbell pop-up: which doorbell, and the ring it is showing.
+    struct DoorbellAlert: Equatable {
+        let id: String
+        let ringAt: Date
     }
 
     struct Notice: Identifiable, Equatable {
@@ -49,6 +68,8 @@ final class HVNav {
     var notice: Notice?
     var askOpen = false
     var sidebarOpen = false
+    var cameraWall = false
+    var doorbell: DoorbellAlert?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
 
     func go(_ route: Route) {

@@ -133,16 +133,19 @@ final class CrestronHomeBackend: HomeBackend {
                 return MediaSource(id: sid, name: s["sourceName"] as? String ?? "Source \(sid)")
             }
             let volumeControls = (d["availableVolumeControls"] as? [Any] ?? []).map { "\($0)".lowercased() }
+            let isOn = (d["currentPowerState"] as? String ?? "").lowercased() == "on"
             return MediaZone(
                 id: id,
                 name: d["name"] as? String ?? "Media",
                 roomId: Self.idString(d["roomId"]) ?? id,
-                isOn: (d["currentPowerState"] as? String ?? "").lowercased() == "on",
+                isOn: isOn,
                 volume: ((Self.number(d["currentVolumeLevel"]) ?? 0) / Self.rawMax).clamped01,
                 isMuted: (d["currentMuteState"] as? String ?? "").lowercased() == "muted",
                 hasVolume: !volumeControls.contains("none"),
                 sources: sources,
-                currentSourceId: Self.idString(d["currentSourceId"])
+                currentSourceId: Self.idString(d["currentSourceId"]),
+                // The Web API has no play/pause or track info.
+                isPlaying: isOn
             )
         }
 
@@ -190,6 +193,8 @@ final class CrestronHomeBackend: HomeBackend {
             try await post("/mediarooms/\(id)/\(muted ? "mute" : "unmute")")
         case let .mediaSource(id, sourceId):
             try await post("/mediarooms/\(id)/selectsource/\(sourceId)")
+        case .mediaTransport:
+            throw BackendError.notSupported("Play, pause and skip")
         case let .setLock(id, locked):
             try await post("/doorlocks/\(locked ? "lock" : "unlock")/\(id)")
         case let .setSecurity(id, mode, code):

@@ -18,6 +18,8 @@ final class HomeStore {
     private(set) var commandError: String?
     /// Last time the user touched a control (drives the wall-panel screensaver).
     private(set) var lastUserAction = Date()
+    /// Goes up when something needs the screen awake (the doorbell); RootView hides StandBy.
+    private(set) var wakeRequests = 0
 
     @ObservationIgnored private var backend: HomeBackend?
     @ObservationIgnored private var loopTask: Task<Void, Never>?
@@ -81,8 +83,9 @@ final class HomeStore {
         connection = .idle
     }
 
-    func perform(_ command: HomeCommand) {
-        lastUserAction = Date()
+    /// `fromUser: false` for schedules and timers, so they don't keep StandBy away.
+    func perform(_ command: HomeCommand, fromUser: Bool = true) {
+        if fromUser { lastUserAction = Date() }
         if case let .setLight(id, _) = command, let light = home.lights.first(where: { $0.id == id }), light.isOn {
             lastLevels[id] = light.level
         }
@@ -107,6 +110,21 @@ final class HomeStore {
 
     func noteInteraction() {
         lastUserAction = Date()
+    }
+
+    /// Wakes StandBy and keeps it away while the doorbell card is up (it closes after 90 s).
+    func wakeScreen() {
+        lastUserAction = Date().addingTimeInterval(90)
+        wakeRequests += 1
+    }
+
+    /// Shows the doorbell pop-up as if the button was pressed (Settings › Test doorbell).
+    func testDoorbell(_ id: String) {
+        if let demo = backend as? DemoBackend {
+            demo.ring(id)
+        } else if let i = home.doorbells.firstIndex(where: { $0.id == id }) {
+            home.doorbells[i].ringAt = Date()
+        }
     }
 
     private func receive(_ snapshot: HomeSnapshot) {

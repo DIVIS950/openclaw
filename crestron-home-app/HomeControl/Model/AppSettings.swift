@@ -80,6 +80,8 @@ final class AppSettings {
     var appearance: Appearance
     /// Anthropic API key for Ask Home (kept in the Keychain).
     var assistantKey: String
+    /// Town or city for the weather and for sunrise/sunset schedules.
+    var location: HomeLocation?
 
     @ObservationIgnored private let defaults = UserDefaults.standard
 
@@ -97,6 +99,7 @@ final class AppSettings {
         cameras = (d.data(forKey: Keys.cameras)).flatMap { try? JSONDecoder().decode([CameraConfig].self, from: $0) } ?? []
         appearance = Appearance(rawValue: d.string(forKey: Keys.appearance) ?? "") ?? .automatic
         assistantKey = Keychain.read(Keys.assistantKey) ?? ""
+        location = d.data(forKey: Keys.location).flatMap { try? JSONDecoder().decode(HomeLocation.self, from: $0) }
     }
 
     func save() {
@@ -112,6 +115,24 @@ final class AppSettings {
         defaults.set(try? JSONEncoder().encode(cameras), forKey: Keys.cameras)
         defaults.set(appearance.rawValue, forKey: Keys.appearance)
         Keychain.write(assistantKey.trimmingCharacters(in: .whitespacesAndNewlines), for: Keys.assistantKey)
+        if let location {
+            defaults.set(try? JSONEncoder().encode(location), forKey: Keys.location)
+        } else {
+            defaults.removeObject(forKey: Keys.location)
+        }
+    }
+
+    /// True when the demo house is shown without a location: it uses a sample place and weather.
+    var usesSamplePlace: Bool { location == nil && mode == .demo }
+
+    /// The location to use. The demo house gets a sample place in this iPad's time zone,
+    /// so sunrise and sunset look right.
+    var effectiveLocation: HomeLocation? {
+        if let location { return location }
+        guard mode == .demo else { return nil }
+        let lon = Double(TimeZone.current.secondsFromGMT()) / 240
+        let unit: TemperatureUnit = Locale.current.measurementSystem == .us ? .fahrenheit : .celsius
+        return HomeLocation(place: "Demo town", lat: 40, lon: lon, unit: unit)
     }
 
     /// IP IDs are written in hex in SIMPL (e.g. "03", "1A").
@@ -151,5 +172,6 @@ final class AppSettings {
         static let cameras = "cameras"
         static let appearance = "appearance"
         static let assistantKey = "anthropic.apikey"
+        static let location = "location"
     }
 }

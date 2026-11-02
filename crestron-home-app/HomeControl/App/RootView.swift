@@ -38,6 +38,11 @@ struct RootView: View {
         .simultaneousGesture(TapGesture().onEnded { lastTouch = Date() })
         .onAppear { applyKiosk() }
         .onChange(of: settings.kioskMode) { applyKiosk() }
+        // The doorbell wakes StandBy so its pop-up can be seen.
+        .onChange(of: store.wakeRequests) {
+            withAnimation { showSaver = false }
+            lastTouch = Date()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { applyKiosk() }
         }

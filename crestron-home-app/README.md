@@ -90,6 +90,7 @@ The server pushes live changes to every open screen at once, so the wall iPad an
 - **StandBy**: in wall panel mode the iPad shows a big clock with the house status when nobody touches it.
 - **Ask Home**: the AI assistant, with the glowing screen edge while it listens.
 - **Room photos**: open a room and tap **Room photo**; the photo becomes that room's background on every screen.
+- **Edit Home and Favorites, weather, Automations (schedules, timers, vacation mode), richer music, camera wall and doorbell pop-up:** the same as in the iPad app, described under "More on the iPad" below. In the web app the **home server runs schedules and timers all the time**, even when no screen is open, and stores them for every screen. The Edit Home layout and favorites are kept per device. Set the town for weather in the gear button › **Location**.
 
 Settings in Home View (the gear button) cover appearance and wall panel mode. Connection, cameras and the AI key are set up in **Setup** in the classic view; Home View links there.
 
@@ -115,6 +116,23 @@ On iPad the native app opens straight into Home View: the room sidebar, the wall
 - **Room photos:** open a room and tap **Room photo**; the photo becomes that room's background.
 - **Appearance:** Settings › This device › Appearance (Automatic follows the iPad, or pick Light or Dark).
 - **Ask Home:** paste an Anthropic API key in **Settings › AI assistant**. The app calls Claude directly (no home server needed), with the same safety rules as the web app. To speak instead of typing, use the microphone key on the iPad keyboard.
+
+### More on the iPad: favorites, weather, schedules, doorbell
+
+The iPad app has the same extras as the web Home View. Each iPad keeps its own choices.
+
+- **Edit Home:** tap the pencil button at the top of Home, or **Edit Home** at the bottom. Remove a part with the red minus, add one with the green plus, and move parts up or down. **Reset to standard** puts everything back. Widgets that sit next to each other (weather, gate, alarm, Now Playing) share one row.
+- **Favorites:** tap the star at the top of any light, shade, music room or lock card. You can also pick favorites (and scenes) from a list: **Edit Home › Choose favorites**. They show in the **Favorites** part of Home.
+- **Weather:** in **Settings › Location**, type your town and tap **Save**. Home then shows the weather above the clock and in a weather widget, with sunrise and sunset. The weather comes from Open-Meteo (free, no key) every 15 minutes. The demo house uses a sample town and sample weather.
+- **Automations** (in the sidebar, under Controls):
+  - **Schedules:** run scenes, lights, shades, "all music off" or "lock all doors" at a time, or at sunrise or sunset (with minutes before or after), on the days you pick. Tap a schedule to change it; use the switch to turn it off. The **Ideas** buttons fill in common schedules for you.
+  - **Timers:** open a light, shade or music room and tap **Turn off in 15 min / 30 min / 1 h / 2 h** (for music this is a sleep timer).
+  - **Vacation mode:** lights go on and off at random through the evening, as if someone were home, and all go off at 11:30 PM.
+  - **Coming up** on Home shows the next schedules and running timers. Tap the × to cancel a timer.
+  - There is no home server in the native app, so **schedules and timers run on the iPad while the app is open**. A wall iPad in wall panel mode keeps the app open all day, so this works well there. If the iPad was off at that time, a schedule is skipped once it is more than 10 minutes late.
+- **Music:** Now Playing shows the song, artist and artwork colors, with previous, play/pause and next buttons when the system has them. In a music card, **Play this in every room** starts the same source at the same volume in the other rooms. The Media page has **Turn all off**.
+- **Camera wall:** on the Cameras page, tap **Camera wall** to see every camera at once on a black screen.
+- **Doorbell:** when someone rings, a card pops up over everything (and wakes StandBy) with the door camera, **hold to unlock** for the door's lock, and **Dismiss**. It closes by itself after 90 seconds. The camera is the one whose name matches the doorbell's `camera` name, or the first camera. To try it, use **Settings › Doorbell › Test**. Doorbells come from the custom-program join map (see below) and from the demo house.
 
 ## 3. Connect it to your house
 
@@ -149,6 +167,9 @@ Join map rules:
 - Every other number is a **digital** join. The app taps it like a button: press, then release.
 - Feedback joins (`onFeedback`, `powerFeedback`, `lockedFeedback`, …) are what the program sends back. If you leave one out, the app listens on the same number it presses, which is the usual SIMPL habit.
 - `security.code` is a **serial** join. The keypad code is sent there before the arm or disarm button is pressed.
+- Music rooms can also have `play`, `pause`, `next` and `previous` (digital, pressed like buttons). If you only have one play/pause button, map just `play` or just `pause` and it is used for both. `playingFeedback` is high while music plays (if you leave it out, "on" counts as playing).
+- `title`, `artist` and `album` in a music room are **serial** joins that the program sends with the song or show name.
+- `doorbells`: `ring` is the digital join that goes high when someone presses the doorbell. `camera` is the name of a camera from Settings › Cameras, and `lock` is the name of a lock from `locks`, for hold to unlock.
 - Rooms are optional, but they make the app look much better.
 
 > If the processor has **authentication** turned on (common on 4-Series), the touch-panel connection may be refused. Your installer can allow it or turn it off for that IP ID.
@@ -207,7 +228,8 @@ web/
   public/shared/                  data model, demo house and assistant rules, shared by browser and server
 HomeControl/
   App/            app entry, iPad sidebar / iPhone tabs, screensaver timer
-  Model/          data types, HomeStore (state + optimistic updates), settings, Keychain
+  Model/          data types, HomeStore (state + optimistic updates), settings, Keychain,
+                  AutomationStore + Automations (schedules, timers, vacation), Sun, Weather, HomeLayout
   Backends/
     DemoBackend.swift            pretend house
     CrestronHomeBackend.swift    Crestron Home Web API (/cws/api)

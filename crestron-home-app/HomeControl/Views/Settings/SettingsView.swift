@@ -10,7 +10,13 @@ struct SettingsView: View {
     var isSheet = false
     /// Opened from Home View (the iPad design): use the system's own light/dark styling.
     var homeView = false
+    /// Home View only: open Edit Home or the favorites picker.
+    var openEditHome: (() -> Void)? = nil
+    var openFavorites: (() -> Void)? = nil
     @State private var editingCamera: CameraConfig?
+    @State private var placeQuery = ""
+    @State private var placeBusy = false
+    @State private var placeMessage: String?
 
     var body: some View {
         @Bindable var settings = settings
@@ -111,6 +117,10 @@ struct SettingsView: View {
             } footer: {
                 Text("Wall panel mode keeps the screen on and shows StandBy (a big clock with the house at a glance) when idle. For a mounted iPad also turn on Guided Access (Settings › Accessibility) to lock it to this app.")
             }
+
+            if homeView {
+                homeViewSections
+            }
         }
         .scrollContentBackground(homeView ? .automatic : .hidden)
         .background { if !homeView { Theme.background.ignoresSafeArea() } }
@@ -128,6 +138,100 @@ struct SettingsView: View {
         .onDisappear { settings.save() }
         .sheet(item: $editingCamera) { camera in
             NavigationStack { CameraEditor(camera: camera) }
+        }
+    }
+
+    /// Home screen, location and doorbell settings for the iPad design.
+    @ViewBuilder
+    private var homeViewSections: some View {
+        if let openEditHome, let openFavorites {
+            Section {
+                Button(action: openEditHome) {
+                    Label("Edit Home", systemImage: "square.and.pencil")
+                }
+                Button(action: openFavorites) {
+                    Label("Favorites", systemImage: "star.fill")
+                }
+            } header: {
+                Text("Home screen")
+            } footer: {
+                Text("Add, remove and reorder what Home shows on this iPad, and pick your favorite lights, shades, music rooms and scenes.")
+            }
+        }
+
+        Section {
+            HStack(spacing: 10) {
+                TextField("Town or city", text: $placeQuery, prompt: Text("Town or city, for weather and sunset"))
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { findPlace() }
+                if placeBusy {
+                    ProgressView()
+                } else {
+                    Button("Save") { findPlace() }
+                        .disabled(placeQuery.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            if let location = settings.location {
+                LabeledContent("Location", value: location.place)
+                Button("Remove location", role: .destructive) {
+                    settings.location = nil
+                    settings.save()
+                    placeMessage = nil
+                }
+            } else if settings.usesSamplePlace {
+                Text("The demo house uses a sample place and sample weather.")
+                    .foregroundStyle(.secondary)
+            }
+            if let placeMessage {
+                Text(placeMessage).font(.footnote).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Location")
+        } footer: {
+            Text("Used for the weather on Home and for schedules at sunrise or sunset. Weather comes from Open-Meteo every 15 minutes.")
+        }
+
+        if !store.home.doorbells.isEmpty {
+            Section {
+                ForEach(store.home.doorbells) { bell in
+                    Button {
+                        settings.save()
+                        dismiss()
+                        store.testDoorbell(bell.id)
+                    } label: {
+                        Label("Test \(bell.name) doorbell", systemImage: "bell.fill")
+                    }
+                }
+            } header: {
+                Text("Doorbell")
+            } footer: {
+                Text("Shows the doorbell pop-up on this iPad, as if someone pressed the button.")
+            }
+        }
+    }
+
+    /// Looks the town up with Open-Meteo and saves it.
+    private func findPlace() {
+        let query = placeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, !placeBusy else { return }
+        placeBusy = true
+        placeMessage = nil
+        Task {
+            defer { placeBusy = false }
+            do {
+                if let found = try await WeatherService.findPlace(query) {
+                    settings.location = found
+                    settings.save()
+                    placeQuery = ""
+                    placeMessage = "Location set to \(found.place)."
+                } else {
+                    placeMessage = "Couldn't find “\(query)”. Try the nearest town or city."
+                }
+            } catch {
+                placeMessage = error.localizedDescription
+            }
         }
     }
 
@@ -192,7 +296,7 @@ struct JoinMapEditor: View {
         do {
             let map = try JoinMap.parse(settings.joinMapJSON)
             let count = map.lights.count + map.shades.count + map.scenes.count + map.media.count
-                + map.locks.count + map.security.count + map.gates.count
+                + map.locks.count + map.security.count + map.gates.count + map.doorbells.count
             result = "Looks good: \(map.rooms.count) rooms, \(count) controls."
             resultIsError = false
         } catch {

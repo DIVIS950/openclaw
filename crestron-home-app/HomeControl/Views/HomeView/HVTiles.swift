@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Small actions shared by tiles, widgets and sheets, with the notice that confirms them.
 @MainActor
@@ -35,6 +36,27 @@ enum HVAct {
     static func scene(_ store: HomeStore, _ nav: HVNav, _ scene: HomeScene) {
         store.perform(.recallScene(id: scene.id))
         nav.notify("\(scene.name) is on", symbol: Theme.sceneSymbol(scene), color: .orange)
+    }
+
+    /// The same source (by name) and volume in every other music room.
+    static func playEverywhere(_ store: HomeStore, _ nav: HVNav, _ lead: MediaZone) {
+        guard let source = lead.currentSource else { return }
+        for zone in store.home.media where zone.id != lead.id {
+            if let same = zone.sources.first(where: { $0.name == source.name }) {
+                store.perform(.mediaSource(zoneId: zone.id, sourceId: same.id))
+            }
+            if zone.hasVolume && lead.hasVolume {
+                store.perform(.mediaVolume(zoneId: zone.id, level: lead.volume))
+            }
+        }
+        nav.notify("\(source.name) in every room", symbol: "hifispeaker.2.fill", color: HV.media)
+    }
+
+    static func allMediaOff(_ store: HomeStore, _ nav: HVNav) {
+        for zone in store.home.media where zone.isOn {
+            store.perform(.mediaPower(zoneId: zone.id, on: false))
+        }
+        nav.notify("All music and TV off", symbol: "power", color: HV.media)
     }
 }
 
@@ -209,67 +231,134 @@ struct HVAccessoryGrid: View {
     var locks: [DoorLock] = []
     var showRoom = false
     @Environment(HomeStore.self) private var store
-    @Environment(HVNav.self) private var nav
 
     var body: some View {
         let home = store.home
         let roomName = { (id: String?) in showRoom ? home.room(id)?.name : nil }
         LazyVGrid(columns: HV.tileColumns, spacing: 12) {
-            ForEach(lights) { light in
-                HVTile(symbol: light.isOn ? "lightbulb.fill" : "lightbulb", name: light.name, state: HVText.light(light),
-                       color: HV.light, isOn: light.isOn, room: roomName(light.roomId), offline: !light.isOnline,
-                       level: light.isDimmable ? light.level : nil, toggleLabel: "\(light.name): turn \(light.isOn ? "off" : "on")",
-                       onToggle: { store.toggle(light: light.id) }, onOpen: { nav.sheet = .light(light.id) })
-            }
-            ForEach(shades) { shade in
-                let open = shade.position > 0.02
-                HVTile(symbol: open ? "blinds.horizontal.open" : "blinds.horizontal.closed", name: shade.name, state: HVText.shade(shade.position),
-                       color: HV.shade, isOn: open, room: roomName(shade.roomId), offline: !shade.isOnline,
-                       toggleLabel: "\(shade.name): \(open ? "close" : "open")",
-                       onToggle: { store.perform(.setShade(id: shade.id, position: open ? 0 : 1)) }, onOpen: { nav.sheet = .shade(shade.id) })
-            }
-            ForEach(media) { zone in
-                let state = zone.isOn ? "\(zone.currentSource?.name ?? "On")\(zone.hasVolume ? " · \(zone.isMuted ? "Muted" : zone.volume.percentText)" : "")" : "Off"
-                HVTile(symbol: HV.symbol(for: zone), name: home.tileName(zone), state: state, color: HV.media, isOn: zone.isOn,
-                       room: roomName(zone.roomId), toggleLabel: "\(zone.name): turn \(zone.isOn ? "off" : "on")",
-                       onToggle: { store.perform(.mediaPower(zoneId: zone.id, on: !zone.isOn)) }, onOpen: { nav.sheet = .media(zone.id) })
-            }
-            ForEach(locks) { lock in
-                let unlocked = lock.isLocked == false
-                HVTile(symbol: unlocked ? "lock.open.fill" : "lock.fill", name: lock.name, state: HVText.lock(lock),
-                       color: unlocked ? .orange : .green, isOn: lock.isLocked != nil, room: roomName(lock.roomId), warn: unlocked,
-                       toggleLabel: unlocked ? "Lock \(lock.name)" : "Unlock \(lock.name)",
-                       onToggle: { HVAct.lockTapped(store, nav, lock) }, onOpen: { nav.sheet = .lock(lock.id) })
-            }
+            ForEach(lights) { HVLightTile(light: $0, room: roomName($0.roomId)) }
+            ForEach(shades) { HVShadeTile(shade: $0, room: roomName($0.roomId)) }
+            ForEach(media) { HVMediaTile(zone: $0, room: roomName($0.roomId)) }
+            ForEach(locks) { HVLockTile(lock: $0, room: roomName($0.roomId)) }
         }
+    }
+}
+
+@MainActor
+struct HVLightTile: View {
+    let light: Light
+    var room: String?
+    @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        HVTile(symbol: light.isOn ? "lightbulb.fill" : "lightbulb", name: light.name, state: HVText.light(light),
+               color: HV.light, isOn: light.isOn, room: room, offline: !light.isOnline,
+               level: light.isDimmable ? light.level : nil, toggleLabel: "\(light.name): turn \(light.isOn ? "off" : "on")",
+               onToggle: { store.toggle(light: light.id) }, onOpen: { nav.sheet = .light(light.id) })
+    }
+}
+
+@MainActor
+struct HVShadeTile: View {
+    let shade: Shade
+    var room: String?
+    @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        let open = shade.position > 0.02
+        HVTile(symbol: open ? "blinds.horizontal.open" : "blinds.horizontal.closed", name: shade.name, state: HVText.shade(shade.position),
+               color: HV.shade, isOn: open, room: room, offline: !shade.isOnline,
+               toggleLabel: "\(shade.name): \(open ? "close" : "open")",
+               onToggle: { store.perform(.setShade(id: shade.id, position: open ? 0 : 1)) }, onOpen: { nav.sheet = .shade(shade.id) })
+    }
+}
+
+@MainActor
+struct HVMediaTile: View {
+    let zone: MediaZone
+    var room: String?
+    @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        let state = zone.isOn ? "\(zone.currentSource?.name ?? "On")\(zone.hasVolume ? " · \(zone.isMuted ? "Muted" : zone.volume.percentText)" : "")" : "Off"
+        HVTile(symbol: HV.symbol(for: zone), name: store.home.tileName(zone), state: state, color: HV.media, isOn: zone.isOn,
+               room: room, toggleLabel: "\(zone.name): turn \(zone.isOn ? "off" : "on")",
+               onToggle: { store.perform(.mediaPower(zoneId: zone.id, on: !zone.isOn)) }, onOpen: { nav.sheet = .media(zone.id) })
+    }
+}
+
+@MainActor
+struct HVLockTile: View {
+    let lock: DoorLock
+    var room: String?
+    @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        let unlocked = lock.isLocked == false
+        HVTile(symbol: unlocked ? "lock.open.fill" : "lock.fill", name: lock.name, state: HVText.lock(lock),
+               color: unlocked ? .orange : .green, isOn: lock.isLocked != nil, room: room, warn: unlocked,
+               toggleLabel: unlocked ? "Lock \(lock.name)" : "Unlock \(lock.name)",
+               onToggle: { HVAct.lockTapped(store, nav, lock) }, onOpen: { nav.sheet = .lock(lock.id) })
     }
 }
 
 extension HV {
     static let tileColumns = [GridItem(.adaptive(minimum: 184), spacing: 12)]
     static let widgetColumns = [GridItem(.adaptive(minimum: 258), spacing: 14, alignment: .top)]
+
+    /// A scene keeps the same color wherever it appears (Home, Favorites).
+    static func sceneColor(_ scene: HomeScene, in home: HomeSnapshot) -> Color {
+        let index = home.scenes.firstIndex { $0.id == scene.id } ?? 0
+        return sceneColors[index % sceneColors.count]
+    }
 }
 
 @MainActor
 struct HVSection<Content: View>: View {
     let title: String
     var open: (() -> Void)?
+    /// Small green capsule beside the title, e.g. "Vacation mode on".
+    var badge: String? = nil
+    /// A text button at the right end of the title row, e.g. "Edit".
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let open {
-                Button(action: open) {
-                    HStack(spacing: 3) {
-                        Text(title)
-                        Image(systemName: "chevron.right").font(.system(size: 15, weight: .bold)).foregroundStyle(.tertiary)
+            HStack(spacing: 10) {
+                if let open {
+                    Button(action: open) {
+                        HStack(spacing: 3) {
+                            Text(title)
+                            Image(systemName: "chevron.right").font(.system(size: 15, weight: .bold)).foregroundStyle(.tertiary)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .font(.title3.weight(.bold))
+                    .accessibilityHint("Opens \(title)")
+                } else {
+                    Text(title).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
                 }
-                .buttonStyle(.plain)
-                .font(.title3.weight(.bold))
-                .accessibilityHint("Opens the room")
-            } else {
-                Text(title).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
+                if let badge {
+                    Text(badge)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.green.opacity(0.18)))
+                }
+                Spacer(minLength: 0)
+                if let actionTitle, let action {
+                    Button(actionTitle, action: action)
+                        .font(.body.weight(.semibold))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                }
             }
             content
         }
@@ -409,7 +498,8 @@ struct HVWideButton: View {
     }
 }
 
-private extension View {
+extension View {
+    /// The frosted card every Home widget sits on.
     func hvWidget() -> some View {
         padding(18)
             .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
@@ -519,18 +609,25 @@ struct HVZoneWidget: View {
     var body: some View {
         let home = store.home
         let room = home.room(zone.roomId)?.name ?? zone.name
+        let source = zone.currentSource?.name ?? "On"
+        let track = zone.nowPlaying
+        // Song first when the system sends it, then artist, source and room.
+        let parts: [String?] = [track?.artist, track == nil ? nil : source, room]
+        let detail = parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         VStack(alignment: .leading, spacing: 14) {
             if zone.isOn {
                 HStack(spacing: 14) {
-                    HVArtwork(source: zone.currentSource?.name ?? "", symbol: HV.symbol(for: zone))
+                    HVArtwork(source: source, symbol: HV.symbol(for: zone), title: track?.title)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(zone.currentSource?.name ?? "On").font(.title3.weight(.bold)).lineLimit(1)
+                        Text(track?.title ?? source).font(.title3.weight(.bold)).lineLimit(2)
                         HStack(spacing: 6) {
-                            Text(room).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
+                            Text(detail).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).lineLimit(2)
                             if zone.isMuted {
                                 Text("· Muted").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                            } else {
+                            } else if zone.isPlaying {
                                 HVEqualizer()
+                            } else {
+                                Text("· Paused").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -538,6 +635,7 @@ struct HVZoneWidget: View {
                     HVMoreButton(label: "\(zone.name) controls") { nav.sheet = .media(zone.id) }
                 }
                 Spacer(minLength: 0)
+                if zone.canTransport { HVTransport(zone: zone) }
                 if zone.hasVolume { HVVolumeBar(zone: zone) }
                 if !others.isEmpty {
                     Button("Also playing in \(others.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: ", "))") { nav.go(.media) }
@@ -586,21 +684,68 @@ struct HVNowPlayingWidget: View {
 struct HVArtwork: View {
     let source: String
     let symbol: String
+    /// The song name: music gets colors made from it, so each song looks a little different.
+    var title: String?
+    var size: CGFloat = 66
 
     var body: some View {
-        let s = source.lowercased()
-        let colors: [Color] = s.contains("spotify") ? [.green, .teal]
-            : s.contains("apple") ? [Color(white: 0.25), Color(white: 0.55)]
-            : s.contains("cable") || s.contains("sat") ? [.blue, .indigo]
-            : s.contains("radio") ? [.orange, .pink]
-            : [.indigo, .pink]
         Image(systemName: symbol)
-            .font(.system(size: 26, weight: .semibold))
+            .font(.system(size: size * 0.4, weight: .semibold))
             .foregroundStyle(.white)
-            .frame(width: 66, height: 66)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)))
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous).fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)))
             .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
             .accessibilityHidden(true)
+    }
+
+    private var colors: [Color] {
+        let s = source.lowercased()
+        if s.contains("spotify") { return [.green, .teal] }
+        if s.contains("apple") { return [Color(white: 0.25), Color(white: 0.55)] }
+        if s.contains("cable") || s.contains("sat") { return [.blue, .indigo] }
+        if let title, !title.isEmpty, symbol != "tv" {
+            let hue = title.utf16.reduce(7) { ($0 * 31 + Int($1)) % 360 }
+            return [HV.hsl(Double(hue), 0.8, 0.62), HV.hsl(Double(hue + 70), 0.85, 0.5)]
+        }
+        if s.contains("radio") { return [.orange, .pink] }
+        return [.indigo, .pink]
+    }
+}
+
+/// Previous, play or pause, next.
+@MainActor
+struct HVTransport: View {
+    let zone: MediaZone
+    var big = false
+    @Environment(HomeStore.self) private var store
+
+    var body: some View {
+        HStack(spacing: big ? 26 : 18) {
+            button(.previous, "backward.fill", "Previous", main: false)
+            if zone.isPlaying {
+                button(.pause, "pause.fill", "Pause", main: true)
+            } else {
+                button(.play, "play.fill", "Play", main: true)
+            }
+            button(.next, "forward.fill", "Next", main: false)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func button(_ action: MediaTransportAction, _ symbol: String, _ label: String, main: Bool) -> some View {
+        let side: CGFloat = main ? (big ? 64 : 52) : (big ? 52 : 44)
+        return Button {
+            store.perform(.mediaTransport(zoneId: zone.id, action: action))
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: main ? (big ? 26 : 22) : 20, weight: .semibold))
+                .foregroundStyle(main ? Color(uiColor: .systemBackground) : Color.primary)
+                .frame(width: side, height: side)
+                .background(Circle().fill(main ? Color.primary : Color.clear))
+                .contentShape(Circle())
+        }
+        .buttonStyle(HVPress())
+        .accessibilityLabel(label)
     }
 }
 

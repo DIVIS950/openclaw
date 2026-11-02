@@ -7,6 +7,7 @@ struct HVSheetContent: View {
     let sheet: HVNav.Sheet
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
+    @Environment(AutomationStore.self) private var automations
     @Environment(HVNav.self) private var nav
 
     var body: some View {
@@ -30,7 +31,16 @@ struct HVSheetContent: View {
             case let .confirmGate(id, action):
                 if let gate = home.gates.first(where: { $0.id == id }) { HVConfirmGateSheet(gate: gate, action: action) } else { gone }
             case .settings:
-                NavigationStack { SettingsView(isSheet: true, homeView: true) }
+                NavigationStack {
+                    SettingsView(isSheet: true, homeView: true,
+                                 openEditHome: { nav.sheet = .editHome }, openFavorites: { nav.sheet = .favorites })
+                }
+            case .editHome:
+                HVEditHomeSheet()
+            case .favorites:
+                HVFavoritesSheet()
+            case let .schedule(draft):
+                HVScheduleSheet(schedule: draft, isNew: !automations.schedules.contains { $0.id == draft.id })
             }
         }
     }
@@ -41,14 +51,17 @@ struct HVSheetContent: View {
     }
 }
 
-/// Icon, name and room at the top of a card, with a close button.
+/// Icon, name and room at the top of a card, with a close button. With `favorite`
+/// ("light:l1"), a star adds it to or removes it from Favorites.
 @MainActor
 struct HVSheetHeader: View {
     let symbol: String
     let color: Color
     let title: String
     var subtitle: String?
+    var favorite: String? = nil
     @Environment(HVNav.self) private var nav
+    @Environment(HomeLayout.self) private var layout
 
     var body: some View {
         HStack(spacing: 12) {
@@ -64,6 +77,21 @@ struct HVSheetHeader: View {
                 }
             }
             Spacer(minLength: 8)
+            if let favorite {
+                let on = layout.isFavorite(favorite)
+                Button {
+                    let added = layout.toggleFavorite(favorite)
+                    nav.notify(added ? "Added to Favorites" : "Removed from Favorites", symbol: "star.fill", color: HV.light)
+                } label: {
+                    Image(systemName: on ? "star.fill" : "star")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(on ? HV.light : Color.secondary)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(on ? HV.light.opacity(0.18) : Color.primary.opacity(0.1)))
+                }
+                .buttonStyle(HVPress())
+                .accessibilityLabel(on ? "Remove from Favorites" : "Add to Favorites")
+            }
             Button { nav.sheet = nil } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
@@ -77,7 +105,8 @@ struct HVSheetHeader: View {
     }
 }
 
-private extension View {
+extension View {
+    /// Padding and minimum width for the cards that open over the page.
     func hvCard() -> some View {
         padding(.horizontal, 24)
             .padding(.top, 22)
@@ -86,10 +115,11 @@ private extension View {
     }
 }
 
-private struct HVPill: View {
+struct HVPill: View {
     let title: String
     var symbol: String?
     var selected = false
+    var small = false
     let action: () -> Void
 
     var body: some View {
@@ -98,9 +128,9 @@ private struct HVPill: View {
                 if let symbol { Image(systemName: symbol) }
                 Text(title)
             }
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .font(small ? Font.footnote.weight(.semibold) : Font.subheadline.weight(.semibold))
+            .padding(.horizontal, small ? 13 : 16)
+            .padding(.vertical, small ? 8 : 10)
             .foregroundStyle(selected ? Color(uiColor: .systemBackground) : Color.primary)
             .background(Capsule().fill(selected ? Color.primary : Color.primary.opacity(0.1)))
         }
@@ -129,7 +159,8 @@ struct HVLightSheet: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            HVSheetHeader(symbol: "lightbulb.fill", color: HV.light, title: light.name, subtitle: store.home.room(light.roomId)?.name)
+            HVSheetHeader(symbol: "lightbulb.fill", color: HV.light, title: light.name, subtitle: store.home.room(light.roomId)?.name,
+                          favorite: FavoriteKind.light.key(light.id))
             HVBigValue(text: HVText.light(light))
             if light.isDimmable {
                 HVBigSlider(value: light.level, style: .light, symbol: light.isOn ? "lightbulb.fill" : "lightbulb", label: "\(light.name) brightness") { level in
@@ -151,6 +182,9 @@ struct HVLightSheet: View {
                 .accessibilityLabel("\(light.name): turn \(light.isOn ? "off" : "on")")
                 Text("Tap to turn \(light.isOn ? "off" : "on").").font(.subheadline).foregroundStyle(.secondary)
             }
+            if light.isOn {
+                HVTimerPills(verb: "Turn off", label: "\(light.name) off", command: .light(id: light.id, level: 0))
+            }
         }
         .hvCard()
     }
@@ -163,7 +197,8 @@ struct HVShadeSheet: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            HVSheetHeader(symbol: "blinds.horizontal.closed", color: HV.shade, title: shade.name, subtitle: store.home.room(shade.roomId)?.name)
+            HVSheetHeader(symbol: "blinds.horizontal.closed", color: HV.shade, title: shade.name, subtitle: store.home.room(shade.roomId)?.name,
+                          favorite: FavoriteKind.shade.key(shade.id))
             HVBigValue(text: HVText.shade(shade.position))
             if shade.supportsPosition {
                 HVBigSlider(value: shade.position, style: .shade, symbol: "blinds.horizontal.closed", label: "\(shade.name) position") { position in
@@ -177,6 +212,9 @@ struct HVShadeSheet: View {
                 }
                 HVPill(title: "Close", symbol: "arrow.down") { store.perform(.setShade(id: shade.id, position: 0)) }
             }
+            if shade.position > 0.02 {
+                HVTimerPills(verb: "Close", label: "\(shade.name) closed", command: .shade(id: shade.id, position: 0))
+            }
         }
         .hvCard()
     }
@@ -186,11 +224,14 @@ struct HVShadeSheet: View {
 struct HVMediaSheet: View {
     let zone: MediaZone
     @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
 
     var body: some View {
+        let source = zone.currentSource?.name ?? ""
+        let state = zone.isPlaying ? "Playing" : "Paused"
         VStack(alignment: .leading, spacing: 20) {
             HVSheetHeader(symbol: HV.symbol(for: zone), color: HV.media, title: zone.name,
-                          subtitle: zone.isOn ? "Playing \(zone.currentSource?.name ?? "")" : "Off")
+                          subtitle: zone.isOn ? "\(state) · \(source)" : "Off", favorite: FavoriteKind.media.key(zone.id))
             HStack(alignment: .top, spacing: 26) {
                 if zone.hasVolume {
                     VStack(spacing: 14) {
@@ -205,6 +246,14 @@ struct HVMediaSheet: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 18) {
+                    if zone.isOn {
+                        nowPlaying(source: source, state: state)
+                        if zone.currentSourceId != nil && store.home.media.count > 1 {
+                            HVPill(title: "Play this in every room", symbol: "hifispeaker.2.fill") {
+                                HVAct.playEverywhere(store, nav, zone)
+                            }
+                        }
+                    }
                     Toggle(isOn: Binding(get: { zone.isOn }, set: { store.perform(.mediaPower(zoneId: zone.id, on: $0)) })) {
                         Label("Power", systemImage: "power").font(.body.weight(.semibold))
                     }
@@ -233,11 +282,59 @@ struct HVMediaSheet: View {
                         }
                         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.primary.opacity(0.07)))
                     }
+                    if zone.isOn {
+                        HVTimerPills(verb: "Sleep timer: off", label: "\(zone.name) off", command: .mediaPower(id: zone.id, on: false))
+                    }
                 }
                 .frame(minWidth: 260)
             }
         }
         .hvCard()
+    }
+
+    /// Artwork, song and artist, and the play buttons.
+    private func nowPlaying(source: String, state: String) -> some View {
+        let track = zone.nowPlaying
+        let artist = [track?.artist ?? "", track?.album ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
+        return VStack(spacing: 12) {
+            HVArtwork(source: source, symbol: HV.symbol(for: zone), title: track?.title, size: 132)
+            VStack(spacing: 2) {
+                Text(track?.title ?? (source.isEmpty ? "On" : source)).font(.title3.weight(.bold)).multilineTextAlignment(.center)
+                Text(artist.isEmpty ? state : artist).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            }
+            if zone.canTransport { HVTransport(zone: zone, big: true) }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(18)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.primary.opacity(0.07)))
+    }
+}
+
+/// "Turn off in 15 min / 30 min / 1 h / 2 h": a timer that runs on this iPad.
+@MainActor
+struct HVTimerPills: View {
+    let verb: String
+    let label: String
+    let command: TimerCommand
+    @Environment(AutomationStore.self) private var automations
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Label("\(verb) in", systemImage: "timer")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ForEach([15, 30, 60, 120], id: \.self) { minutes in
+                    let text = minutes >= 60 ? "\(minutes / 60) h" : "\(minutes) min"
+                    HVPill(title: text, small: true) {
+                        automations.addTimer(minutes: minutes, label: label, command: command)
+                        nav.notify("\(label) in \(text)", symbol: "timer", color: .orange)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -251,7 +348,7 @@ struct HVLockSheet: View {
         let unlocked = lock.isLocked == false
         VStack(spacing: 22) {
             HVSheetHeader(symbol: unlocked ? "lock.open.fill" : "lock.fill", color: unlocked ? .orange : .green,
-                          title: lock.name, subtitle: store.home.room(lock.roomId)?.name)
+                          title: lock.name, subtitle: store.home.room(lock.roomId)?.name, favorite: FavoriteKind.lock.key(lock.id))
             HVBigValue(text: HVText.lock(lock))
             if unlocked {
                 Button { HVAct.lockTapped(store, nav, lock) } label: {

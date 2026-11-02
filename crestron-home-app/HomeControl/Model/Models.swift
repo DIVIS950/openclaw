@@ -49,6 +49,13 @@ struct MediaSource: Identifiable, Hashable {
     var name: String
 }
 
+/// Song or show info, when the system sends it.
+struct NowPlaying: Hashable {
+    var title: String
+    var artist = ""
+    var album = ""
+}
+
 struct MediaZone: Identifiable, Hashable {
     let id: String
     var name: String
@@ -60,6 +67,11 @@ struct MediaZone: Identifiable, Hashable {
     var hasVolume = true
     var sources: [MediaSource]
     var currentSourceId: String?
+    /// Playing rather than paused. Systems without play/pause feedback report "on".
+    var isPlaying = false
+    /// True when the room has play/pause/next/previous buttons.
+    var canTransport = false
+    var nowPlaying: NowPlaying? = nil
 
     var currentSource: MediaSource? { sources.first { $0.id == currentSourceId } }
 }
@@ -126,6 +138,16 @@ struct HomeSensor: Identifiable, Hashable {
     var isActive: Bool
 }
 
+/// A doorbell button. `ringAt` is when it was last pressed; the iPad shows a pop-up
+/// with the camera whose name matches `cameraName` (or the first camera).
+struct Doorbell: Identifiable, Hashable {
+    let id: String
+    var name: String
+    var cameraName: String? = nil
+    var lockId: String? = nil
+    var ringAt: Date? = nil
+}
+
 struct HomeSnapshot: Hashable {
     var rooms: [Room] = []
     var lights: [Light] = []
@@ -136,10 +158,15 @@ struct HomeSnapshot: Hashable {
     var security: [SecurityPanel] = []
     var gates: [Gate] = []
     var sensors: [HomeSensor] = []
+    var doorbells: [Doorbell] = []
 }
 
 enum GateAction: String {
     case open, close, stop, trigger
+}
+
+enum MediaTransportAction: String, Hashable {
+    case play, pause, next, previous
 }
 
 enum HomeCommand {
@@ -151,6 +178,7 @@ enum HomeCommand {
     case mediaVolume(zoneId: String, level: Double)
     case mediaMute(zoneId: String, muted: Bool)
     case mediaSource(zoneId: String, sourceId: String)
+    case mediaTransport(zoneId: String, action: MediaTransportAction)
     case setLock(id: String, locked: Bool)
     case setSecurity(id: String, mode: SecurityMode, code: String?)
     case gate(id: String, action: GateAction)
@@ -166,6 +194,7 @@ enum HomeCommand {
         case let .mediaVolume(id, _): "volume:\(id)"
         case let .mediaMute(id, _): "mute:\(id)"
         case let .mediaSource(id, _): "source:\(id)"
+        case let .mediaTransport(id, action): action == .play || action == .pause ? "playing:\(id)" : nil
         case let .setLock(id, _): "lock:\(id)"
         case let .setSecurity(id, _, _): "security:\(id)"
         case .stopShade, .recallScene, .gate: nil
@@ -196,6 +225,10 @@ extension HomeSnapshot {
             if let i = media.firstIndex(where: { $0.id == id }) {
                 media[i].currentSourceId = sourceId
                 media[i].isOn = true
+            }
+        case let .mediaTransport(id, action):
+            if action == .play || action == .pause, let i = media.firstIndex(where: { $0.id == id }) {
+                media[i].isPlaying = action == .play
             }
         case let .setLock(id, locked):
             if let i = locks.firstIndex(where: { $0.id == id }) { locks[i].isLocked = locked }

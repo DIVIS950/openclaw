@@ -20,7 +20,10 @@ struct HVHeader: View {
     let title: String
     var subtitle: String?
     var showBack = false
+    /// Home shows the weather above the clock and an Edit Home button.
+    var isHome = false
     @Environment(HVNav.self) private var nav
+    @Environment(WeatherStore.self) private var weather
     @Environment(\.hvCompact) private var compact
 
     var body: some View {
@@ -48,10 +51,26 @@ struct HVHeader: View {
                 }
             }
             Spacer(minLength: 12)
-            if !compact { HVClock(size: 62) }
+            if !compact {
+                VStack(alignment: .trailing, spacing: 2) {
+                    if isHome, let w = weather.weather {
+                        HStack(spacing: 6) {
+                            Image(systemName: w.symbol).symbolRenderingMode(.multicolor)
+                            Text("\(w.temp)°").font(.body.weight(.semibold))
+                            Text("H \(w.high)° · L \(w.low)°").font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(w.text), \(w.temp) degrees, high \(w.high), low \(w.low)")
+                    }
+                    HVClock(size: 62)
+                }
+            }
             HStack(spacing: 10) {
                 if compact {
                     roundButton("square.grid.2x2", label: "Rooms and controls") { nav.sidebarOpen = true }
+                }
+                if isHome {
+                    roundButton("square.and.pencil", label: "Edit Home") { nav.sheet = .editHome }
                 }
                 Button { nav.askOpen = true } label: {
                     HVOrb(size: 26).frame(width: 46, height: 46).background(.ultraThinMaterial, in: Circle())
@@ -97,59 +116,129 @@ private struct HVConnectionNotice: View {
 struct HVHomePage: View {
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
+    @Environment(HomeLayout.self) private var layout
     @Environment(HVNav.self) private var nav
+
+    /// One row of widgets, or one full-width part.
+    private enum Block: Identifiable {
+        case widgets([HomePart])
+        case part(HomePart)
+
+        var id: String {
+            switch self {
+            case let .widgets(parts): "widgets:\(parts.first?.rawValue ?? "")"
+            case let .part(part): part.rawValue
+            }
+        }
+    }
 
     var body: some View {
         let home = store.home
+        let nothing = home.rooms.isEmpty && home.lights.isEmpty && home.scenes.isEmpty
         VStack(alignment: .leading, spacing: 28) {
             TimelineView(.everyMinute) { context in
                 HVHeader(eyebrow: context.date.formatted(.dateTime.weekday(.wide).month(.wide).day()),
-                         title: greeting(context.date), subtitle: summary(home))
+                         title: greeting(context.date), subtitle: nothing ? nil : summary(home), isHome: true)
             }
             HVConnectionNotice()
-            HVStatusChips()
-            LazyVGrid(columns: HV.widgetColumns, spacing: 14) {
-                ForEach(home.gates) { HVGateWidget(gate: $0) }
-                if let panel = home.security.first { HVSecurityWidget(panel: panel) }
-                HVNowPlayingWidget()
-            }
-            let scenes = home.homeScenes
-            if !scenes.isEmpty {
-                HVSection(title: "Scenes") {
-                    LazyVGrid(columns: HV.tileColumns, spacing: 12) {
-                        ForEach(Array(scenes.enumerated()), id: \.element.id) { index, scene in
-                            HVSceneTile(scene: scene, color: HV.sceneColors[index % HV.sceneColors.count])
-                        }
+            ForEach(blocks(home)) { block in
+                switch block {
+                case let .widgets(parts):
+                    LazyVGrid(columns: HV.widgetColumns, spacing: 14) {
+                        ForEach(parts) { widget($0) }
                     }
+                case let .part(part):
+                    section(part)
                 }
             }
-            if !settings.cameras.isEmpty {
-                HVSection(title: "Cameras", open: settings.cameras.count > 2 ? { nav.go(.cameras) } : nil) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14)], spacing: 14) {
-                        ForEach(settings.cameras.prefix(2)) { HVCameraTile(camera: $0) }
-                    }
-                }
-            }
-            ForEach(home.rooms) { room in
-                let lights = home.lights(in: room.id), shades = home.shades(in: room.id)
-                let media = home.media(in: room.id), locks = home.locks(in: room.id)
-                if !(lights.isEmpty && shades.isEmpty && media.isEmpty && locks.isEmpty) {
-                    HVSection(title: room.name, open: { nav.go(.room(room.id)) }) {
-                        HVAccessoryGrid(lights: lights, shades: shades, media: media, locks: locks)
-                    }
-                }
-            }
-            let known = { (id: String?) in home.knownRoomId(id) != nil }
-            let otherLights = home.lights.filter { !known($0.roomId) }, otherShades = home.shades.filter { !known($0.roomId) }
-            let otherMedia = home.media.filter { !known($0.roomId) }, otherLocks = home.locks.filter { !known($0.roomId) }
-            if !(otherLights.isEmpty && otherShades.isEmpty && otherMedia.isEmpty && otherLocks.isEmpty) {
-                HVSection(title: "Other") {
-                    HVAccessoryGrid(lights: otherLights, shades: otherShades, media: otherMedia, locks: otherLocks)
-                }
-            }
-            if home.rooms.isEmpty && home.lights.isEmpty && home.scenes.isEmpty && store.connection == .connected {
+            if nothing && store.connection == .connected {
                 ContentUnavailableView("No devices yet", systemImage: "house", description: Text("Open Settings to connect your Crestron system."))
             }
+            Button { nav.sheet = .editHome } label: {
+                Label("Edit Home", systemImage: "square.and.pencil")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 11)
+                    .hvGlass(30)
+            }
+            .buttonStyle(HVPress())
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// The parts this iPad shows, in order, leaving out empty ones. Widgets next to each
+    /// other share one adaptive row.
+    private func blocks(_ home: HomeSnapshot) -> [Block] {
+        var result: [Block] = []
+        var row: [HomePart] = []
+        for part in layout.parts where shows(part, home) {
+            if part.isWidget {
+                row.append(part)
+            } else {
+                if !row.isEmpty { result.append(.widgets(row)) }
+                row = []
+                result.append(.part(part))
+            }
+        }
+        if !row.isEmpty { result.append(.widgets(row)) }
+        return result
+    }
+
+    private func shows(_ part: HomePart, _ home: HomeSnapshot) -> Bool {
+        switch part {
+        case .status:
+            return !(home.lights.isEmpty && home.security.isEmpty && home.locks.isEmpty && home.gates.isEmpty
+                && home.shades.isEmpty && home.media.isEmpty)
+        case .weather, .favorites, .upcoming, .rooms: return true
+        case .gate: return !home.gates.isEmpty
+        case .alarm: return !home.security.isEmpty
+        case .music: return !home.media.isEmpty
+        case .scenes: return !home.homeScenes.isEmpty
+        case .cameras: return !settings.cameras.isEmpty
+        }
+    }
+
+    @ViewBuilder
+    private func widget(_ part: HomePart) -> some View {
+        let home = store.home
+        switch part {
+        case .weather: HVWeatherWidget()
+        case .gate: ForEach(home.gates) { HVGateWidget(gate: $0) }
+        case .alarm: if let panel = home.security.first { HVSecurityWidget(panel: panel) }
+        case .music: HVNowPlayingWidget()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func section(_ part: HomePart) -> some View {
+        let home = store.home
+        switch part {
+        case .status:
+            HVStatusChips()
+        case .favorites:
+            HVFavoritesPart()
+        case .scenes:
+            HVSection(title: "Scenes") {
+                LazyVGrid(columns: HV.tileColumns, spacing: 12) {
+                    ForEach(home.homeScenes) { scene in
+                        HVSceneTile(scene: scene, color: HV.sceneColor(scene, in: home))
+                    }
+                }
+            }
+        case .upcoming:
+            HVUpcomingPart()
+        case .cameras:
+            HVSection(title: "Cameras", open: { nav.go(.cameras) }) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14)], spacing: 14) {
+                    ForEach(settings.cameras.prefix(2)) { HVCameraTile(camera: $0) }
+                }
+            }
+        case .rooms:
+            HVRoomsPart()
+        default:
+            EmptyView()
         }
     }
 
@@ -176,6 +265,34 @@ struct HVHomePage: View {
             parts.append("Playing in \(playing.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: " and "))")
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Every room with its accessories, then "Other" for devices without a known room.
+@MainActor
+private struct HVRoomsPart: View {
+    @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
+
+    var body: some View {
+        let home = store.home
+        ForEach(home.rooms) { room in
+            let lights = home.lights(in: room.id), shades = home.shades(in: room.id)
+            let media = home.media(in: room.id), locks = home.locks(in: room.id)
+            if !(lights.isEmpty && shades.isEmpty && media.isEmpty && locks.isEmpty) {
+                HVSection(title: room.name, open: { nav.go(.room(room.id)) }) {
+                    HVAccessoryGrid(lights: lights, shades: shades, media: media, locks: locks)
+                }
+            }
+        }
+        let known = { (id: String?) in home.knownRoomId(id) != nil }
+        let otherLights = home.lights.filter { !known($0.roomId) }, otherShades = home.shades.filter { !known($0.roomId) }
+        let otherMedia = home.media.filter { !known($0.roomId) }, otherLocks = home.locks.filter { !known($0.roomId) }
+        if !(otherLights.isEmpty && otherShades.isEmpty && otherMedia.isEmpty && otherLocks.isEmpty) {
+            HVSection(title: "Other") {
+                HVAccessoryGrid(lights: otherLights, shades: otherShades, media: otherMedia, locks: otherLocks)
+            }
+        }
     }
 }
 
@@ -339,12 +456,22 @@ struct HVShadesPage: View {
 @MainActor
 struct HVMediaPage: View {
     @Environment(HomeStore.self) private var store
+    @Environment(HVNav.self) private var nav
 
     var body: some View {
         let home = store.home
         let playing = home.media.filter(\.isOn).count
+        let lead = home.media.first { $0.isOn && $0.currentSource != nil }
         VStack(alignment: .leading, spacing: 28) {
             HVHeader(eyebrow: "Media", title: playing == 0 ? "Nothing playing" : "Playing in \(playing) \(playing == 1 ? "room" : "rooms")")
+            if let lead, home.media.count > 1 {
+                HStack(spacing: 8) {
+                    HVQuickButton(title: "Play \(lead.currentSource?.name ?? "this") everywhere", symbol: "hifispeaker.2.fill") {
+                        HVAct.playEverywhere(store, nav, lead)
+                    }
+                    HVQuickButton(title: "Turn all off", symbol: "power") { HVAct.allMediaOff(store, nav) }
+                }
+            }
             if home.media.isEmpty {
                 ContentUnavailableView("No media rooms", systemImage: "music.note")
             } else {
@@ -394,10 +521,16 @@ struct HVSecurityPage: View {
 @MainActor
 struct HVCamerasPage: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(HVNav.self) private var nav
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
             HVHeader(eyebrow: "Cameras", title: "Cameras", subtitle: settings.cameras.isEmpty ? nil : "\(settings.cameras.count) live")
+            if !settings.cameras.isEmpty {
+                HStack(spacing: 8) {
+                    HVQuickButton(title: "Camera wall", symbol: "square.grid.2x2.fill") { nav.cameraWall = true }
+                }
+            }
             if settings.cameras.isEmpty {
                 ContentUnavailableView("No cameras yet", systemImage: "video", description: Text("Add a camera's snapshot URL in Settings › Cameras."))
             } else {

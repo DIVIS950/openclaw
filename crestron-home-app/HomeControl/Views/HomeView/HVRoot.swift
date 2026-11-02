@@ -8,8 +8,14 @@ struct HVRoot: View {
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
     @Environment(RoomPhotos.self) private var photos
+    @Environment(AutomationStore.self) private var automations
+    @Environment(WeatherStore.self) private var weather
+    @Environment(HomeLayout.self) private var layout
     @State private var nav = HVNav()
     @State private var ask = HVAskModel()
+    /// The newest ring already handled per doorbell, and whether the first list has been seen.
+    @State private var seenRings: [String: Date] = [:]
+    @State private var ringsPrimed = false
 
     var body: some View {
         GeometryReader { geo in
@@ -48,19 +54,64 @@ struct HVRoot: View {
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+
+                if let alert = nav.doorbell {
+                    HVDoorbellCard(alert: alert)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                }
             }
             .overlay(alignment: .top) { island }
             .environment(\.hvCompact, compact)
             .animation(.spring(response: 0.45, dampingFraction: 0.85), value: nav.askOpen)
             .animation(.spring(response: 0.4, dampingFraction: 0.9), value: nav.sidebarOpen)
+            .animation(.spring(response: 0.45, dampingFraction: 0.85), value: nav.doorbell)
         }
         .environment(nav)
         .environment(ask)
         .sheet(item: $nav.sheet) { sheet in
             sheetView(sheet)
         }
+        .fullScreenCover(isPresented: $nav.cameraWall) {
+            HVCameraWall(cameras: settings.cameras) { nav.cameraWall = false }
+        }
         .onChange(of: store.commandError) { _, message in
             if let message { nav.notify(message, symbol: "exclamationmark.triangle.fill", color: .red, seconds: 4) }
+        }
+        .onChange(of: store.home.doorbells, initial: true) { _, bells in checkDoorbells(bells) }
+        // The doorbell card closes by itself after 90 seconds.
+        .task(id: nav.doorbell) {
+            guard nav.doorbell != nil else { return }
+            try? await Task.sleep(for: .seconds(90))
+            guard !Task.isCancelled else { return }
+            nav.doorbell = nil
+        }
+        // Weather for Home, every 15 minutes; starts over when the location changes.
+        .task(id: settings.effectiveLocation) {
+            await weather.run(location: settings.effectiveLocation, sample: settings.usesSamplePlace)
+        }
+    }
+
+    /// Shows the doorbell card for a ring newer than the last one seen, if it is under a
+    /// minute old. Rings that were there when the app connected are old news.
+    private func checkDoorbells(_ bells: [Doorbell]) {
+        guard !bells.isEmpty else {
+            ringsPrimed = false
+            return
+        }
+        let first = !ringsPrimed
+        ringsPrimed = true
+        for bell in bells {
+            guard let ringAt = bell.ringAt else { continue }
+            if let seen = seenRings[bell.id], ringAt <= seen { continue }
+            seenRings[bell.id] = ringAt
+            guard !first, Date().timeIntervalSince(ringAt) < 60 else { continue }
+            // Over everything: close whatever card or camera wall is open.
+            nav.sheet = nil
+            nav.cameraWall = false
+            nav.sidebarOpen = false
+            nav.doorbell = HVNav.DoorbellAlert(id: bell.id, ringAt: ringAt)
+            store.wakeScreen()
+            UIAccessibility.post(notification: .announcement, argument: "\(bell.name): someone is at the door")
         }
     }
 
@@ -80,6 +131,7 @@ struct HVRoot: View {
                 case .media: HVMediaPage()
                 case .security: HVSecurityPage()
                 case .cameras: HVCamerasPage()
+                case .automations: HVAutomationsPage()
                 }
             }
             .frame(maxWidth: 1180, alignment: .leading)
@@ -99,10 +151,17 @@ struct HVRoot: View {
             .environment(store)
             .environment(settings)
             .environment(photos)
+            .environment(automations)
+            .environment(weather)
+            .environment(layout)
             .environment(nav)
             .preferredColorScheme(settings.appearance.colorScheme)
         if case .settings = sheet {
             card
+        } else if sheet.isList {
+            card
+                .presentationBackground(.regularMaterial)
+                .presentationCornerRadius(36)
         } else {
             card
                 .presentationBackground(.regularMaterial)
@@ -143,6 +202,7 @@ struct HVRoot: View {
 struct HVSidebar: View {
     @Environment(HomeStore.self) private var store
     @Environment(AppSettings.self) private var settings
+    @Environment(AutomationStore.self) private var automations
     @Environment(HVNav.self) private var nav
     @Environment(\.colorScheme) private var scheme
 
@@ -198,6 +258,8 @@ struct HVSidebar: View {
                 if !settings.cameras.isEmpty {
                     item(.cameras, "Cameras", "video.fill", HV.camera, count: "\(settings.cameras.count)")
                 }
+                let active = automations.activeCount
+                item(.automations, "Automations", "calendar", .green, count: active > 0 ? "\(active)" : nil)
             }
             .padding(12)
         }

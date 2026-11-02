@@ -316,6 +316,8 @@ enum HomeAssistant {
         case let .mediaSource(id, sourceId):
             let zone = home.media.first { $0.id == id }
             return "\(zone?.name ?? id) → \(zone?.sources.first { $0.id == sourceId }?.name ?? sourceId)"
+        case let .mediaTransport(id, action):
+            return "\(name(home.media, id, \.name)) → \(action.rawValue)"
         case let .setLock(id, locked):
             return "\(locked ? "Lock" : "Unlock") \(name(home.locks, id, \.name))"
         case let .setSecurity(id, mode, _):

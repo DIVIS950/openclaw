@@ -13,6 +13,9 @@ final class CustomProgramBackend: HomeBackend {
     private let client: CIPClient
     private var digital: [Int: Bool] = [:]
     private var analog: [Int: Int] = [:]
+    private var serial: [Int: String] = [:]
+    /// Doorbell index -> when its ring join last went high.
+    private var ringAt: [Int: Date] = [:]
     private var publishScheduled = false
     private var hasConnected = false
 
@@ -22,7 +25,15 @@ final class CustomProgramBackend: HomeBackend {
         self.map = map
         client = CIPClient(host: cleanHost, port: port, ipId: ipId)
         client.onDigital = { [weak self] join, value in
-            self?.digital[join] = value
+            guard let self else { return }
+            self.digital[join] = value
+            if value {
+                for (i, bell) in self.map.doorbells.enumerated() where bell.ring == join { self.ringAt[i] = Date() }
+            }
+            self.schedulePublish()
+        }
+        client.onSerial = { [weak self] join, text in
+            self?.serial[join] = text
             self?.schedulePublish()
         }
         client.onAnalog = { [weak self] join, value in
@@ -85,6 +96,9 @@ final class CustomProgramBackend: HomeBackend {
 
     private func isHigh(_ join: Int?) -> Bool { join.map { digital[$0] ?? false } ?? false }
     private func level(_ join: Int?) -> Double? { join.map { Double(analog[$0] ?? 0) / 65535 } }
+    private func text(_ join: Int?) -> String {
+        join.map { (serial[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+    }
 
     private func snapshot() -> HomeSnapshot {
         var home = HomeSnapshot()
@@ -120,6 +134,8 @@ final class CustomProgramBackend: HomeBackend {
             let e = map.media[i]
             let sources = (e.sources ?? []).indices.map { si in MediaSource(id: "src-\(si)", name: e.sources?[si].name ?? "") }
             let current = (e.sources ?? []).enumerated().first { isHigh($0.element.feedback ?? $0.element.press) }
+            // Optional transport buttons and song-name text joins.
+            let title = text(e.title)
             return MediaZone(
                 id: "media-\(i)", name: e.name, roomId: e.room,
                 isOn: isHigh(e.powerFeedback ?? e.powerOn),
@@ -127,7 +143,10 @@ final class CustomProgramBackend: HomeBackend {
                 isMuted: isHigh(e.muteFeedback ?? e.mute),
                 hasVolume: e.volume != nil,
                 sources: sources,
-                currentSourceId: current.map { "src-\($0.offset)" }
+                currentSourceId: current.map { "src-\($0.offset)" },
+                isPlaying: isHigh(e.playingFeedback ?? e.powerFeedback ?? e.powerOn),
+                canTransport: e.play != nil || e.pause != nil || e.next != nil || e.previous != nil,
+                nowPlaying: title.isEmpty ? nil : NowPlaying(title: title, artist: text(e.artist), album: text(e.album))
             )
         }
 
@@ -160,6 +179,13 @@ final class CustomProgramBackend: HomeBackend {
             }
             return Gate(id: "gate-\(i)", name: e.name, state: state,
                         hasSeparateOpenClose: e.open != nil && e.close != nil, canStop: e.stop != nil)
+        }
+
+        home.doorbells = map.doorbells.indices.map { i -> Doorbell in
+            let e = map.doorbells[i]
+            let lockIndex = map.locks.firstIndex { $0.name == e.lock }
+            return Doorbell(id: "doorbell-\(i)", name: e.name, cameraName: e.camera,
+                            lockId: lockIndex.map { "lock-\($0)" }, ringAt: ringAt[i])
         }
         return home
     }
@@ -212,6 +238,18 @@ final class CustomProgramBackend: HomeBackend {
             let sources = e.sources ?? []
             guard let i = index(sourceId), sources.indices.contains(i) else { throw BackendError.badResponse("Unknown source") }
             client.pulse(sources[i].press)
+        case let .mediaTransport(id, action):
+            let e = try entry(map.media, id)
+            // A single play/pause button is common: use it for both when only one is mapped.
+            let join: Int?
+            switch action {
+            case .play: join = e.play ?? e.pause
+            case .pause: join = e.pause ?? e.play
+            case .next: join = e.next
+            case .previous: join = e.previous
+            }
+            guard let join else { throw BackendError.notSupported("That music button") }
+            client.pulse(join)
         case let .setLock(id, locked):
             let e = try entry(map.locks, id)
             client.pulse(locked ? e.lock : e.unlock)

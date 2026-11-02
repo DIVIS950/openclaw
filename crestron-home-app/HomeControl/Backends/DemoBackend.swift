@@ -22,6 +22,8 @@ final class DemoBackend: HomeBackend {
         switch command {
         case let .recallScene(id):
             runScene(id)
+        case .mediaPower, .mediaSource, .mediaTransport:
+            updateMedia(command)
         case let .gate(id, action) where action != .stop:
             // A real gate takes a while; report the end position after a few seconds.
             Task { [weak self] in
@@ -39,6 +41,70 @@ final class DemoBackend: HomeBackend {
     }
 
     private var lastGateEnd: [String: GateState] = ["gate-drive": .closed]
+    /// Which track each room is on, so next and previous step through the list.
+    private var trackIndex: [String: Int] = [:]
+
+    /// Pretends someone pressed the doorbell (Settings › Test doorbell).
+    func ring(_ id: String) {
+        guard let i = state.doorbells.firstIndex(where: { $0.id == id }) ?? state.doorbells.indices.first else { return }
+        state.doorbells[i].ringAt = Date()
+        onChange?(state)
+    }
+
+    // Made-up tracks and shows for the demo house.
+    private static let playlists: [String: [NowPlaying]] = [
+        "src-spotify": [
+            NowPlaying(title: "Golden Hour Drive", artist: "The Paper Lanterns", album: "Coastline"),
+            NowPlaying(title: "Slow Morning", artist: "Mira Vale", album: "Kitchen Radio"),
+            NowPlaying(title: "Neon Harbor", artist: "Atlas & Wren", album: "Night Ferry"),
+            NowPlaying(title: "Linen", artist: "June Okafor", album: "Soft Rooms"),
+        ],
+        "src-appletv": [
+            NowPlaying(title: "The Long Coast", artist: "Season 2 · Episode 4", album: "Apple TV"),
+            NowPlaying(title: "Kitchen Masters", artist: "Season 5 · Episode 1", album: "Apple TV"),
+        ],
+        "src-cable": [NowPlaying(title: "Evening News", artist: "Channel 7", album: "Cable TV")],
+        "src-radio": [NowPlaying(title: "Morning Jazz", artist: "Radio 88.5", album: "Radio")],
+    ]
+
+    private static func track(_ sourceId: String?, _ index: Int = 0) -> NowPlaying? {
+        guard let sourceId, let list = playlists[sourceId], !list.isEmpty else { return nil }
+        return list[((index % list.count) + list.count) % list.count]
+    }
+
+    private func updateMedia(_ command: HomeCommand) {
+        switch command {
+        case let .mediaSource(id, _):
+            guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
+            trackIndex[id] = 0
+            state.media[i].nowPlaying = Self.track(state.media[i].currentSourceId)
+            state.media[i].isPlaying = true
+        case let .mediaPower(id, on):
+            guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
+            state.media[i].isPlaying = on
+            if on && state.media[i].currentSourceId == nil {
+                let sources = state.media[i].sources
+                state.media[i].currentSourceId = sources.count > 1 ? sources[1].id : sources.first?.id
+            }
+            state.media[i].nowPlaying = on ? Self.track(state.media[i].currentSourceId, trackIndex[id] ?? 0) : nil
+        case let .mediaTransport(id, action) where action == .next || action == .previous:
+            guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
+            let next = (trackIndex[id] ?? 0) + (action == .next ? 1 : -1)
+            trackIndex[id] = next
+            state.media[i].nowPlaying = Self.track(state.media[i].currentSourceId, next)
+            state.media[i].isPlaying = true
+        default:
+            break
+        }
+    }
+
+    private func mediaOff() {
+        for i in state.media.indices {
+            state.media[i].isOn = false
+            state.media[i].isPlaying = false
+            state.media[i].nowPlaying = nil
+        }
+    }
 
     private func runScene(_ id: String) {
         func setLights(_ roomId: String?, _ level: Double) {
@@ -52,9 +118,10 @@ final class DemoBackend: HomeBackend {
         case "s-goodnight":
             setLights(nil, 0)
             for i in state.locks.indices { state.locks[i].isLocked = true }
-            for i in state.media.indices { state.media[i].isOn = false }
+            mediaOff()
         case "s-away":
             setLights(nil, 0)
+            mediaOff()
             for i in state.security.indices { state.security[i].mode = .armedAway }
         case "s-movie":
             setLights("living", 0.12)
@@ -62,6 +129,8 @@ final class DemoBackend: HomeBackend {
             if let i = state.media.firstIndex(where: { $0.id == "m-living" }) {
                 state.media[i].isOn = true
                 state.media[i].currentSourceId = "src-appletv"
+                state.media[i].isPlaying = true
+                state.media[i].nowPlaying = Self.track("src-appletv")
             }
         case "s-dinner": setLights("dining", 0.45); setLights("kitchen", 0.6)
         case "s-bright-kitchen": setLights("kitchen", 1)
@@ -118,13 +187,15 @@ final class DemoBackend: HomeBackend {
             ],
             media: [
                 MediaZone(id: "m-living", name: "Living Room", roomId: "living", isOn: true, volume: 0.35,
-                          isMuted: false, sources: sources, currentSourceId: "src-appletv"),
+                          isMuted: false, sources: sources, currentSourceId: "src-appletv",
+                          isPlaying: true, canTransport: true, nowPlaying: track("src-appletv")),
                 MediaZone(id: "m-kitchen", name: "Kitchen", roomId: "kitchen", isOn: true, volume: 0.25,
-                          isMuted: false, sources: sources, currentSourceId: "src-spotify"),
+                          isMuted: false, sources: sources, currentSourceId: "src-spotify",
+                          isPlaying: true, canTransport: true, nowPlaying: track("src-spotify")),
                 MediaZone(id: "m-master", name: "Master Bedroom", roomId: "master", isOn: false, volume: 0.2,
-                          isMuted: false, sources: sources, currentSourceId: nil),
+                          isMuted: false, sources: sources, currentSourceId: nil, canTransport: true),
                 MediaZone(id: "m-patio", name: "Patio", roomId: "patio", isOn: false, volume: 0.5,
-                          isMuted: false, sources: sources, currentSourceId: nil),
+                          isMuted: false, sources: sources, currentSourceId: nil, canTransport: true),
             ],
             locks: [
                 DoorLock(id: "lock-front", name: "Front Door", roomId: "entry", isLocked: true),
@@ -138,6 +209,9 @@ final class DemoBackend: HomeBackend {
             ],
             sensors: [
                 HomeSensor(id: "sen1", name: "Entry Motion", roomId: "entry", kind: "OccupancySensor", isActive: false),
+            ],
+            doorbells: [
+                Doorbell(id: "bell-front", name: "Front Door", cameraName: "Front Door", lockId: "lock-front"),
             ]
         )
     }
