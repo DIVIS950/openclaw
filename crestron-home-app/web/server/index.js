@@ -20,6 +20,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, "..", "public");
 const DATA_DIR = process.env.DATA_DIR ?? path.join(ROOT, "..", "data");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
+const PHOTO_DIR = path.join(DATA_DIR, "photos");
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const PORT = Number(process.env.PORT ?? 8080);
 const HOST = process.env.HOST ?? "0.0.0.0";
 // Optional PIN that protects the Setup page (token, join map, cameras).
@@ -45,6 +47,7 @@ const DEFAULT_CONFIG = {
   joinMap: readExampleJoinMap(),
   cameras: [], // { id, name, snapshotURL, username, password }
   assistantKey: "", // Anthropic API key for the AI assistant (or set ANTHROPIC_API_KEY)
+  roomPhotos: {}, // roomId -> version (time of upload); the files live in data/photos
 };
 
 function loadConfig() {
@@ -98,7 +101,22 @@ function payload() {
     homeName: config.homeName,
     cameras: config.cameras.map((c) => ({ id: c.id, name: c.name })),
     assistant: { available: assistantAvailable() },
+    roomPhotos: config.roomPhotos,
   };
+}
+
+// Room ids come from the processor and can hold any character, so photo files are named by hash.
+const photoFile = (roomId) => path.join(PHOTO_DIR, `${crypto.createHash("sha256").update(roomId).digest("hex").slice(0, 32)}.jpg`);
+
+async function readBody(req, limit) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new Error("The photo is too large.");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 function broadcast() {
@@ -231,9 +249,10 @@ function pinOK(req) {
 }
 
 function serveStatic(req, res, pathname) {
+  // Home View (the iPad design) is the main app; the classic view stays at /index.html.
   // Folders serve their index.html; "/ipad" needs its slash so the page's relative links work.
-  if (pathname === "/ipad") {
-    res.writeHead(301, { Location: "/ipad/" });
+  if (pathname === "/" || pathname === "/ipad") {
+    res.writeHead(302, { Location: "/ipad/" });
     return res.end();
   }
   const rel = decodeURIComponent(pathname).replace(/^\/+/, "").replace(/(^|\/)$/, "$1index.html");
@@ -335,6 +354,41 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    const photo = p.match(/^\/api\/rooms\/([^/]+)\/photo$/);
+    if (photo) {
+      const roomId = decodeURIComponent(photo[1]);
+      const file = photoFile(roomId);
+      if (req.method === "GET") {
+        return fs.readFile(file, (err, data) => {
+          if (err) return sendJSON(res, 404, { error: "No photo" });
+          res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "max-age=31536000, immutable" });
+          res.end(data);
+        });
+      }
+      if (req.method === "PUT") {
+        // Only rooms the system knows, so the photo folder can't grow without bound.
+        if (!home.rooms.some((r) => r.id === roomId)) return sendJSON(res, 404, { error: "Unknown room" });
+        const data = await readBody(req, MAX_PHOTO_BYTES);
+        // The app always sends a resized JPEG; refuse anything else.
+        if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8 || data[2] !== 0xff) return sendJSON(res, 415, { error: "Send the photo as a JPEG." });
+        fs.mkdirSync(PHOTO_DIR, { recursive: true });
+        fs.writeFileSync(file, data);
+        config = { ...config, roomPhotos: { ...config.roomPhotos, [roomId]: Date.now() } };
+        saveConfig(config);
+        broadcast();
+        return sendJSON(res, 200, { ok: true });
+      }
+      if (req.method === "DELETE") {
+        fs.rmSync(file, { force: true });
+        const { [roomId]: _gone, ...rest } = config.roomPhotos;
+        config = { ...config, roomPhotos: rest };
+        saveConfig(config);
+        broadcast();
+        return sendJSON(res, 200, { ok: true });
+      }
+      return sendJSON(res, 405, { error: "Method not allowed" });
+    }
+
     const cam = p.match(/^\/api\/cameras\/([\w-]+)\/snapshot$/);
     if (cam && req.method === "GET") {
       const camera = config.cameras.find((c) => c.id === cam[1]);
@@ -353,7 +407,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Home Control is running: open http://<this-computer's-ip>:${PORT} on your iPad or phone`);
+  console.log(`Home Control is running: open http://<this-computer's-ip>:${PORT} on your iPad or phone (classic view: /index.html)`);
   console.log(`Mode: ${config.mode}${ADMIN_PIN ? " · Setup is protected by ADMIN_PIN" : ""}`);
   connect();
 });

@@ -365,6 +365,9 @@ function roomView(app) {
     lights.length ? `<button type="button" class="capsule"${attr({ act: "room-lights", id: room.id, level: on ? 0 : 1 })}>${icon(on ? "bulbOff" : "bulb")}${on ? "Lights off" : "Lights on"}</button>` : "",
     shades.length ? `<button type="button" class="capsule"${attr({ act: "room-shades", id: room.id, position: 1 })}>${icon("up")}Open shades</button>
       <button type="button" class="capsule"${attr({ act: "room-shades", id: room.id, position: 0 })}>${icon("down")}Close shades</button>` : "",
+    // The room's photo becomes its background. A label opens the file picker without script.
+    `<label class="capsule">${icon("camera")}${app.photoURL(room.id) ? "Change photo" : "Room photo"}<input type="file" accept="image/*" hidden${attr({ "photo-room": room.id })}></label>`,
+    app.photoURL(room.id) ? `<button type="button" class="capsule"${attr({ act: "photo-remove", id: room.id })}>${icon("close")}Remove photo</button>` : "",
   ].join("");
   return `${head(app, { eyebrow, title: room.name, sub, back: "#home" })}
     ${notice(app)}

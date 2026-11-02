@@ -32,23 +32,44 @@ You can also try the app first with **Demo house**, which needs no setup at all.
 
 ## 2a. Run the web app (any computer at home)
 
-A browser can't talk to the Crestron processor directly, so a tiny home server does that part. It has no extra packages, only Node.js.
+A browser can't talk to the Crestron processor directly, so a small home server does that part. It needs one computer that **stays on** and is on the same network as the processor.
 
-1. Pick a computer that stays on and is on the same network as the processor: a Mac mini, a PC, a Raspberry Pi, or a NAS that runs Docker.
-2. Install **Node.js 22** from nodejs.org, then:
+**Don't have one?** The cheapest good option is a **Raspberry Pi 5** (2 GB or 4 GB) with its official power supply, a case and a 32 GB microSD card, about US$80–100 in total. It uses about as much power as a night light. An old Mac or PC that stays on works too, and so does a Synology/QNAP NAS that runs Docker.
+
+**Raspberry Pi (or any Debian/Ubuntu computer):**
+
+1. Put **Raspberry Pi OS Lite** on the card with Raspberry Pi Imager. In its settings, turn on SSH, set a username and password, and enter your Wi-Fi (or plug the Pi into the router with a cable, which is more reliable).
+2. Connect to it from a computer: `ssh yourname@raspberrypi.local`
+3. Get the app and install it:
    ```bash
-   cd crestron-home-app/web
-   npm install
-   npm start
+   sudo apt-get install -y git
+   git clone -b claude/happy-gauss-heaew1 https://github.com/divis950/openclaw.git
+   cd openclaw/crestron-home-app/web
+   ./install-linux.sh
    ```
-   Or with Docker:
-   ```bash
-   cd crestron-home-app
-   docker build -t home-control .
-   docker run -d --name home-control --restart unless-stopped --network host -v home-control-data:/data home-control
-   ```
-3. On the iPad or phone, open `http://COMPUTER-IP:8080` in Safari, then **Share › Add to Home Screen**.
-4. Open **Setup** in the app and connect (see section 3 below; the fields are the same).
+   (`-b …` picks the branch the app is on until it's merged into `main`. If the repository is private, GitHub asks you to sign in.) The script installs Node.js 22, sets the app to start by itself when the Pi turns on, and prints the address to open.
+
+**Mac or PC:** install **Node.js 22** from nodejs.org, then:
+```bash
+cd crestron-home-app/web
+npm install
+npm start
+```
+
+**Docker (NAS):**
+```bash
+cd crestron-home-app
+docker build -t home-control .
+docker run -d --name home-control --restart unless-stopped --network host -v home-control-data:/data home-control
+```
+
+Then, on the iPad:
+
+1. Open `http://COMPUTER-IP:8080` in Safari (on a Pi, `http://raspberrypi.local:8080` usually works too). **Home View** opens.
+2. Tap **Share › Add to Home Screen**. It then opens full screen, like an app.
+3. Open the gear button › **System setup** and connect (see section 3 below; the fields are the same).
+
+The older design is still there at `http://COMPUTER-IP:8080/index.html` (the "classic view"); System setup lives there for now.
 
 Options (environment variables):
 
@@ -61,13 +82,14 @@ The server pushes live changes to every open screen at once, so the wall iPad an
 
 ### Home View: the iPad design
 
-The same server also has **Home View**, a version made for the iPad (especially a wall-mounted one), in the style of Apple's Home app. Open `http://COMPUTER-IP:8080/ipad/` and add it to the Home Screen.
+**Home View** is the main web app, made for the iPad (especially a wall-mounted one, in landscape or portrait), in the style of Apple's Home app.
 
 - A sidebar with every room, and a soft background whose colors follow the time of day (each room has its own colors).
 - Tiles like Apple Home: **tap the icon** to switch something on or off, **tap the name** for the big controls (brightness, shade position, volume and sources).
 - The gate opens with **slide to open**, and doors unlock with **press and hold**, so a stray tap does nothing.
 - **StandBy**: in wall panel mode the iPad shows a big clock with the house status when nobody touches it.
 - **Ask Home**: the AI assistant, with the glowing screen edge while it listens.
+- **Room photos**: open a room and tap **Room photo**; the photo becomes that room's background on every screen.
 
 Settings in Home View (the gear button) cover appearance and wall panel mode. Connection, cameras and the AI key are set up in **Setup** in the classic view; Home View links there.
 
@@ -171,7 +193,7 @@ Username and password are supported, with both Basic and Digest login. Passwords
 2. On the iPad: **Settings › Accessibility › Guided Access**, turn it on and set a passcode. Then open the app and triple-click the side/top button to lock the iPad to it.
 3. Keep the iPad on power, and on the same Wi-Fi as the processor.
 
-Room photos: open a room, tap **⋯**, then **Choose Room Photo**.
+Room photos: open a room and tap **Room photo** (Home View on the web and in the iPad app).
 
 ## How the code is organized
 

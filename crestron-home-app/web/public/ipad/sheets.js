@@ -136,8 +136,8 @@ function settingsSheet(app) {
       <div class="list-label">System</div>
       <div class="list">
         <div class="row"><span class="row-icon" style="--c:var(--green)">${icon("wifi")}</span><span class="grow">${esc(system)}<div class="note">${esc(state)}</div></span></div>
-        ${app.transport === "local" ? `<div class="row"><span class="row-icon" style="--c:var(--orange)">${icon("alert")}</span><span class="grow">This is a demo house<div class="note">Run the home server at home to connect your Crestron system</div></span></div>` : `<a class="row" href="../#setup"><span class="row-icon" style="--c:var(--blue)">${icon("sliders")}</span><span class="grow">System setup<div class="note">Processor, join map, cameras and the AI key</div></span>${icon("chevron")}</a>
-        <a class="row" href="../"><span class="row-icon" style="--c:var(--pink)">${icon("grid")}</span><span class="grow">Classic view</span>${icon("chevron")}</a>`}
+        ${app.transport === "local" ? `<div class="row"><span class="row-icon" style="--c:var(--orange)">${icon("alert")}</span><span class="grow">This is a demo house<div class="note">Run the home server at home to connect your Crestron system</div></span></div>` : `<a class="row" href="../index.html#setup"><span class="row-icon" style="--c:var(--blue)">${icon("sliders")}</span><span class="grow">System setup<div class="note">Processor, join map, cameras and the AI key</div></span>${icon("chevron")}</a>
+        <a class="row" href="../index.html"><span class="row-icon" style="--c:var(--pink)">${icon("grid")}</span><span class="grow">Classic view</span>${icon("chevron")}</a>`}
       </div>
     </div>`;
 }

@@ -80,7 +80,7 @@ export function createAsk({ app, send, notify, onVisibility }) {
     if (!log) return;
     $("#glow").classList.toggle("busy", ask.busy || ask.listening);
     if (keyMissing()) {
-      log.innerHTML = `<div class="msg ai">To use Ask Home, add an Anthropic API key in <a href="../#setup"><u>System setup › AI assistant</u></a>.</div>`;
+      log.innerHTML = `<div class="msg ai">To use Ask Home, add an Anthropic API key in <a href="../index.html#setup"><u>System setup › AI assistant</u></a>.</div>`;
       return;
     }
     log.innerHTML = ask.log.length ? ask.log.map((e, i) => {

@@ -42,6 +42,13 @@ const app = {
   pendingRender: false,
   lastTouch: Date.now(),
   device: { look: prefs.get("look", "auto"), wall: prefs.get("wall", false), saverMin: prefs.get("saverMin", 5) },
+  roomPhotos: {}, // roomId -> version, from the home server
+  localPhotos: new Map(), // roomId -> object URL, for the demo in this browser
+  photoURL(roomId) {
+    if (this.transport === "local") return this.localPhotos.get(roomId) ?? null;
+    const version = this.roomPhotos[roomId];
+    return version ? `${this.api}rooms/${encodeURIComponent(roomId)}/photo?v=${version}` : null;
+  },
 };
 
 let engine = null;
@@ -94,6 +101,7 @@ function receive(p) {
   app.homeName = p.homeName || "Home";
   app.cameras = p.cameras ?? [];
   app.assistant = p.assistant ?? { available: false };
+  app.roomPhotos = p.roomPhotos ?? {};
   ask.onStateChange();
   scheduleRender();
 }
@@ -187,6 +195,75 @@ function applyWallpaper() {
   root.setProperty("--h1", h1);
   root.setProperty("--h2", h2);
   root.setProperty("--h3", h3);
+  const layer = $("#room-photo");
+  const url = app.route.name === "room" ? app.photoURL(app.route.arg) : null;
+  if (url) layer.style.backgroundImage = `url("${url}")`;
+  layer.classList.toggle("on", Boolean(url));
+}
+
+// ---------- room photos ----------
+
+/** Shrinks a picked photo to at most 1600 px and re-encodes it as JPEG. */
+async function resizePhoto(file) {
+  let source;
+  try {
+    source = await createImageBitmap(file);
+  } catch {
+    // Some formats only decode through an <img>.
+    source = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Couldn't read that photo. Try a JPEG or PNG."));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  const w = source.width || source.naturalWidth;
+  const h = source.height || source.naturalHeight;
+  const scale = Math.min(1, 1600 / Math.max(w, h));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  source.close?.();
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't read that photo."))), "image/jpeg", 0.85));
+}
+
+document.addEventListener("change", async (e) => {
+  const input = e.target.closest?.("input[data-photo-room]");
+  const file = input?.files?.[0];
+  if (!file) return;
+  const roomId = input.dataset.photoRoom;
+  input.value = "";
+  try {
+    const blob = await resizePhoto(file);
+    if (app.transport === "local") {
+      const old = app.localPhotos.get(roomId);
+      if (old) URL.revokeObjectURL(old);
+      app.localPhotos.set(roomId, URL.createObjectURL(blob));
+      scheduleRender();
+    } else {
+      const res = await fetch(`${app.api}rooms/${encodeURIComponent(roomId)}/photo`, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: blob });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `The home server answered ${res.status}.`);
+    }
+    notify("Room photo saved", { ic: "camera" });
+  } catch (err) {
+    notify(escText(err.message || "Couldn't save the photo."), { error: true });
+  }
+});
+
+async function removePhoto(roomId) {
+  if (app.transport === "local") {
+    const old = app.localPhotos.get(roomId);
+    if (old) URL.revokeObjectURL(old);
+    app.localPhotos.delete(roomId);
+    return scheduleRender();
+  }
+  try {
+    const res = await fetch(`${app.api}rooms/${encodeURIComponent(roomId)}/photo`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`The home server answered ${res.status}.`);
+  } catch (err) {
+    notify(escText(err.message), { error: true });
+  }
 }
 
 function applyLook() {
@@ -322,6 +399,7 @@ const actions = {
   },
   "media-source": (el) => send({ type: "mediaSource", id: el.dataset.id, sourceId: el.dataset.source }),
   "lock-now": (el) => toggle("lock", el.dataset.id),
+  "photo-remove": (el) => removePhoto(el.dataset.id),
   "room-lights": (el) => {
     for (const l of app.home.lights) if (l.roomId === el.dataset.id) send({ type: "setLight", id: l.id, level: Number(el.dataset.level) });
   },
