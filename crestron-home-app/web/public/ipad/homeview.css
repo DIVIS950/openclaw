@@ -854,6 +854,8 @@ select.text-input { appearance: auto; }
 
 /* weather drawings */
 .widget.weather { overflow: hidden; }
+.widget.weather .w-text { padding-right: 92px; }
+.widget.weather .w-state { white-space: normal; }
 .wx-art { position: absolute; right: 10px; top: 8px; width: 120px; height: 92px; pointer-events: none; }
 .wa-sun { position: absolute; right: 14px; top: 8px; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle, #ffe27a 55%, #ffb340); box-shadow: 0 0 30px rgba(255, 180, 60, 0.7); }
 .wa-sun::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255, 196, 70, 0.75) 0 6deg, transparent 6deg 30deg); -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%, #000 70%, transparent 72%); mask: radial-gradient(circle, transparent 54%, #000 56%, #000 70%, transparent 72%); animation: spin 24s linear infinite; }
