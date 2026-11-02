@@ -219,6 +219,8 @@ function onState() {
   maybeAutoOpen();
 }
 
+let updateRequested = false;
+
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") {
     return;
@@ -230,7 +232,10 @@ function registerServiceWorker() {
         toast(t("update.ready"), {
           action: t("update.reload"),
           ms: 15_000,
-          onAction: () => worker.postMessage("skip-waiting"),
+          onAction: () => {
+            updateRequested = true;
+            worker.postMessage("skip-waiting");
+          },
         });
       };
       if (reg.waiting && navigator.serviceWorker.controller) {
@@ -246,10 +251,10 @@ function registerServiceWorker() {
       });
     })
     .catch(() => {});
-  let reloading = false;
+  // Reload only for an update the user asked for, not when the first install takes control.
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!reloading) {
-      reloading = true;
+    if (updateRequested) {
+      updateRequested = false;
       location.reload();
     }
   });

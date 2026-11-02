@@ -1,11 +1,11 @@
 // Service worker: the whole app works offline; map tiles are cached as you browse.
 
-const VERSION = "kapsa-v1.0.0";
+const VERSION = "kapsa-v1.0.1";
 const TILE_CACHE = "kapsa-tiles-v1";
 const MAX_TILES = 600;
 
+// Paths are listed explicitly (no "./"): some static hosts don't serve a folder's index.html.
 const APP_FILES = [
-  "./",
   "index.html",
   "manifest.webmanifest",
   "css/app.css",
@@ -104,10 +104,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App files: cache-first, the page itself falls back to index.html.
+  // App files: cache-first. Any page navigation inside the app gets index.html.
   event.respondWith(
     (async () => {
       const cache = await caches.open(VERSION);
+      if (req.mode === "navigate" && !/\.[a-z0-9]+$/i.test(url.pathname.split("/").pop() ?? "")) {
+        const shell = await cache.match("index.html");
+        if (shell) {
+          return shell;
+        }
+      }
       const hit = await cache.match(req, { ignoreSearch: true });
       if (hit) {
         return hit;

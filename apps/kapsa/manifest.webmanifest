@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "kapsa",
   "name": "Kapsa",
   "short_name": "Kapsa",
   "description": "Věrnostní karty, které se ukážou samy, když jsi v obchodě.",
   "lang": "cs",
-  "start_url": "./",
+  "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -21,13 +21,13 @@
     {
       "name": "Přidat kartu",
       "short_name": "Přidat",
-      "url": "./#add",
+      "url": "index.html#add",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Mapa karet",
       "short_name": "Mapa",
-      "url": "./#map",
+      "url": "index.html#map",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

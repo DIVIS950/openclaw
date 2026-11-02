@@ -23,8 +23,6 @@ test("every app file is precached", () => {
 
 test("every precached file exists", () => {
   for (const file of listed) {
-    if (file !== "./") {
-      assert.ok(fs.existsSync(path.join(root, file)), `sw.js lists ${file}, which does not exist`);
-    }
+    assert.ok(fs.existsSync(path.join(root, file)), `sw.js lists ${file}, which does not exist`);
   }
 });

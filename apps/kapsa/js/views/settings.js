@@ -10,7 +10,7 @@ import { back } from "../nav.js";
 import { DEFAULT_SETTINGS, deleteCard, saveCard, state, updateSettings } from "../state.js";
 import { cardsStore, kv, osmCache } from "../store.js";
 
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.0.1";
 
 /** @type {any} */
 let installPrompt = null;
