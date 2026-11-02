@@ -634,3 +634,14 @@ body:not(.tutor-page),
 .accent-swatch::before {
   inset: -8px;
 }
+
+/* 1.5: a homework row inside a list card is square, so the line between two
+   rows no longer curves up at both ends (the swipe's own corners were 24px). */
+.card.rows > .swipe,
+.card.rows > .swipe .under {
+  border-radius: 0;
+}
+/* 1.5: the chosen AI mode's glow was cut into a box by the scrolling row. */
+.modes .mode.on {
+  box-shadow: none;
+}

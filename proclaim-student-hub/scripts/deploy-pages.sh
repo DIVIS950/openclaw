@@ -12,6 +12,12 @@ if [ ! -d "$GHP_DIR/.git" ]; then
 fi
 [ -f dist-pages/index.html ] || { echo "Run npm run build:pages first" >&2; exit 1; }
 git -C "$GHP_DIR" pull --ff-only origin gh-pages >/dev/null
+# private.dat is only built where private/seed.json and its key exist. Built
+# anywhere else, keep the live one so the student's private link still opens.
+if [ ! -f dist-pages/private.dat ] && [ -f "$GHP_DIR/hub/private.dat" ]; then
+  cp "$GHP_DIR/hub/private.dat" dist-pages/private.dat
+  echo "Kept the website's existing private.dat"
+fi
 rm -rf "$GHP_DIR/hub"
 mkdir -p "$GHP_DIR/hub"
 cp -r dist-pages/. "$GHP_DIR/hub/"

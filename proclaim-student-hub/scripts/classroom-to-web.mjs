@@ -32,6 +32,12 @@ if (!Array.isArray(incoming)) {
   console.error("tasks.json must be an array");
   process.exit(2);
 }
+if (!fs.existsSync(seedFile)) {
+  // A fresh computer has no private seed (it is never committed): the website
+  // keeps its current data and the claude.ai app still gets the tasks.
+  console.log(`No ${path.relative(root, seedFile)} here: website not updated.`);
+  process.exit(0);
+}
 const seed = JSON.parse(fs.readFileSync(seedFile, "utf8"));
 seed.homework = Array.isArray(seed.homework) ? seed.homework : [];
 const have = new Set(seed.homework.map((h) => norm(h.title)));

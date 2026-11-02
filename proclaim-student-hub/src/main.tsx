@@ -23,6 +23,7 @@ import "./bold.css";
 import "./plus.css";
 import "./rail.css";
 import "./looks.css";
+import "./classic.css";
 
 /** The screen the student is on, for bug reports ("today", "revise"…). */
 const screenNow = () => window.location.hash.slice(1).split(/[?/]/)[0] || "today";

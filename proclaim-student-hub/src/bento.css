@@ -1492,6 +1492,10 @@ select.field {
   text-decoration: line-through;
   color: var(--muted);
 }
+.hw-chips {
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .chip.tone-blue,
 .chip.tone-pink,
 .chip.tone-violet,

@@ -11,7 +11,7 @@ import { WEEKDAYS, type Lesson } from "../lib/aiFeatures.ts";
 import { dueLabel, greeting, isUrgent, lateHomework, lateLabel } from "../lib/format.ts";
 import { level, progress, timetable, todoXp } from "../lib/store.ts";
 import { addDays, dayOf, daysBetween, groupTodos, prepTests, todos } from "../lib/study.ts";
-import { courseName } from "../lib/subjects.ts";
+import { courseName, subjectTone } from "../lib/subjects.ts";
 import type { Homework } from "../lib/types.ts";
 import { UnlockCard } from "../pages/Unlock.tsx";
 
@@ -280,6 +280,10 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
       {/* Numbers first: on a phone they sit above the brief, so the reading order matches. */}
       <nav className="bento-tiles rise d3" aria-label="Numbers">
         <button className="bento-tile" onClick={() => go("homework")}>
+          {/* The icon is drawn only in Classic (classic.css); other styles hide it. */}
+          <span className="tile-ic" aria-hidden="true">
+            <Icon name="homework" size={18} />
+          </span>
           <span className="eyebrow">{off ? `Due ${off.name}` : "Due today"}</span>
           <span className="big t-orange">
             {/* Still loading: a dash, never a "0" that reads as "nothing due". */}
@@ -294,6 +298,9 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
           </span>
         </button>
         <button className="bento-tile" onClick={() => go("tests")}>
+          <span className="tile-ic" aria-hidden="true">
+            <Icon name="timer" size={18} />
+          </span>
           <span className="eyebrow">Next test</span>
           {testIn === null ? (
             <span className="big t-pink">–</span>
@@ -327,6 +334,10 @@ export function Today({ demoBanner }: { demoBanner?: React.ReactNode }) {
           </div>
           {next3.map((h) => (
             <button key={h.id} className="li" onClick={() => openAssignment(h)}>
+              <span
+                className={`li-dot tone-${subjectTone(courseName(h.course))}`}
+                aria-hidden="true"
+              />
               <span className="stack li-main" style={{ gap: 1 }}>
                 <span className="li-title">{h.title}</span>
                 <span className="s12 muted li-course">{courseName(h.course)}</span>

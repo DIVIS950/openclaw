@@ -337,8 +337,12 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
   };
 
   const urgent = isUrgent(hw.due) && !hw.done;
+  const course = courseName(hw.course);
   const body = (
-    <article className={open ? "hw is-open" : "hw"}>
+    <article
+      className={open ? "hw is-open" : "hw"}
+      data-tone={course ? subjectTone(course) : undefined}
+    >
       <button
         className={hw.done ? "tick done" : "tick"}
         aria-label={hw.done ? `Mark not done: ${hw.title}` : `Tick off ${hw.title}`}
@@ -353,12 +357,8 @@ function HomeworkItem({ hw, onTicked }: { hw: Homework; onTicked: () => void }) 
         onClick={() => openAssignment(hw)}
       >
         <span className={hw.done ? "hw-title done" : "hw-title"}>{hw.title}</span>
-        <span className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          {courseName(hw.course) && (
-            <span className={`chip tone-${subjectTone(courseName(hw.course))}`}>
-              {courseName(hw.course)}
-            </span>
-          )}
+        <span className="row hw-chips">
+          {course && <span className={`chip tone-${subjectTone(course)}`}>{course}</span>}
           {hw.due && lateHomework([hw]).length > 0 ? (
             <span className="chip late-chip">{lateLabel(hw.due)}</span>
           ) : (

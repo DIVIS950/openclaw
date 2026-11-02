@@ -1,17 +1,17 @@
 {
   "name": "proclaim-student-hub",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "All your school apps in one place, with an AI study buddy.",
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "build:pages": "node scripts/build-pages.mjs",
     "build:web": "node scripts/build-web.mjs",
     "dev": "node --env-file-if-exists=.env --import tsx --watch server/index.ts & vite",
     "start": "NODE_ENV=production node --env-file-if-exists=.env --import tsx server/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "build:pages": "node scripts/build-pages.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

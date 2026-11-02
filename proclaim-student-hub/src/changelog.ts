@@ -11,6 +11,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.5.0",
+    date: "2026-11-02",
+    title: "Classic, made better",
+    items: [
+      "Today: icons on the two number tiles, a colour dot for each subject in Due next, and each Tonight tile in its own colour",
+      "Homework: the tags fit on one line and each tick circle has its subject's colour",
+      "AI help: lighter suggestions; fixed a box around the chosen mode and curved lines between homework rows",
+    ],
+  },
+  {
     version: "1.4.0",
     date: "2026-10-20",
     title: "Google Calendar, Docs and Slides, and bugs fixed by themselves",
