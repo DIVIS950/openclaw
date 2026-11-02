@@ -94,7 +94,12 @@ The server pushes live changes to every open screen at once, so the wall iPad an
 
 Settings in Home View (the gear button) cover appearance and wall panel mode. Connection, cameras and the AI key are set up in **Setup** in the classic view; Home View links there.
 
-## 2b. Build and install the native iOS app (needs a Mac)
+## 2b. Build and install the native iOS app
+
+**No Mac?** Follow [TESTFLIGHT.md](TESTFLIGHT.md): a Mac in the cloud builds the app and sends it to TestFlight, and you install it on the iPad from there. It needs the Apple Developer Program (US$99 per year).
+
+**With a Mac:**
+
 
 1. Install **Xcode** (free, from the Mac App Store).
 2. Install XcodeGen and generate the project:

@@ -14,6 +14,8 @@ targets:
   HomeControl:
     type: application
     platform: iOS
+    # A shared scheme, so the cloud build can archive the app.
+    scheme: {}
     sources:
       - HomeControl
     settings:
@@ -31,6 +33,8 @@ targets:
       path: HomeControl/Info.plist
       properties:
         CFBundleDisplayName: Home
+        # The app only uses standard HTTPS encryption, so TestFlight needs no export paperwork.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
