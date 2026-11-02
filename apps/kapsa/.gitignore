@@ -1,0 +1,2 @@
+# The root .gitignore skips every vendor/ folder; Kapsa ships its libraries in vendor/.
+!vendor/

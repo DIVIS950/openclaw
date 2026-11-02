@@ -62,11 +62,12 @@ export function effectiveDistance(distance, accuracy) {
 }
 
 /**
- * Nearest place of one card, looking at saved places and auto-found branches.
+ * Nearest place of one card, looking at saved places and other known places
+ * (branches found on the map, places learned from habits; each may carry a `source`).
  * @param {{ places?: Array<LatLon & { label?: string }> }} card
  * @param {LatLon} pos
- * @param {Array<LatLon & { label?: string }>} [branches]
- * @returns {{ distance: number, place: LatLon & { label?: string }, source: "saved" | "branch" } | null}
+ * @param {Array<LatLon & { label?: string, source?: string }>} [branches]
+ * @returns {{ distance: number, place: LatLon & { label?: string }, source: string } | null}
  */
 export function nearestPlace(card, pos, branches = []) {
   let best = null;
@@ -80,22 +81,24 @@ export function nearestPlace(card, pos, branches = []) {
     const d = distanceMeters(pos, place);
     // Prefer a saved place on ties: it is the one the user confirmed.
     if (!best || d < best.distance - 1) {
-      best = { distance: d, place, source: "branch" };
+      best = { distance: d, place, source: place.source ?? "branch" };
     }
   }
   return best;
 }
 
 /**
- * Sort cards for the wallet: cards you are at first, then by distance, then by use.
+ * Sort cards for the wallet: cards you are at first, then by distance, then by
+ * habit (how well now matches past use), then by most recent use.
  * @template {{ id: string, name: string, uses?: number, lastUsedAt?: number, places?: Array<LatLon> }} C
  * @param {C[]} cards
  * @param {{ lat: number, lon: number, accuracy?: number } | null} pos
  * @param {Record<string, Array<LatLon & { label?: string }>>} branchesByCard
  * @param {number} radius metres that count as "I am at this shop"
+ * @param {Record<string, number>} [habitScores] card id -> habit score for this moment
  * @returns {Array<{ card: C, distance: number | null, here: boolean, place: (LatLon & { label?: string }) | null, source: string | null }>}
  */
-export function rankCards(cards, pos, branchesByCard, radius) {
+export function rankCards(cards, pos, branchesByCard, radius, habitScores = {}) {
   const rows = cards.map((card) => {
     if (!pos) {
       return { card, distance: null, here: false, place: null, source: null };
@@ -108,6 +111,7 @@ export function rankCards(cards, pos, branchesByCard, radius) {
     return { card, distance: near.distance, here, place: near.place, source: near.source };
   });
   const byUse = (a, b) =>
+    (habitScores[b.card.id] ?? 0) - (habitScores[a.card.id] ?? 0) ||
     (b.card.lastUsedAt ?? 0) - (a.card.lastUsedAt ?? 0) ||
     (b.card.uses ?? 0) - (a.card.uses ?? 0) ||
     a.card.name.localeCompare(b.card.name);

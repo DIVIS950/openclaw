@@ -8,6 +8,41 @@ const PHOTO = /^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=]+$/i;
 
 const clampText = (value, max) => (typeof value === "string" ? value.slice(0, max) : "");
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+const isLatLon = (p) => p && isNum(p.lat) && isNum(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180;
+
+/** "2027-03-31" style date, or "" when missing or invalid. */
+export function cleanDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return "";
+  }
+  return Number.isNaN(Date.parse(`${value}T00:00:00`)) ? "" : value;
+}
+
+/**
+ * How soon a card expires.
+ * @param {string | undefined} expiry "YYYY-MM-DD"
+ * @param {number} now
+ * @returns {{ days: number, state: "ok" | "soon" | "expired" } | null}
+ */
+export function expiryStatus(expiry, now) {
+  const date = cleanDate(expiry);
+  if (!date) {
+    return null;
+  }
+  // Valid through the end of that day, in local time.
+  const end = new Date(`${date}T23:59:59`).getTime();
+  const days = Math.ceil((end - now) / 86_400_000) - 1;
+  if (end < now) {
+    return { days, state: "expired" };
+  }
+  return { days: Math.max(0, days), state: days <= 30 ? "soon" : "ok" };
+}
+
+/** Points balance as a whole number, or null. */
+export function cleanPoints(value) {
+  const n = typeof value === "string" ? Number(value.replace(/[\s,]/g, "")) : value;
+  return isNum(n) && Math.abs(n) < 1e9 ? Math.round(n) : null;
+}
 
 /**
  * Clean up an untrusted card object. Returns null when it is not usable.
@@ -26,7 +61,7 @@ export function sanitizeCard(raw) {
   const format = typeof raw.format === "string" && raw.format in FORMATS ? raw.format : code ? "code128" : "none";
   const places = Array.isArray(raw.places)
     ? raw.places
-        .filter((p) => p && isNum(p.lat) && isNum(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180)
+        .filter(isLatLon)
         .slice(0, 50)
         .map((p) => ({
           id: clampText(p.id, 32) || Math.random().toString(36).slice(2, 12),
@@ -52,6 +87,20 @@ export function sanitizeCard(raw) {
     lastUsedAt: isNum(raw.lastUsedAt) ? raw.lastUsedAt : 0,
     createdAt: isNum(raw.createdAt) ? raw.createdAt : Date.now(),
     sample: raw.sample === true ? true : undefined,
+    points: cleanPoints(raw.points),
+    expiry: cleanDate(raw.expiry),
+    code2: clampText(raw.code2, 512).trim(),
+    format2:
+      typeof raw.format2 === "string" && raw.format2 in FORMATS ? raw.format2 : clampText(raw.code2, 512).trim() ? "code128" : "none",
+    usage: Array.isArray(raw.usage)
+      ? raw.usage
+          .filter((e) => e && isNum(e.t))
+          .slice(-60)
+          .map((e) => (isLatLon(e) ? { t: e.t, lat: e.lat, lon: e.lon, acc: isNum(e.acc) ? e.acc : 50 } : { t: e.t }))
+      : [],
+    ignoredLearned: Array.isArray(raw.ignoredLearned)
+      ? raw.ignoredLearned.filter(isLatLon).slice(0, 50).map((p) => ({ lat: p.lat, lon: p.lon }))
+      : [],
   };
 }
 
@@ -79,8 +128,8 @@ export function buildBackup(cards) {
 
 /** URL-safe base64 of UTF-8 text. */
 export function encodeShare(card) {
-  const { name, code, format, color, category, places, note, autoBranches } = card;
-  const json = JSON.stringify({ name, code, format, color, category, places, note, autoBranches });
+  const { name, code, format, color, category, places, note, autoBranches, expiry, code2, format2 } = card;
+  const json = JSON.stringify({ name, code, format, color, category, places, note, autoBranches, expiry, code2, format2 });
   const bytes = new TextEncoder().encode(json);
   let bin = "";
   for (const b of bytes) {

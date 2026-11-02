@@ -7,9 +7,21 @@ import { distanceMeters, formatDistance } from "../geo.js";
 import { locale, t } from "../i18n.js";
 import { iconSvg } from "../icons.js";
 import { startLocation } from "../location.js";
-import { encodeShare } from "../model.js";
+import { usualDayPart } from "../habits.js";
+import { cleanPoints, encodeShare, expiryStatus } from "../model.js";
 import { back, go, replace } from "../nav.js";
-import { addPlace, deleteCard, getCard, markUsed, removePlace, state } from "../state.js";
+import {
+  addPlace,
+  deleteCard,
+  forgetLearned,
+  getCard,
+  learnedFor,
+  markUsed,
+  removePlace,
+  saveCard,
+  state,
+} from "../state.js";
+import { showBigCode } from "./bigcode.js";
 
 /** @param {string} id */
 export function createCardSheet(id) {
@@ -35,10 +47,51 @@ export function createCardSheet(id) {
   markUsed(id);
 
   const placesEl = h("div", { class: "places" });
+  const factsEl = h("div", { class: "facts" });
+
+  // Main code, or the second one (e.g. from the back of the card).
+  const codeHost = h("div", { class: "code-host" });
+  const codes = [{ code: card.code, format: card.format }];
+  if (card.code2) {
+    codes.push({ code: card.code2, format: card.format2 || "code128" });
+  }
+  let which = 0;
+  const showCode = () => {
+    const c = codes[which];
+    const shown = { ...card, ...c };
+    mount(
+      codeHost,
+      codePanel(shown, {
+        onCopy: c.code ? () => copyCode(c.code) : undefined,
+        onEnlarge: c.format !== "none" && c.code ? () => showBigCode(el, shown) : undefined,
+      }),
+    );
+    for (const [i, btn] of [...codeSwitch.children].entries()) {
+      btn.setAttribute("aria-checked", String(i === which));
+    }
+  };
+  const codeSwitch = h(
+    "div",
+    { class: "segmented code-switch", role: "radiogroup", hidden: codes.length < 2 },
+    [t("card.code1"), t("card.code2")].map((label, i) =>
+      h(
+        "button",
+        {
+          type: "button",
+          role: "radio",
+          onclick: () => {
+            which = i;
+            showCode();
+          },
+        },
+        label,
+      ),
+    ),
+  );
   const confirmEl = h("div", { class: "confirm", hidden: true });
 
-  const copy = async () => {
-    if (await copyText(card.code)) {
+  const copyCode = async (value) => {
+    if (await copyText(value)) {
       buzz();
       toast(t("card.copied"));
     }
@@ -120,8 +173,10 @@ export function createCardSheet(id) {
       ),
     ),
     card.photo ? cardFace(card, { size: "photo" }) : null,
-    codePanel(card, { onCopy: card.code ? copy : undefined }),
+    codeSwitch,
+    codeHost,
     h("p", { class: "hint" }, h("span", { html: iconSvg("sun") }), t("card.screenOn")),
+    factsEl,
     card.note ? h("section", { class: "block" }, h("h3", { class: "block-title" }, t("card.note")), h("p", { class: "note" }, card.note)) : null,
     h(
       "section",
@@ -145,10 +200,84 @@ export function createCardSheet(id) {
     confirmEl,
   );
 
+  /** Points, expiry and habit, with a quick way to change the points balance. */
+  const renderFacts = (current) => {
+    const exp = expiryStatus(current.expiry, Date.now());
+    const part = state.settings.habits ? usualDayPart(current.usage) : null;
+    const pointsBtn = h(
+      "button",
+      { type: "button", class: "fact is-action", onclick: () => editPoints(current) },
+      h("span", { class: "fact-label" }, t("card.points")),
+      h(
+        "span",
+        { class: "fact-value" },
+        current.points === null || current.points === undefined
+          ? t("card.pointsAdd")
+          : new Intl.NumberFormat(locale()).format(current.points),
+      ),
+    );
+    mount(
+      factsEl,
+      pointsBtn,
+      exp
+        ? h(
+            "div",
+            { class: `fact is-${exp.state}` },
+            h("span", { class: "fact-label" }, exp.state === "expired" ? t("card.expiredOn") : t("card.validUntil")),
+            h("span", { class: "fact-value" }, new Date(`${current.expiry}T12:00:00`).toLocaleDateString(locale())),
+          )
+        : null,
+      part || current.uses
+        ? h(
+            "div",
+            { class: "fact" },
+            h("span", { class: "fact-label" }, part ? t("card.usually") : t("card.usedLabel")),
+            h("span", { class: "fact-value" }, part ? t(`habit.${part}`) : t("card.timesUsed", { n: current.uses })),
+          )
+        : null,
+    );
+  };
+
+  const editPoints = (current) => {
+    const input = h("input", {
+      id: "quick-points",
+      class: "input mono",
+      type: "text",
+      inputmode: "numeric",
+      autocomplete: "off",
+      "aria-label": t("card.points"),
+    });
+    input.value = current.points === null || current.points === undefined ? "" : String(current.points);
+    const save = async () => {
+      const saved = await saveCard({ ...getCard(id), points: cleanPoints(input.value.trim() === "" ? null : input.value) });
+      buzz();
+      renderFacts(saved);
+    };
+    mount(
+      factsEl,
+      h(
+        "form",
+        {
+          class: "points-edit",
+          onsubmit: (e) => {
+            e.preventDefault();
+            save();
+          },
+        },
+        input,
+        h("button", { type: "submit", class: "btn-primary" }, h("span", { html: iconSvg("check") }), t("card.save")),
+      ),
+    );
+    input.focus();
+  };
+
   function update() {
     const current = getCard(id);
     if (!current) {
       return;
+    }
+    if (!factsEl.querySelector("form")) {
+      renderFacts(current);
     }
     const pos = state.pos;
     const branches = state.branches[id] ?? [];
@@ -167,6 +296,25 @@ export function createCardSheet(id) {
         h(
           "button",
           { type: "button", class: "icon-btn small", "aria-label": t("card.removePlace"), onclick: () => removePlace(id, p.id) },
+          h("span", { html: iconSvg("x") }),
+        ),
+      ),
+    );
+    const learned = learnedFor(current).map((p) =>
+      h(
+        "div",
+        { class: "place is-learned" },
+        h("span", { class: "place-icon", html: iconSvg("sparkles") }),
+        h(
+          "span",
+          { class: "place-text" },
+          h("span", { class: "place-label" }, t("card.learned")),
+          h("span", { class: "place-meta" }, t("card.learnedMeta", { n: p.count })),
+        ),
+        pos ? h("span", { class: "place-dist" }, formatDistance(distanceMeters(pos, p), locale())) : null,
+        h(
+          "button",
+          { type: "button", class: "icon-btn small", "aria-label": t("card.removePlace"), onclick: () => forgetLearned(id, p) },
           h("span", { html: iconSvg("x") }),
         ),
       ),
@@ -192,9 +340,10 @@ export function createCardSheet(id) {
           : null,
       );
     }
-    mount(placesEl, rows.length ? rows : h("p", { class: "muted" }, t("card.noPlaces")), branchLine);
+    mount(placesEl, rows.length || learned.length ? [rows, learned] : h("p", { class: "muted" }, t("card.noPlaces")), branchLine);
   }
 
+  showCode();
   update();
 
   return {

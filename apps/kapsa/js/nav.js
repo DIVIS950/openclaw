@@ -4,6 +4,7 @@
 //   #settings     settings
 //   #card-<id>    card sheet     #edit-<id>   edit sheet     #find-<id> address search
 //   #add          scan + new card
+//   #ai           chat assistant
 //   #import=...   shared card link
 
 const listeners = new Set();
@@ -74,6 +75,9 @@ export function currentRoute() {
   }
   if (hash === "add") {
     return { page: "home", overlay: "add", id: null, data: null };
+  }
+  if (hash === "ai") {
+    return { page: "home", overlay: "ai", id: null, data: null };
   }
   return { page: "home", overlay: null, id: null, data: null };
 }

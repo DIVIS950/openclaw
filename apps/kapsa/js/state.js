@@ -1,5 +1,6 @@
 // App state with a tiny subscribe/notify loop. Cards and settings persist in IndexedDB.
 
+import { habitScore, learnedPlaces, recordUse } from "./habits.js";
 import { cardsStore, kv, newId } from "./store.js";
 
 export const DEFAULT_SETTINGS = {
@@ -9,6 +10,8 @@ export const DEFAULT_SETTINGS = {
   autoOpen: true,
   osm: true,
   locationWanted: false,
+  habits: true,
+  aiModel: "claude-opus-5-5",
 };
 
 /**
@@ -16,7 +19,9 @@ export const DEFAULT_SETTINGS = {
  * @typedef {{
  *   id: string, name: string, code: string, format: string, color: string, category: string,
  *   places: Place[], autoBranches: boolean, photo: string | null, note: string,
- *   createdAt: number, updatedAt: number, lastUsedAt: number, uses: number, sample?: boolean
+ *   createdAt: number, updatedAt: number, lastUsedAt: number, uses: number, sample?: boolean,
+ *   points?: number | null, expiry?: string, code2?: string, format2?: string,
+ *   usage?: import("./habits.js").UseEvent[], ignoredLearned?: Array<{ lat: number, lon: number }>
  * }} Card
  */
 
@@ -140,13 +145,57 @@ export async function removePlace(cardId, placeId) {
   return saveCard({ ...card, places: card.places.filter((p) => p.id !== placeId) });
 }
 
-/** Count a card as shown at the till. */
+/** Count a card as shown at the till, and remember when and where (for habits). */
 export async function markUsed(cardId) {
   const card = getCard(cardId);
   if (!card) {
     return;
   }
-  const updated = { ...card, uses: (card.uses ?? 0) + 1, lastUsedAt: Date.now() };
+  const now = Date.now();
+  const updated = {
+    ...card,
+    uses: (card.uses ?? 0) + 1,
+    lastUsedAt: now,
+    usage: state.settings.habits ? recordUse(card.usage, now, state.pos) : card.usage,
+  };
   await cardsStore.put(updated);
   state.cards = state.cards.map((c) => (c.id === cardId ? updated : c));
+}
+
+/** Places learned from habits for one card (empty when habits are off). */
+export function learnedFor(card) {
+  return state.settings.habits ? learnedPlaces(card.usage, card.ignoredLearned) : [];
+}
+
+/** Map branches plus learned places, by card id, for ranking. */
+export function extraPlaces() {
+  const out = {};
+  for (const card of state.cards) {
+    out[card.id] = [...(state.branches[card.id] ?? []), ...learnedFor(card)];
+  }
+  return out;
+}
+
+/** Habit score of every card for this moment. */
+export function habitScores(now = Date.now()) {
+  const out = {};
+  if (state.settings.habits) {
+    for (const card of state.cards) {
+      out[card.id] = habitScore(card.usage, now);
+    }
+  }
+  return out;
+}
+
+/**
+ * Stop using a learned place for a card.
+ * @param {string} cardId
+ * @param {{ lat: number, lon: number }} place
+ */
+export async function forgetLearned(cardId, place) {
+  const card = getCard(cardId);
+  if (!card) {
+    return null;
+  }
+  return saveCard({ ...card, ignoredLearned: [...(card.ignoredLearned ?? []), { lat: place.lat, lon: place.lon }] });
 }

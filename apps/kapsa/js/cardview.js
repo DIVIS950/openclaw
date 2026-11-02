@@ -5,6 +5,7 @@ import { categoryIcon, inkFor } from "./brands.js";
 import { h } from "./dom.js";
 import { formatDistance } from "./geo.js";
 import { locale, t } from "./i18n.js";
+import { expiryStatus } from "./model.js";
 import { iconSvg } from "./icons.js";
 
 /**
@@ -24,6 +25,11 @@ export function cardFace(card, opts = {}) {
           opts.here ? h("span", { class: "pulse", "aria-hidden": "true" }) : null,
           formatDistance(opts.distance, locale()),
         );
+  const exp = expiryStatus(card.expiry, Date.now());
+  const warn =
+    exp && exp.state !== "ok"
+      ? h("span", { class: `pcard-warn is-${exp.state}` }, exp.state === "expired" ? t("card.expired") : exp.days === 0 ? t("card.expiresToday") : t("card.expiresIn", { n: exp.days }))
+      : null;
   const { class: extraClass, ...attrs } = opts.attrs ?? {};
   const classes = [
     "pcard",
@@ -51,6 +57,7 @@ export function cardFace(card, opts = {}) {
       { class: "pcard-bottom" },
       h("span", { class: "pcard-num" }, shortCode(card.code)),
       card.sample ? h("span", { class: "pcard-sample" }, t("wallet.sample")) : null,
+      warn,
       chip ? h("span", { class: "pcard-icon is-end", html: iconSvg(categoryIcon(card.category)) }) : null,
     ),
   );
@@ -60,11 +67,19 @@ export function cardFace(card, opts = {}) {
  * White panel with the barcode (or just the number) for the till scanner.
  * Barcode rendering is async; the panel shows the number straight away.
  * @param {import("./state.js").Card} card
- * @param {{ onCopy?: () => void }} [opts]
+ * @param {{ onCopy?: () => void, onEnlarge?: () => void }} [opts]
  */
 export function codePanel(card, opts = {}) {
   const def = FORMATS[card.format] ?? FORMATS.code128;
-  const art = h("div", { class: `code-art${def.linear ? " is-linear" : " is-matrix"}`, "aria-hidden": "true" });
+  // Tapping the code opens it full screen (bigger and brighter for the till scanner).
+  const art = opts.onEnlarge
+    ? h("button", {
+        type: "button",
+        class: `code-art is-tappable${def.linear ? " is-linear" : " is-matrix"}`,
+        "aria-label": t("card.enlarge"),
+        onclick: opts.onEnlarge,
+      })
+    : h("div", { class: `code-art${def.linear ? " is-linear" : " is-matrix"}`, "aria-hidden": "true" });
   const panel = h(
     "div",
     { class: "code-panel" },

@@ -1,6 +1,6 @@
 // Service worker: the whole app works offline; map tiles are cached as you browse.
 
-const VERSION = "kapsa-v1.0.1";
+const VERSION = "kapsa-v1.1.0";
 const TILE_CACHE = "kapsa-tiles-v1";
 const MAX_TILES = 600;
 
@@ -9,12 +9,15 @@ const APP_FILES = [
   "index.html",
   "manifest.webmanifest",
   "css/app.css",
+  "js/ai.js",
   "js/app.js",
   "js/barcode.js",
   "js/brands.js",
   "js/cardview.js",
   "js/dom.js",
   "js/geo.js",
+  "js/gesture.js",
+  "js/habits.js",
   "js/i18n.js",
   "js/icons.js",
   "js/location.js",
@@ -25,11 +28,17 @@ const APP_FILES = [
   "js/state.js",
   "js/store.js",
   "js/views/addflow.js",
+  "js/views/aisettings.js",
+  "js/views/assistant.js",
+  "js/views/bigcode.js",
   "js/views/cardsheet.js",
+  "js/views/extrafields.js",
   "js/views/home.js",
   "js/views/mapview.js",
+  "js/views/scanstep.js",
   "js/views/settings.js",
   "js/views/sheets.js",
+  "vendor/anthropic.mjs",
   "vendor/bwip.mjs",
   "vendor/barcode-detector.js",
   "vendor/zxing_reader.wasm",

@@ -1,6 +1,6 @@
 // Adding and editing cards: camera scan step, then the details form.
 
-import { FORMAT_ORDER, FORMATS, fromDetectorFormat, guessFormat } from "../barcode.js";
+import { FORMAT_ORDER, FORMATS, guessFormat } from "../barcode.js";
 import { CATEGORIES, SWATCHES, findBrand, suggestBrands } from "../brands.js";
 import { cardFace, codePanel } from "../cardview.js";
 import { buzz, h, mount, toast } from "../dom.js";
@@ -10,9 +10,10 @@ import { iconSvg } from "../icons.js";
 import { invalidateBranches, startLocation } from "../location.js";
 import { back, replace } from "../nav.js";
 import { fetchHere } from "../osm.js";
-import { CameraScanner, scanImageFile } from "../scanner.js";
 import { getCard, saveCard, state } from "../state.js";
 import { newId } from "../store.js";
+import { extraFields } from "./extrafields.js";
+import { scanStep } from "./scanstep.js";
 
 /** Sheet for #add: scan first, then details. */
 export function createAddSheet() {
@@ -26,6 +27,18 @@ export function createAddSheet() {
     const step = scanStep({
       onCode: (code, format) => showForm({ code, format }),
       onManual: () => showForm({ code: "", format: "auto" }),
+      onAiCard: (reading) =>
+        showForm({
+          name: reading.name,
+          code: reading.code,
+          format: reading.format,
+          color: reading.color ?? undefined,
+          category: reading.category ?? undefined,
+          expiry: reading.expiry,
+          points: reading.points,
+          note: reading.note,
+          fromAi: true,
+        }),
     });
     cleanupStep = step.cleanup;
     mount(host, step.el);
@@ -59,121 +72,6 @@ export function createEditSheet(id) {
   return { el: step.el, update: step.update, cleanup: step.cleanup };
 }
 
-function scanStep({ onCode, onManual }) {
-  const video = h("video", { class: "scan-video", playsinline: true, muted: true, autoplay: true });
-  const msg = h("p", { class: "scan-msg", hidden: true, role: "alert" });
-  const hint = h("p", { class: "scan-hint" }, t("scan.starting"));
-  const torchBtn = h(
-    "button",
-    { type: "button", class: "icon-btn on-dark", hidden: true, "aria-label": t("scan.torch"), "aria-pressed": "false" },
-    h("span", { html: iconSvg("flashlight") }),
-  );
-  const fileInput = h("input", { type: "file", accept: "image/*", hidden: true, id: "scan-file" });
-  let done = false;
-
-  const finish = (raw) => {
-    if (done) {
-      return;
-    }
-    done = true;
-    buzz([20, 40, 20]);
-    scanner.stop();
-    onCode(raw.rawValue.trim(), fromDetectorFormat(raw.format));
-  };
-
-  const scanner = new CameraScanner(video, finish);
-
-  fileInput.addEventListener("change", async () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = "";
-    if (!file) {
-      return;
-    }
-    hint.textContent = t("scan.reading");
-    try {
-      const found = await scanImageFile(file);
-      if (found) {
-        finish(found);
-        return;
-      }
-    } catch {
-      // Fall through to the message below.
-    }
-    hint.textContent = t("scan.hint");
-    msg.hidden = false;
-    msg.textContent = t("scan.photoNone");
-  });
-
-  torchBtn.addEventListener("click", async () => {
-    const on = await scanner.toggleTorch();
-    torchBtn.setAttribute("aria-pressed", String(on));
-    torchBtn.classList.toggle("is-on", on);
-  });
-
-  scanner.start().then((result) => {
-    if (done) {
-      scanner.stop();
-      return;
-    }
-    if (result === "ok") {
-      hint.textContent = t("scan.hint");
-      torchBtn.hidden = !scanner.hasTorch();
-    } else {
-      hint.textContent = "";
-      msg.hidden = false;
-      msg.textContent = result === "denied" ? t("scan.cameraDenied") : t("scan.noCamera");
-      el.classList.add("no-camera");
-    }
-  });
-
-  const el = h(
-    "div",
-    { class: "scan" },
-    h(
-      "div",
-      { class: "scan-view" },
-      video,
-      h("div", { class: "scan-shade", "aria-hidden": "true" }),
-      h("div", { class: "scan-frame", "aria-hidden": "true" }, h("span", { class: "scan-laser" })),
-      h(
-        "div",
-        { class: "sheet-bar on-dark" },
-        h("button", { type: "button", class: "icon-btn on-dark", onclick: () => back(), "aria-label": t("card.close") }, h("span", { html: iconSvg("x") })),
-        h("h2", { class: "sheet-title" }, t("scan.title")),
-        torchBtn,
-      ),
-      h("div", { class: "scan-copy" }, hint, msg),
-    ),
-    h(
-      "div",
-      { class: "scan-actions" },
-      h(
-        "button",
-        { type: "button", class: "btn-dark", onclick: () => fileInput.click() },
-        h("span", { html: iconSvg("image") }),
-        t("scan.fromPhoto"),
-      ),
-      h(
-        "button",
-        {
-          type: "button",
-          class: "btn-dark",
-          onclick: () => {
-            done = true;
-            scanner.stop();
-            onManual();
-          },
-        },
-        h("span", { html: iconSvg("keyboard") }),
-        t("scan.manual"),
-      ),
-    ),
-    fileInput,
-  );
-
-  return { el, cleanup: () => scanner.stop() };
-}
-
 /**
  * Details form for a new or existing card.
  * @param {{ mode: "add" | "edit", prefill: Partial<import("../state.js").Card>, onRescan: (() => void) | null }} opts
@@ -196,6 +94,7 @@ function formStep({ mode, prefill, onRescan }) {
   let pickedShop = null;
   const abort = new AbortController();
 
+  const extras = extraFields(prefill);
   const preview = h("div", { class: "form-preview" });
   const codePreview = h("div", { class: "form-code" });
   const nameError = h("p", { class: "field-error", hidden: true, role: "alert" });
@@ -550,6 +449,7 @@ function formStep({ mode, prefill, onRescan }) {
     }
     const card = await saveCard({
       ...(existing ? { id: existing.id } : {}),
+      ...extras.values(),
       name,
       code: draft.code,
       format,
@@ -585,6 +485,9 @@ function formStep({ mode, prefill, onRescan }) {
         ? h("button", { type: "button", class: "btn-ghost", onclick: onRescan }, h("span", { html: iconSvg("scan-barcode") }), t("form.rescan"))
         : h("span", { class: "bar-spacer" }),
     ),
+    prefill.fromAi
+      ? h("p", { class: "ai-banner", role: "note" }, h("span", { html: iconSvg("sparkles") }), t("ai.filled"))
+      : null,
     preview,
     field(t("form.name"), "card-name", nameInput, nameError, hereChips, brandChips),
     h(
@@ -609,6 +512,7 @@ function formStep({ mode, prefill, onRescan }) {
         toggle(autoBranches, h("span", { class: "toggle-label" }, t("form.autoBranches")), h("span", { class: "toggle-meta" }, t("form.autoBranchesHint"))),
       ),
     ),
+    extras.el,
     field(t("form.note"), "card-note", noteInput),
     h(
       "div",

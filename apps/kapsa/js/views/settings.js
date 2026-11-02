@@ -9,8 +9,10 @@ import { buildBackup, parseBackup } from "../model.js";
 import { back } from "../nav.js";
 import { DEFAULT_SETTINGS, deleteCard, saveCard, state, updateSettings } from "../state.js";
 import { cardsStore, kv, osmCache } from "../store.js";
+import { setApiKey } from "../ai.js";
+import { createAiSettings } from "./aisettings.js";
 
-export const APP_VERSION = "1.0.1";
+export const APP_VERSION = "1.1.0";
 
 /** @type {any} */
 let installPrompt = null;
@@ -57,6 +59,7 @@ export function createSettingsPage() {
   });
 
   let wipeOpen = false;
+  const ai = createAiSettings();
 
   const segmented = (id, value, options, onChange) =>
     h(
@@ -117,6 +120,7 @@ export function createSettingsPage() {
       return;
     }
     lastSig = sig;
+    ai.sync();
     const section = (title, ...children) => h("section", { class: "set-section" }, h("h2", { class: "set-title" }, title), ...children);
 
     let installBlock;
@@ -150,6 +154,7 @@ export function createSettingsPage() {
     mount(
       body,
       section(t("settings.install"), installBlock),
+      section(t("ai.settingsTitle"), ai.el),
       section(
         t("settings.language"),
         segmented(
@@ -186,6 +191,7 @@ export function createSettingsPage() {
           (v) => updateSettings({ radius: v }),
         ),
         switchRow("set-autoopen", t("settings.autoOpen"), null, s.autoOpen, (v) => updateSettings({ autoOpen: v })),
+        switchRow("set-habits", t("settings.habits"), t("settings.habitsHint"), s.habits, (v) => updateSettings({ habits: v })),
         switchRow("set-osm", t("settings.osm"), t("settings.osmHint"), s.osm, async (v) => {
           await updateSettings({ osm: v });
           invalidateBranches();
@@ -237,6 +243,7 @@ export function createSettingsPage() {
                     class: "btn-danger",
                     onclick: async () => {
                       await Promise.all([cardsStore.clear(), kv.clear(), osmCache.clear()]);
+                      await setApiKey("");
                       state.cards = [];
                       state.branches = {};
                       wipeOpen = false;

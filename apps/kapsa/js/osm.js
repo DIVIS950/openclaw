@@ -37,7 +37,8 @@ export function branchQuery(names, center, radius) {
  */
 export function hereQuery(center, radius) {
   const around = `around:${Math.round(radius)},${center.lat.toFixed(5)},${center.lon.toFixed(5)}`;
-  return `[out:json][timeout:15];(nwr(${around})[name][shop];nwr(${around})[name][amenity~"^(cafe|restaurant|fast_food|pharmacy|fuel|bar|pub|ice_cream|cinema|fitness_centre)$"];nwr(${around})[name][leisure~"^(fitness_centre|sports_centre)$"];);out center tags 40;`;
+  const limit = radius > 200 ? 120 : 40;
+  return `[out:json][timeout:15];(nwr(${around})[name][shop];nwr(${around})[name][amenity~"^(cafe|restaurant|fast_food|pharmacy|fuel|bar|pub|ice_cream|cinema|fitness_centre)$"];nwr(${around})[name][leisure~"^(fitness_centre|sports_centre)$"];);out center tags ${limit};`;
 }
 
 /**
@@ -134,12 +135,13 @@ export async function fetchBranches(names, center, radius, signal) {
 }
 
 /**
- * Named shops within a short distance (used to suggest the card name).
+ * Named shops within a short distance (used to suggest the card name, and by the assistant).
  * @param {{ lat: number, lon: number }} pos
  * @param {AbortSignal} [signal]
+ * @param {number} [radius] metres
  */
-export async function fetchHere(pos, signal) {
-  return nearbyNames(await overpass(hereQuery(pos, 90), signal), pos);
+export async function fetchHere(pos, signal, radius = 90) {
+  return nearbyNames(await overpass(hereQuery(pos, radius), signal), pos);
 }
 
 /**

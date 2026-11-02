@@ -2,14 +2,16 @@
 // Boot, routing between pages and sheets, theme/language and auto-open.
 
 import { h, mount, toast } from "./dom.js";
+import { enableSwipeToClose } from "./gesture.js";
 import { rankCards } from "./geo.js";
 import { detectLang, setLang, t } from "./i18n.js";
 import { autoStartLocation, bindVisibility, refreshBranches } from "./location.js";
 import { back, currentRoute, go, onRoute, replace } from "./nav.js";
 import { preloadDetector } from "./scanner.js";
-import { loadState, state, subscribe } from "./state.js";
+import { extraPlaces, loadState, state, subscribe } from "./state.js";
 import { requestPersistence } from "./store.js";
 import { createAddSheet, createEditSheet } from "./views/addflow.js";
+import { createAssistantSheet } from "./views/assistant.js";
 import { createCardSheet } from "./views/cardsheet.js";
 import { createHome } from "./views/home.js";
 import { createMapPage } from "./views/mapview.js";
@@ -113,6 +115,7 @@ function openSheet(key, factory) {
   }
   sheet = { ...created, key };
   dialog.classList.toggle("sheet-dark", Boolean(created.dark));
+  dialog.classList.toggle("sheet-tall", Boolean(created.tall));
   dialog.classList.remove("is-closing");
   mount(dialogBody, created.el);
   if (!dialog.open) {
@@ -152,6 +155,9 @@ function render(route) {
     case "add":
       openSheet("add", () => createAddSheet());
       break;
+    case "ai":
+      openSheet("ai", () => createAssistantSheet());
+      break;
     case "import":
       openSheet(`import-${route.data}`, () => createImportSheet(route.data));
       break;
@@ -169,7 +175,7 @@ function maybeAutoOpen() {
   if (route.page !== "home" || route.overlay) {
     return;
   }
-  const [top] = rankCards(state.cards, state.pos, state.branches, state.settings.radius);
+  const [top] = rankCards(state.cards, state.pos, extraPlaces(), state.settings.radius);
   if (!top?.here) {
     return;
   }
@@ -277,6 +283,7 @@ async function boot() {
     e.preventDefault();
     back();
   });
+  enableSwipeToClose(dialog, () => back());
   dialog.addEventListener("click", (e) => {
     // A tap on the dimmed backdrop (outside the panel) closes the sheet.
     if (e.target === dialog && !dialog.classList.contains("sheet-dark")) {

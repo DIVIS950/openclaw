@@ -5,11 +5,12 @@ import { normalizeName } from "../brands.js";
 import { cardFace } from "../cardview.js";
 import { h, mount } from "../dom.js";
 import { formatDistance, rankCards } from "../geo.js";
+import { dayPart, suggestNow } from "../habits.js";
 import { locale, t } from "../i18n.js";
 import { iconSvg } from "../icons.js";
 import { startLocation } from "../location.js";
 import { go } from "../nav.js";
-import { saveCard, state } from "../state.js";
+import { extraPlaces, habitScores, saveCard, state } from "../state.js";
 
 /** Build the wallet screen once; returns an `update()` that refreshes it from state. */
 export function createHome() {
@@ -40,6 +41,11 @@ export function createHome() {
     h("span", { class: "fab-label" }),
   );
 
+  const aiBtn = h(
+    "button",
+    { type: "button", class: "icon-btn ai-btn", onclick: () => go("#ai") },
+    h("span", { html: iconSvg("sparkles") }),
+  );
   const mapBtn = h("button", { type: "button", class: "icon-btn", onclick: () => go("#map") }, h("span", { html: iconSvg("map") }));
   const settingsBtn = h(
     "button",
@@ -54,13 +60,14 @@ export function createHome() {
       "header",
       { class: "appbar" },
       h("div", { class: "brand" }, h("span", { class: "logo-mark", "aria-hidden": "true" }), h("span", { class: "wordmark" }, "Kapsa")),
-      h("div", { class: "appbar-actions" }, mapBtn, settingsBtn),
+      h("div", { class: "appbar-actions" }, aiBtn, mapBtn, settingsBtn),
     ),
     h("main", { class: "home-main" }, status, hero, wallet, empty),
     fab,
   );
 
   function update() {
+    aiBtn.setAttribute("aria-label", t("ai.title"));
     mapBtn.setAttribute("aria-label", t("map.title"));
     settingsBtn.setAttribute("aria-label", t("settings.title"));
     fab.querySelector(".fab-label").textContent = t("wallet.add");
@@ -69,6 +76,7 @@ export function createHome() {
     search.setAttribute("aria-label", t("wallet.search"));
 
     const hasCards = state.cards.length > 0;
+    aiBtn.hidden = !hasCards;
     empty.hidden = hasCards;
     wallet.hidden = !hasCards;
     fab.hidden = !hasCards;
@@ -79,7 +87,7 @@ export function createHome() {
       return;
     }
 
-    const rows = rankCards(state.cards, state.pos, state.branches, state.settings.radius);
+    const rows = rankCards(state.cards, state.pos, extraPlaces(), state.settings.radius, habitScores());
     renderHero(hero, rows);
 
     count.textContent = String(state.cards.length);
@@ -171,53 +179,53 @@ function renderHero(el, rows) {
     return;
   }
 
+  // No card for this exact spot: offer the card you usually use now, and the nearest one.
+  const blocks = [];
+  const suggestion = state.settings.habits ? suggestNow(state.cards, Date.now()) : null;
+  if (suggestion) {
+    blocks.push(quickRow(suggestion.card, t("habit.usuallyNow"), t(`habit.${dayPart(Date.now())}`), true));
+  }
   if (state.locStatus === "on") {
     const nearest = rows.find((r) => r.distance !== null);
-    if (nearest) {
-      mount(
-        el,
-        h(
-          "button",
-          { type: "button", class: "nearest", onclick: () => go(`#card-${nearest.card.id}`) },
-          h("span", { class: "nearest-swatch", style: { "--c": nearest.card.color } }),
-          h(
-            "span",
-            { class: "nearest-text" },
-            h("span", { class: "nearest-label" }, t("near.nearest")),
-            h("span", { class: "nearest-name" }, nearest.card.name),
-          ),
-          h("span", { class: "nearest-dist" }, formatDistance(nearest.distance ?? 0, locale())),
-        ),
-      );
-    } else {
-      mount(el);
+    if (nearest && nearest.card.id !== suggestion?.card.id) {
+      blocks.push(quickRow(nearest.card, t("near.nearest"), formatDistance(nearest.distance ?? 0, locale()), false));
     }
-    return;
+  } else if (state.locStatus !== "searching") {
+    blocks.push(locationCard());
   }
+  mount(el, blocks);
+}
 
-  if (state.locStatus === "searching") {
-    mount(el);
-    return;
-  }
+/** One-line shortcut to a card: swatch, label, name, and a value on the right. */
+function quickRow(card, label, meta, smart) {
+  return h(
+    "button",
+    { type: "button", class: `nearest${smart ? " is-smart" : ""}`, onclick: () => go(`#card-${card.id}`) },
+    h("span", { class: "nearest-swatch", style: { "--c": card.color } }),
+    h(
+      "span",
+      { class: "nearest-text" },
+      h("span", { class: "nearest-label" }, smart ? h("span", { html: iconSvg("sparkles") }) : null, label),
+      h("span", { class: "nearest-name" }, card.name),
+    ),
+    h("span", { class: "nearest-dist" }, meta),
+  );
+}
 
+function locationCard() {
   const denied = state.locStatus === "denied";
   const unavailable = state.locStatus === "unavailable";
-  mount(
-    el,
+  return h(
+    "div",
+    { class: "loc-card" },
+    h("span", { class: "loc-icon", html: iconSvg(denied ? "locate-off" : "locate-fixed") }),
     h(
       "div",
-      { class: "loc-card" },
-      h("span", { class: "loc-icon", html: iconSvg(denied ? "locate-off" : "locate-fixed") }),
-      h(
-        "div",
-        { class: "loc-copy" },
-        h("strong", null, denied ? t("loc.off") : t("loc.turnOn")),
-        h("p", null, denied ? t("loc.denied") : unavailable ? t("loc.unavailable") : t("loc.why")),
-      ),
-      denied
-        ? null
-        : h("button", { type: "button", class: "btn-primary", onclick: () => startLocation() }, t("loc.turnOn")),
+      { class: "loc-copy" },
+      h("strong", null, denied ? t("loc.off") : t("loc.turnOn")),
+      h("p", null, denied ? t("loc.denied") : unavailable ? t("loc.unavailable") : t("loc.why")),
     ),
+    denied ? null : h("button", { type: "button", class: "btn-primary", onclick: () => startLocation() }, t("loc.turnOn")),
   );
 }
 
