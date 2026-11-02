@@ -10,11 +10,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DemoEngine } from "../public/shared/demo.js";
-import { applyCommand, emptyHome, stateKey, validateCommand } from "../public/shared/model.js";
+import { AutomationEngine, emptyAutomations, normalizeAutomations, validateSchedule } from "../public/shared/automation.js";
+import { applyCommand, emptyHome, normalizeHome, stateKey, validateCommand } from "../public/shared/model.js";
 import { CrestronHomeBackend } from "./backends/crestron-home.js";
 import { CustomProgramBackend, parseJoinMap } from "./backends/custom-program.js";
 import { assistantErrorMessage, runAssistant } from "./assistant.js";
 import { fetchSnapshot } from "./camera.js";
+import { fetchWeather, findPlace } from "./weather.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, "..", "public");
@@ -48,6 +50,8 @@ const DEFAULT_CONFIG = {
   cameras: [], // { id, name, snapshotURL, username, password }
   assistantKey: "", // Anthropic API key for the AI assistant (or set ANTHROPIC_API_KEY)
   roomPhotos: {}, // roomId -> version (time of upload); the files live in data/photos
+  location: null, // { place, lat, lon, unit } for weather and sunrise/sunset schedules
+  automations: emptyAutomations(), // schedules, timers, vacation mode (see shared/automation.js)
 };
 
 function loadConfig() {
@@ -99,10 +103,59 @@ function payload() {
     home,
     status: { ...status, mode: config.mode },
     homeName: config.homeName,
-    cameras: config.cameras.map((c) => ({ id: c.id, name: c.name })),
+    cameras: cameraList(),
     assistant: { available: assistantAvailable() },
     roomPhotos: config.roomPhotos,
+    location: config.location ? { place: config.location.place, lat: config.location.lat, lon: config.location.lon } : null,
+    weather,
+    automations: normalizeAutomations(config.automations),
   };
+}
+
+/** Cameras for the app. The demo house shows two pretend ones until real cameras are added. */
+function cameraList() {
+  if (config.mode === "demo" && !config.cameras.length) {
+    return [{ id: "demo-drive", name: "Driveway", demo: "drive" }, { id: "demo-door", name: "Front Door", demo: "door" }];
+  }
+  return config.cameras.map((c) => ({ id: c.id, name: c.name }));
+}
+
+// ---------- weather ----------
+
+let weather = null;
+
+async function refreshWeather() {
+  if (!config.location) {
+    weather = null;
+    return;
+  }
+  try {
+    weather = await fetchWeather(config.location);
+    broadcast();
+  } catch (err) {
+    console.error("weather:", err.message);
+  }
+}
+
+// ---------- automations ----------
+
+const automations = new AutomationEngine({
+  getHome: () => home,
+  perform: (cmd) => perform(cmd),
+  getAutomations: () => config.automations,
+  save: (a) => {
+    config = { ...config, automations: a };
+    saveConfig(config);
+    broadcast();
+  },
+  getPlace: () => config.location,
+  log: (text) => console.error("automation:", text),
+});
+
+function saveAutomations(next) {
+  config = { ...config, automations: normalizeAutomations(next) };
+  saveConfig(config);
+  broadcast();
 }
 
 // Room ids come from the processor and can hold any character, so photo files are named by hash.
@@ -131,7 +184,12 @@ function setStatus(connection, message = null) {
 }
 
 /** Keep what someone just set for a few seconds; processors report the old value until the load gets there. */
-function receive(snapshot) {
+function receive(raw) {
+  const snapshot = normalizeHome(raw);
+  // Doorbells in a join map name their camera; match it to a camera set up here.
+  for (const bell of snapshot.doorbells) {
+    if (!bell.cameraId && bell.cameraName) bell.cameraId = config.cameras.find((c) => c.name === bell.cameraName)?.id ?? null;
+  }
   const now = Date.now();
   for (const [key, entry] of recent) if (now - entry.at > 3000) recent.delete(key);
   for (const { cmd } of recent.values()) applyCommand(snapshot, cmd);
@@ -157,6 +215,7 @@ function makeBackend(cfg) {
         disconnect: () => engine.stop(),
         fetch: async () => engine.snapshot(),
         perform: async (cmd) => engine.perform(cmd),
+        ring: (id) => engine.ring(id),
       };
     }
   }
@@ -354,6 +413,89 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    if (p === "/api/automations" && req.method === "PUT") {
+      const body = await readJSON(req);
+      const schedules = Array.isArray(body.schedules) ? body.schedules : [];
+      for (const sch of schedules) {
+        const problem = validateSchedule(sch);
+        if (problem) return sendJSON(res, 400, { error: problem });
+      }
+      const current = normalizeAutomations(config.automations);
+      saveAutomations({
+        ...current,
+        schedules: schedules.slice(0, 100).map((sch) => ({
+          id: typeof sch.id === "string" && sch.id ? sch.id : crypto.randomUUID(),
+          name: sch.name.trim().slice(0, 60), enabled: sch.enabled !== false, when: sch.when, days: sch.days, actions: sch.actions,
+          lastRun: current.schedules.find((o) => o.id === sch.id)?.lastRun ?? "",
+        })),
+        vacation: typeof body.vacation?.enabled === "boolean" ? { ...current.vacation, enabled: body.vacation.enabled, next: 0 } : current.vacation,
+      });
+      return sendJSON(res, 200, { ok: true });
+    }
+
+    if (p === "/api/timers" && req.method === "POST") {
+      const body = await readJSON(req);
+      const minutes = Number(body.minutes);
+      const cmd = body.command;
+      if (!(minutes > 0 && minutes <= 24 * 60)) return sendJSON(res, 400, { error: "Pick how long." });
+      const problem = validateCommand(cmd);
+      if (problem) return sendJSON(res, 400, { error: problem });
+      const current = normalizeAutomations(config.automations);
+      saveAutomations({
+        ...current,
+        timers: [...current.timers, {
+          id: crypto.randomUUID(), label: String(body.label ?? "Timer").slice(0, 80),
+          at: Date.now() + minutes * 60000, actions: [{ type: "command", command: cmd }],
+        }].slice(-50),
+      });
+      return sendJSON(res, 200, { ok: true });
+    }
+
+    const timer = p.match(/^\/api\/timers\/([\w-]+)$/);
+    if (timer && req.method === "DELETE") {
+      const current = normalizeAutomations(config.automations);
+      saveAutomations({ ...current, timers: current.timers.filter((t) => t.id !== timer[1]) });
+      return sendJSON(res, 200, { ok: true });
+    }
+
+    if (p === "/api/location" && req.method === "PUT") {
+      const body = await readJSON(req);
+      if (body.clear === true) {
+        config = { ...config, location: null };
+        saveConfig(config);
+        weather = null;
+        broadcast();
+        return sendJSON(res, 200, { ok: true });
+      }
+      const query = typeof body.query === "string" ? body.query.trim() : "";
+      if (!query) return sendJSON(res, 400, { error: "Type a town or city." });
+      let found;
+      try {
+        found = await findPlace(query);
+      } catch {
+        return sendJSON(res, 502, { error: "Couldn't reach the weather service. Check the internet connection." });
+      }
+      if (!found) return sendJSON(res, 404, { error: `Couldn't find “${query}”. Try the nearest city.` });
+      config = { ...config, location: found };
+      saveConfig(config);
+      await refreshWeather();
+      broadcast();
+      return sendJSON(res, 200, { ok: true, place: found.place });
+    }
+
+    const bell = p.match(/^\/api\/doorbells\/([\w-]+)\/test$/);
+    if (bell && req.method === "POST") {
+      // Shows the doorbell pop-up on every screen, without anyone at the door.
+      if (backend?.ring) backend.ring(bell[1]);
+      else {
+        const b = home.doorbells.find((d) => d.id === bell[1]);
+        if (!b) return sendJSON(res, 404, { error: "Unknown doorbell" });
+        b.ringAt = Date.now();
+        broadcast();
+      }
+      return sendJSON(res, 200, { ok: true });
+    }
+
     const photo = p.match(/^\/api\/rooms\/([^/]+)\/photo$/);
     if (photo) {
       const roomId = decodeURIComponent(photo[1]);
@@ -410,4 +552,7 @@ server.listen(PORT, HOST, () => {
   console.log(`Home Control is running: open http://<this-computer's-ip>:${PORT} on your iPad or phone (classic view: /index.html)`);
   console.log(`Mode: ${config.mode}${ADMIN_PIN ? " · Setup is protected by ADMIN_PIN" : ""}`);
   connect();
+  refreshWeather();
+  setInterval(refreshWeather, 15 * 60000);
+  setInterval(() => automations.tick().catch((err) => console.error("automation:", err.message)), 20000);
 });

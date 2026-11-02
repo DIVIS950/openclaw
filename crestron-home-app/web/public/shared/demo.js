@@ -2,6 +2,26 @@
 // can't reach a home server (so the app can always be tried).
 import { applyCommand } from "./model.js";
 
+// Made-up tracks and shows for the demo house.
+const PLAYLISTS = {
+  "src-spotify": [
+    { title: "Golden Hour Drive", artist: "The Paper Lanterns", album: "Coastline" },
+    { title: "Slow Morning", artist: "Mira Vale", album: "Kitchen Radio" },
+    { title: "Neon Harbor", artist: "Atlas & Wren", album: "Night Ferry" },
+    { title: "Linen", artist: "June Okafor", album: "Soft Rooms" },
+  ],
+  "src-appletv": [
+    { title: "The Long Coast", artist: "Season 2 · Episode 4", album: "Apple TV" },
+    { title: "Kitchen Masters", artist: "Season 5 · Episode 1", album: "Apple TV" },
+  ],
+  "src-cable": [{ title: "Evening News", artist: "Channel 7", album: "Cable TV" }],
+  "src-radio": [{ title: "Morning Jazz", artist: "Radio 88.5", album: "Radio" }],
+};
+const track = (sourceId, index = 0) => {
+  const list = PLAYLISTS[sourceId];
+  return list ? { ...list[((index % list.length) + list.length) % list.length] } : null;
+};
+
 export function sampleHome() {
   const sources = [
     { id: "src-appletv", name: "Apple TV" },
@@ -13,6 +33,7 @@ export function sampleHome() {
   const shade = (id, name, roomId, position, canStop = false) => ({ id, name, roomId, position, hasPosition: true, canStop, online: true });
   const zone = (id, name, roomId, on, volume, sourceId) => ({
     id, name, roomId, on, volume, muted: false, hasVolume: true, sources, sourceId,
+    playing: on, canTransport: true, nowPlaying: on ? track(sourceId) : null,
   });
   return {
     rooms: [
@@ -70,6 +91,9 @@ export function sampleHome() {
       { id: "gate-drive", name: "Driveway gate", state: "closed", separateOpenClose: true, canStop: true },
     ],
     sensors: [],
+    doorbells: [
+      { id: "bell-front", name: "Front Door", cameraId: "demo-door", lockId: "lock-front", ringAt: null },
+    ],
   };
 }
 
@@ -79,6 +103,15 @@ export class DemoEngine {
     this.onChange = onChange;
     this.gateEnd = { "gate-drive": "closed" };
     this.timers = new Set();
+    this.trackIndex = new Map();
+  }
+
+  /** Pretends someone pressed the doorbell. */
+  ring(id) {
+    const bell = this.state.doorbells.find((b) => b.id === id) ?? this.state.doorbells[0];
+    if (!bell) return;
+    bell.ringAt = Date.now();
+    this.onChange?.(this.snapshot());
   }
 
   snapshot() {
@@ -89,6 +122,7 @@ export class DemoEngine {
     const s = this.state;
     applyCommand(s, cmd);
     if (cmd.type === "recallScene") this.#runScene(cmd.id);
+    if (cmd.type.startsWith("media")) this.#media(cmd);
     if (cmd.type === "gate" && cmd.action !== "stop") {
       // A real gate takes a while to travel; report the end position later.
       const t = setTimeout(() => {
@@ -110,6 +144,25 @@ export class DemoEngine {
     this.timers.clear();
   }
 
+  #media(cmd) {
+    const zone = this.state.media.find((m) => m.id === cmd.id);
+    if (!zone) return;
+    if (cmd.type === "mediaSource") {
+      this.trackIndex.set(zone.id, 0);
+      zone.nowPlaying = track(zone.sourceId);
+      zone.playing = true;
+    } else if (cmd.type === "mediaPower") {
+      zone.playing = cmd.on;
+      if (cmd.on && !zone.sourceId) zone.sourceId = zone.sources[1]?.id ?? zone.sources[0]?.id ?? null;
+      zone.nowPlaying = cmd.on ? track(zone.sourceId, this.trackIndex.get(zone.id) ?? 0) : null;
+    } else if (cmd.type === "mediaTransport" && (cmd.action === "next" || cmd.action === "previous")) {
+      const i = (this.trackIndex.get(zone.id) ?? 0) + (cmd.action === "next" ? 1 : -1);
+      this.trackIndex.set(zone.id, i);
+      zone.nowPlaying = track(zone.sourceId, i);
+      zone.playing = true;
+    }
+  }
+
   #runScene(id) {
     const s = this.state;
     const setLights = (roomId, level) => {
@@ -125,18 +178,18 @@ export class DemoEngine {
       case "s-goodnight":
         setLights(null, 0);
         for (const l of s.locks) l.locked = true;
-        for (const m of s.media) m.on = false;
+        for (const m of s.media) { m.on = false; m.playing = false; m.nowPlaying = null; }
         break;
       case "s-away":
         setLights(null, 0);
-        for (const m of s.media) m.on = false;
+        for (const m of s.media) { m.on = false; m.playing = false; m.nowPlaying = null; }
         for (const p of s.security) p.mode = "armedAway";
         break;
       case "s-movie": {
         setLights("living", 0.12);
         for (const sh of s.shades) if (sh.roomId === "living") sh.position = 0;
         const tv = s.media.find((m) => m.id === "m-living");
-        if (tv) { tv.on = true; tv.sourceId = "src-appletv"; }
+        if (tv) { tv.on = true; tv.sourceId = "src-appletv"; tv.playing = true; tv.nowPlaying = track("src-appletv"); }
         break;
       }
       case "s-dinner": setLights("dining", 0.45); setLights("kitchen", 0.6); break;

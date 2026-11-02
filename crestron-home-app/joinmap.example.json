@@ -20,6 +20,8 @@
       "name": "Living Room", "room": "living",
       "powerOn": 201, "powerOff": 202, "powerFeedback": 201,
       "volume": 31, "mute": 203,
+      "play": 221, "pause": 222, "next": 223, "previous": 224, "playingFeedback": 221,
+      "title": 1, "artist": 2, "album": 3,
       "sources": [
         { "name": "Apple TV", "press": 211 },
         { "name": "Cable", "press": 212 }
@@ -32,6 +34,9 @@
   "security": [
     { "name": "Alarm", "armAway": 401, "armHome": 402, "disarm": 403, "code": 401,
       "armedAwayFeedback": 401, "armedHomeFeedback": 402, "disarmedFeedback": 403, "alarmFeedback": 404 }
+  ],
+  "doorbells": [
+    { "name": "Front Door", "ring": 601, "camera": "Front Door", "lock": "Front Door" }
   ],
   "gates": [
     { "name": "Driveway Gate", "open": 501, "close": 502, "stop": 503,

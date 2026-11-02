@@ -1,13 +1,25 @@
 // Home View detail sheets (the card that opens over the page). Pure HTML builders.
 import { icon } from "../icons.js";
 import { GATE_TITLES, pct, roomOf, SECURITY_TITLES } from "../shared/model.js";
-import { cameraPicture, esc, fmtDate, gateControls, isOn, lightState, shadeState, sourceName } from "./views.js";
+import { art, attr, cameraPicture, esc, fmtDate, gateControls, isOn, lightState, shadeState, sourceName, transportRow } from "./views.js";
 
 const closeBtn = `<button type="button" class="sheet-close" data-act="sheet-close" aria-label="Close">${icon("close")}</button>`;
 
-function sheetHead(color, ic, title, sub) {
+/** Card title row. With `favKey` ("light:l1"), a star adds or removes it from Favorites. */
+export function sheetHead(color, ic, title, sub, app = null, favKey = null) {
+  const fav = app && favKey ? app.favorites.includes(favKey) : false;
+  const star = favKey
+    ? `<button type="button" class="sheet-fav${fav ? " on" : ""}" aria-pressed="${fav}" aria-label="${fav ? "Remove from" : "Add to"} Favorites"${attr({ act: "favorite", fav: favKey })}>${icon(fav ? "starFill" : "star")}</button>`
+    : "";
   return `<div class="sheet-head"><span class="w-glyph" style="--c:${color}">${icon(ic)}</span>
-    <div><div class="sheet-title" id="sheet-title">${esc(title)}</div>${sub ? `<div class="sheet-sub">${esc(sub)}</div>` : ""}</div>${closeBtn}</div>`;
+    <div><div class="sheet-title" id="sheet-title">${esc(title)}</div>${sub ? `<div class="sheet-sub">${esc(sub)}</div>` : ""}</div>${star}${closeBtn}</div>`;
+}
+
+/** "Turn off in 15 min / 30 min / 1 h / 2 h". */
+function timerPills(verb, label, command) {
+  const opts = [[15, "15 min"], [30, "30 min"], [60, "1 h"], [120, "2 h"]];
+  return `<div class="timer-row"><span class="timer-label">${icon("timer")}${esc(verb)} in</span>
+    ${opts.map(([m, t]) => `<button type="button" class="pill small"${attr({ act: "timer-add", minutes: m, label, cmd: JSON.stringify(command) })}>${t}</button>`).join("")}</div>`;
 }
 
 function vslider({ kind, id, value, cls, ic, label }) {
@@ -25,19 +37,21 @@ function lightSheet(app, l) {
        <div class="pills">${presets.map(([v, t]) => `<button type="button" class="pill" aria-pressed="${Math.abs(l.level - v) < 0.02}" data-act="light-set" data-id="${esc(l.id)}" data-level="${v}">${t}</button>`).join("")}</div>`
     : `${vslider({ kind: "light-switch", id: l.id, value: isOn(l) ? 1 : 0, cls: "light switch", ic: "bulb", label: `${l.name}, tap to turn ${isOn(l) ? "off" : "on"}` })}
        <p class="hint">Tap to turn ${isOn(l) ? "off" : "on"}.</p>`;
-  return `${sheetHead("var(--yellow)", "bulb", l.name, roomName(app.home, l))}
-    <div class="sheet-body"><div class="big-val" data-live="light:${esc(l.id)}">${esc(lightState(l))}</div>${body}</div>`;
+  return `${sheetHead("var(--yellow)", "bulb", l.name, roomName(app.home, l), app, `light:${l.id}`)}
+    <div class="sheet-body"><div class="big-val" data-live="light:${esc(l.id)}">${esc(lightState(l))}</div>${body}
+      ${isOn(l) ? timerPills("Turn off", `${l.name} off`, { type: "setLight", id: l.id, level: 0 }) : ""}</div>`;
 }
 
 function shadeSheet(app, s) {
-  return `${sheetHead("var(--teal)", "blinds", s.name, roomName(app.home, s))}
+  return `${sheetHead("var(--teal)", "blinds", s.name, roomName(app.home, s), app, `shade:${s.id}`)}
     <div class="sheet-body"><div class="big-val" data-live="shade:${esc(s.id)}">${esc(shadeState(s))}</div>
       ${s.hasPosition !== false ? vslider({ kind: "shade", id: s.id, value: s.position, cls: "shade", ic: "blinds", label: `${s.name} position` }) : ""}
       <div class="pills">
         <button type="button" class="pill" data-act="shade-set" data-id="${esc(s.id)}" data-position="1">${icon("up")}Open</button>
         ${s.canStop ? `<button type="button" class="pill" data-act="shade-stop" data-id="${esc(s.id)}">${icon("stop")}Stop</button>` : ""}
         <button type="button" class="pill" data-act="shade-set" data-id="${esc(s.id)}" data-position="0">${icon("down")}Close</button>
-      </div></div>`;
+      </div>
+      ${s.position > 0.02 ? timerPills("Close", `${s.name} closed`, { type: "setShade", id: s.id, position: 0 }) : ""}</div>`;
 }
 
 function mediaSheet(app, m) {
@@ -50,13 +64,24 @@ function mediaSheet(app, m) {
         <button type="button" class="pill" aria-pressed="${m.muted}" data-act="media-mute" data-id="${esc(m.id)}">${icon(m.muted ? "mute" : "volume")}${m.muted ? "Unmute" : "Mute"}</button>
       </div>`
     : "";
-  return `${sheetHead("var(--purple)", "music", m.name, m.on ? `Playing ${sourceName(m)}` : "Off")}
+  const a = art(m);
+  const np = m.on ? m.nowPlaying : null;
+  const nowPlaying = m.on
+    ? `<div class="np-card"><span class="art big" style="--a1:${a.a1};--a2:${a.a2}">${icon(a.ic)}</span>
+        <div class="np-text"><b>${esc(np?.title || sourceName(m))}</b><span>${esc([np?.artist, np?.album].filter(Boolean).join(" · ") || (m.playing ? "Playing" : "Paused"))}</span></div>
+        ${m.canTransport ? transportRow(m, true) : ""}</div>`
+    : "";
+  const others = app.home.media.filter((z) => z.id !== m.id);
+  return `${sheetHead("var(--purple)", "music", m.name, m.on ? `${m.playing ? "Playing" : "Paused"} · ${sourceName(m)}` : "Off", app, `media:${m.id}`)}
     <div class="sheet-cols"${m.hasVolume ? "" : ' style="grid-template-columns:minmax(0,1fr)"'}>
       ${left}
       <div style="display:grid;gap:18px;width:100%">
+        ${nowPlaying}
+        ${m.on && m.sourceId && others.length ? `<button type="button" class="pill"${attr({ act: "play-everywhere", id: m.id })}>${icon("speakers")}Play this in every room</button>` : ""}
         <div class="list"><div class="row"><span class="row-icon" style="--c:var(--purple)">${icon("power")}</span><span class="grow">Power</span>
           <button type="button" class="switch" role="switch" aria-checked="${m.on}" aria-label="${esc(m.name)} power" data-act="media-power" data-id="${esc(m.id)}"></button></div></div>
         ${sources ? `<div class="list-label">Source</div><div class="list">${sources}</div>` : ""}
+        ${m.on ? timerPills("Sleep timer: off", `${m.name} off`, { type: "mediaPower", id: m.id, on: false }) : ""}
       </div>
     </div>`;
 }
@@ -69,7 +94,7 @@ function lockSheet(app, l) {
        <p class="hint">Tap to lock.</p>`
     : `<button type="button" class="hold locked" data-hold="unlock" data-id="${esc(l.id)}" aria-label="Unlock ${esc(l.name)}: press and hold">${ring}${icon("lock")}</button>
        <p class="hint">Press and hold for a second to unlock.</p>`;
-  return `${sheetHead(unlocked ? "var(--orange)" : "var(--green)", unlocked ? "unlock" : "lock", l.name, roomName(app.home, l))}
+  return `${sheetHead(unlocked ? "var(--orange)" : "var(--green)", unlocked ? "unlock" : "lock", l.name, roomName(app.home, l), app, `lock:${l.id}`)}
     <div class="sheet-body"><div class="big-val">${l.locked === null ? "Unknown" : unlocked ? "Unlocked" : "Locked"}</div>${control}</div>`;
 }
 
@@ -133,6 +158,21 @@ function settingsSheet(app) {
         ${app.device.wall ? `<div class="row"><span class="row-icon" style="--c:#000">${icon("moon")}</span><span class="grow">StandBy after</span><div class="mini-seg">${mins}</div></div>` : ""}
         <button type="button" class="row" data-act="standby-now"><span class="row-icon" style="--c:#1c1c1e">${icon("sun")}</span><span class="grow">Show StandBy now</span>${icon("chevron")}</button>
       </div>
+      <div class="list-label">Home screen</div>
+      <div class="list">
+        <button type="button" class="row" data-act="edit-home"><span class="row-icon" style="--c:var(--blue)">${icon("edit")}</span><span class="grow">Edit Home<div class="note">Add, remove and reorder what's on Home</div></span>${icon("chevron")}</button>
+        <button type="button" class="row" data-act="pick-favorites"><span class="row-icon" style="--c:var(--yellow)">${icon("star")}</span><span class="grow">Favorites<div class="note">${app.favorites.length ? `${app.favorites.length} chosen` : "None yet"}</div></span>${icon("chevron")}</button>
+      </div>
+      <div class="list-label">Location</div>
+      <div class="list">
+        ${app.transport === "local"
+          ? `<div class="row"><span class="row-icon" style="--c:var(--teal)">${icon("cloudSun")}</span><span class="grow">${esc(app.location?.place ?? "Demo")}<div class="note">The demo house uses a sample place and sample weather</div></span></div>`
+          : `<form class="row" id="loc-form"><span class="row-icon" style="--c:var(--teal)">${icon("cloudSun")}</span>
+              <input class="text-input" id="loc-input" autocomplete="off" placeholder="Town or city, for weather and sunset" value="${esc(app.location?.place ?? "")}" aria-label="Town or city">
+              <button type="submit" class="pill small">Save</button></form>`}
+      </div>
+      ${app.home.doorbells.length ? `<div class="list-label">Doorbell</div>
+      <div class="list">${app.home.doorbells.map((b) => `<button type="button" class="row"${attr({ act: "doorbell-test", id: b.id })}><span class="row-icon" style="--c:var(--pink)">${icon("bell")}</span><span class="grow">Test ${esc(b.name)} doorbell<div class="note">Shows the doorbell pop-up on every screen</div></span>${icon("chevron")}</button>`).join("")}</div>` : ""}
       <div class="list-label">System</div>
       <div class="list">
         <div class="row"><span class="row-icon" style="--c:var(--green)">${icon("wifi")}</span><span class="grow">${esc(system)}<div class="note">${esc(state)}</div></span></div>
@@ -140,6 +180,12 @@ function settingsSheet(app) {
         <a class="row" href="../index.html"><span class="row-icon" style="--c:var(--pink)">${icon("grid")}</span><span class="grow">Classic view</span>${icon("chevron")}</a>`}
       </div>
     </div>`;
+}
+
+// Sheets added by other modules: kind -> { render(app, spec), wide }.
+const EXTRA = {};
+export function registerSheet(kind, render, wide = false) {
+  EXTRA[kind] = { render, wide };
 }
 
 export function sheetHTML(app, spec) {
@@ -155,8 +201,8 @@ export function sheetHTML(app, spec) {
     case "keypad": return keypadSheet(app, spec);
     case "confirm": return confirmSheet(app, spec);
     case "settings": return settingsSheet(app);
-    default: return null;
+    default: return EXTRA[spec.kind]?.render(app, spec) ?? null;
   }
 }
 
-export const isWideSheet = (spec) => spec.kind === "media" || spec.kind === "camera";
+export const isWideSheet = (spec) => spec.kind === "media" || spec.kind === "camera" || Boolean(EXTRA[spec.kind]?.wide);

@@ -2,8 +2,9 @@
 // (../api/…) and falls back to the demo house when it can't reach one.
 import { icon, sceneIcon } from "../icons.js";
 import { DemoEngine } from "../shared/demo.js";
-import { applyCommand, clamp01, emptyHome, pct, stateKey } from "../shared/model.js";
+import { applyCommand, clamp01, emptyHome, normalizeHome, pct, stateKey } from "../shared/model.js";
 import { createAsk } from "./ask.js";
+import { createFeatures } from "./features.js";
 import { dots, isWideSheet, sheetHTML } from "./sheets.js";
 import { isOn, isOpen, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
 
@@ -53,6 +54,11 @@ const app = {
 
 let engine = null;
 const ask = createAsk({ app, send, notify, onVisibility: () => scheduleRender() });
+const features = createFeatures({
+  app, prefs, send, notify, escText: (t) => escText(t), openSheet, closeSheet, renderSheet: () => renderSheet(true), scheduleRender,
+  wake: () => { if (!$("#standby").hidden) showStandby(false); },
+  ringDemo: (id) => engine?.ring(id),
+});
 
 // ---------- connection ----------
 
@@ -84,6 +90,7 @@ function startLocal() {
   app.transport = "local";
   engine = new DemoEngine((snap) => {
     app.home = merge(snap);
+    features.checkDoorbells();
     scheduleRender();
   });
   app.home = engine.snapshot();
@@ -93,6 +100,8 @@ function startLocal() {
     { id: "demo-drive", name: "Driveway", demo: "drive" },
     { id: "demo-door", name: "Front Door", demo: "door" },
   ];
+  features.startLocal();
+  features.checkDoorbells();
 }
 
 function receive(p) {
@@ -102,12 +111,14 @@ function receive(p) {
   app.cameras = p.cameras ?? [];
   app.assistant = p.assistant ?? { available: false };
   app.roomPhotos = p.roomPhotos ?? {};
+  features.receive(p);
   ask.onStateChange();
   scheduleRender();
 }
 
 /** Re-apply what this iPad just set, so a slow processor doesn't make controls jump back. */
-function merge(snapshot) {
+function merge(raw) {
+  const snapshot = normalizeHome(raw);
   const now = Date.now();
   for (const [key, entry] of app.recent) if (now - entry.at > 3000) app.recent.delete(key);
   for (const { cmd } of app.recent.values()) applyCommand(snapshot, cmd);
@@ -138,7 +149,7 @@ async function send(cmd) {
 
 // ---------- routing & rendering ----------
 
-const ROUTES = ["home", "lights", "shades", "media", "security", "cameras"];
+const ROUTES = ["home", "lights", "shades", "media", "security", "cameras", "automations"];
 
 function parseHash() {
   const h = decodeURIComponent(location.hash.slice(1));
@@ -283,9 +294,11 @@ function openSheet(spec) {
   root.querySelector("button, [tabindex]")?.focus({ preventScroll: true });
 }
 
-function renderSheet() {
+/** Redraws the open card. Live updates skip it while someone types in it; `force` doesn't. */
+function renderSheet(force = false) {
   const box = $("#sheet-root .sheet");
   if (!app.sheet || !box) return;
+  if (!force && document.activeElement?.matches?.("#sheet-root input, #sheet-root select, #sheet-root textarea")) return;
   const html = sheetHTML(app, app.sheet);
   if (!html) return closeSheet(); // the device went away
   const focusKey = document.activeElement?.closest?.("#sheet-root [data-key], #sheet-root [data-act]");
@@ -464,6 +477,8 @@ const actions = {
   "ask-mic": () => ask.toggleListening(),
 };
 
+Object.assign(actions, features.actions);
+
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.disabled) return;
@@ -473,7 +488,8 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (app.sheet) closeSheet();
+    if (features.overlayOpen) features.closeOverlay();
+    else if (app.sheet) closeSheet();
     else if (ask.isOpen) ask.close();
     else document.body.classList.remove("drawer");
     return;
@@ -627,6 +643,7 @@ function startHold(el) {
       send({ type: "setLock", id, locked: false });
       notify(`${escText(l?.name ?? "Door")} unlocked`, { ic: "unlock", color: "#ff9f0a" });
       closeSheet();
+      features.closeOverlay();
     }, 1000),
   };
 }
@@ -678,7 +695,7 @@ function startTimers() {
     document.querySelectorAll("[data-clock]").forEach((n) => { n.innerHTML = timeHTML(new Date()); });
     const sb = $("#standby");
     if (!sb.hidden) drawStandby();
-    else if (app.device.wall && !app.sheet && !ask.isOpen && Date.now() - app.lastTouch > app.device.saverMin * 60000) showStandby(true);
+    else if (app.device.wall && !app.sheet && !ask.isOpen && !features.overlayOpen && Date.now() - app.lastTouch > app.device.saverMin * 60000) showStandby(true);
     // The home wallpaper follows the time of day.
     if (app.route.name !== "room") applyWallpaper();
   }, 10000);

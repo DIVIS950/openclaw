@@ -1,9 +1,11 @@
 // Home View screens: pure functions from app state to HTML. homeview.js owns state and events.
 import { icon, roomIcon, sceneIcon } from "../icons.js";
+import { describeAction, nextRun } from "../shared/automation.js";
 import { GATE_TITLES, homeScenes, pct, roomOf, SECURITY_TITLES } from "../shared/model.js";
+import { sunTimes } from "../shared/sun.js";
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const attr = (o) => Object.entries(o).filter(([, v]) => v != null).map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
+export const attr = (o) => Object.entries(o).filter(([, v]) => v != null).map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
 
 export const isOn = (l) => l.level > 0.005;
 export const isOpen = (s) => s.position > 0.02;
@@ -60,9 +62,15 @@ const SOURCE_ART = [
   [/radio|fm|tuner/i, "#ff8a3d", "#ff3d77", "music"],
   [/sonos|airplay|music/i, "#ff5f7e", "#b05bff", "music"],
 ];
-function art(m) {
+/** Artwork colors: the source's own, or colors made from the track title for music. */
+export function art(m) {
   const n = sourceName(m);
-  const [, a1, a2, ic] = SOURCE_ART.find(([re]) => re.test(n)) ?? [null, "#7a7bff", "#ff5fa2", "music"];
+  let [, a1, a2, ic] = SOURCE_ART.find(([re]) => re.test(n)) ?? [null, "#7a7bff", "#ff5fa2", "music"];
+  if (m.nowPlaying?.title && ic === "music") {
+    const h = [...m.nowPlaying.title].reduce((x, c) => (x * 31 + c.charCodeAt(0)) % 360, 7);
+    a1 = `hsl(${h} 80% 62%)`;
+    a2 = `hsl(${(h + 70) % 360} 85% 50%)`;
+  }
   return { a1, a2, ic };
 }
 
@@ -107,7 +115,7 @@ export function shadeState(s) {
 }
 const mediaIcon = (m) => (/tv|cable|apple/i.test(m.on ? sourceName(m) : m.name) ? "tv" : "speaker");
 
-function accessoryTiles(home, items, showRoom) {
+export function accessoryTiles(home, items, showRoom) {
   const room = (x) => (showRoom ? roomOf(home, x.roomId)?.name ?? "" : "");
   return items.map(([kind, x]) => {
     switch (kind) {
@@ -134,13 +142,14 @@ function accessoryTiles(home, items, showRoom) {
   }).join("");
 }
 
-function roomItems(home, roomId) {
+export function roomItems(home, roomId) {
   const pick = (list, kind) => list.filter((x) => x.roomId === roomId).map((x) => [kind, x]);
   return [...pick(home.lights, "light"), ...pick(home.shades, "shade"), ...pick(home.media, "media"), ...pick(home.locks, "lock")];
 }
 
-function sceneTiles(scenes, popId) {
-  return scenes.map((s, i) => `<button type="button" class="tile scene${s.active ? " on" : ""}${popId === s.id ? " pop" : ""}" style="--c:${SCENE_COLORS[i % SCENE_COLORS.length]}"${attr({ act: "scene", id: s.id, key: `s:${s.id}` })}>
+/** Scene buttons. With `home`, each scene keeps the same color wherever it appears. */
+export function sceneTiles(scenes, popId, home = null) {
+  return scenes.map((s, i) => `<button type="button" class="tile scene${s.active ? " on" : ""}${popId === s.id ? " pop" : ""}" style="--c:${SCENE_COLORS[(home ? Math.max(0, home.scenes.indexOf(s)) : i) % SCENE_COLORS.length]}"${attr({ act: "scene", id: s.id, key: `s:${s.id}` })}>
       <span class="tile-icon" aria-hidden="true">${icon(sceneIcon(s))}</span>
       <span class="tile-body"><span class="tile-name">${esc(s.name)}</span><span class="tile-state">${s.active ? "Active" : "Scene"}</span></span>
     </button>`).join("");
@@ -185,7 +194,13 @@ export function hbar(m) {
     ${icon("mute")}<span class="hbar-track"><span class="hbar-fill"></span></span>${icon("volume")}</div>`;
 }
 
-function zoneWidget(home, m, others = []) {
+/** Previous, play or pause, next. */
+export function transportRow(m, big = false) {
+  const b = (action, ic, label) => `<button type="button" class="tr-btn${action === "play" || action === "pause" ? " main" : ""}" aria-label="${label}"${attr({ act: "transport", id: m.id, action, key: `tr:${m.id}:${action === "pause" ? "play" : action}` })}>${icon(ic)}</button>`;
+  return `<div class="transport${big ? " big" : ""}">${b("previous", "prev", "Previous")}${m.playing ? b("pause", "pause", "Pause") : b("play", "playFill", "Play")}${b("next", "next", "Next")}</div>`;
+}
+
+export function zoneWidget(home, m, others = []) {
   const room = roomOf(home, m.roomId)?.name ?? m.name;
   if (!m.on) {
     return `<div class="widget" style="--c:var(--purple)">
@@ -196,11 +211,16 @@ function zoneWidget(home, m, others = []) {
     </div>`;
   }
   const a = art(m);
+  const np = m.nowPlaying;
+  const title = np?.title || sourceName(m);
+  const detail = [np?.artist, np ? sourceName(m) : null, room].filter(Boolean).join(" · ");
+  const state = m.muted ? " · Muted" : m.playing ? `<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>` : " · Paused";
   return `<div class="widget" style="--c:var(--purple)">
     <div class="np"><span class="art" style="--a1:${a.a1};--a2:${a.a2}">${icon(a.ic)}</span>
-      <div class="w-text"><div class="w-state">${esc(sourceName(m))}</div>
-        <div class="w-name">${esc(room)}${m.muted ? " · Muted" : `<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>`}</div></div>
+      <div class="w-text"><div class="w-state">${esc(title)}</div>
+        <div class="w-name">${esc(detail)}${state}</div></div>
       <button type="button" class="w-more" aria-label="${esc(m.name)} controls"${attr({ act: "detail", kind: "media", id: m.id })}>${icon("more")}</button></div>
+    ${m.canTransport ? transportRow(m) : ""}
     ${m.hasVolume ? hbar(m) : ""}
     ${others.length ? `<a class="w-name" href="#media">Also playing in ${esc(others.map((o) => roomOf(home, o.roomId)?.name ?? o.name).join(", "))}</a>` : ""}
   </div>`;
@@ -223,7 +243,7 @@ export function cameraPicture(c, api) {
     : `<img alt="" data-cam="${esc(c.id)}" src="${esc(api)}cameras/${encodeURIComponent(c.id)}/snapshot?t=${Date.now()}">`;
 }
 
-function cameraTiles(cams, api) {
+export function cameraTiles(cams, api) {
   const now = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
   return cams.map((c) => `<button type="button" class="cam" aria-label="${esc(c.name)} camera"${attr({ act: "camera", id: c.id })}>
     ${cameraPicture(c, api)}
@@ -233,12 +253,12 @@ function cameraTiles(cams, api) {
 
 // ---------- page frame ----------
 
-const sec = (title, body, { href, note = "", action = "" } = {}) => `<section class="sec">
+export const sec = (title, body, { href, note = "", action = "" } = {}) => `<section class="sec">
     <div class="sec-head">${href ? `<a class="sec-title" href="${href}">${title}${icon("chevron")}</a>` : `<h2 class="sec-title">${title}</h2>`}${note ? `<span class="sec-note">${note}</span>` : ""}${action}</div>
     ${body}
   </section>`;
 
-function head(app, { eyebrow, title, sub, back }) {
+export function head(app, { eyebrow, title, sub, back, home = false }) {
   const d = new Date();
   return `<header class="head">
     <div class="head-text">
@@ -249,14 +269,15 @@ function head(app, { eyebrow, title, sub, back }) {
     </div>
     <div class="head-side">
       <button type="button" class="round-btn menu-btn" aria-label="Rooms and controls" data-act="menu">${icon("grid")}</button>
-      <div class="head-time" data-clock>${fmtTime(d)}</div>
+      <div class="head-clock">${home ? weatherLine(app) : ""}<div class="head-time" data-clock>${fmtTime(d)}</div></div>
+      ${home ? `<button type="button" class="round-btn" aria-label="Edit Home" data-act="edit-home">${icon("edit")}</button>` : ""}
       ${app.askVisible ? `<button type="button" class="round-btn" aria-label="Ask Home" data-act="ask-open"><span class="orb"></span></button>` : ""}
       <button type="button" class="round-btn" aria-label="Settings" data-act="settings">${icon("gear")}</button>
     </div>
   </header>`;
 }
 
-function notice(app) {
+export function notice(app) {
   const s = app.status;
   if (s.connection === "connected" || !s.message) return "";
   return `<div class="notice">${icon("alert")}<div>${esc(s.message)}</div></div>`;
@@ -287,6 +308,7 @@ export function sidebarHTML(app) {
     ${h.security.length || h.locks.length || h.gates.length ? item("#security", "shieldCheck", "Security", "var(--indigo)",
       c.unlocked.length ? `${c.unlocked.length} unlocked` : alarm ? SECURITY_TITLES[alarm.mode] ?? "" : "", cur("security"), c.unlocked.length > 0) : ""}
     ${app.cameras.length ? item("#cameras", "camera", "Cameras", "var(--pink)", String(app.cameras.length), cur("cameras")) : ""}
+    ${item("#automations", "calendar", "Automations", "var(--green)", automationCount(app), cur("automations"))}
     <div class="side-foot">
       ${app.askVisible ? `<button type="button" class="side-item side-btn" data-act="ask-open"><span class="orb"></span><span class="si-name">Ask Home</span></button>` : ""}
       <button type="button" class="side-item side-btn" data-act="settings" style="--c:#8e8e93"><span class="si-icon">${icon("gear")}</span><span class="si-name">Settings</span></button>
@@ -323,30 +345,197 @@ function chips(app) {
   return out.length ? `<nav class="chips" aria-label="House status">${out.join("")}</nav>` : "";
 }
 
-function homeView(app) {
+// ---------- weather ----------
+
+const WEATHER = [
+  [[0], "Clear", "sun"], [[1, 2], "Partly cloudy", "cloudSun"], [[3], "Cloudy", "cloud"], [[45, 48], "Fog", "fog"],
+  [[51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82], "Rain", "rain"], [[71, 73, 75, 77, 85, 86], "Snow", "snow"],
+  [[95, 96, 99], "Thunderstorms", "storm"],
+];
+
+export function weatherInfo(w) {
+  let [, text, ic] = WEATHER.find(([codes]) => codes.includes(w.code)) ?? [null, "Weather", "cloud"];
+  if (ic === "sun" && !w.isDay) ic = "moon";
+  return { text, ic };
+}
+
+const shortTime = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+function weatherLine(app) {
+  const w = app.weather;
+  if (!w) return "";
+  const info = weatherInfo(w);
+  return `<div class="head-weather" title="${esc(info.text)}">${icon(info.ic)}<b>${w.temp}°</b><span>H ${w.high}° · L ${w.low}°</span></div>`;
+}
+
+function weatherWidget(app) {
+  const w = app.weather;
+  if (!app.location) {
+    return `<div class="widget" style="--c:var(--blue)">
+      <div class="w-top"><span class="w-glyph">${icon("cloudSun")}</span><div class="w-text"><div class="w-name">Weather</div><div class="w-state">Add your town</div></div></div>
+      <p class="w-note">Weather, sunrise and sunset, and schedules that follow the sun.</p>
+      <div class="w-row"><button type="button" class="w-btn primary" data-act="settings">${icon("gear")}Set location</button></div>
+    </div>`;
+  }
+  const sun = sunTimes(new Date(), app.location.lat, app.location.lon);
+  if (!w) {
+    return `<div class="widget" style="--c:var(--blue)">
+      <div class="w-top"><span class="w-glyph">${icon("cloudSun")}</span><div class="w-text"><div class="w-name">${esc(app.location.place)}</div><div class="w-state">Weather is loading…</div></div></div>
+    </div>`;
+  }
+  const info = weatherInfo(w);
+  return `<div class="widget weather" style="--c:${w.isDay ? "var(--orange)" : "var(--indigo)"}">
+    <div class="w-top"><span class="w-glyph">${icon(info.ic)}</span><div class="w-text"><div class="w-name">${esc(app.location.place)}</div><div class="w-state">${esc(info.text)}</div></div></div>
+    <div class="wx-row"><span class="wx-temp">${w.temp}°</span><span class="wx-range">H ${w.high}°<br>L ${w.low}°</span></div>
+    ${sun ? `<div class="wx-sun"><span>${icon("sunrise")}Sunrise ${shortTime(sun.sunrise)}</span><span>${icon("moon")}Sunset ${shortTime(sun.sunset)}</span></div>` : ""}
+  </div>`;
+}
+
+// ---------- favorites ----------
+
+const LISTS = { light: "lights", shade: "shades", media: "media", lock: "locks", scene: "scenes" };
+
+/** The favorites that still exist, in the order they were added: [kind, item]. */
+export function favoriteItems(app) {
+  return app.favorites.map((key) => {
+    const i = key.indexOf(":");
+    const kind = key.slice(0, i);
+    const item = app.home[LISTS[kind]]?.find((x) => x.id === key.slice(i + 1));
+    return item ? [kind, item] : null;
+  }).filter(Boolean);
+}
+
+function favoritesSection(app) {
+  const items = favoriteItems(app);
+  const edit = `<button type="button" class="text-btn" data-act="pick-favorites">${items.length ? "Edit" : ""}</button>`;
+  if (!items.length) {
+    return sec("Favorites", `<div class="empty-row">${icon("star")}<div><b>Add your favorites</b><span>Tap the star on any light, shade, music room or scene, or choose them here.</span></div>
+      <button type="button" class="capsule" data-act="pick-favorites">${icon("plus")}Choose</button></div>`);
+  }
+  const tiles = items.map(([kind, item]) => (kind === "scene" ? sceneTiles([item], app.pop, app.home) : accessoryTiles(app.home, [[kind, item]], true))).join("");
+  return sec("Favorites", `<div class="tiles">${tiles}</div>`, { action: edit });
+}
+
+// ---------- coming up ----------
+
+function whenText(at, now = new Date()) {
+  const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((day - today) / 86400000);
+  const name = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : at.toLocaleDateString([], { weekday: "long" });
+  return `${name} ${shortTime(at)}`;
+}
+
+export function minutesLeft(at) {
+  const m = Math.max(1, Math.round((at - Date.now()) / 60000));
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ""}`.trim() : `${m} min`;
+}
+
+export function automationCount(app) {
+  const n = app.automations.schedules.filter((x) => x.enabled).length + app.automations.timers.length;
+  return n ? String(n) : "";
+}
+
+export function upcomingItems(app, limit = 4) {
+  const now = new Date();
+  const items = [];
+  for (const t of app.automations.timers) {
+    items.push({ at: t.at, ic: "timer", title: t.label, when: `in ${minutesLeft(t.at)}`, timerId: t.id });
+  }
+  for (const s of app.automations.schedules) {
+    const at = nextRun(s, now, app.location);
+    if (at) items.push({ at: at.getTime(), ic: "calendar", title: s.name, when: whenText(at, now), detail: s.actions.map((x) => describeAction(x, app.home)).join(", ") });
+  }
+  return items.sort((x, y) => x.at - y.at).slice(0, limit);
+}
+
+export function upcomingRows(items) {
+  return items.map((it) => `<div class="up-row"><span class="up-icon">${icon(it.ic)}</span>
+      <div class="up-text"><b>${esc(it.title)}</b><span>${esc(it.when)}${it.detail ? ` · ${esc(it.detail)}` : ""}</span></div>
+      ${it.timerId ? `<button type="button" class="up-x" aria-label="Cancel ${esc(it.title)}"${attr({ act: "timer-cancel", id: it.timerId })}>${icon("close")}</button>` : ""}
+    </div>`).join("");
+}
+
+function upcomingSection(app) {
+  const items = upcomingItems(app);
+  const vacation = app.automations.vacation.enabled ? `<span class="badge">${icon("suitcase")}Vacation mode on</span>` : "";
+  if (!items.length) {
+    return sec("Coming up", `<div class="empty-row">${icon("calendar")}<div><b>Nothing scheduled</b><span>Make lights and shades follow a schedule, or set a timer from any light.</span></div>
+      <a class="capsule" href="#automations">${icon("plus")}New schedule</a></div>`, { href: "#automations", action: vacation });
+  }
+  return sec("Coming up", `<div class="upcoming">${upcomingRows(items)}</div>`, { href: "#automations", action: vacation });
+}
+
+// ---------- home: the parts people can add, remove and reorder ----------
+
+export const HOME_PARTS = [
+  { id: "status", name: "Status bar", about: "Lights, doors, alarm and gate at a glance", icon: "grid" },
+  { id: "weather", name: "Weather", about: "Today's weather, sunrise and sunset", icon: "cloudSun", widget: true },
+  { id: "gate", name: "Gate", about: "Slide to open, close and stop", icon: "gate", widget: true },
+  { id: "alarm", name: "Alarm", about: "Arm away, arm home or turn off", icon: "shield", widget: true },
+  { id: "music", name: "Now Playing", about: "What's playing, with play, pause and volume", icon: "music", widget: true },
+  { id: "favorites", name: "Favorites", about: "Your most-used lights, shades and scenes", icon: "star" },
+  { id: "scenes", name: "Scenes", about: "Whole-house scenes like Good Night", icon: "sparkle" },
+  { id: "upcoming", name: "Coming up", about: "Next schedules and running timers", icon: "clock" },
+  { id: "cameras", name: "Cameras", about: "Live pictures from your cameras", icon: "camera" },
+  { id: "rooms", name: "Rooms", about: "Every room with its lights, shades and music", icon: "home" },
+];
+export const DEFAULT_LAYOUT = HOME_PARTS.map((p) => p.id);
+
+function roomsPart(app) {
   const h = app.home;
-  const d = new Date();
-  const widgets = [...h.gates.map(gateWidget), ...h.security.slice(0, 1).map(securityWidget), nowPlayingWidget(h)].filter(Boolean);
-  const scenes = homeScenes(h);
   const rooms = h.rooms.map((r) => {
     const items = roomItems(h, r.id);
     return items.length ? sec(esc(r.name), `<div class="tiles">${accessoryTiles(h, items, false)}</div>`, { href: roomHref(r.id) }) : "";
   }).join("");
-  const loose = [...h.lights, ...h.shades, ...h.media, ...h.locks].some((x) => !roomOf(h, x.roomId));
-  const looseItems = loose ? [
-    ...h.lights.filter((x) => !roomOf(h, x.roomId)).map((x) => ["light", x]), ...h.shades.filter((x) => !roomOf(h, x.roomId)).map((x) => ["shade", x]),
-    ...h.media.filter((x) => !roomOf(h, x.roomId)).map((x) => ["media", x]), ...h.locks.filter((x) => !roomOf(h, x.roomId)).map((x) => ["lock", x]),
-  ] : [];
+  const loose = (list, kind) => list.filter((x) => !roomOf(h, x.roomId)).map((x) => [kind, x]);
+  const looseItems = [...loose(h.lights, "light"), ...loose(h.shades, "shade"), ...loose(h.media, "media"), ...loose(h.locks, "lock")];
+  return rooms + (looseItems.length ? sec("Other", `<div class="tiles">${accessoryTiles(h, looseItems, false)}</div>`) : "");
+}
+
+const PART_HTML = {
+  status: (app) => chips(app),
+  weather: (app) => weatherWidget(app),
+  gate: (app) => app.home.gates.map(gateWidget).join(""),
+  alarm: (app) => app.home.security.slice(0, 1).map(securityWidget).join(""),
+  music: (app) => nowPlayingWidget(app.home),
+  favorites: (app) => favoritesSection(app),
+  scenes: (app) => {
+    const scenes = homeScenes(app.home);
+    return scenes.length ? sec("Scenes", `<div class="tiles">${sceneTiles(scenes, app.pop, app.home)}</div>`) : "";
+  },
+  upcoming: (app) => upcomingSection(app),
+  cameras: (app) => (app.cameras.length ? sec("Cameras", `<div class="cams">${cameraTiles(app.cameras.slice(0, 2), app.api)}</div>`, { href: "#cameras" }) : ""),
+  rooms: roomsPart,
+};
+
+function homeView(app) {
+  const h = app.home;
+  const d = new Date();
   const nothing = !h.rooms.length && !h.lights.length && !h.scenes.length;
-  return `${head(app, { eyebrow: fmtDate(d), title: greeting(d), sub: nothing ? "" : summary(h) })}
+  // Widgets that sit next to each other in the layout share one row.
+  let body = "";
+  let widgets = [];
+  const flush = () => {
+    if (widgets.length) body += `<div class="widgets">${widgets.join("")}</div>`;
+    widgets = [];
+  };
+  for (const id of app.layout) {
+    const part = HOME_PARTS.find((p) => p.id === id);
+    const html = part && PART_HTML[id](app);
+    if (!html) continue;
+    if (part.widget) widgets.push(html);
+    else {
+      flush();
+      body += html;
+    }
+  }
+  flush();
+  return `${head(app, { eyebrow: fmtDate(d), title: greeting(d), sub: nothing ? "" : summary(h), home: true })}
     ${notice(app)}
-    ${chips(app)}
-    ${widgets.length ? `<div class="widgets">${widgets.join("")}</div>` : ""}
-    ${scenes.length ? sec("Scenes", `<div class="tiles">${sceneTiles(scenes, app.pop)}</div>`) : ""}
-    ${app.cameras.length ? sec("Cameras", `<div class="cams">${cameraTiles(app.cameras.slice(0, 2), app.api)}</div>`, { href: app.cameras.length > 2 ? "#cameras" : null }) : ""}
-    ${rooms}
-    ${looseItems.length ? sec("Other", `<div class="tiles">${accessoryTiles(h, looseItems, false)}</div>`) : ""}
-    ${nothing ? `<div class="empty">${icon("home")}<b>No devices yet</b><span>Open Settings to connect your Crestron system.</span></div>` : ""}`;
+    ${body}
+    ${nothing ? `<div class="empty">${icon("home")}<b>No devices yet</b><span>Open Settings to connect your Crestron system.</span></div>` : ""}
+    <div class="edit-row"><button type="button" class="capsule" data-act="edit-home">${icon("edit")}Edit Home</button></div>`;
 }
 
 function roomView(app) {
@@ -409,7 +598,10 @@ function shadesView(app) {
 function mediaView(app) {
   const h = app.home;
   const playing = h.media.filter((m) => m.on).length;
+  const lead = h.media.find((m) => m.on && m.sourceId);
   return `${head(app, { eyebrow: "Media", title: playing ? `Playing in ${playing} ${playing === 1 ? "room" : "rooms"}` : "Nothing playing", sub: "" })}
+    ${lead && h.media.length > 1 ? `<div class="quick"><button type="button" class="capsule"${attr({ act: "play-everywhere", id: lead.id })}>${icon("speakers")}Play ${esc(sourceName(lead))} everywhere</button>
+      <button type="button" class="capsule" data-act="all-media-off">${icon("power")}Turn all off</button></div>` : ""}
     ${h.media.length ? `<div class="widgets">${h.media.map((m) => zoneWidget(h, m)).join("")}</div>` : `<div class="empty">${icon("music")}<b>No media rooms</b></div>`}`;
 }
 
@@ -426,10 +618,16 @@ function securityView(app) {
 
 function camerasView(app) {
   return `${head(app, { eyebrow: "Cameras", title: "Cameras", sub: app.cameras.length ? `${app.cameras.length} live` : "" })}
+    ${app.cameras.length ? `<div class="quick"><button type="button" class="capsule" data-act="camera-wall">${icon("wall")}Camera wall</button></div>` : ""}
     ${app.cameras.length ? `<div class="cams">${cameraTiles(app.cameras, app.api)}</div>` : `<div class="empty">${icon("camera")}<b>No cameras yet</b><span>Add them in Settings › System setup › Cameras.</span></div>`}`;
 }
 
 const VIEWS = { home: homeView, room: roomView, lights: lightsView, shades: shadesView, media: mediaView, security: securityView, cameras: camerasView };
+
+/** Lets other modules add pages (Automations). */
+export function registerView(name, render) {
+  VIEWS[name] = render;
+}
 
 export function viewHTML(app) {
   return (VIEWS[app.route.name] ?? homeView)(app);

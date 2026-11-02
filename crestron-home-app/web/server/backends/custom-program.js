@@ -4,7 +4,7 @@
 // press join, the usual SIMPL convention.
 import { CIPClient } from "./cip-client.js";
 
-const SECTIONS = ["rooms", "lights", "shades", "scenes", "media", "locks", "security", "gates"];
+const SECTIONS = ["rooms", "lights", "shades", "scenes", "media", "locks", "security", "gates", "doorbells"];
 
 export function parseJoinMap(text) {
   let map;
@@ -35,12 +35,19 @@ export class CustomProgramBackend {
     this.map = parseJoinMap(joinMap);
     this.digital = new Map();
     this.analog = new Map();
+    this.serial = new Map();
+    this.ringAt = new Map(); // doorbell index -> when its ring join last went high
     this.client = new CIPClient({ host: this.host, port, ipId });
     this.onChange = null;
     this.onStatus = null;
     this.publishTimer = null;
     this.client.on("digital", (join, value) => { this.digital.set(join, value); this.#schedulePublish(); });
     this.client.on("analog", (join, value) => { this.analog.set(join, value); this.#schedulePublish(); });
+    this.client.on("serial", (join, text) => { this.serial.set(join, text); this.#schedulePublish(); });
+    this.client.on("digital", (join, value) => {
+      if (!value) return;
+      this.map.doorbells.forEach((e, i) => { if (e.ring === join) this.ringAt.set(i, Date.now()); });
+    });
     this.client.on("state", (state, error) => {
       if (state === "connected") this.onStatus?.({ connection: "connected" });
       if (state === "failed") this.onStatus?.({ connection: "failed", message: error });
@@ -82,6 +89,7 @@ export class CustomProgramBackend {
 
   #high(join) { return join ? this.digital.get(join) === true : false; }
   #level(join) { return join ? (this.analog.get(join) ?? 0) / 65535 : null; }
+  #text(join) { return join ? (this.serial.get(join) ?? "").trim() : ""; }
 
   #snapshot() {
     const m = this.map;
@@ -111,6 +119,10 @@ export class CustomProgramBackend {
           hasVolume: Boolean(e.volume),
           sources: sources.map((s, si) => ({ id: `src-${si}`, name: s.name })),
           sourceId: current >= 0 ? `src-${current}` : null,
+          // Optional transport buttons and track-name text joins.
+          canTransport: Boolean(e.play || e.pause || e.next || e.previous),
+          playing: e.playingFeedback ? this.#high(e.playingFeedback) : this.#high(e.powerFeedback ?? e.powerOn),
+          nowPlaying: this.#text(e.title) ? { title: this.#text(e.title), artist: this.#text(e.artist), album: this.#text(e.album) } : null,
         };
       }),
       locks: m.locks.map((e, i) => ({
@@ -133,6 +145,12 @@ export class CustomProgramBackend {
         separateOpenClose: Boolean(e.open && e.close), canStop: Boolean(e.stop),
       })),
       sensors: [],
+      doorbells: m.doorbells.map((e, i) => ({
+        id: `doorbell-${i}`, name: e.name,
+        cameraId: null, cameraName: e.camera ?? null,
+        lockId: (() => { const li = m.locks.findIndex((l) => l.name === e.lock); return li >= 0 ? `lock-${li}` : null; })(),
+        ringAt: this.ringAt.get(i) ?? null,
+      })),
     };
   }
 
@@ -186,6 +204,13 @@ export class CustomProgramBackend {
         const source = (e.sources ?? [])[indexOf(cmd.sourceId)];
         if (!source) throw new Error("Unknown source.");
         return c.pulse(source.press);
+      }
+      case "mediaTransport": {
+        const e = this.#entry("media", cmd.id);
+        // A single play/pause button is common: use it for both when only one is mapped.
+        const join = { play: e.play ?? e.pause, pause: e.pause ?? e.play, next: e.next, previous: e.previous }[cmd.action];
+        if (!join) throw new Error("This room has no join for that button.");
+        return c.pulse(join);
       }
       case "setLock": {
         const e = this.#entry("locks", cmd.id);
