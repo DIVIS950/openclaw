@@ -1,6 +1,7 @@
 // The parts of the home assistant shared by the home server (Claude API) and the
 // browser demo (the artifact's `sample` capability): the instructions, the one tool,
 // and the safety rules for which commands a person must confirm.
+import { describeAction, describeWhen, validateSchedule } from "./automation.js";
 import { GATE_TITLES, SECURITY_TITLES, validateCommand } from "./model.js";
 
 export const ASSISTANT_RULES = `You are the voice-and-chat assistant for a Crestron-controlled home, shown on wall iPads and phones.
@@ -14,12 +15,77 @@ How to act:
 - For questions ("is the front door locked?", "what's on?"), answer from the state without calling the tool.
 - Unlocking doors and opening the gate need the person to confirm: request them with the tool anyway; the app shows a confirm button. Say that they need to tap it.
 - You cannot disarm the alarm; tell the person to use the keypad.
+- "Later" requests ("turn off the kitchen lights in 30 minutes", "sleep timer for an hour") use set_timer. Repeating requests ("every night at 11 close the shades", "weekdays at sunset turn on the patio lights") use create_schedule. Confirm what you set up in one sentence.
+- "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
 
 How to answer:
 - One or two short, friendly sentences in the person's language. No lists, no markdown, no ids.
 - Only say something happened if the tool result says it did.`;
 
 export const CONTROL_TOOL_NAME = "control_home";
+export const TIMER_TOOL_NAME = "set_timer";
+export const SCHEDULE_TOOL_NAME = "create_schedule";
+
+const COMMAND_ITEM = () => CONTROL_TOOL_SCHEMA.properties.commands.items;
+
+export const TIMER_TOOL = {
+  name: TIMER_TOOL_NAME,
+  description: "Run commands once, later: after the given number of minutes (1 to 1440). Use it for \"in 30 minutes\", \"sleep timer\" and similar. " +
+    "Only lights, shades, scenes, music and locking (never unlocking, the gate or the alarm) can be timed.",
+  get schema() {
+    return {
+      type: "object",
+      properties: {
+        minutes: { type: "integer", minimum: 1, maximum: 1440 },
+        label: { type: "string", description: "Short name shown in the app, e.g. \"Kitchen lights off\"." },
+        commands: { type: "array", minItems: 1, items: COMMAND_ITEM() },
+      },
+      required: ["minutes", "label", "commands"],
+      additionalProperties: false,
+    };
+  },
+};
+
+export const SCHEDULE_TOOL = {
+  name: SCHEDULE_TOOL_NAME,
+  description: "Create a repeating schedule that the home runs by itself. when.type is \"time\" (with time \"HH:MM\", 24-hour) or \"sunrise\"/\"sunset\" (with offset in minutes, negative = before). " +
+    "days are 0-6 (0 = Sunday). Actions: scene (id), lights (roomId or null for all, level 0-1), shades (roomId or null, position 0 or 1), mediaOff, lockAll.",
+  schema: {
+    type: "object",
+    properties: {
+      name: { type: "string" },
+      when: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["time", "sunrise", "sunset"] },
+          time: { type: "string", description: "HH:MM, 24-hour, for type time" },
+          offset: { type: "integer", minimum: -180, maximum: 180 },
+        },
+        required: ["type"],
+        additionalProperties: false,
+      },
+      days: { type: "array", items: { type: "integer", minimum: 0, maximum: 6 }, minItems: 1 },
+      actions: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["scene", "lights", "shades", "mediaOff", "lockAll"] },
+            id: { type: "string", description: "scene id, for type scene" },
+            roomId: { type: ["string", "null"], description: "room id, or null for the whole house" },
+            level: { type: "number", minimum: 0, maximum: 1 },
+            position: { type: "number", minimum: 0, maximum: 1 },
+          },
+          required: ["type"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["name", "when", "days", "actions"],
+    additionalProperties: false,
+  },
+};
 
 export const CONTROL_TOOL_DESCRIPTION =
   "Send one or more commands to the house. Each command needs `type` and the device `id` from the home state, plus the field its type uses: " +
@@ -60,7 +126,7 @@ export const CONTROL_TOOL_SCHEMA = {
 };
 
 /** A compact view of the house for the model: names, ids and state, nothing else. */
-export function homeForModel(home) {
+export function homeForModel(home, extra = {}) {
   const room = (id) => home.rooms.find((r) => r.id === id)?.name ?? null;
   const pct = (v) => Math.round(v * 100);
   return {
@@ -76,6 +142,8 @@ export function homeForModel(home) {
     locks: home.locks.map((l) => ({ id: l.id, name: l.name, room: room(l.roomId), locked: l.locked })),
     alarms: home.security.map((p) => ({ id: p.id, name: p.name, mode: SECURITY_TITLES[p.mode] })),
     gates: home.gates.map((g) => ({ id: g.id, name: g.name, state: GATE_TITLES[g.state], separateOpenClose: g.separateOpenClose })),
+    roomIds: home.rooms.map((r) => ({ id: r.id, name: r.name })),
+    ...contextForModel(home, extra),
   };
 }
 
@@ -162,4 +230,61 @@ export async function applyControlCall(input, { getHome, perform }) {
     }
   }
   return { text: lines.length ? lines.join("\n") : "No commands were given.", isError: commands.length === 0, done, confirm, failed };
+}
+
+/** What the person is looking at, the time, the weather and what is already scheduled. */
+function contextForModel(home, { viewingRoom, now, weather, automations } = {}) {
+  const out = {};
+  if (viewingRoom) out.viewingRoom = viewingRoom;
+  if (now) out.localTime = now;
+  if (weather) out.weather = `${weather.temp}°${weather.unit}, high ${weather.high}°, low ${weather.low}°`;
+  if (automations) {
+    out.schedules = automations.schedules.map((s) => `${s.name} (${describeWhen(s)}${s.enabled ? "" : ", off"})`);
+    out.timers = automations.timers.map((t) => `${t.label} in ${Math.max(1, Math.round((t.at - Date.now()) / 60000))} min`);
+  }
+  return out;
+}
+
+const TIMED_TYPES = new Set(["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock"]);
+
+/** set_timer: checks the commands (nothing that opens the house) and hands them to addTimer. */
+export async function applyTimerCall(input, { addTimer }) {
+  const minutes = Math.round(Number(input?.minutes));
+  const label = String(input?.label ?? "Timer").trim().slice(0, 80) || "Timer";
+  if (!(minutes >= 1 && minutes <= 1440)) return { text: "Refused: minutes must be 1 to 1440.", isError: true, done: [], confirm: [], failed: [] };
+  const commands = [];
+  for (const raw of Array.isArray(input?.commands) ? input.commands : []) {
+    const cmd = cleanCommand(raw);
+    if (validateCommand(cmd) || !TIMED_TYPES.has(cmd.type) || (cmd.type === "setLock" && cmd.locked !== true)) {
+      return { text: `Refused: ${cmd.type ?? "that command"} can't be put on a timer.`, isError: true, done: [], confirm: [], failed: [] };
+    }
+    commands.push(cmd);
+  }
+  if (!commands.length) return { text: "Refused: no commands.", isError: true, done: [], confirm: [], failed: [] };
+  await addTimer({ minutes, label, commands });
+  const when = minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60} h` : `${minutes} min`;
+  return { text: `Timer set: ${label} in ${when}.`, isError: false, done: [`Timer: ${label} in ${when}`], confirm: [], failed: [] };
+}
+
+/** create_schedule: checks the schedule and hands it to addSchedule. Schedule actions can't open anything. */
+export async function applyScheduleCall(input, { getHome, addSchedule }) {
+  const schedule = {
+    name: String(input?.name ?? "").trim().slice(0, 60),
+    enabled: true,
+    when: input?.when?.type === "time" ? { type: "time", time: String(input.when.time ?? "") } : { type: input?.when?.type, offset: Number(input?.when?.offset) || 0 },
+    days: Array.isArray(input?.days) ? [...new Set(input.days)].sort() : [],
+    actions: (Array.isArray(input?.actions) ? input.actions : []).map((a) => {
+      switch (a?.type) {
+        case "scene": return { type: "scene", id: String(a.id ?? "") };
+        case "lights": return { type: "lights", roomId: a.roomId ?? null, level: Number(a.level) || 0 };
+        case "shades": return { type: "shades", roomId: a.roomId ?? null, position: Number(a.position) >= 0.5 ? 1 : 0 };
+        default: return { type: a?.type };
+      }
+    }),
+  };
+  const problem = validateSchedule(schedule);
+  if (problem) return { text: `Refused: ${problem}`, isError: true, done: [], confirm: [], failed: [] };
+  await addSchedule(schedule);
+  const what = schedule.actions.map((a) => describeAction(a, getHome())).join(", ");
+  return { text: `Schedule created: ${schedule.name}, ${describeWhen(schedule)}: ${what}.`, isError: false, done: [`Schedule: ${schedule.name} · ${describeWhen(schedule)}`], confirm: [], failed: [] };
 }

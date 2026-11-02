@@ -363,6 +363,26 @@ const server = http.createServer(async (req, res) => {
           getHome: () => home,
           perform,
           apiKey: config.assistantKey || undefined,
+          addTimer: async ({ minutes, label, commands }) => {
+            const current = normalizeAutomations(config.automations);
+            saveAutomations({
+              ...current,
+              timers: [...current.timers, {
+                id: crypto.randomUUID(), label, at: Date.now() + minutes * 60000,
+                actions: commands.map((command) => ({ type: "command", command })),
+              }].slice(-50),
+            });
+          },
+          addSchedule: async (schedule) => {
+            const current = normalizeAutomations(config.automations);
+            saveAutomations({ ...current, schedules: [...current.schedules, { ...schedule, id: crypto.randomUUID(), lastRun: "" }].slice(-100) });
+          },
+          getContext: () => ({
+            viewingRoom: typeof body.context?.room === "string" ? body.context.room.slice(0, 60) : undefined,
+            now: new Date().toLocaleString("en-US", { weekday: "long", hour: "numeric", minute: "2-digit" }),
+            weather: weather ?? undefined,
+            automations: normalizeAutomations(config.automations),
+          }),
         });
         return sendJSON(res, 200, result);
       } catch (err) {

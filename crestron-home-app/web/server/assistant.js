@@ -7,14 +7,19 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import {
-  applyControlCall, ASSISTANT_RULES, CONTROL_TOOL_DESCRIPTION, CONTROL_TOOL_NAME, CONTROL_TOOL_SCHEMA, homeForModel,
+  applyControlCall, applyScheduleCall, applyTimerCall, ASSISTANT_RULES, CONTROL_TOOL_DESCRIPTION, CONTROL_TOOL_NAME, CONTROL_TOOL_SCHEMA,
+  homeForModel, SCHEDULE_TOOL, SCHEDULE_TOOL_NAME, TIMER_TOOL, TIMER_TOOL_NAME,
 } from "../public/shared/assistant-core.js";
 
 const MODEL = process.env.ASSISTANT_MODEL ?? "claude-opus-5-5";
 const MAX_TURNS = 6;
 const MAX_HISTORY = 12;
 
-const CONTROL_TOOL = { name: CONTROL_TOOL_NAME, description: CONTROL_TOOL_DESCRIPTION, input_schema: CONTROL_TOOL_SCHEMA };
+const TOOLS = [
+  { name: CONTROL_TOOL_NAME, description: CONTROL_TOOL_DESCRIPTION, input_schema: CONTROL_TOOL_SCHEMA },
+  { name: TIMER_TOOL_NAME, description: TIMER_TOOL.description, input_schema: TIMER_TOOL.schema },
+  { name: SCHEDULE_TOOL_NAME, description: SCHEDULE_TOOL.description, input_schema: SCHEDULE_TOOL.schema },
+];
 
 /**
  * Runs one assistant request.
@@ -24,8 +29,11 @@ const CONTROL_TOOL = { name: CONTROL_TOOL_NAME, description: CONTROL_TOOL_DESCRI
  * @param {() => object} opts.getHome - current home snapshot
  * @param {(cmd: object) => Promise<void>} opts.perform - runs a command on the house
  * @param {string} [opts.apiKey] - Anthropic API key from Setup (else the SDK reads ANTHROPIC_API_KEY)
+ * @param {(t: {minutes, label, commands}) => Promise<void>} opts.addTimer
+ * @param {(schedule: object) => Promise<void>} opts.addSchedule
+ * @param {() => object} [opts.getContext] - viewing room, local time, weather and automations for the model
  */
-export async function runAssistant({ message, history, getHome, perform, apiKey }) {
+export async function runAssistant({ message, history, getHome, perform, apiKey, addTimer, addSchedule, getContext = () => ({}) }) {
   const client = new Anthropic(apiKey ? { apiKey } : {});
   const done = [];
   const confirm = [];
@@ -41,7 +49,7 @@ export async function runAssistant({ message, history, getHome, perform, apiKey 
   messages.push({
     role: "user",
     content: [
-      { type: "text", text: `Current home state:\n${JSON.stringify(homeForModel(getHome()))}` },
+      { type: "text", text: `Current home state:\n${JSON.stringify(homeForModel(getHome(), getContext()))}` },
       { type: "text", text: message.slice(0, 2000) },
     ],
   });
@@ -53,7 +61,7 @@ export async function runAssistant({ message, history, getHome, perform, apiKey 
       // Short home-control requests don't need deep reasoning; low effort keeps replies fast.
       output_config: { effort: "low" },
       system: [{ type: "text", text: ASSISTANT_RULES, cache_control: { type: "ephemeral" } }],
-      tools: [CONTROL_TOOL],
+      tools: TOOLS,
       messages,
       // If a safety classifier declines a request, Anthropic re-runs it on its recommended model.
       betas: ["server-side-fallback-2026-07-01"],
@@ -74,8 +82,9 @@ export async function runAssistant({ message, history, getHome, perform, apiKey 
     messages.push({ role: "assistant", content: response.content });
     const results = [];
     for (const use of toolUses) {
-      const outcome = use.name === CONTROL_TOOL_NAME
-        ? await applyControlCall(use.input, { getHome, perform })
+      const outcome = use.name === CONTROL_TOOL_NAME ? await applyControlCall(use.input, { getHome, perform })
+        : use.name === TIMER_TOOL_NAME ? await applyTimerCall(use.input, { addTimer })
+        : use.name === SCHEDULE_TOOL_NAME ? await applyScheduleCall(use.input, { getHome, addSchedule })
         : { text: `Unknown tool ${use.name}`, isError: true, done: [], confirm: [], failed: [] };
       done.push(...outcome.done);
       confirm.push(...outcome.confirm);

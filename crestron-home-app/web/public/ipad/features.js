@@ -324,8 +324,20 @@ export function createFeatures(ctx) {
     }
   });
 
+  /** For Ask Home in the browser demo (on a real system the home server stores these itself). */
+  const assistantAutomation = {
+    addTimer: async ({ minutes, label, commands }) => {
+      app.automations.timers.push({ id: String(Date.now()), label, at: Date.now() + minutes * 60000, actions: commands.map((command) => ({ type: "command", command })) });
+      scheduleRender();
+    },
+    addSchedule: async (schedule) => {
+      await saveAutomations({ ...app.automations, schedules: [...app.automations.schedules, { ...schedule, id: crypto.randomUUID?.() ?? String(Date.now()) }] });
+    },
+  };
+
   return {
     actions,
+    assistantAutomation,
     startLocal,
     receive,
     checkDoorbells,

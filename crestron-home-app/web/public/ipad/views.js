@@ -93,9 +93,15 @@ function counts(home) {
 
 // ---------- tiles ----------
 
+// Devices someone just changed ("light:l1"), so their tile can play a short animation.
+let FLASH = new Set();
+export function setFlash(keys) {
+  FLASH = keys;
+}
+
 function tile({ kind, id, on, color, iconName, name, state, room, toggleLabel, warn = false, offline = false, v, cls = "" }) {
   const k = `${kind}:${id}`;
-  return `<div class="tile cat-${kind}${on ? " on" : ""}${warn ? " warn" : ""}${offline ? " offline" : ""}${cls}" style="--c:${color}${v != null ? `;--v:${v.toFixed(3)}` : ""}">
+  return `<div class="tile cat-${kind}${on ? " on" : ""}${warn ? " warn" : ""}${offline ? " offline" : ""}${FLASH.has(k) ? " flash" : ""}${cls}" style="--c:${color}${v != null ? `;--v:${v.toFixed(3)}` : ""}">
     <button class="tile-icon" type="button" aria-label="${esc(toggleLabel)}"${attr({ act: "toggle", kind, id, key: `t:${k}` })}>${icon(iconName)}</button>
     <button class="tile-body" type="button" aria-label="${esc(`${name}, ${state}. More controls`)}"${attr({ act: "detail", kind, id, key: `d:${k}` })}>
       ${room ? `<span class="tile-room">${esc(room)}</span>` : ""}<span class="tile-name">${esc(name)}</span><span class="tile-state">${esc(state)}</span>
@@ -149,7 +155,7 @@ export function roomItems(home, roomId) {
 
 /** Scene buttons. With `home`, each scene keeps the same color wherever it appears. */
 export function sceneTiles(scenes, popId, home = null) {
-  return scenes.map((s, i) => `<button type="button" class="tile scene${s.active ? " on" : ""}${popId === s.id ? " pop" : ""}" style="--c:${SCENE_COLORS[(home ? Math.max(0, home.scenes.indexOf(s)) : i) % SCENE_COLORS.length]}"${attr({ act: "scene", id: s.id, key: `s:${s.id}` })}>
+  return scenes.map((s, i) => `<button type="button" class="tile scene${s.active ? " on" : ""}${popId === s.id ? " pop" : ""}${FLASH.has(`scene:${s.id}`) ? " flash" : ""}" style="--c:${SCENE_COLORS[(home ? Math.max(0, home.scenes.indexOf(s)) : i) % SCENE_COLORS.length]}"${attr({ act: "scene", id: s.id, key: `s:${s.id}` })}>
       <span class="tile-icon" aria-hidden="true">${icon(sceneIcon(s))}</span>
       <span class="tile-body"><span class="tile-name">${esc(s.name)}</span><span class="tile-state">${s.active ? "Active" : "Scene"}</span></span>
     </button>`).join("");
@@ -170,11 +176,17 @@ export function gateControls(g) {
       <span class="slide-fill"></span><span class="slide-text">slide to open</span><span class="slide-knob">${icon("arrowRight")}</span></div>`;
 }
 
+/** A little gate that swings open and shut with the real one. */
+function gateArt(g) {
+  return `<div class="gate-art ${esc(g.state)}" aria-hidden="true"><span class="post"></span><span class="leaf l"></span><span class="leaf r"></span><span class="post"></span></div>`;
+}
+
 function gateWidget(g) {
-  return `<div class="widget" style="--c:var(--blue)">
+  return `<div data-tilt class="widget" style="--c:var(--blue)">
     <div class="w-top"><span class="w-glyph">${icon("gate")}</span>
       <div class="w-text"><div class="w-name">${esc(g.name)}</div><div class="w-state">${GATE_TITLES[g.state] ?? "Ready"}</div></div>
       <button type="button" class="w-more" aria-label="${esc(g.name)} controls"${attr({ act: "detail", kind: "gate", id: g.id })}>${icon("more")}</button></div>
+    ${gateArt(g)}
     ${gateControls(g)}
   </div>`;
 }
@@ -182,7 +194,7 @@ function gateWidget(g) {
 const ALARM_COLOR = { disarmed: "#8e8e93", armedHome: "var(--indigo)", armedAway: "var(--blue)", alarm: "var(--red)", unknown: "#8e8e93" };
 function securityWidget(p) {
   const b = (label, ic, mode) => `<button type="button" aria-pressed="${p.mode === mode}"${attr({ act: "arm", id: p.id, mode, key: `a:${p.id}:${mode}` })}>${icon(ic)}${label}</button>`;
-  return `<div class="widget" style="--c:${ALARM_COLOR[p.mode] ?? ALARM_COLOR.unknown}">
+  return `<div data-tilt class="widget" style="--c:${ALARM_COLOR[p.mode] ?? ALARM_COLOR.unknown}">
     <div class="w-top"><span class="w-glyph">${icon(p.mode === "disarmed" ? "shield" : p.mode === "alarm" ? "shieldAlert" : "shieldCheck")}</span>
       <div class="w-text"><div class="w-name">${esc(p.name)}</div><div class="w-state${p.mode === "alarm" ? " bad" : ""}">${SECURITY_TITLES[p.mode] ?? "Unknown"}</div></div></div>
     <div class="seg">${p.canArmAway ? b("Away", "away", "armedAway") : ""}${p.canArmHome ? b("Home", "home", "armedHome") : ""}${b("Off", "shield", "disarmed")}</div>
@@ -203,7 +215,7 @@ export function transportRow(m, big = false) {
 export function zoneWidget(home, m, others = []) {
   const room = roomOf(home, m.roomId)?.name ?? m.name;
   if (!m.on) {
-    return `<div class="widget" style="--c:var(--purple)">
+    return `<div data-tilt class="widget" style="--c:var(--purple)">
       <div class="w-top"><span class="w-glyph">${icon(mediaIcon(m))}</span>
         <div class="w-text"><div class="w-name">${esc(room)}</div><div class="w-state">Off</div></div>
         <button type="button" class="w-more" aria-label="${esc(m.name)} controls"${attr({ act: "detail", kind: "media", id: m.id })}>${icon("more")}</button></div>
@@ -215,7 +227,7 @@ export function zoneWidget(home, m, others = []) {
   const title = np?.title || sourceName(m);
   const detail = [np?.artist, np ? sourceName(m) : null, room].filter(Boolean).join(" · ");
   const state = m.muted ? " · Muted" : m.playing ? `<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>` : " · Paused";
-  return `<div class="widget" style="--c:var(--purple)">
+  return `<div data-tilt class="widget" style="--c:var(--purple)">
     <div class="np"><span class="art" style="--a1:${a.a1};--a2:${a.a2}">${icon(a.ic)}</span>
       <div class="w-text"><div class="w-state">${esc(title)}</div>
         <div class="w-name">${esc(detail)}${state}</div></div>
@@ -230,7 +242,7 @@ function nowPlayingWidget(home) {
   const on = home.media.filter((m) => m.on);
   if (on.length) return zoneWidget(home, on[0], on.slice(1));
   if (!home.media.length) return "";
-  return `<div class="widget" style="--c:var(--purple)">
+  return `<div data-tilt class="widget" style="--c:var(--purple)">
     <div class="w-top"><span class="w-glyph">${icon("music")}</span>
       <div class="w-text"><div class="w-name">Media</div><div class="w-state">Nothing playing</div></div></div>
     <div class="w-row">${home.media.slice(0, 2).map((m) => `<button type="button" class="w-btn"${attr({ act: "toggle", kind: "media", id: m.id })}>${icon("power")}${esc(roomOf(home, m.roomId)?.name ?? m.name)}</button>`).join("")}</div>
@@ -368,10 +380,25 @@ function weatherLine(app) {
   return `<div class="head-weather" title="${esc(info.text)}">${icon(info.ic)}<b>${w.temp}°</b><span>H ${w.high}° · L ${w.low}°</span></div>`;
 }
 
+/** Drawn, gently moving weather: sun, moon, clouds, rain, snow. */
+function weatherArt(ic) {
+  const clouds = `<span class="wa-cloud c1"></span><span class="wa-cloud c2"></span>`;
+  switch (ic) {
+    case "sun": return `<span class="wa-sun"></span>`;
+    case "moon": return `<span class="wa-moon"></span><span class="wa-stars"><i></i><i></i><i></i></span>`;
+    case "cloudSun": return `<span class="wa-sun small"></span><span class="wa-cloud c1"></span>`;
+    case "rain": return `${clouds}<span class="wa-drops">${"<i></i>".repeat(6)}</span>`;
+    case "snow": return `${clouds}<span class="wa-drops snow">${"<i></i>".repeat(6)}</span>`;
+    case "storm": return `${clouds}<span class="wa-bolt"></span><span class="wa-drops">${"<i></i>".repeat(4)}</span>`;
+    case "fog": return `<span class="wa-fog"><i></i><i></i><i></i></span>`;
+    default: return clouds;
+  }
+}
+
 function weatherWidget(app) {
   const w = app.weather;
   if (!app.location) {
-    return `<div class="widget" style="--c:var(--blue)">
+    return `<div data-tilt class="widget" style="--c:var(--blue)">
       <div class="w-top"><span class="w-glyph">${icon("cloudSun")}</span><div class="w-text"><div class="w-name">Weather</div><div class="w-state">Add your town</div></div></div>
       <p class="w-note">Weather, sunrise and sunset, and schedules that follow the sun.</p>
       <div class="w-row"><button type="button" class="w-btn primary" data-act="settings">${icon("gear")}Set location</button></div>
@@ -379,12 +406,13 @@ function weatherWidget(app) {
   }
   const sun = sunTimes(new Date(), app.location.lat, app.location.lon);
   if (!w) {
-    return `<div class="widget" style="--c:var(--blue)">
+    return `<div data-tilt class="widget" style="--c:var(--blue)">
       <div class="w-top"><span class="w-glyph">${icon("cloudSun")}</span><div class="w-text"><div class="w-name">${esc(app.location.place)}</div><div class="w-state">Weather is loading…</div></div></div>
     </div>`;
   }
   const info = weatherInfo(w);
-  return `<div class="widget weather" style="--c:${w.isDay ? "var(--orange)" : "var(--indigo)"}">
+  return `<div data-tilt class="widget weather${w.isDay ? "" : " night"}" style="--c:${w.isDay ? "var(--orange)" : "var(--indigo)"}">
+    <div class="wx-art" aria-hidden="true">${weatherArt(info.ic)}</div>
     <div class="w-top"><span class="w-glyph">${icon(info.ic)}</span><div class="w-text"><div class="w-name">${esc(app.location.place)}</div><div class="w-state">${esc(info.text)}</div></div></div>
     <div class="wx-row"><span class="wx-temp">${w.temp}°</span><span class="wx-range">H ${w.high}°<br>L ${w.low}°</span></div>
     ${sun ? `<div class="wx-sun"><span>${icon("sunrise")}Sunrise ${shortTime(sun.sunrise)}</span><span>${icon("moon")}Sunset ${shortTime(sun.sunset)}</span></div>` : ""}
@@ -509,9 +537,9 @@ const PART_HTML = {
   rooms: roomsPart,
 };
 
-function homeView(app) {
+/** The Home overview: the parts chosen in Edit Home, in their order. */
+function overviewBody(app) {
   const h = app.home;
-  const d = new Date();
   const nothing = !h.rooms.length && !h.lights.length && !h.scenes.length;
   // Widgets that sit next to each other in the layout share one row.
   let body = "";
@@ -531,11 +559,83 @@ function homeView(app) {
     }
   }
   flush();
-  return `${head(app, { eyebrow: fmtDate(d), title: greeting(d), sub: nothing ? "" : summary(h), home: true })}
-    ${notice(app)}
-    ${body}
+  return `${body}
     ${nothing ? `<div class="empty">${icon("home")}<b>No devices yet</b><span>Open Settings to connect your Crestron system.</span></div>` : ""}
     <div class="edit-row"><button type="button" class="capsule" data-act="edit-home">${icon("edit")}Edit Home</button></div>`;
+}
+
+// ---------- rooms page: a big card per room ----------
+
+function roomStats(app, roomId) {
+  const h = app.home;
+  const lights = h.lights.filter((l) => l.roomId === roomId);
+  return {
+    lights,
+    on: lights.filter(isOn),
+    avg: lights.length ? lights.reduce((sum, l) => sum + l.level, 0) / lights.length : 0,
+    shades: h.shades.filter((x) => x.roomId === roomId),
+    media: h.media.filter((m) => m.roomId === roomId),
+    locks: h.locks.filter((l) => l.roomId === roomId),
+  };
+}
+
+const badge = (ic, text, attn = false) => `<span class="rc-badge${attn ? " attn" : ""}">${icon(ic)}${esc(text)}</span>`;
+
+function roomCard(app, r) {
+  const st = roomStats(app, r.id);
+  const [h1, h2] = roomHues(app.home, r.id);
+  const photo = app.photoURL(r.id);
+  const playing = st.media.find((m) => m.on);
+  const status = [st.lights.length ? (st.on.length ? `${st.on.length} of ${st.lights.length} lights on` : "Lights off") : "",
+    playing ? `Playing ${playing.nowPlaying?.title || sourceName(playing)}` : ""].filter(Boolean).join(" · ") || "Nothing on";
+  const open = st.shades.filter(isOpen).length;
+  const unlocked = st.locks.filter((l) => l.locked === false).length;
+  return `<article class="room-card${st.on.length ? " lit" : ""}" style="--rh1:${h1};--rh2:${h2};--glow:${st.avg.toFixed(2)}" data-tilt>
+    <div class="rc-bg${photo ? " photo" : ""}"${photo ? ` style="background-image:url('${esc(photo)}')"` : ""}></div>
+    <div class="rc-glow"></div>
+    <a class="rc-link" href="${roomHref(r.id)}" aria-label="${esc(`${r.name}: ${status}`)}"></a>
+    <div class="rc-top"><span class="rc-icon">${icon(roomIcon(r.name))}</span>
+      ${st.lights.length ? `<button type="button" class="rc-quick${st.on.length ? " on" : ""}" aria-label="${esc(`${r.name}: lights ${st.on.length ? "off" : "on"}`)}"${attr({ act: "room-lights", id: r.id, level: st.on.length ? 0 : 1, key: `rq:${r.id}` })}>${icon(st.on.length ? "bulb" : "bulbOff")}</button>` : ""}</div>
+    <div class="rc-bottom"><b>${esc(r.name)}</b><span>${esc(status)}</span>
+      <div class="rc-badges">${st.shades.length ? badge("blinds", open ? `${open} open` : "Closed") : ""}${playing ? badge("music", sourceName(playing)) : ""}${st.locks.length ? badge(unlocked ? "unlock" : "lock", unlocked ? "Unlocked" : "Locked", unlocked > 0) : ""}</div></div>
+  </article>`;
+}
+
+function roomsPage(app) {
+  const h = app.home;
+  return `<div class="quick">
+      ${h.lights.length ? `<button type="button" class="capsule" data-act="all-lights" data-level="0">${icon("bulbOff")}All lights off</button>` : ""}
+      ${h.shades.length ? `<button type="button" class="capsule" data-act="all-shades" data-position="0">${icon("down")}Close all shades</button>` : ""}
+      ${h.media.some((m) => m.on) ? `<button type="button" class="capsule" data-act="all-media-off">${icon("power")}All music off</button>` : ""}
+    </div>
+    <div class="room-cards">${h.rooms.map((r) => roomCard(app, r)).join("")}</div>`;
+}
+
+// ---------- Home: pages you swipe between ----------
+
+export const HOME_PAGES = [
+  { id: "overview", name: "Home", icon: "home", html: overviewBody },
+  { id: "rooms", name: "Rooms", icon: "grid", html: roomsPage, show: (app) => app.home.rooms.length > 0 },
+  { id: "security", name: "Security", icon: "shieldCheck", html: (app) => securityBody(app), show: (app) => app.home.security.length + app.home.locks.length + app.home.gates.length > 0 },
+  { id: "music", name: "Music", icon: "music", html: (app) => mediaBody(app), show: (app) => app.home.media.length > 0 },
+  { id: "cameras", name: "Cameras", icon: "camera", html: (app) => camerasBody(app), show: (app) => app.cameras.length > 0 },
+];
+
+export const homePages = (app) => HOME_PAGES.filter((p) => !p.show || p.show(app));
+
+function homeView(app) {
+  const h = app.home;
+  const d = new Date();
+  const pages = homePages(app);
+  const index = Math.max(0, Math.min(app.homePage ?? 0, pages.length - 1));
+  const nothing = !h.rooms.length && !h.lights.length && !h.scenes.length;
+  return `<div class="paged">
+    ${head(app, { eyebrow: fmtDate(d), title: greeting(d), sub: nothing ? "" : summary(h), home: true })}
+    ${notice(app)}
+    <nav class="page-tabs" role="tablist" aria-label="Home pages">${pages.map((p, i) => `<button type="button" role="tab" aria-selected="${i === index}"${attr({ act: "home-page", i, key: `hp:${p.id}` })}>${icon(p.icon)}<span>${p.name}</span></button>`).join("")}</nav>
+    <div class="pager" id="pager">${pages.map((p, i) => `<section class="page" role="tabpanel" aria-label="${p.name}"${attr({ page: i })}>${p.html(app)}</section>`).join("")}</div>
+    <div class="page-dots" aria-hidden="true">${pages.map((p, i) => `<i class="${i === index ? "on" : ""}"></i>`).join("")}</div>
+  </div>`;
 }
 
 function roomView(app) {
@@ -558,9 +658,25 @@ function roomView(app) {
     `<label class="capsule">${icon("camera")}${app.photoURL(room.id) ? "Change photo" : "Room photo"}<input type="file" accept="image/*" hidden${attr({ "photo-room": room.id })}></label>`,
     app.photoURL(room.id) ? `<button type="button" class="capsule"${attr({ act: "photo-remove", id: room.id })}>${icon("close")}Remove photo</button>` : "",
   ].join("");
+  const st = roomStats(app, room.id);
+  const [h1, h2] = roomHues(h, room.id);
+  const photo = app.photoURL(room.id);
+  const playing = media.find((m) => m.on);
+  const anyUnlocked = st.locks.some((l) => l.locked === false);
+  const stat = (ic, color, label, value) => `<div class="hero-stat" style="--c:${color}"><span class="hs-icon">${icon(ic)}</span><span class="hs-text"><span>${label}</span><b>${esc(value)}</b></span></div>`;
+  const hero = `<div class="room-hero${st.on.length ? " lit" : ""}" style="--rh1:${h1};--rh2:${h2};--glow:${st.avg.toFixed(2)}">
+      <div class="rc-bg${photo ? " photo" : ""}"${photo ? ` style="background-image:url('${esc(photo)}')"` : ""}></div><div class="rc-glow"></div>
+      <div class="hero-stats">
+        ${lights.length ? stat("bulb", "var(--yellow)", "Lights", on ? `${on} on · ${pct(st.avg)}` : "Off") : ""}
+        ${shades.length ? stat("blinds", "var(--teal)", "Shades", shades.filter(isOpen).length ? `${shades.filter(isOpen).length} open` : "Closed") : ""}
+        ${media.length ? stat("music", "var(--purple)", "Music", playing ? (playing.nowPlaying?.title || sourceName(playing)) : "Off") : ""}
+        ${st.locks.length ? stat(anyUnlocked ? "unlock" : "lock", anyUnlocked ? "var(--orange)" : "var(--green)", "Door", anyUnlocked ? "Unlocked" : "Locked") : ""}
+      </div>
+      ${quick ? `<div class="quick">${quick}</div>` : ""}
+    </div>`;
   return `${head(app, { eyebrow, title: room.name, sub, back: "#home" })}
     ${notice(app)}
-    ${quick ? `<div class="quick">${quick}</div>` : ""}
+    ${hero}
     ${scenes.length ? sec("Scenes", `<div class="tiles">${sceneTiles(scenes, app.pop)}</div>`) : ""}
     ${media.length ? sec("Media", `<div class="widgets">${media.map((m) => zoneWidget(h, m)).join("")}</div>`) : ""}
     ${items.length ? sec("Accessories", `<div class="tiles">${accessoryTiles(h, items, false)}</div>`) : ""}
@@ -596,11 +712,15 @@ function shadesView(app) {
 }
 
 function mediaView(app) {
-  const h = app.home;
-  const playing = h.media.filter((m) => m.on).length;
-  const lead = h.media.find((m) => m.on && m.sourceId);
+  const playing = app.home.media.filter((m) => m.on).length;
   return `${head(app, { eyebrow: "Media", title: playing ? `Playing in ${playing} ${playing === 1 ? "room" : "rooms"}` : "Nothing playing", sub: "" })}
-    ${lead && h.media.length > 1 ? `<div class="quick"><button type="button" class="capsule"${attr({ act: "play-everywhere", id: lead.id })}>${icon("speakers")}Play ${esc(sourceName(lead))} everywhere</button>
+    ${mediaBody(app)}`;
+}
+
+function mediaBody(app) {
+  const h = app.home;
+  const lead = h.media.find((m) => m.on && m.sourceId);
+  return `${lead && h.media.length > 1 ? `<div class="quick"><button type="button" class="capsule"${attr({ act: "play-everywhere", id: lead.id })}>${icon("speakers")}Play ${esc(sourceName(lead))} everywhere</button>
       <button type="button" class="capsule" data-act="all-media-off">${icon("power")}Turn all off</button></div>` : ""}
     ${h.media.length ? `<div class="widgets">${h.media.map((m) => zoneWidget(h, m)).join("")}</div>` : `<div class="empty">${icon("music")}<b>No media rooms</b></div>`}`;
 }
@@ -608,9 +728,14 @@ function mediaView(app) {
 function securityView(app) {
   const h = app.home;
   const unlocked = h.locks.filter((l) => l.locked === false).length;
-  const widgets = [...h.security.map(securityWidget), ...h.gates.map(gateWidget)];
   return `${head(app, { eyebrow: "Security", title: unlocked ? `${unlocked} ${unlocked === 1 ? "door is" : "doors are"} unlocked` : h.locks.length ? "Everything is locked" : "Security", sub: h.security[0] ? `Alarm: ${SECURITY_TITLES[h.security[0].mode] ?? "Unknown"}` : "" })}
-    ${widgets.length ? `<div class="widgets">${widgets.join("")}</div>` : ""}
+    ${securityBody(app)}`;
+}
+
+function securityBody(app) {
+  const h = app.home;
+  const widgets = [...h.security.map(securityWidget), ...h.gates.map(gateWidget)];
+  return `${widgets.length ? `<div class="widgets">${widgets.join("")}</div>` : ""}
     ${h.locks.length ? sec("Doors", `<div class="tiles">${accessoryTiles(h, h.locks.map((l) => ["lock", l]), true)}</div>`) : ""}
     ${app.cameras.length ? sec("Cameras", `<div class="cams">${cameraTiles(app.cameras, app.api)}</div>`) : ""}
     ${!widgets.length && !h.locks.length ? `<div class="empty">${icon("shield")}<b>No security devices</b></div>` : ""}`;
@@ -618,7 +743,11 @@ function securityView(app) {
 
 function camerasView(app) {
   return `${head(app, { eyebrow: "Cameras", title: "Cameras", sub: app.cameras.length ? `${app.cameras.length} live` : "" })}
-    ${app.cameras.length ? `<div class="quick"><button type="button" class="capsule" data-act="camera-wall">${icon("wall")}Camera wall</button></div>` : ""}
+    ${camerasBody(app)}`;
+}
+
+function camerasBody(app) {
+  return `${app.cameras.length ? `<div class="quick"><button type="button" class="capsule" data-act="camera-wall">${icon("wall")}Camera wall</button></div>` : ""}
     ${app.cameras.length ? `<div class="cams">${cameraTiles(app.cameras, app.api)}</div>` : `<div class="empty">${icon("camera")}<b>No cameras yet</b><span>Add them in Settings › System setup › Cameras.</span></div>`}`;
 }
 

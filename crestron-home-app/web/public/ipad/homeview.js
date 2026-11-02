@@ -6,7 +6,7 @@ import { applyCommand, clamp01, emptyHome, normalizeHome, pct, stateKey } from "
 import { createAsk } from "./ask.js";
 import { createFeatures } from "./features.js";
 import { dots, isWideSheet, sheetHTML } from "./sheets.js";
-import { isOn, isOpen, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
+import { homePages, isOn, isOpen, setFlash, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
 
 const $ = (s, root = document) => root.querySelector(s);
 
@@ -43,6 +43,8 @@ const app = {
   pendingRender: false,
   lastTouch: Date.now(),
   device: { look: prefs.get("look", "auto"), wall: prefs.get("wall", false), saverMin: prefs.get("saverMin", 5) },
+  homePage: prefs.get("homePage", 0), // which Home page is showing
+  flash: new Map(), // "light:l1" -> when it changed, so its tile can animate
   roomPhotos: {}, // roomId -> version, from the home server
   localPhotos: new Map(), // roomId -> object URL, for the demo in this browser
   photoURL(roomId) {
@@ -53,7 +55,7 @@ const app = {
 };
 
 let engine = null;
-const ask = createAsk({ app, send, notify, onVisibility: () => scheduleRender() });
+const ask = createAsk({ app, send, notify, onVisibility: () => scheduleRender(), automation: () => features.assistantAutomation });
 const features = createFeatures({
   app, prefs, send, notify, escText: (t) => escText(t), openSheet, closeSheet, renderSheet: () => renderSheet(true), scheduleRender,
   wake: () => { if (!$("#standby").hidden) showStandby(false); },
@@ -132,6 +134,8 @@ async function send(cmd) {
     if (l && isOn(l)) app.lastLevel.set(l.id, l.level);
   }
   applyCommand(app.home, cmd);
+  const kind = { setLight: "light", setShade: "shade", mediaPower: "media", mediaSource: "media", setLock: "lock", recallScene: "scene" }[cmd.type];
+  if (kind) app.flash.set(`${kind}:${cmd.id}`, Date.now());
   const key = stateKey(cmd);
   if (key) app.recent.set(key, { cmd, at: Date.now() });
   scheduleRender();
@@ -190,14 +194,103 @@ function render() {
   const changed = routeKey !== app.lastRoute;
   const focusKey = document.activeElement?.closest?.("[data-key]")?.dataset.key;
   const scroll = content.scrollTop;
+  // Home's pages scroll on their own: remember where each one was.
+  const pageTops = [...document.querySelectorAll("#pager .page")].map((p) => p.scrollTop);
+  // A tile plays its "just changed" animation for a moment after the change (the house's
+  // own update usually arrives a few milliseconds later and redraws it).
+  const now = Date.now();
+  for (const [k, at] of app.flash) if (now - at > 700) app.flash.delete(k);
+  setFlash(new Set(app.flash.keys()));
   $("#sidebar").innerHTML = sidebarHTML(app);
   content.innerHTML = `<div class="view${changed ? " enter" : ""}">${viewHTML(app)}</div><div class="drawer-scrim" data-act="menu"></div>`;
   content.scrollTop = changed ? 0 : scroll;
+  content.classList.toggle("paged-mode", app.route.name === "home");
+  setupPager(changed ? [] : pageTops);
   app.lastRoute = routeKey;
   app.pop = null;
   if (focusKey) document.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({ preventScroll: true });
   renderSheet();
   if (!$("#standby").hidden) drawStandby();
+}
+
+// ---------- Home pages ----------
+
+let pagerTimer = null;
+function setupPager(pageTops) {
+  const pager = $("#pager");
+  if (!pager) return;
+  const pages = pager.querySelectorAll(".page");
+  app.homePage = Math.max(0, Math.min(app.homePage, pages.length - 1));
+  pager.scrollLeft = app.homePage * pager.clientWidth;
+  pageTops.forEach((top, i) => { if (pages[i]) pages[i].scrollTop = top; });
+  pager.addEventListener("scroll", () => {
+    clearTimeout(pagerTimer);
+    pagerTimer = setTimeout(() => {
+      const i = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
+      if (i !== app.homePage) showPageMarkers(i);
+    }, 90);
+  }, { passive: true });
+}
+
+/** Moves the tab highlight and dots without rebuilding the page. */
+function showPageMarkers(i) {
+  app.homePage = i;
+  prefs.set("homePage", i);
+  document.querySelectorAll(".page-tabs [role=tab]").forEach((t, j) => t.setAttribute("aria-selected", String(j === i)));
+  document.querySelectorAll(".page-dots i").forEach((d, j) => d.classList.toggle("on", j === i));
+}
+
+function goToPage(i) {
+  const pager = $("#pager");
+  if (!pager) return;
+  showPageMarkers(i);
+  pager.scrollTo({ left: i * pager.clientWidth, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+
+window.addEventListener("resize", () => {
+  const pager = $("#pager");
+  if (pager) pager.scrollLeft = app.homePage * pager.clientWidth;
+});
+
+// ---------- motion: tilt and scene ripple ----------
+
+/** Cards lean a little toward the finger or pointer, like a physical object. */
+function tilt(e) {
+  const card = e.target.closest?.("[data-tilt]");
+  if (!card || e.target.closest("button, a, input, .slide, .hbar, .seg")) return;
+  if (e.pointerType !== "mouse" && e.buttons === 0) return;
+  const r = card.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - 0.5;
+  const y = (e.clientY - r.top) / r.height - 0.5;
+  card.style.setProperty("--ry", `${(x * 6).toFixed(2)}deg`);
+  card.style.setProperty("--rx", `${(-y * 6).toFixed(2)}deg`);
+  card.classList.add("tilting");
+}
+function untilt(e) {
+  const card = e.target.closest?.("[data-tilt]");
+  if (!card) return;
+  card.style.removeProperty("--rx");
+  card.style.removeProperty("--ry");
+  card.classList.remove("tilting");
+}
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  document.addEventListener("pointermove", tilt, { passive: true });
+  document.addEventListener("pointerout", untilt, { passive: true });
+  document.addEventListener("pointerup", untilt, { passive: true });
+}
+
+/** A wash of the scene's color spreading from the button that ran it. */
+function ripple(el) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = el.getBoundingClientRect();
+  const color = getComputedStyle(el).getPropertyValue("--c").trim() || "var(--orange)";
+  const dot = document.createElement("div");
+  dot.className = "ripple";
+  dot.style.left = `${r.left + 34}px`;
+  dot.style.top = `${r.top + r.height / 2}px`;
+  dot.style.setProperty("--c", color);
+  document.body.append(dot);
+  dot.addEventListener("animationend", () => dot.remove());
 }
 
 function applyWallpaper() {
@@ -388,6 +481,7 @@ const actions = {
     const s = app.home.scenes.find((x) => x.id === el.dataset.id);
     if (!s) return;
     app.pop = s.id;
+    ripple(el);
     send({ type: "recallScene", id: s.id });
     notify(`${escText(s.name)}`, { ic: sceneIcon(s), color: "#ff9f0a", sub: "is on" });
   },
@@ -467,6 +561,7 @@ const actions = {
     showStandby(true);
   },
   menu: () => document.body.classList.toggle("drawer"),
+  "home-page": (el) => goToPage(Number(el.dataset.i)),
   "ask-open": () => {
     document.body.classList.remove("drawer");
     ask.open();
@@ -474,6 +569,8 @@ const actions = {
   "ask-close": () => ask.close(),
   "ask-suggest": (el) => ask.submit(el.dataset.text),
   "ask-confirm": (el) => ask.confirmAt(Number(el.dataset.index)),
+  "ask-undo": (el) => ask.undoAt(Number(el.dataset.index)),
+  "ask-speak": () => ask.toggleSpeak(),
   "ask-mic": () => ask.toggleListening(),
 };
 
