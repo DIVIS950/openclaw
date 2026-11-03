@@ -144,7 +144,7 @@ let bwipPromise = null;
 
 /** Lazy-load the barcode renderer (it is the heaviest file in the app). */
 function loadBwip() {
-  bwipPromise ??= import("../vendor/bwip.mjs");
+  bwipPromise ??= import("../vendor/bwip.js");
   return bwipPromise;
 }
 

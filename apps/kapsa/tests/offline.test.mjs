@@ -15,7 +15,7 @@ function walk(dir) {
 }
 
 test("every app file is precached", () => {
-  const needed = [...walk("js"), ...walk("vendor"), ...walk("fonts"), "css/app.css", "index.html", "manifest.webmanifest"];
+  const needed = [...walk("js"), ...walk("vendor"), ...walk("fonts"), "css/app.css", "index.html", "manifest.json", "css/fonts.css"];
   for (const file of needed) {
     assert.ok(listed.has(file), `sw.js is missing ${file}`);
   }

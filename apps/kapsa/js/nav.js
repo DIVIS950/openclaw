@@ -1,16 +1,15 @@
-// Hash routing with real history entries, so the phone's back gesture closes sheets.
-//   ""            wallet
-//   #map          map            #pick-<id>   map, choosing a place for a card
-//   #settings     settings
-//   #card-<id>    card sheet     #edit-<id>   edit sheet     #find-<id> address search
-//   #add          scan + new card
-//   #ai           chat assistant
-//   #import=...   shared card link
+// Hash routing with real history entries, so the phone's back gesture closes pages and sheets.
+//   tabs:   ""  #coupons  #stats  #ai
+//   pages:  #card-<id>  #coupon-<id>  #edit-<id>  #ecoupon-<id>  #settings  #map  #pick-<id>
+//           #find-<id>  #reminders
+//   sheets: #add (what to add)  #scan (new card)  #newc (new coupon)  #log  #log-<cardId>
+//           #import=<shared card>
 
 const listeners = new Set();
 
 export function onRoute(fn) {
   listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
 function emit() {
@@ -54,30 +53,37 @@ export function back(fallback = "") {
   }
 }
 
+export const TABS = ["wallet", "coupons", "stats", "ai"];
+
 /**
- * @returns {{ page: "home" | "map" | "settings", overlay: string | null, id: string | null, data: string | null }}
+ * @returns {{ kind: "tab" | "page" | "sheet", name: string, id: string | null, data: string | null }}
  */
 export function currentRoute() {
-  const hash = location.hash.slice(1);
+  return parseHash(location.hash);
+}
+
+/** @param {string} raw */
+export function parseHash(raw) {
+  const hash = raw.replace(/^#/, "");
   if (hash.startsWith("import=")) {
-    return { page: "home", overlay: "import", id: null, data: hash.slice(7) };
+    return { kind: "sheet", name: "import", id: null, data: hash.slice(7) };
   }
-  const m = /^(card|edit|find|pick)-([a-z0-9]+)$/i.exec(hash);
+  if (hash === "" || hash === "wallet") {
+    return { kind: "tab", name: "wallet", id: null, data: null };
+  }
+  if (TABS.includes(hash)) {
+    return { kind: "tab", name: hash, id: null, data: null };
+  }
+  if (["settings", "map", "reminders"].includes(hash)) {
+    return { kind: "page", name: hash, id: null, data: null };
+  }
+  if (["add", "scan", "newc", "log"].includes(hash)) {
+    return { kind: "sheet", name: hash, id: null, data: null };
+  }
+  const m = /^(card|coupon|edit|ecoupon|pick|find|log)-([a-z0-9]+)$/i.exec(hash);
   if (m) {
-    const kind = m[1].toLowerCase();
-    if (kind === "pick") {
-      return { page: "map", overlay: null, id: m[2], data: null };
-    }
-    return { page: "home", overlay: kind, id: m[2], data: null };
+    const name = m[1].toLowerCase();
+    return { kind: name === "log" ? "sheet" : "page", name, id: m[2], data: null };
   }
-  if (hash === "map" || hash === "settings") {
-    return { page: hash, overlay: null, id: null, data: null };
-  }
-  if (hash === "add") {
-    return { page: "home", overlay: "add", id: null, data: null };
-  }
-  if (hash === "ai") {
-    return { page: "home", overlay: "ai", id: null, data: null };
-  }
-  return { page: "home", overlay: null, id: null, data: null };
+  return { kind: "tab", name: "wallet", id: null, data: null };
 }

@@ -1,7 +1,8 @@
 // Local storage on the phone (IndexedDB). Nothing leaves the device from here.
 
 const DB_NAME = "kapsa";
-const DB_VERSION = 1;
+// v2 added coupons and purchases; existing cards and settings are kept.
+const DB_VERSION = 2;
 
 /** @type {Promise<IDBDatabase> | null} */
 let dbPromise = null;
@@ -19,6 +20,12 @@ function open() {
       }
       if (!db.objectStoreNames.contains("osm")) {
         db.createObjectStore("osm");
+      }
+      if (!db.objectStoreNames.contains("coupons")) {
+        db.createObjectStore("coupons", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("purchases")) {
+        db.createObjectStore("purchases", { keyPath: "id" });
       }
     });
     req.addEventListener("success", () => resolve(req.result));
@@ -49,6 +56,20 @@ export const cardsStore = {
   put: (card) => run("cards", "readwrite", (s) => s.put(card)),
   remove: (id) => run("cards", "readwrite", (s) => s.delete(id)),
   clear: () => run("cards", "readwrite", (s) => s.clear()),
+};
+
+export const couponsStore = {
+  all: () => run("coupons", "readonly", (s) => s.getAll()),
+  put: (item) => run("coupons", "readwrite", (s) => s.put(item)),
+  remove: (id) => run("coupons", "readwrite", (s) => s.delete(id)),
+  clear: () => run("coupons", "readwrite", (s) => s.clear()),
+};
+
+export const purchasesStore = {
+  all: () => run("purchases", "readonly", (s) => s.getAll()),
+  put: (item) => run("purchases", "readwrite", (s) => s.put(item)),
+  remove: (id) => run("purchases", "readwrite", (s) => s.delete(id)),
+  clear: () => run("purchases", "readwrite", (s) => s.clear()),
 };
 
 export const kv = {

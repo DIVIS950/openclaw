@@ -1,7 +1,7 @@
-// App state with a tiny subscribe/notify loop. Cards and settings persist in IndexedDB.
+// App state with a tiny subscribe/notify loop. Everything persists in IndexedDB on the phone.
 
 import { habitScore, learnedPlaces, recordUse } from "./habits.js";
-import { cardsStore, kv, newId } from "./store.js";
+import { cardsStore, couponsStore, kv, newId, purchasesStore } from "./store.js";
 
 export const DEFAULT_SETTINGS = {
   lang: "auto",
@@ -12,6 +12,9 @@ export const DEFAULT_SETTINGS = {
   locationWanted: false,
   habits: true,
   aiModel: "claude-opus-5-5",
+  currency: "CZK",
+  notifications: false,
+  remindDays: 3,
 };
 
 /**
@@ -21,13 +24,20 @@ export const DEFAULT_SETTINGS = {
  *   places: Place[], autoBranches: boolean, photo: string | null, note: string,
  *   createdAt: number, updatedAt: number, lastUsedAt: number, uses: number, sample?: boolean,
  *   points?: number | null, expiry?: string, code2?: string, format2?: string,
- *   usage?: import("./habits.js").UseEvent[], ignoredLearned?: Array<{ lat: number, lon: number }>
+ *   usage?: import("./habits.js").UseEvent[], ignoredLearned?: Array<{ lat: number, lon: number }>,
+ *   stamps?: { goal: number, count: number, reward: string, redeemed: number } | null, pointsGoal?: number | null
  * }} Card
+ * @typedef {import("./model.js").Coupon} Coupon
+ * @typedef {import("./model.js").Purchase} Purchase
  */
 
 export const state = {
   /** @type {Card[]} */
   cards: [],
+  /** @type {Coupon[]} */
+  coupons: [],
+  /** @type {Purchase[]} */
+  purchases: [],
   settings: { ...DEFAULT_SETTINGS },
   /** @type {{ lat: number, lon: number, accuracy: number, at: number } | null} */
   pos: null,
@@ -62,8 +72,15 @@ export function notify() {
 }
 
 export async function loadState() {
-  const [cards, settings] = await Promise.all([cardsStore.all(), kv.get("settings")]);
+  const [cards, coupons, purchases, settings] = await Promise.all([
+    cardsStore.all(),
+    couponsStore.all(),
+    purchasesStore.all(),
+    kv.get("settings"),
+  ]);
   state.cards = cards ?? [];
+  state.coupons = coupons ?? [];
+  state.purchases = purchases ?? [];
   state.settings = { ...DEFAULT_SETTINGS, ...settings };
 }
 
@@ -116,6 +133,138 @@ export async function deleteCard(id) {
   await cardsStore.remove(id);
   state.cards = state.cards.filter((c) => c.id !== id);
   delete state.branches[id];
+  // Coupons and purchases stay, with the shop name; they just lose the link.
+  for (const c of state.coupons.filter((x) => x.cardId === id)) {
+    await saveCoupon({ ...c, cardId: null });
+  }
+  for (const p of state.purchases.filter((x) => x.cardId === id)) {
+    await savePurchase({ ...p, cardId: null });
+  }
+  notify();
+}
+
+// ---------- Stamps and points ----------
+
+/** Add one stamp. Returns the card and whether the reward is now ready. */
+export async function addStamp(cardId) {
+  const card = getCard(cardId);
+  if (!card?.stamps) {
+    return { card, ready: false };
+  }
+  const count = Math.min(card.stamps.goal, card.stamps.count + 1);
+  const saved = await saveCard({ ...card, stamps: { ...card.stamps, count } });
+  return { card: saved, ready: count >= card.stamps.goal };
+}
+
+export async function removeStamp(cardId) {
+  const card = getCard(cardId);
+  if (!card?.stamps || card.stamps.count === 0) {
+    return card;
+  }
+  return saveCard({ ...card, stamps: { ...card.stamps, count: card.stamps.count - 1 } });
+}
+
+/** Use the reward: start a fresh stamp card. */
+export async function redeemStamps(cardId) {
+  const card = getCard(cardId);
+  if (!card?.stamps) {
+    return card;
+  }
+  return saveCard({ ...card, stamps: { ...card.stamps, count: 0, redeemed: card.stamps.redeemed + 1 } });
+}
+
+// ---------- Coupons ----------
+
+/** @param {string} id */
+export function getCoupon(id) {
+  return state.coupons.find((c) => c.id === id) ?? null;
+}
+
+/**
+ * @param {Partial<Coupon> & { title: string }} data
+ * @returns {Promise<Coupon>}
+ */
+export async function saveCoupon(data) {
+  const existing = data.id ? getCoupon(data.id) : null;
+  /** @type {Coupon} */
+  const coupon = {
+    id: newId(),
+    discount: "",
+    shop: "",
+    cardId: null,
+    code: "",
+    format: "none",
+    expiry: "",
+    note: "",
+    photo: null,
+    used: false,
+    usedAt: 0,
+    saved: null,
+    createdAt: Date.now(),
+    ...existing,
+    ...data,
+  };
+  await couponsStore.put(coupon);
+  state.coupons = [...state.coupons.filter((c) => c.id !== coupon.id), coupon];
+  notify();
+  return coupon;
+}
+
+/**
+ * Mark a coupon used; the saving (if given) counts in the stats.
+ * @param {string} id
+ * @param {number | null} saved
+ */
+export async function useCoupon(id, saved) {
+  const coupon = getCoupon(id);
+  if (!coupon) {
+    return null;
+  }
+  return saveCoupon({ ...coupon, used: true, usedAt: Date.now(), saved });
+}
+
+export async function deleteCoupon(id) {
+  await couponsStore.remove(id);
+  state.coupons = state.coupons.filter((c) => c.id !== id);
+  notify();
+}
+
+/** Coupons that belong to a card: linked by id, or with the same shop name. */
+export function couponsForCard(card, coupons = state.coupons) {
+  const name = card.name.trim().toLowerCase();
+  return coupons.filter((c) => c.cardId === card.id || (!c.cardId && c.shop && c.shop.trim().toLowerCase() === name));
+}
+
+// ---------- Purchases ----------
+
+/**
+ * @param {Partial<Purchase> & { amount: number }} data
+ * @returns {Promise<Purchase>}
+ */
+export async function savePurchase(data) {
+  const existing = data.id ? state.purchases.find((p) => p.id === data.id) : null;
+  const card = data.cardId ? getCard(data.cardId) : null;
+  /** @type {Purchase} */
+  const purchase = {
+    id: newId(),
+    cardId: null,
+    shop: card?.name ?? "",
+    saved: 0,
+    at: Date.now(),
+    note: "",
+    source: "manual",
+    ...existing,
+    ...data,
+  };
+  await purchasesStore.put(purchase);
+  state.purchases = [...state.purchases.filter((p) => p.id !== purchase.id), purchase];
+  notify();
+  return purchase;
+}
+
+export async function deletePurchase(id) {
+  await purchasesStore.remove(id);
+  state.purchases = state.purchases.filter((p) => p.id !== id);
   notify();
 }
 

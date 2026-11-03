@@ -161,12 +161,15 @@ test("Overpass results are parsed and filtered", () => {
 test("both languages have the same keys and Czech plurals", () => {
   assert.deepEqual(Object.keys(DICTS.cs).toSorted(), Object.keys(DICTS.en).toSorted());
   setLang("cs");
+  assert.equal(t("w.coupons", { n: 2 }), "2 kupóny");
+  assert.equal(t("w.coupons", { n: 5 }), "5 kupónů");
   assert.equal(t("card.branches", { n: 1 }), "Na mapě: 1 pobočka v okolí");
   assert.equal(t("card.branches", { n: 3 }), "Na mapě: 3 pobočky v okolí");
   assert.equal(t("card.branches", { n: 7 }), "Na mapě: 7 poboček v okolí");
   setLang("en");
   assert.equal(t("card.branches", { n: 1 }), "On the map: 1 branch nearby");
-  assert.equal(t("wallet.noResults", { q: "x" }), "No card matches “x”.");
+  assert.equal(t("w.cards", { n: 1 }), "1 card");
+  assert.equal(t("w.cards", { n: 4 }), "4 cards");
   assert.equal(detectLang(["sk-SK", "en"]), "cs");
   assert.equal(detectLang(["de-DE", "en-US"]), "en");
 });

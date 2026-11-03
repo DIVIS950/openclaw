@@ -2,7 +2,7 @@
 // branches for the current area up to date.
 
 import { searchNamesFor, normalizeName } from "./brands.js";
-import { cellCenter, cellKey, cellRadiusMeters } from "./geo.js";
+import { cellCenter, cellKey, cellRadiusMeters, distanceMeters } from "./geo.js";
 import { fetchBranches, filterBranches } from "./osm.js";
 import { state, notify, updateSettings } from "./state.js";
 import { osmCache } from "./store.js";
@@ -30,18 +30,29 @@ export function startLocation() {
   }
   watchId = navigator.geolocation.watchPosition(
     (p) => {
-      state.pos = {
+      const next = {
         lat: p.coords.latitude,
         lon: p.coords.longitude,
         accuracy: p.coords.accuracy,
         at: p.timestamp,
       };
+      // GPS fires often while standing still; only redraw when it actually moved
+      // (or got much more precise), so the screen doesn't jitter.
+      const prev = state.pos;
+      const moved =
+        !prev ||
+        state.locStatus !== "on" ||
+        distanceMeters(prev, next) > 6 ||
+        Math.abs(prev.accuracy - next.accuracy) > Math.max(10, prev.accuracy * 0.3);
+      state.pos = next;
       state.locStatus = "on";
       if (!state.settings.locationWanted) {
         updateSettings({ locationWanted: true });
       }
-      notify();
-      refreshBranches();
+      if (moved) {
+        notify();
+        refreshBranches();
+      }
     },
     (err) => {
       if (err.code === err.PERMISSION_DENIED) {

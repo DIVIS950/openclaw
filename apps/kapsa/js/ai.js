@@ -1,11 +1,11 @@
-// Claude features: read a card from a photo, and the chat assistant.
-// Uses the official Anthropic SDK (vendor/anthropic.mjs) straight from the phone with the
+// Claude features: read a card, coupon or receipt from a photo, and the chat assistant.
+// Uses the official Anthropic SDK (vendor/anthropic.js) straight from the phone with the
 // user's own API key, which is stored only on this device.
 
 import { FORMATS, fromDetectorFormat } from "./barcode.js";
 import { CATEGORIES } from "./brands.js";
 import { t } from "./i18n.js";
-import { cleanDate, cleanPoints } from "./model.js";
+import { cleanDate, cleanMoney, cleanPoints } from "./model.js";
 import { kv } from "./store.js";
 
 export const AI_MODELS = [
@@ -19,7 +19,7 @@ let sdkPromise = null;
 let cachedKey = null;
 
 function loadSdk() {
-  sdkPromise ??= import("../vendor/anthropic.mjs");
+  sdkPromise ??= import("../vendor/anthropic.js");
   return sdkPromise;
 }
 
@@ -182,29 +182,24 @@ export function mergeCardReading(ai, detected) {
 }
 
 /**
- * Read a loyalty card from a photo.
+ * One photo + instructions in, one JSON object (matching `schema`) out.
  * @param {Blob} file
- * @param {{ rawValue: string, format: string } | null} detected exact barcode read on the phone
- * @param {{ model: string, lang: string }} opts
+ * @param {Record<string, any>} schema
+ * @param {string} instructions
+ * @param {string} model
  */
-export async function readCardPhoto(file, detected, opts) {
+async function readPhoto(file, schema, instructions, model) {
   const data = await photoToBase64(file);
-  const hint = detected
-    ? `The phone already decoded a barcode on this card: "${detected.rawValue}" (${detected.format}). Use it as the card number.`
-    : "No barcode was decoded on the phone; read the printed number if you can.";
   const response = await send({
-    model: opts.model,
+    model,
     max_tokens: 16000,
-    output_config: { effort: "medium", format: { type: "json_schema", schema: CARD_SCHEMA } },
+    output_config: { effort: "medium", format: { type: "json_schema", schema } },
     messages: [
       {
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: "image/jpeg", data } },
-          {
-            type: "text",
-            text: `This is a photo of a loyalty or membership card the user wants to save in a card wallet app. Fill in the fields from what is visible. Copy numbers exactly; never guess digits you cannot read. Write the note in ${opts.lang === "cs" ? "Czech" : "English"}. ${hint}`,
-          },
+          { type: "text", text: instructions },
         ],
       },
     ],
@@ -213,12 +208,137 @@ export async function readCardPhoto(file, detected, opts) {
     throw new AiError("refusal");
   }
   const text = response.content.find((b) => b.type === "text")?.text ?? "";
-  let parsed;
   try {
-    parsed = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new AiError("unreadable");
   }
+}
+
+const COUPON_SCHEMA = {
+  type: "object",
+  properties: {
+    is_coupon: { type: "boolean", description: "True if the photo shows a coupon, voucher, discount or gift card." },
+    discount: { type: "string", description: "The headline benefit, very short, e.g. '−20 %', '−100 Kč', '2+1', 'Káva zdarma'. Empty if none." },
+    title: { type: "string", description: "Short description of what the coupon is for, in the user's language." },
+    shop_name: { type: "string", description: "Shop or brand where it can be used. Empty if unknown." },
+    code: { type: "string", description: "Coupon code or barcode number exactly as printed, no spaces. Empty if none." },
+    barcode_type: {
+      type: "string",
+      enum: ["ean13", "ean8", "upca", "upce", "code128", "code39", "code93", "itf", "codabar", "qr", "pdf417", "aztec", "datamatrix", "none", "unknown"],
+    },
+    expiry: { type: "string", description: "Last valid day as YYYY-MM-DD if printed, else empty." },
+    saving_amount: { type: "string", description: "Money saved if it is a fixed amount, digits only, else empty." },
+    note: { type: "string", description: "Conditions in one short line (e.g. 'nákup nad 500 Kč'), in the user's language. Empty if none." },
+  },
+  required: ["is_coupon", "discount", "title", "shop_name", "code", "barcode_type", "expiry", "saving_amount", "note"],
+  additionalProperties: false,
+};
+
+const RECEIPT_SCHEMA = {
+  type: "object",
+  properties: {
+    is_receipt: { type: "boolean", description: "True if the photo shows a shop receipt." },
+    shop_name: { type: "string", description: "Shop or brand name as customers know it, e.g. 'Albert'. Empty if unknown." },
+    total: { type: "string", description: "Total amount paid, digits with a decimal point, e.g. '412.50'. Empty if not readable." },
+    currency: { type: "string", description: "ISO currency code, e.g. CZK or EUR." },
+    date: { type: "string", description: "Purchase date as YYYY-MM-DD if printed, else empty." },
+    saved: { type: "string", description: "Total discounts or savings printed on the receipt (loyalty, coupons), digits only, else empty." },
+    items: { type: "integer", description: "Number of item lines, 0 if unknown." },
+  },
+  required: ["is_receipt", "shop_name", "total", "currency", "date", "saved", "items"],
+  additionalProperties: false,
+};
+
+/**
+ * Merge Claude's coupon reading with an exact code read on the phone. Pure.
+ * @param {Record<string, any>} ai
+ * @param {{ rawValue: string, format: string } | null} detected
+ */
+export function mergeCouponReading(ai, detected) {
+  const code = detected?.rawValue?.trim() || String(ai.code ?? "").replace(/\s+/g, "");
+  const aiFormat = ai.barcode_type && ai.barcode_type in FORMATS ? ai.barcode_type : "code128";
+  return {
+    discount: String(ai.discount ?? "").trim().slice(0, 24),
+    title: String(ai.title ?? "").trim().slice(0, 100),
+    shop: String(ai.shop_name ?? "").trim().slice(0, 80),
+    code,
+    format: detected ? fromDetectorFormat(detected.format) : code ? aiFormat : "none",
+    expiry: cleanDate(ai.expiry),
+    saved: cleanMoney(ai.saving_amount),
+    note: String(ai.note ?? "").trim().slice(0, 200),
+    isCoupon: ai.is_coupon !== false,
+  };
+}
+
+/** Pure: receipt reading -> purchase fields. */
+export function mergeReceiptReading(ai) {
+  return {
+    shop: String(ai.shop_name ?? "").trim().slice(0, 80),
+    amount: cleanMoney(ai.total),
+    currency: /^[A-Z]{3}$/.test(ai.currency ?? "") ? ai.currency : null,
+    date: cleanDate(ai.date),
+    saved: cleanMoney(ai.saved) ?? 0,
+    isReceipt: ai.is_receipt !== false,
+  };
+}
+
+/**
+ * Read a coupon or voucher from a photo.
+ * @param {Blob} file
+ * @param {{ rawValue: string, format: string } | null} detected
+ * @param {{ model: string, lang: string }} opts
+ */
+export async function readCouponPhoto(file, detected, opts) {
+  const hint = detected ? `The phone already decoded a code on it: "${detected.rawValue}" (${detected.format}).` : "";
+  const parsed = await readPhoto(
+    file,
+    COUPON_SCHEMA,
+    `This is a photo of a coupon, voucher or leaflet offer the user wants to keep in their wallet app. Fill in the fields from what is visible; copy codes exactly and never guess unreadable characters. Write title and note in ${opts.lang === "cs" ? "Czech" : "English"}. ${hint}`,
+    opts.model,
+  );
+  const reading = mergeCouponReading(parsed, detected);
+  if (!reading.isCoupon && !reading.code) {
+    throw new AiError("notCoupon");
+  }
+  return reading;
+}
+
+/**
+ * Read the shop, total and savings from a receipt photo.
+ * @param {Blob} file
+ * @param {{ model: string }} opts
+ */
+export async function readReceiptPhoto(file, opts) {
+  const parsed = await readPhoto(
+    file,
+    RECEIPT_SCHEMA,
+    "This is a photo of a shop receipt. Read the shop, the total paid, the date and the total of any discounts or savings. Copy numbers exactly; leave a field empty if you cannot read it.",
+    opts.model,
+  );
+  const reading = mergeReceiptReading(parsed);
+  if (!reading.isReceipt || reading.amount === null) {
+    throw new AiError("notReceipt");
+  }
+  return reading;
+}
+
+/**
+ * Read a loyalty card from a photo.
+ * @param {Blob} file
+ * @param {{ rawValue: string, format: string } | null} detected exact barcode read on the phone
+ * @param {{ model: string, lang: string }} opts
+ */
+export async function readCardPhoto(file, detected, opts) {
+  const hint = detected
+    ? `The phone already decoded a barcode on this card: "${detected.rawValue}" (${detected.format}). Use it as the card number.`
+    : "No barcode was decoded on the phone; read the printed number if you can.";
+  const parsed = await readPhoto(
+    file,
+    CARD_SCHEMA,
+    `This is a photo of a loyalty or membership card the user wants to save in a card wallet app. Fill in the fields from what is visible. Copy numbers exactly; never guess digits you cannot read. Write the note in ${opts.lang === "cs" ? "Czech" : "English"}. ${hint}`,
+    opts.model,
+  );
   const reading = mergeCardReading(parsed, detected);
   if (!reading.isCard && !reading.code) {
     throw new AiError("notCard");
@@ -229,10 +349,10 @@ export async function readCardPhoto(file, detected, opts) {
 // ---------- Chat assistant ----------
 
 const SYSTEM_PROMPT = `You are the assistant inside Kapsa, a loyalty-card wallet app on the user's phone.
-Help with their loyalty and membership cards: which card to use where, what cards they have, points, expiry dates and notes.
-Use the tools to look things up; never invent cards or shops. Card numbers are not available to you.
-When you point the user to one of their cards, call show_card so a button to open it appears under your answer.
-If the user tells you a points balance, an expiry date or a note for a card, save it with update_card and confirm in one short sentence.
+Help with their loyalty and membership cards, coupons, stamp cards and spending: which card or coupon to use where, what they have, points, rewards, expiry dates and how much they spend or save.
+Use the tools to look things up; never invent cards, coupons, shops or amounts. Card numbers and coupon codes are not available to you.
+When you point the user to a card or coupon, call show_card or show_coupon so a button to open it appears under your answer.
+If the user tells you a points balance, an expiry date or a note for a card, save it with update_card. If they tell you what they spent ("I spent 230 at Albert"), record it with log_purchase. Confirm saved changes in one short sentence.
 Answer in the user's language (Czech or English). Keep answers short and phone-sized: one to three sentences, a short list at most.`;
 
 /** Tool definitions (JSON Schema, strict). */
@@ -268,6 +388,58 @@ export const CHAT_TOOLS = [
     },
   },
   {
+    name: "list_coupons",
+    description:
+      "List the user's coupons and vouchers: discount, title, shop, linked card id, expiry, days left, whether used. Call this for anything about coupons, deals or discounts.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { include_used: { type: "boolean", description: "Also list coupons already used." } },
+      required: ["include_used"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "show_coupon",
+    description: "Show a button under your answer that opens one of the user's coupons with its code.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { coupon_id: { type: "string" } },
+      required: ["coupon_id"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "spending_summary",
+    description:
+      "Spending and savings for a month: total spent, total saved, visits, and the top shops. Months are counted back from the current one (0 = this month, 1 = last month).",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { months_ago: { type: "integer", enum: [0, 1, 2, 3, 4, 5] } },
+      required: ["months_ago"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "log_purchase",
+    description:
+      "Record money the user spent. Use card_id when the shop matches one of their cards (from list_cards), otherwise null and give the shop name.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "Amount spent in the user's currency." },
+        card_id: { anyOf: [{ type: "string" }, { type: "null" }] },
+        shop: { type: "string" },
+        saved: { anyOf: [{ type: "number" }, { type: "null" }], description: "Money saved on this purchase, if the user said." },
+      },
+      required: ["amount", "card_id", "shop", "saved"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "update_card",
     description: "Save a points balance, expiry date or note on one of the user's cards. Use null for fields that should stay as they are.",
     strict: true,
@@ -292,7 +464,7 @@ export const CHAT_TOOLS = [
 export class ChatSession {
   /**
    * @param {{
-   *   runTool: (name: string, input: any) => Promise<{ content: string, isError?: boolean, cardId?: string, saved?: string }>,
+   *   runTool: (name: string, input: any) => Promise<{ content: string, isError?: boolean, cardId?: string, couponId?: string, saved?: string }>,
    *   model: () => string,
    *   send?: (params: Record<string, any>) => Promise<any>,
    * }} deps
@@ -307,7 +479,7 @@ export class ChatSession {
    * Send the user's message and run tools until Claude answers.
    * @param {string} text
    * @param {string} context volatile facts for this turn (time, location on/off)
-   * @returns {Promise<{ text: string, cardIds: string[], saved: string[] }>}
+   * @returns {Promise<{ text: string, cardIds: string[], couponIds: string[], saved: string[] }>}
    */
   async ask(text, context) {
     const before = this.messages.length;
@@ -330,6 +502,7 @@ export class ChatSession {
       ],
     });
     const cardIds = [];
+    const couponIds = [];
     const saved = [];
     let answer = "";
     for (let step = 0; step < 6; step++) {
@@ -353,7 +526,7 @@ export class ChatSession {
         .trim();
       const calls = response.content.filter((b) => b.type === "tool_use");
       if (response.stop_reason !== "tool_use" || !calls.length) {
-        return { text: answer, cardIds: [...new Set(cardIds)], saved };
+        return { text: answer, cardIds: [...new Set(cardIds)], couponIds: [...new Set(couponIds)], saved };
       }
       // All results go back in one user message (keeps parallel tool use working).
       const results = await Promise.all(
@@ -367,6 +540,9 @@ export class ChatSession {
           if (out.cardId) {
             cardIds.push(out.cardId);
           }
+          if (out.couponId) {
+            couponIds.push(out.couponId);
+          }
           if (out.saved) {
             saved.push(out.saved);
           }
@@ -375,7 +551,7 @@ export class ChatSession {
       );
       this.messages.push({ role: "user", content: results });
     }
-    return { text: answer || t("ai.err.tooLong"), cardIds: [...new Set(cardIds)], saved };
+    return { text: answer || t("ai.err.tooLong"), cardIds: [...new Set(cardIds)], couponIds: [...new Set(couponIds)], saved };
   }
 
   reset() {
@@ -407,5 +583,29 @@ export function cardsForAssistant(cards, ctx) {
     has_barcode: Boolean(c.code) && c.format !== "none",
     has_second_code: Boolean(c.code2),
     sample_card: Boolean(c.sample),
+    points_goal: c.pointsGoal ?? null,
+    stamps: c.stamps ? { collected: c.stamps.count, goal: c.stamps.goal, reward: c.stamps.reward || null } : null,
   }));
+}
+
+/**
+ * Coupons as the assistant sees them. Codes are left out on purpose. Pure.
+ * @param {Array<import("./model.js").Coupon>} coupons
+ * @param {{ now: number, includeUsed: boolean, daysLeft: (iso: string) => number | null }} ctx
+ */
+export function couponsForAssistant(coupons, ctx) {
+  return coupons
+    .filter((c) => ctx.includeUsed || !c.used)
+    .map((c) => ({
+      coupon_id: c.id,
+      discount: c.discount || null,
+      title: c.title,
+      shop: c.shop || null,
+      card_id: c.cardId,
+      expiry: c.expiry || null,
+      days_left: c.expiry ? ctx.daysLeft(c.expiry) : null,
+      used: c.used,
+      note: c.note || null,
+      has_code: Boolean(c.code),
+    }));
 }

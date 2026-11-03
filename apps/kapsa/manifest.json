@@ -2,13 +2,13 @@
   "id": "kapsa",
   "name": "Kapsa",
   "short_name": "Kapsa",
-  "description": "Věrnostní karty, které se ukážou samy, když jsi v obchodě.",
+  "description": "Věrnostní karty, kupóny a útraty. Karta vyskočí sama, když přijdeš do obchodu.",
   "lang": "cs",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#e8ecf1",
+  "background_color": "#2f5bff",
   "theme_color": "#2b44d6",
   "categories": ["shopping", "lifestyle", "utilities"],
   "icons": [
@@ -21,13 +21,19 @@
     {
       "name": "Přidat kartu",
       "short_name": "Přidat",
-      "url": "index.html#add",
+      "url": "index.html#scan",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Mapa karet",
-      "short_name": "Mapa",
-      "url": "index.html#map",
+      "name": "Přidat kupón",
+      "short_name": "Kupón",
+      "url": "index.html#newc",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Zapsat útratu",
+      "short_name": "Útrata",
+      "url": "index.html#log",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

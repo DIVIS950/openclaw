@@ -206,3 +206,28 @@ test("a failed chat turn is rolled back", async () => {
   await assert.rejects(session.ask("hi", "ctx"), (err) => err.code === "refusal");
   assert.equal(session.messages.length, 0);
 });
+
+test("coupon and receipt readings are merged and cleaned", async () => {
+  const { mergeCouponReading, mergeReceiptReading, couponsForAssistant } = await import("../js/ai.js");
+  const c = mergeCouponReading(
+    { is_coupon: true, discount: "−20 %", title: "Sleva na drogerii", shop_name: "dm", code: "DM 2026 X", barcode_type: "qr", expiry: "2026-11-30", saving_amount: "", note: "" },
+    null,
+  );
+  assert.equal(c.code, "DM2026X");
+  assert.equal(c.format, "qr");
+  assert.equal(c.saved, null);
+  const exact = mergeCouponReading({ code: "", barcode_type: "unknown" }, { rawValue: "123", format: "ean_8" });
+  assert.equal(exact.format, "ean8");
+  const r = mergeReceiptReading({ is_receipt: true, shop_name: "Albert", total: "412.50", currency: "CZK", date: "2026-11-02", saved: "23", items: 7 });
+  assert.deepEqual(r, { shop: "Albert", amount: 412.5, currency: "CZK", date: "2026-11-02", saved: 23, isReceipt: true });
+  const list = couponsForAssistant(
+    [
+      { id: "c1", title: "Sleva", discount: "−20 %", shop: "dm", cardId: null, code: "SECRET", expiry: "2026-11-30", used: false, note: "" },
+      { id: "c2", title: "Old", discount: "", shop: "", cardId: null, code: "", expiry: "", used: true, note: "" },
+    ],
+    { now: 0, includeUsed: false, daysLeft: () => 27 },
+  );
+  assert.equal(list.length, 1);
+  assert.equal(list[0].days_left, 27);
+  assert.ok(!JSON.stringify(list).includes("SECRET"));
+});
