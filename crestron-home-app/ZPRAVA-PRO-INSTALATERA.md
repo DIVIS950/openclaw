@@ -28,6 +28,8 @@ chci na našem Crestronu používat vlastní aplikaci na iPadu místo Crestron G
 
 4. Pokud má procesor zapnutou **autentizaci** (časté u 4‑Series), prosím povolit připojení pro toto IP ID, nebo mi dát přihlašovací údaje.
 
+5. **Web XPanel:** chtěl bych aplikaci provozovat jako HTML5 Web XPanel přímo z procesoru (bez dalšího zařízení). Prosím ověřte, že to procesor umí (4‑Series s firmwarem 2.500+, nebo 3‑Series s firmwarem 1.7000+), u XPanelu v programu zapněte podporu Web XPanel a nahrajte do procesoru soubor `HomeView.ch5z`, který vám pošlu (Toolbox, nebo `ch5-cli deploy -t controlsystem`). Napište mi prosím typ procesoru a verzi firmwaru.
+
 Nic jiného v programu měnit nepotřebuji. Současný panel zůstane fungovat beze změny.
 
 Děkuji,
