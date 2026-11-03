@@ -43,21 +43,30 @@ enum Theme {
             ("pool", "figure.pool.swim"), ("garage", "car"), ("entry", "door.left.hand.open"), ("foyer", "door.left.hand.open"),
             ("theater", "film"), ("cinema", "film"), ("media", "tv"), ("gym", "dumbbell"), ("wine", "wineglass"),
             ("hall", "figure.walk"), ("laundry", "washer"), ("guest", "person.2"), ("outdoor", "tree"),
+            // Czech room names.
+            ("obýv", "sofa"), ("kuchy", "fork.knife"), ("jídel", "wineglass"), ("knihov", "books.vertical"),
+            ("zádveří", "door.left.hand.open"), ("předsíň", "door.left.hand.open"), ("chodb", "figure.walk"),
+            ("ložnic", "bed.double"), ("dětsk", "teddybear"), ("pokoj", "person.2"), ("koupel", "bathtub"),
+            ("pracovn", "desktopcomputer"), ("kancel", "desktopcomputer"), ("klub", "film"), ("kino", "film"),
+            ("sauna", "flame"), ("fitk", "dumbbell"), ("posilov", "dumbbell"), ("bazén", "figure.pool.swim"),
+            ("zahrad", "leaf"), ("teras", "sun.max"), ("garáž", "car"), ("sklep", "archivebox"), ("prádel", "washer"),
         ]
         return table.first { n.contains($0.0) }?.1 ?? "square.split.2x2"
     }
 
     static func sceneSymbol(_ scene: HomeScene) -> String {
         let n = scene.name.lowercased()
-        if n.contains("night") || n.contains("sleep") { return "moon.stars.fill" }
-        if n.contains("morning") || n.contains("wake") { return "sunrise.fill" }
-        if n.contains("away") || n.contains("leave") { return "figure.walk.departure" }
-        if n.contains("welcome") || n.contains("home") || n.contains("arrive") { return "house.fill" }
-        if n.contains("movie") || n.contains("tv") || n.contains("cinema") { return "film.fill" }
-        if n.contains("dinner") || n.contains("cook") { return "fork.knife" }
-        if n.contains("read") { return "book.fill" }
-        if n.contains("party") || n.contains("entertain") { return "party.popper.fill" }
-        if n.contains("off") { return "power" }
+        // English and Czech scene names.
+        let has = { (words: [String]) in words.contains { n.contains($0) } }
+        if has(["night", "sleep", "noc", "spánek"]) { return "moon.stars.fill" }
+        if has(["morning", "wake", "ráno", "budíček"]) { return "sunrise.fill" }
+        if has(["away", "leave", "odchod", "odjezd"]) { return "figure.walk.departure" }
+        if has(["welcome", "home", "arrive", "příjezd", "vítej", "domů"]) { return "house.fill" }
+        if has(["movie", "tv", "cinema", "televize", "kino", "film"]) { return "film.fill" }
+        if has(["dinner", "cook", "večeře", "oběd", "vaření"]) { return "fork.knife" }
+        if has(["read", "čtení"]) { return "book.fill" }
+        if has(["party", "entertain", "oslava"]) { return "party.popper.fill" }
+        if has(["off", "vypnout", "vypnuto"]) { return "power" }
         switch scene.kind {
         case .lighting: return "lightbulb.fill"
         case .shades: return "blinds.horizontal.closed"

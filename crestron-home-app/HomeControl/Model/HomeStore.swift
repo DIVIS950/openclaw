@@ -164,7 +164,9 @@ extension HomeCommand {
         case let .mediaPower(id, _), let .mediaSource(id, _): "media:\(id)"
         case let .setLock(id, _): "lock:\(id)"
         case let .recallScene(id): "scene:\(id)"
-        case .stopShade, .mediaVolume, .mediaMute, .mediaTransport, .setSecurity, .gate: nil
+        case let .setClimate(id, _): "climate:\(id)"
+        case let .setSwitch(id, _): "switch:\(id)"
+        case .stopShade, .mediaVolume, .mediaMute, .mediaTransport, .setSecurity, .gate, .setMode: nil
         }
     }
 }

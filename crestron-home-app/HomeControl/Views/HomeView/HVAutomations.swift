@@ -18,7 +18,7 @@ struct HVUpcomingItem: Identifiable {
     static func list(_ automations: AutomationStore, home: HomeSnapshot, place: HomeLocation?, now: Date, limit: Int = 4) -> [HVUpcomingItem] {
         var items = automations.timers.map { timer in
             HVUpcomingItem(id: "timer:\(timer.id)", at: timer.at, symbol: "timer", color: .orange, title: timer.label,
-                           detail: "in \(AutomationRules.minutesLeft(timer.at, now: now))", timerId: timer.id)
+                           detail: L("in {time}", ["time": AutomationRules.minutesLeft(timer.at, now: now)]), timerId: timer.id)
         }
         for schedule in automations.schedules {
             guard let at = AutomationRules.nextRun(schedule, after: now, place: place) else { continue }
@@ -51,7 +51,7 @@ struct HVUpcomingRow: View {
             if let timerId = item.timerId {
                 Button {
                     automations.cancelTimer(id: timerId)
-                    nav.notify("Timer cancelled", symbol: "timer", color: .orange)
+                    nav.notify(L("Timer cancelled"), symbol: "timer", color: .orange)
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .bold))
@@ -60,7 +60,7 @@ struct HVUpcomingRow: View {
                         .background(Circle().fill(Color.primary.opacity(0.1)))
                 }
                 .buttonStyle(HVPress())
-                .accessibilityLabel("Cancel \(item.title)")
+                .accessibilityLabel(L("Cancel {name}", ["name": item.title]))
             }
         }
         .padding(.horizontal, 14)
@@ -81,12 +81,12 @@ struct HVUpcomingPart: View {
         // Redraw every 30 seconds so "in 12 min" counts down.
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let items = HVUpcomingItem.list(automations, home: store.home, place: settings.effectiveLocation, now: context.date)
-            HVSection(title: "Coming up", open: { nav.go(.automations) },
-                      badge: automations.vacation.enabled ? "Vacation mode on" : nil) {
+            HVSection(title: L("Coming up"), open: { nav.go(.automations) },
+                      badge: automations.vacation.enabled ? L("Vacation mode on") : nil) {
                 if items.isEmpty {
-                    HVEmptyRow(symbol: "calendar", title: "Nothing scheduled",
-                               text: "Make lights and shades follow a schedule, or set a timer from any light.",
-                               buttonTitle: "New schedule") { nav.go(.automations) }
+                    HVEmptyRow(symbol: "calendar", title: L("Nothing scheduled"),
+                               text: L("Make lights and shades follow a schedule, or set a timer from any light."),
+                               buttonTitle: L("New schedule")) { nav.go(.automations) }
                 } else {
                     VStack(spacing: 10) {
                         ForEach(items) { HVUpcomingRow(item: $0) }
@@ -110,15 +110,15 @@ struct HVAutomationsPage: View {
         let home = store.home
         let on = automations.schedules.filter(\.enabled).count
         VStack(alignment: .leading, spacing: 28) {
-            HVHeader(eyebrow: "Automations",
-                     title: on > 0 ? "\(on) \(on == 1 ? "schedule is" : "schedules are") on" : "Automations",
-                     subtitle: "Schedules and timers run on this iPad while the app is open. A wall iPad keeps it open all day.")
+            HVHeader(eyebrow: L("Automations"),
+                     title: on > 0 ? Ln(on, "{n} schedule is on", "{n} schedules are on") : L("Automations"),
+                     subtitle: L("Schedules and timers run on this iPad while the app is open. A wall iPad keeps it open all day."))
             vacationCard
-            HVSection(title: "Schedules") {
+            HVSection(title: L("Schedules")) {
                 VStack(alignment: .leading, spacing: 10) {
                     if automations.schedules.isEmpty {
-                        HVEmptyRow(symbol: "calendar", title: "No schedules yet",
-                                   text: "For example: lights off at 11 PM, or shades closed at sunset.")
+                        HVEmptyRow(symbol: "calendar", title: L("No schedules yet"),
+                                   text: L("For example: lights off at 23:00, or shades closed at sunset."))
                     }
                     TimelineView(.everyMinute) { context in
                         VStack(spacing: 10) {
@@ -126,7 +126,7 @@ struct HVAutomationsPage: View {
                         }
                     }
                     HVFlow(spacing: 8) {
-                        capsule("New schedule", "plus") {
+                        capsule(L("New schedule"), "plus") {
                             nav.sheet = .schedule(HomeSchedule(name: "", actions: []))
                         }
                         ForEach(ideas(home), id: \.name) { idea in
@@ -140,18 +140,18 @@ struct HVAutomationsPage: View {
                     .padding(.top, 4)
                 }
             }
-            HVSection(title: "Timers") {
+            HVSection(title: L("Timers")) {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     let timers = automations.timers
                     if timers.isEmpty {
-                        HVEmptyRow(symbol: "timer", title: "No timers running",
-                                   text: "Open any light, shade or music room and pick “Turn off in”.")
+                        HVEmptyRow(symbol: "timer", title: L("No timers running"),
+                                   text: L("Open any light, shade or music room and pick “Turn off in”."))
                     } else {
                         VStack(spacing: 10) {
                             ForEach(timers) { timer in
                                 HVUpcomingRow(item: HVUpcomingItem(
                                     id: timer.id, at: timer.at, symbol: "timer", color: .orange, title: timer.label,
-                                    detail: "in \(AutomationRules.minutesLeft(timer.at, now: context.date))", timerId: timer.id))
+                                    detail: L("in {time}", ["time": AutomationRules.minutesLeft(timer.at, now: context.date)]), timerId: timer.id))
                             }
                         }
                     }
@@ -182,12 +182,12 @@ struct HVAutomationsPage: View {
                 .frame(width: 40, height: 40)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.teal))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Vacation mode").font(.subheadline.weight(.semibold))
-                Text("Lights go on and off through the evening, as if someone were home. All off at 11:30 PM.")
+                Text(L("Vacation mode")).font(.subheadline.weight(.semibold))
+                Text(L("Lights go on and off through the evening, as if someone were home. All off at 23:30."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 if vacation.enabled && settings.effectiveLocation == nil {
-                    Text("Set your town in Settings so it starts at sunset. Until then it starts at 6 PM.")
+                    Text(L("Set your town in Settings so it starts at sunset. Until then it starts at 18:00."))
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.orange)
                 }
@@ -195,9 +195,9 @@ struct HVAutomationsPage: View {
             Spacer(minLength: 8)
             Toggle(isOn: Binding(get: { vacation.enabled }, set: { enabled in
                 automations.setVacation(enabled)
-                nav.notify(enabled ? "Vacation mode on" : "Vacation mode off", symbol: "suitcase.fill", color: .teal)
+                nav.notify(enabled ? L("Vacation mode on") : L("Vacation mode off"), symbol: "suitcase.fill", color: .teal)
             })) {
-                Text("Vacation mode")
+                Text(L("Vacation mode"))
             }
             .labelsHidden()
             .tint(.green)
@@ -232,11 +232,11 @@ struct HVAutomationsPage: View {
                         Text(schedule.actions.map { AutomationRules.describe($0, home: home) }.joined(separator: " · "))
                             .font(.footnote.weight(.medium))
                         if needsPlace {
-                            Text("Set your town in Settings so it knows when the sun rises and sets.")
+                            Text(L("Set your town in Settings so it knows when the sun rises and sets."))
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(.orange)
                         } else if let next {
-                            Text("Next: \(next.formatted(.dateTime.weekday(.abbreviated).hour().minute()))")
+                            Text(L("Next: {when}", ["when": AutomationRules.whenText(next, now: now)]))
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(.green)
                         }
@@ -247,7 +247,7 @@ struct HVAutomationsPage: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Edit this schedule")
+            .accessibilityHint(L("Edit this schedule"))
             Toggle(isOn: Binding(get: { schedule.enabled }, set: { automations.setEnabled($0, schedule: schedule.id) })) {
                 Text(schedule.name)
             }
@@ -296,59 +296,60 @@ struct HVScheduleSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HVSheetHeader(symbol: "calendar", color: .green, title: isNew ? "New schedule" : "Edit schedule",
-                              subtitle: "Runs by itself on the days you pick")
-                field("Name") {
-                    TextField("Lights off at bedtime", text: $draft.name)
+                HVSheetHeader(symbol: "calendar", color: .green, title: isNew ? L("New schedule") : L("Edit schedule"),
+                              subtitle: L("Runs by itself on the days you pick"))
+                field(L("Name")) {
+                    TextField(L("Lights off at bedtime"), text: $draft.name)
                         .font(.body.weight(.medium))
                         .submitLabel(.done)
                         .padding(.horizontal, 14)
                         .frame(height: 46)
                         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.07)))
                 }
-                field("When") {
-                    Picker("When", selection: $draft.trigger) {
-                        Text("At a time").tag(ScheduleTrigger.time)
-                        Text("Sunrise").tag(ScheduleTrigger.sunrise)
-                        Text("Sunset").tag(ScheduleTrigger.sunset)
+                field(L("When")) {
+                    Picker(L("When"), selection: $draft.trigger) {
+                        Text(L("At a time")).tag(ScheduleTrigger.time)
+                        Text(L("Sunrise")).tag(ScheduleTrigger.sunrise)
+                        Text(L("Sunset")).tag(ScheduleTrigger.sunset)
                     }
                     .pickerStyle(.segmented)
                     if draft.trigger == .time {
-                        DatePicker("Time", selection: time, displayedComponents: .hourAndMinute)
+                        DatePicker(L("Time"), selection: time, displayedComponents: .hourAndMinute)
                             .font(.body.weight(.medium))
+                            .environment(\.locale, L10n.locale)
                     } else {
-                        Picker("Before or after \(draft.trigger.rawValue)", selection: $draft.offset) {
+                        Picker(draft.trigger == .sunrise ? L("Before or after sunrise") : L("Before or after sunset"), selection: $draft.offset) {
                             ForEach(offsets, id: \.self) { Text(offsetText($0)).tag($0) }
                         }
                         .pickerStyle(.menu)
                         if settings.effectiveLocation == nil {
-                            Text("Set your town in Settings so it knows when the sun rises and sets.")
+                            Text(L("Set your town in Settings so it knows when the sun rises and sets."))
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(.orange)
                         }
                     }
                 }
-                field("Days") {
+                field(L("Days")) {
                     HStack(spacing: 6) {
                         ForEach(0..<7, id: \.self) { day in
                             let on = draft.days.contains(day)
                             Button { toggle(day) } label: {
-                                Text(String(AutomationRules.dayNames[day].prefix(1)))
+                                Text(AutomationRules.dayNames[day])
                                     .font(.body.weight(.bold))
                                     .foregroundStyle(on ? Color.white : Color.primary)
                                     .frame(maxWidth: .infinity, minHeight: 42)
                                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(on ? Color.green : Color.primary.opacity(0.08)))
                             }
                             .buttonStyle(HVPress())
-                            .accessibilityLabel(AutomationRules.dayNames[day])
+                            .accessibilityLabel(AutomationRules.fullDayNames[day])
                             .accessibilityAddTraits(on ? .isSelected : [])
                         }
                     }
                 }
-                field("Do this") {
+                field(L("Do this")) {
                     HVListBox {
                         if draft.actions.isEmpty {
-                            Text("Add at least one thing to do.")
+                            Text(L("Add at least one thing to do."))
                                 .font(.body)
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, minHeight: 50)
@@ -365,7 +366,7 @@ struct HVScheduleSheet: View {
                                         .foregroundStyle(.white, .red)
                                 }
                                 .buttonStyle(HVPress())
-                                .accessibilityLabel("Remove \(text)")
+                                .accessibilityLabel(L("Remove {name}", ["name": text]))
                             }
                             .padding(.horizontal, 14)
                             .frame(minHeight: 50)
@@ -375,14 +376,14 @@ struct HVScheduleSheet: View {
                     Menu {
                         addMenu
                     } label: {
-                        Label("Add", systemImage: "plus")
+                        Label(L("Add"), systemImage: "plus")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .background(Capsule().fill(Color.primary.opacity(0.1)))
                     }
-                    .accessibilityLabel("Add something to do")
+                    .accessibilityLabel(L("Add something to do"))
                 }
                 if let problem {
                     Text(problem)
@@ -392,14 +393,14 @@ struct HVScheduleSheet: View {
                 }
                 HStack(spacing: 10) {
                     if !isNew {
-                        HVWideButton(title: "Delete", symbol: "trash", tint: .red, primary: true) {
+                        HVWideButton(title: L("Delete"), symbol: "trash", tint: .red, primary: true) {
                             automations.deleteSchedule(id: draft.id)
                             nav.sheet = nil
-                            nav.notify("Schedule deleted", symbol: "calendar", color: .red)
+                            nav.notify(L("Schedule deleted"), symbol: "calendar", color: .red)
                         }
                     }
-                    HVWideButton(title: "Cancel", symbol: "xmark") { nav.sheet = nil }
-                    HVWideButton(title: "Save", symbol: "checkmark", tint: .green, primary: true) { save() }
+                    HVWideButton(title: L("Cancel"), symbol: "xmark") { nav.sheet = nil }
+                    HVWideButton(title: L("Save"), symbol: "checkmark", tint: .green, primary: true) { save() }
                 }
             }
             .hvCard()
@@ -431,9 +432,11 @@ struct HVScheduleSheet: View {
     }
 
     private func offsetText(_ offset: Int) -> String {
-        let event = draft.trigger.rawValue
-        if offset == 0 { return "At \(event)" }
-        return "\(abs(offset)) min \(offset < 0 ? "before" : "after") \(event)"
+        let sunrise = draft.trigger == .sunrise
+        let vars = ["min": String(abs(offset))]
+        if offset == 0 { return sunrise ? L("At sunrise") : L("At sunset") }
+        if offset < 0 { return sunrise ? L("{min} min before sunrise", vars) : L("{min} min before sunset", vars) }
+        return sunrise ? L("{min} min after sunrise", vars) : L("{min} min after sunset", vars)
     }
 
     private func toggle(_ day: Int) {
@@ -457,44 +460,44 @@ struct HVScheduleSheet: View {
         let lightRooms = home.rooms.filter { room in home.lights.contains { $0.roomId == room.id } }
         let shadeRooms = home.rooms.filter { room in home.shades.contains { $0.roomId == room.id } }
         if !home.scenes.isEmpty {
-            Section("Scenes") {
+            Section(L("Scenes")) {
                 ForEach(home.scenes) { scene in
                     Button(scene.name) { add(.scene(id: scene.id)) }
                 }
             }
         }
         if !home.lights.isEmpty {
-            Section("Lights") {
-                Button("All lights off") { add(.lights(roomId: nil, level: 0)) }
-                Button("All lights on") { add(.lights(roomId: nil, level: 1)) }
+            Section(L("Lights")) {
+                Button(L("Turn all lights off")) { add(.lights(roomId: nil, level: 0)) }
+                Button(L("Turn all lights on")) { add(.lights(roomId: nil, level: 1)) }
                 ForEach(lightRooms) { room in
                     Menu(room.name) {
-                        Button("\(room.name) lights off") { add(.lights(roomId: room.id, level: 0)) }
-                        Button("\(room.name) lights on") { add(.lights(roomId: room.id, level: 1)) }
-                        Button("\(room.name) lights dim") { add(.lights(roomId: room.id, level: 0.3)) }
+                        Button(L("{room} lights off", ["room": room.name])) { add(.lights(roomId: room.id, level: 0)) }
+                        Button(L("{room} lights on", ["room": room.name])) { add(.lights(roomId: room.id, level: 1)) }
+                        Button(L("{room} lights dim", ["room": room.name])) { add(.lights(roomId: room.id, level: 0.3)) }
                     }
                 }
             }
         }
         if !home.shades.isEmpty {
-            Section("Shades") {
-                Button("Open all shades") { add(.shades(roomId: nil, position: 1)) }
-                Button("Close all shades") { add(.shades(roomId: nil, position: 0)) }
+            Section(L("Shades")) {
+                Button(L("Open all shades")) { add(.shades(roomId: nil, position: 1)) }
+                Button(L("Close all shades")) { add(.shades(roomId: nil, position: 0)) }
                 ForEach(shadeRooms) { room in
                     Menu(room.name) {
-                        Button("Open \(room.name) shades") { add(.shades(roomId: room.id, position: 1)) }
-                        Button("Close \(room.name) shades") { add(.shades(roomId: room.id, position: 0)) }
+                        Button(L("Open {room} shades", ["room": room.name])) { add(.shades(roomId: room.id, position: 1)) }
+                        Button(L("Close {room} shades", ["room": room.name])) { add(.shades(roomId: room.id, position: 0)) }
                     }
                 }
             }
         }
         if !home.media.isEmpty || !home.locks.isEmpty {
-            Section("Other") {
+            Section(L("Other")) {
                 if !home.media.isEmpty {
-                    Button("Turn off all music and TV") { add(.mediaOff) }
+                    Button(L("Turn off all music and TV")) { add(.mediaOff) }
                 }
                 if !home.locks.isEmpty {
-                    Button("Lock all doors") { add(.lockAll) }
+                    Button(L("Lock all doors")) { add(.lockAll) }
                 }
             }
         }
@@ -509,6 +512,6 @@ struct HVScheduleSheet: View {
         }
         automations.save(schedule)
         nav.sheet = nil
-        nav.notify("\(schedule.name) saved", symbol: "calendar", color: .green)
+        nav.notify(L("{name} saved", ["name": schedule.name]), symbol: "calendar", color: .green)
     }
 }

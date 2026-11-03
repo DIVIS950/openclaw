@@ -14,12 +14,12 @@ struct ScreensaverView: View {
             let dx = CGFloat((minute * 37) % 41 - 20)
             let dy = CGFloat((minute * 23) % 31 - 15)
             VStack(spacing: 18) {
-                Text(context.date, format: .dateTime.weekday(.wide).month(.wide).day())
+                Text(L10n.longDate(context.date))
                     .textCase(.uppercase)
                     .font(.title3.weight(.semibold))
                     .tracking(1.5)
                     .foregroundStyle(.white.opacity(0.55))
-                Text(context.date.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute()))
+                Text(L10n.time(context.date))
                     .font(.system(size: 240, weight: .thin))
                     .monospacedDigit()
                     .minimumScaleFactor(0.4)
@@ -38,22 +38,33 @@ struct ScreensaverView: View {
         .onTapGesture(perform: onWake)
         .transition(.opacity)
         .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Wakes the screen")
+        .accessibilityHint(L("Wakes the screen"))
     }
 
     private var glance: some View {
         let home = store.home
         return HStack(spacing: 10) {
-            pill(home.lightsOnCount == 0 ? "Lights off" : "\(home.lightsOnCount) lights on", "lightbulb.fill")
+            pill(home.lightsOnCount == 0 ? L("Lights off") : Ln(home.lightsOnCount, "{n} light on", "{n} lights on"), "lightbulb.fill")
             if !home.locks.isEmpty {
-                pill(home.unlockedCount == 0 ? "Locked" : "\(home.unlockedCount) unlocked", home.unlockedCount == 0 ? "lock.fill" : "lock.open.fill",
-                     attention: home.unlockedCount > 0)
+                pill(home.unlockedCount == 0 ? L("Locked") : L("{n} unlocked", ["n": String(home.unlockedCount)]),
+                     home.unlockedCount == 0 ? "lock.fill" : "lock.open.fill", attention: home.unlockedCount > 0)
             }
-            ForEach(home.gates) { gate in
-                pill("\(gate.name) \(gate.state.title.lowercased())", "door.garage.closed", attention: gate.state == .open)
+            if home.gates.count > 2 {
+                let open = home.gates.filter { $0.state == .open || $0.state == .moving }.count
+                pill(open > 0 ? L("Gates: {n} open", ["n": String(open)]) : L("Gates closed"), "door.garage.closed", attention: open > 0)
+            } else {
+                ForEach(home.gates) { gate in
+                    pill("\(gate.name): \(gate.state.label.lowercased())", "door.garage.closed", attention: gate.state == .open)
+                }
             }
-            if let panel = home.security.first {
-                pill(panel.mode.title, "shield.fill", attention: panel.mode == .alarm)
+            if let average = home.averageTemp {
+                pill(L10n.temp(average), "thermometer.medium")
+            }
+            if home.security.count > 1 {
+                pill(L("{armed}/{all} armed", ["armed": String(home.armedZoneCount), "all": String(home.security.count)]), "shield.fill",
+                     attention: home.security.contains { $0.mode == .alarm })
+            } else if let panel = home.security.first {
+                pill(panel.mode.label, "shield.fill", attention: panel.mode == .alarm)
             }
         }
     }

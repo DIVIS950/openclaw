@@ -8,27 +8,27 @@ struct SecurityView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if !store.home.gates.isEmpty {
-                    SectionHeader(title: "Gate")
+                    SectionHeader(title: L("Gate"))
                     ForEach(store.home.gates) { GateCard(gate: $0) }
                 }
                 if !store.home.security.isEmpty {
-                    SectionHeader(title: "Alarm")
+                    SectionHeader(title: L("Alarm"))
                     ForEach(store.home.security) { SecurityPanelCard(panel: $0) }
                 }
                 if !store.home.locks.isEmpty {
-                    SectionHeader(title: "Doors", trailing: store.home.unlockedCount > 0 ? "\(store.home.unlockedCount) unlocked" : "All locked")
+                    SectionHeader(title: L("Doors"), trailing: store.home.unlockedCount > 0 ? L("{n} unlocked", ["n": String(store.home.unlockedCount)]) : L("All locked"))
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12)], spacing: 12) {
                         ForEach(store.home.locks) { LockRow(lock: $0) }
                     }
                 }
                 if store.home.gates.isEmpty && store.home.security.isEmpty && store.home.locks.isEmpty {
-                    EmptyState(icon: "shield", title: "No security devices", message: "Gates, alarm panels and door locks show up here.")
+                    EmptyState(icon: "shield", title: L("No security devices"), message: L("Gates, alarm panels and door locks show up here."))
                 }
             }
             .padding()
         }
         .screenBackground()
-        .navigationTitle("Security")
+        .navigationTitle(L("Security"))
     }
 }
 
@@ -59,29 +59,29 @@ struct GateCard: View {
                     .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(gate.name).font(.headline)
-                    Text(gate.state.title).font(.subheadline).foregroundStyle(color)
+                    Text(gate.state.label).font(.subheadline).foregroundStyle(color)
                 }
                 Spacer()
             }
             HStack(spacing: 10) {
                 if gate.hasSeparateOpenClose {
-                    gateButton("Open", icon: "arrow.left.and.right", action: .open, prominent: gate.state != .open)
-                    if gate.canStop { gateButton("Stop", icon: "stop.fill", action: .stop, prominent: false) }
-                    gateButton("Close", icon: "arrow.right.and.line.vertical.and.arrow.left", action: .close, prominent: gate.state == .open)
+                    gateButton(L("Open gate"), icon: "arrow.left.and.right", action: .open, prominent: gate.state != .open)
+                    if gate.canStop { gateButton(L("Stop"), icon: "stop.fill", action: .stop, prominent: false) }
+                    gateButton(L("Close gate"), icon: "arrow.right.and.line.vertical.and.arrow.left", action: .close, prominent: gate.state == .open)
                 } else {
-                    gateButton(gate.state == .open ? "Close Gate" : "Open Gate", icon: "hand.tap.fill", action: .trigger, prominent: true)
-                    if gate.canStop { gateButton("Stop", icon: "stop.fill", action: .stop, prominent: false) }
+                    gateButton(gate.state == .open ? L("Close gate") : L("Open gate"), icon: "hand.tap.fill", action: .trigger, prominent: true)
+                    if gate.canStop { gateButton(L("Stop"), icon: "stop.fill", action: .stop, prominent: false) }
                 }
             }
         }
         .card()
         .confirmationDialog(confirmTitle, isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
                             titleVisibility: .visible, presenting: confirm) { action in
-            Button("Open", role: .destructive) { store.perform(.gate(id: gate.id, action: action)) }
+            Button(L("Open gate"), role: .destructive) { store.perform(.gate(id: gate.id, action: action)) }
         }
     }
 
-    private var confirmTitle: String { "Open \(gate.name)?" }
+    private var confirmTitle: String { L("Open {name}?", ["name": gate.name]) }
 
     private func gateButton(_ title: String, icon: String, action: GateAction, prominent: Bool) -> some View {
         Button {
@@ -124,19 +124,19 @@ struct SecurityPanelCard: View {
                     .symbolEffect(.pulse, isActive: panel.mode == .alarm)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(panel.name).font(.headline)
-                    Text(panel.mode.title).font(.title3.weight(.semibold)).foregroundStyle(color)
+                    Text(panel.mode.label).font(.title3.weight(.semibold)).foregroundStyle(color)
                 }
                 Spacer()
             }
             HStack(spacing: 10) {
-                if panel.canArmAway { modeButton("Away", icon: "figure.walk.departure", mode: .armedAway) }
-                if panel.canArmHome { modeButton("Home", icon: "house.fill", mode: .armedHome) }
-                modeButton("Disarm", icon: "shield.slash", mode: .disarmed)
+                if panel.canArmAway { modeButton(L("Away"), icon: "figure.walk.departure", mode: .armedAway) }
+                if panel.canArmHome { modeButton(L("At home"), icon: "house.fill", mode: .armedHome) }
+                modeButton(L("Disarm"), icon: "shield.slash", mode: .disarmed)
             }
         }
         .card()
         .sheet(item: $pending) { mode in
-            KeypadSheet(title: "\(mode == .disarmed ? "Disarm" : "Arm") \(panel.name)") { code in
+            KeypadSheet(title: mode == .disarmed ? L("Disarm {name}", ["name": panel.name]) : L("Arm {name}", ["name": panel.name])) { code in
                 store.perform(.setSecurity(id: panel.id, mode: mode, code: code))
             }
             .presentationDetents([.medium, .large])
@@ -192,7 +192,7 @@ struct KeypadSheet: View {
                         }
                     } label: {
                         Group {
-                            if key == "clear" { Text("Clear").font(.headline) }
+                            if key == "clear" { Text(L("Clear")).font(.headline) }
                             else if key == "delete" { Image(systemName: "delete.left").font(.title2) }
                             else { Text(key).font(.title.weight(.medium)) }
                         }
@@ -207,7 +207,7 @@ struct KeypadSheet: View {
                 onSubmit(code)
                 dismiss()
             } label: {
-                Text("Enter").font(.headline).frame(maxWidth: 284, minHeight: 50)
+                Text(L("Enter")).font(.headline).frame(maxWidth: 284, minHeight: 50)
             }
             .buttonStyle(.borderedProminent)
             .tint(Theme.secure)

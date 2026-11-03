@@ -9,20 +9,20 @@ enum ConnectionMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .demo: "Demo house"
+        case .demo: L("Demo house")
         case .crestronHome: "Crestron Home"
-        case .customProgram: "Custom program"
+        case .customProgram: L("Custom program")
         }
     }
 
     var explanation: String {
         switch self {
         case .demo:
-            "A pretend house so you can try the app without a processor."
+            L("A pretend house so you can try the app without a processor.")
         case .crestronHome:
-            "For systems set up with the Crestron Home setup app (CP4-R, MC4-R, PRO4…). Uses the processor's built-in Web API."
+            L("For systems set up with the Crestron Home setup app (CP4-R, MC4-R, PRO4…). Uses the processor's built-in Web API.")
         case .customProgram:
-            "For systems your installer programmed in SIMPL, controlled today with Crestron Go. The app connects like a touch panel on its own IP ID and uses a join map."
+            L("For systems your installer programmed in SIMPL, controlled today with Crestron Go. The app connects like a touch panel on its own IP ID and uses a join map.")
         }
     }
 }
@@ -35,9 +35,9 @@ enum Appearance: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .automatic: "Automatic"
-        case .light: "Light"
-        case .dark: "Dark"
+        case .automatic: L("Automatic")
+        case .light: L("Light mode")
+        case .dark: L("Dark mode")
         }
     }
 
@@ -78,6 +78,8 @@ final class AppSettings {
     var screensaverMinutes: Int
     var cameras: [CameraConfig]
     var appearance: Appearance
+    /// The app's language: Czech unless changed in Settings.
+    var language: AppLanguage
     /// Anthropic API key for Ask Home (kept in the Keychain).
     var assistantKey: String
     /// Town or city for the weather and for sunrise/sunset schedules.
@@ -98,8 +100,18 @@ final class AppSettings {
         screensaverMinutes = d.object(forKey: Keys.saver) as? Int ?? 5
         cameras = (d.data(forKey: Keys.cameras)).flatMap { try? JSONDecoder().decode([CameraConfig].self, from: $0) } ?? []
         appearance = Appearance(rawValue: d.string(forKey: Keys.appearance) ?? "") ?? .automatic
+        let savedLanguage = AppLanguage(rawValue: d.string(forKey: Keys.language) ?? "") ?? .cs
+        language = savedLanguage
+        L10n.language = savedLanguage
         assistantKey = Keychain.read(Keys.assistantKey) ?? ""
         location = d.data(forKey: Keys.location).flatMap { try? JSONDecoder().decode(HomeLocation.self, from: $0) }
+    }
+
+    /// Switches the app's language. The root view is rebuilt for it (see HomeControlApp).
+    func setLanguage(_ newValue: AppLanguage) {
+        L10n.language = newValue
+        language = newValue
+        defaults.set(newValue.rawValue, forKey: Keys.language)
     }
 
     func save() {
@@ -114,6 +126,7 @@ final class AppSettings {
         defaults.set(screensaverMinutes, forKey: Keys.saver)
         defaults.set(try? JSONEncoder().encode(cameras), forKey: Keys.cameras)
         defaults.set(appearance.rawValue, forKey: Keys.appearance)
+        defaults.set(language.rawValue, forKey: Keys.language)
         Keychain.write(assistantKey.trimmingCharacters(in: .whitespacesAndNewlines), for: Keys.assistantKey)
         if let location {
             defaults.set(try? JSONEncoder().encode(location), forKey: Keys.location)
@@ -132,7 +145,7 @@ final class AppSettings {
         guard mode == .demo else { return nil }
         let lon = Double(TimeZone.current.secondsFromGMT()) / 240
         let unit: TemperatureUnit = Locale.current.measurementSystem == .us ? .fahrenheit : .celsius
-        return HomeLocation(place: "Demo town", lat: 40, lon: lon, unit: unit)
+        return HomeLocation(place: L("Demo town"), lat: 40, lon: lon, unit: unit)
     }
 
     /// IP IDs are written in hex in SIMPL (e.g. "03", "1A").
@@ -150,10 +163,10 @@ final class AppSettings {
             return CrestronHomeBackend(host: host, token: apiToken)
         case .customProgram:
             guard let ipId = parsedIpId else {
-                throw BackendError.notConfigured("The IP ID must be a hex number from 03 to FE (e.g. 03 or 1A).")
+                throw BackendError.notConfigured(L("The IP ID must be a hex number from 03 to FE (e.g. 03 or 1A)."))
             }
             guard let port = UInt16(exactly: cipPort), port > 0 else {
-                throw BackendError.notConfigured("The port must be between 1 and 65535.")
+                throw BackendError.notConfigured(L("The port must be between 1 and 65535."))
             }
             return CustomProgramBackend(host: host, ipId: ipId, port: port, map: try JoinMap.parse(joinMapJSON))
         }
@@ -171,6 +184,7 @@ final class AppSettings {
         static let saver = "screensaverMinutes"
         static let cameras = "cameras"
         static let appearance = "appearance"
+        static let language = "language"
         static let assistantKey = "anthropic.apikey"
         static let location = "location"
     }

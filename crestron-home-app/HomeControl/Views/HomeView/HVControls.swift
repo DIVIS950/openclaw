@@ -57,7 +57,7 @@ struct HVSlideToOpen: View {
         .onAppear { withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false)) { shine = true } }
         .accessibilityElement()
         .accessibilityLabel(accessibilityName)
-        .accessibilityHint("Asks you to confirm")
+        .accessibilityHint(L("Asks you to confirm"))
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onAccessibilityOpen() }
     }
@@ -227,7 +227,7 @@ struct HVKeypad: View {
                 }
             }
             .accessibilityElement()
-            .accessibilityLabel("\(code.count) digits entered")
+            .accessibilityLabel(Ln(code.count, "{n} digit entered", "{n} digits entered"))
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(78), spacing: 24), count: 3), spacing: 16) {
                 ForEach(keys, id: \.self) { key in
                     Button {
@@ -239,7 +239,7 @@ struct HVKeypad: View {
                     } label: {
                         Group {
                             switch key {
-                            case "clear": Text("Clear").font(.body.weight(.medium))
+                            case "clear": Text(L("Clear")).font(.body.weight(.medium))
                             case "delete": Image(systemName: "delete.left").font(.title2)
                             default: Text(key).font(.system(size: 32))
                             }
@@ -250,7 +250,7 @@ struct HVKeypad: View {
                         .contentShape(Circle())
                     }
                     .buttonStyle(HVPress())
-                    .accessibilityLabel(key == "delete" ? "Delete" : key == "clear" ? "Clear" : key)
+                    .accessibilityLabel(key == "delete" ? L("Delete") : key == "clear" ? L("Clear") : key)
                 }
             }
             HVWideButton(title: actionTitle, symbol: "checkmark.shield.fill", tint: .indigo, primary: true) {

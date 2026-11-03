@@ -38,7 +38,7 @@ struct WeatherNow: Hashable {
 
     private static func describe(_ code: Int) -> (text: String, symbol: String) {
         switch code {
-        case 0: return (text: "Clear", symbol: "sun.max.fill")
+        case 0: return (text: "Clear sky", symbol: "sun.max.fill")
         case 1, 2: return (text: "Partly cloudy", symbol: "cloud.sun.fill")
         case 3: return (text: "Cloudy", symbol: "cloud.fill")
         case 45, 48: return (text: "Fog", symbol: "cloud.fog.fill")
@@ -96,7 +96,7 @@ enum WeatherService {
             URLQueryItem(name: "timezone", value: "auto"),
             URLQueryItem(name: "temperature_unit", value: location.unit == .fahrenheit ? "fahrenheit" : "celsius"),
         ]
-        guard let url = components?.url else { throw BackendError.badResponse("Bad weather address.") }
+        guard let url = components?.url else { throw BackendError.badResponse(L("Bad weather address.")) }
         let json = try await getJSON(url)
         let current = json["current"] as? [String: Any] ?? [:]
         let daily = json["daily"] as? [String: Any] ?? [:]
@@ -105,7 +105,7 @@ enum WeatherService {
               let code = (current["weather_code"] as? NSNumber)?.intValue,
               let high = firstNumber("temperature_2m_max"),
               let low = firstNumber("temperature_2m_min")
-        else { throw BackendError.badResponse("The weather service sent something unexpected.") }
+        else { throw BackendError.badResponse(L("The weather service sent something unexpected.")) }
         let isDay = (current["is_day"] as? NSNumber)?.intValue == 1
         return WeatherNow(temp: Int(temp.rounded()), code: code, isDay: isDay,
                           high: Int(high.rounded()), low: Int(low.rounded()), unit: location.unit)
@@ -115,10 +115,10 @@ enum WeatherService {
         let request = URLRequest(url: url, timeoutInterval: 10)
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw BackendError.badResponse("The weather service answered \(http.statusCode).")
+            throw BackendError.badResponse(L("The weather service answered {code}.", ["code": String(http.statusCode)]))
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw BackendError.badResponse("The weather service sent something unexpected.")
+            throw BackendError.badResponse(L("The weather service sent something unexpected."))
         }
         return json
     }

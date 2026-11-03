@@ -8,9 +8,9 @@ enum HVAct {
         let opens = action == .open || (action == .trigger && gate.state != .open)
         store.perform(.gate(id: gate.id, action: action))
         if action == .stop {
-            nav.notify("\(gate.name) stopped", symbol: "stop.fill", color: .blue)
+            nav.notify(L("{name} stopped", ["name": gate.name]), symbol: "stop.fill", color: .blue)
         } else {
-            nav.notify("\(opens ? "Opening" : "Closing") \(gate.name)", symbol: "door.garage.open", color: .blue)
+            nav.notify(opens ? L("Opening {name}", ["name": gate.name]) : L("Closing {name}", ["name": gate.name]), symbol: "door.garage.open", color: .blue)
         }
     }
 
@@ -27,7 +27,7 @@ enum HVAct {
     static func lockTapped(_ store: HomeStore, _ nav: HVNav, _ lock: DoorLock) {
         if lock.isLocked == false {
             store.perform(.setLock(id: lock.id, locked: true))
-            nav.notify("\(lock.name) locked", symbol: "lock.fill")
+            nav.notify(L("{name} locked", ["name": lock.name]), symbol: "lock.fill")
         } else {
             nav.sheet = .lock(lock.id)
         }
@@ -35,7 +35,7 @@ enum HVAct {
 
     static func scene(_ store: HomeStore, _ nav: HVNav, _ scene: HomeScene) {
         store.perform(.recallScene(id: scene.id))
-        nav.notify("\(scene.name) is on", symbol: Theme.sceneSymbol(scene), color: .orange)
+        nav.notify(L("{name} is on", ["name": scene.name]), symbol: Theme.sceneSymbol(scene), color: .orange)
     }
 
     /// The same source (by name) and volume in every other music room.
@@ -49,14 +49,14 @@ enum HVAct {
                 store.perform(.mediaVolume(zoneId: zone.id, level: lead.volume))
             }
         }
-        nav.notify("\(source.name) in every room", symbol: "hifispeaker.2.fill", color: HV.media)
+        nav.notify(L("{name} in every room", ["name": source.name]), symbol: "hifispeaker.2.fill", color: HV.media)
     }
 
     static func allMediaOff(_ store: HomeStore, _ nav: HVNav) {
         for zone in store.home.media where zone.isOn {
             store.perform(.mediaPower(zoneId: zone.id, on: false))
         }
-        nav.notify("All music and TV off", symbol: "power", color: HV.media)
+        nav.notify(L("All music and TV off"), symbol: "power", color: HV.media)
     }
 }
 
@@ -65,28 +65,28 @@ extension HomeSnapshot {
     func tileName(_ zone: MediaZone) -> String {
         guard room(zone.roomId)?.name == zone.name else { return zone.name }
         let names = zone.sources.map(\.name).joined(separator: " ").lowercased()
-        return ["tv", "cable", "apple"].contains { names.contains($0) } ? "TV" : "Speakers"
+        return ["tv", "cable", "apple", "satelit"].contains { names.contains($0) } ? L("TV") : L("Speakers")
     }
 }
 
 enum HVText {
     static func light(_ light: Light) -> String {
-        if !light.isOnline { return "No response" }
-        if !light.isOn { return "Off" }
-        return light.isDimmable ? light.level.percentText : "On"
+        if !light.isOnline { return L("No response") }
+        if !light.isOn { return L("Off") }
+        return light.isDimmable ? light.level.percentText : L("On")
     }
 
     static func shade(_ position: Double) -> String {
-        if position >= 0.98 { return "Open" }
-        if position <= 0.02 { return "Closed" }
-        return "\(position.percentText) open"
+        if position >= 0.98 { return L("Open") }
+        if position <= 0.02 { return L("Closed") }
+        return L("{level} open", ["level": position.percentText])
     }
 
     static func lock(_ lock: DoorLock) -> String {
         switch lock.isLocked {
-        case .some(true): "Locked"
-        case .some(false): "Unlocked"
-        case .none: "Unknown"
+        case .some(true): L("Locked")
+        case .some(false): L("Unlocked")
+        case .none: L("Unknown")
         }
     }
 }
@@ -150,7 +150,7 @@ struct HVTile: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(name), \(state)")
-            .accessibilityHint("Shows more controls")
+            .accessibilityHint(L("Shows more controls"))
         }
         .padding(12)
         .frame(minHeight: 76)
@@ -227,7 +227,7 @@ struct HVSceneTile: View {
                     .onPreferenceChange(HVCenterKey.self) { center in spot.center = center }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(scene.name).font(.subheadline.weight(.semibold)).lineLimit(1)
-                    Text(scene.isActive ? "Active" : "Scene").font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                    Text(scene.isActive ? L("Active") : L("Scene")).font(.footnote.weight(.medium)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -248,17 +248,19 @@ struct HVSceneTile: View {
         }
         .buttonStyle(HVPress())
         .sensoryFeedback(.success, trigger: runs)
-        .accessibilityLabel("\(scene.name) scene\(scene.isActive ? ", active" : "")")
+        .accessibilityLabel(scene.isActive ? L("{name} scene, active", ["name": scene.name]) : L("{name} scene", ["name": scene.name]))
     }
 }
 
-/// The lights, shades, media rooms and locks given, as tiles.
+/// The thermostats, lights, shades, media rooms, locks and switches given, as tiles.
 @MainActor
 struct HVAccessoryGrid: View {
+    var climate: [Climate] = []
     var lights: [Light] = []
     var shades: [Shade] = []
     var media: [MediaZone] = []
     var locks: [DoorLock] = []
+    var switches: [HomeSwitch] = []
     var showRoom = false
     @Environment(HomeStore.self) private var store
 
@@ -266,10 +268,12 @@ struct HVAccessoryGrid: View {
         let home = store.home
         let roomName = { (id: String?) in showRoom ? home.room(id)?.name : nil }
         LazyVGrid(columns: HV.tileColumns, spacing: 12) {
+            ForEach(climate) { HVClimateTile(climate: $0, showRoom: showRoom) }
             ForEach(lights) { HVLightTile(light: $0, room: roomName($0.roomId)) }
             ForEach(shades) { HVShadeTile(shade: $0, room: roomName($0.roomId)) }
             ForEach(media) { HVMediaTile(zone: $0, room: roomName($0.roomId)) }
             ForEach(locks) { HVLockTile(lock: $0, room: roomName($0.roomId)) }
+            ForEach(switches) { HVSwitchTile(item: $0, room: roomName($0.roomId)) }
         }
     }
 }
@@ -282,10 +286,11 @@ struct HVLightTile: View {
     @Environment(HVNav.self) private var nav
 
     var body: some View {
+        let toggleLabel = light.isOn ? L("{name}: turn off", ["name": light.name]) : L("{name}: turn on", ["name": light.name])
         HVTile(symbol: light.isOn ? "lightbulb.fill" : "lightbulb", name: light.name, state: HVText.light(light),
                color: HV.light, isOn: light.isOn, room: room, offline: !light.isOnline,
                level: light.isDimmable ? light.level : nil, glow: light.level, pulse: store.pulse("light:\(light.id)"),
-               toggleLabel: "\(light.name): turn \(light.isOn ? "off" : "on")",
+               toggleLabel: toggleLabel,
                onToggle: { store.toggle(light: light.id) }, onOpen: { nav.sheet = .light(light.id) })
     }
 }
@@ -299,9 +304,10 @@ struct HVShadeTile: View {
 
     var body: some View {
         let open = shade.position > 0.02
+        let toggleLabel = open ? L("{name}: close", ["name": shade.name]) : L("{name}: open", ["name": shade.name])
         HVTile(symbol: open ? "blinds.horizontal.open" : "blinds.horizontal.closed", name: shade.name, state: HVText.shade(shade.position),
                color: HV.shade, isOn: open, room: room, offline: !shade.isOnline, pulse: store.pulse("shade:\(shade.id)"),
-               toggleLabel: "\(shade.name): \(open ? "close" : "open")",
+               toggleLabel: toggleLabel,
                onToggle: { store.perform(.setShade(id: shade.id, position: open ? 0 : 1)) }, onOpen: { nav.sheet = .shade(shade.id) })
     }
 }
@@ -314,9 +320,13 @@ struct HVMediaTile: View {
     @Environment(HVNav.self) private var nav
 
     var body: some View {
-        let state = zone.isOn ? "\(zone.currentSource?.name ?? "On")\(zone.hasVolume ? " · \(zone.isMuted ? "Muted" : zone.volume.percentText)" : "")" : "Off"
+        let source = zone.currentSource?.name ?? L("On")
+        let volume = zone.isMuted ? L("Muted") : zone.volume.percentText
+        let state = zone.isOn ? (zone.hasVolume ? "\(source) · \(volume)" : source) : L("Off")
+        let toggleLabel = zone.isOn ? L("{name}: turn off", ["name": zone.name]) : L("{name}: turn on", ["name": zone.name])
         HVTile(symbol: HV.symbol(for: zone), name: store.home.tileName(zone), state: state, color: HV.media, isOn: zone.isOn,
-               room: room, pulse: store.pulse("media:\(zone.id)"), toggleLabel: "\(zone.name): turn \(zone.isOn ? "off" : "on")",
+               room: room, pulse: store.pulse("media:\(zone.id)"),
+               toggleLabel: toggleLabel,
                onToggle: { store.perform(.mediaPower(zoneId: zone.id, on: !zone.isOn)) }, onOpen: { nav.sheet = .media(zone.id) })
     }
 }
@@ -330,9 +340,10 @@ struct HVLockTile: View {
 
     var body: some View {
         let unlocked = lock.isLocked == false
+        let toggleLabel = unlocked ? L("Lock {name}", ["name": lock.name]) : L("Unlock {name}", ["name": lock.name])
         HVTile(symbol: unlocked ? "lock.open.fill" : "lock.fill", name: lock.name, state: HVText.lock(lock),
                color: unlocked ? .orange : .green, isOn: lock.isLocked != nil, room: room, warn: unlocked,
-               pulse: store.pulse("lock:\(lock.id)"), toggleLabel: unlocked ? "Lock \(lock.name)" : "Unlock \(lock.name)",
+               pulse: store.pulse("lock:\(lock.id)"), toggleLabel: toggleLabel,
                onToggle: { HVAct.lockTapped(store, nav, lock) }, onOpen: { nav.sheet = .lock(lock.id) })
     }
 }
@@ -384,7 +395,7 @@ struct HVSection<Content: View>: View {
                     }
                     .buttonStyle(.plain)
                     .font(.title3.weight(.bold))
-                    .accessibilityHint("Opens \(title)")
+                    .accessibilityHint(L("Opens {name}", ["name": title]))
                 } else {
                     Text(title).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
                 }
@@ -406,72 +417,6 @@ struct HVSection<Content: View>: View {
             }
             content
         }
-    }
-}
-
-// MARK: - Status capsules
-
-@MainActor
-struct HVStatusChips: View {
-    @Environment(HomeStore.self) private var store
-    @Environment(HVNav.self) private var nav
-
-    var body: some View {
-        let home = store.home
-        let unlocked = home.unlockedCount
-        let playing = home.media.filter(\.isOn).count
-        let open = home.shades.filter { $0.position > 0.02 }.count
-        ScrollView(.horizontal) {
-            HStack(spacing: 10) {
-                if !home.lights.isEmpty {
-                    chip("lightbulb.fill", HV.light, "Lights", home.lightsOnCount == 0 ? "All off" : "\(home.lightsOnCount) on") { nav.go(.lights) }
-                }
-                if let panel = home.security.first {
-                    chip("shield.fill", HV.alarmColor(panel.mode), "Security", panel.mode.title, attention: panel.mode == .alarm) { nav.go(.security) }
-                }
-                if !home.locks.isEmpty {
-                    chip(unlocked > 0 ? "lock.open.fill" : "lock.fill", unlocked > 0 ? .orange : .green, "Doors",
-                         unlocked > 0 ? "\(unlocked) unlocked" : "Locked", attention: unlocked > 0) { nav.go(.security) }
-                }
-                ForEach(home.gates) { gate in
-                    chip("door.garage.closed", HV.gate, gate.name, gate.state.title, attention: gate.state == .open) { nav.go(.security) }
-                }
-                if !home.shades.isEmpty {
-                    chip("blinds.horizontal.closed", HV.shade, "Shades", open == 0 ? "Closed" : "\(open) open") { nav.go(.shades) }
-                }
-                if !home.media.isEmpty {
-                    chip("music.note", HV.media, "Media", playing == 0 ? "Off" : "\(playing) playing") { nav.go(.media) }
-                }
-            }
-            .padding(.vertical, 4)
-        }
-        .scrollIndicators(.hidden)
-    }
-
-    private func chip(_ symbol: String, _ color: Color, _ title: String, _ value: String, attention: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(color))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title).font(.footnote.weight(.semibold))
-                    Text(value).font(.footnote.weight(attention ? .semibold : .medium))
-                        .foregroundStyle(attention ? Color.orange : Color.secondary)
-                        .monospacedDigit()
-                }
-                .lineLimit(1)
-            }
-            .foregroundStyle(.primary)
-            .padding(.leading, 7)
-            .padding(.trailing, 18)
-            .padding(.vertical, 7)
-            .hvGlass(30)
-        }
-        .buttonStyle(HVPress())
-        .accessibilityLabel("\(title), \(value)")
     }
 }
 
@@ -500,7 +445,7 @@ struct HVWidgetTop: View {
                     .contentTransition(.numericText())
             }
             Spacer(minLength: 0)
-            if let more { HVMoreButton(label: "\(name) controls", action: more) }
+            if let more { HVMoreButton(label: L("{name} controls", ["name": name]), action: more) }
         }
     }
 }
@@ -560,7 +505,7 @@ struct HVGateWidget: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HVWidgetTop(symbol: gate.state == .open ? "door.garage.open" : "door.garage.closed", color: HV.gate, name: gate.name,
-                        state: gate.state.title, more: { nav.sheet = .gate(gate.id) })
+                        state: gate.state.label, more: { nav.sheet = .gate(gate.id) })
             HVGateArt(state: gate.state, color: HV.gate)
             Spacer(minLength: 0)
             HVGateControls(gate: gate)
@@ -582,16 +527,16 @@ struct HVGateControls: View {
             VStack(spacing: 10) {
                 HVMovingBar(tint: HV.gate)
                 if gate.canStop {
-                    HVWideButton(title: "Stop", symbol: "stop.fill") { HVAct.gate(store, nav, gate, .stop) }
+                    HVWideButton(title: L("Stop"), symbol: "stop.fill") { HVAct.gate(store, nav, gate, .stop) }
                 }
             }
         case .open:
-            HVWideButton(title: "Close \(gate.name)", symbol: "arrow.right.and.line.vertical.and.arrow.left", tint: HV.gate, primary: true) {
+            HVWideButton(title: L("Close {name}", ["name": gate.name]), symbol: "arrow.right.and.line.vertical.and.arrow.left", tint: HV.gate, primary: true) {
                 HVAct.gate(store, nav, gate, gate.hasSeparateOpenClose ? .close : .trigger)
             }
         case .closed, .unknown:
             // Opening is a deliberate slide all the way across, so a stray tap never opens the gate.
-            HVSlideToOpen(tint: HV.gate, label: "slide to open", accessibilityName: "Open \(gate.name)") {
+            HVSlideToOpen(tint: HV.gate, label: L("slide to open"), accessibilityName: L("Open {name}", ["name": gate.name])) {
                 HVAct.gate(store, nav, gate, openAction)
             } onAccessibilityOpen: {
                 nav.sheet = .confirmGate(gate.id, openAction)
@@ -610,12 +555,12 @@ struct HVSecurityWidget: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HVWidgetTop(symbol: panel.mode == .disarmed ? "shield" : panel.mode == .alarm ? "exclamationmark.shield.fill" : "checkmark.shield.fill",
-                        color: HV.alarmColor(panel.mode), name: panel.name, state: panel.mode.title, stateColor: panel.mode == .alarm ? .red : nil)
+                        color: HV.alarmColor(panel.mode), name: panel.name, state: panel.mode.label, stateColor: panel.mode == .alarm ? .red : nil)
             Spacer(minLength: 0)
             HStack(spacing: 4) {
-                if panel.canArmAway { segment("Away", "figure.walk.departure", .armedAway) }
-                if panel.canArmHome { segment("Home", "house.fill", .armedHome) }
-                segment("Off", "shield", .disarmed)
+                if panel.canArmAway { segment(L("Away"), "figure.walk.departure", .armedAway) }
+                if panel.canArmHome { segment(L("At home"), "house.fill", .armedHome) }
+                segment(L("Off"), "shield", .disarmed)
             }
             .padding(4)
             .background(RoundedRectangle(cornerRadius: 17, style: .continuous).fill(Color.primary.opacity(0.07)))
@@ -640,7 +585,7 @@ struct HVSecurityWidget: View {
             }
         }
         .buttonStyle(HVPress())
-        .accessibilityLabel(mode == .disarmed ? "Disarm" : "Arm \(title.lowercased())")
+        .accessibilityLabel(mode == .disarmed ? L("Disarm") : mode == .armedAway ? L("Arm away") : L("Arm home"))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
@@ -655,7 +600,7 @@ struct HVZoneWidget: View {
     var body: some View {
         let home = store.home
         let room = home.room(zone.roomId)?.name ?? zone.name
-        let source = zone.currentSource?.name ?? "On"
+        let source = zone.currentSource?.name ?? L("On")
         let track = zone.nowPlaying
         // Song first when the system sends it, then artist, source and room.
         let parts: [String?] = [track?.artist, track == nil ? nil : source, room]
@@ -669,30 +614,30 @@ struct HVZoneWidget: View {
                         HStack(spacing: 6) {
                             Text(detail).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).lineLimit(2)
                             if zone.isMuted {
-                                Text("· Muted").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                                Text("· \(L("Muted"))").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                             } else if zone.isPlaying {
                                 HVEqualizer()
                             } else {
-                                Text("· Paused").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                                Text("· \(L("Paused"))").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                             }
                         }
                     }
                     Spacer(minLength: 0)
-                    HVMoreButton(label: "\(zone.name) controls") { nav.sheet = .media(zone.id) }
+                    HVMoreButton(label: L("{name} controls", ["name": zone.name])) { nav.sheet = .media(zone.id) }
                 }
                 Spacer(minLength: 0)
                 if zone.canTransport { HVTransport(zone: zone) }
                 if zone.hasVolume { HVVolumeBar(zone: zone) }
                 if !others.isEmpty {
-                    Button("Also playing in \(others.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: ", "))") { nav.go(.media) }
+                    Button(L("Also playing in {rooms}", ["rooms": others.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: ", ")])) { nav.go(.media) }
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .buttonStyle(.plain)
                 }
             } else {
-                HVWidgetTop(symbol: HV.symbol(for: zone), color: HV.media, name: room, state: "Off", more: { nav.sheet = .media(zone.id) })
+                HVWidgetTop(symbol: HV.symbol(for: zone), color: HV.media, name: room, state: L("Off"), more: { nav.sheet = .media(zone.id) })
                 Spacer(minLength: 0)
-                HVWideButton(title: "Turn on", symbol: "power", tint: HV.media, primary: true) {
+                HVWideButton(title: L("Turn on"), symbol: "power", tint: HV.media, primary: true) {
                     store.perform(.mediaPower(zoneId: zone.id, on: true))
                 }
             }
@@ -712,7 +657,7 @@ struct HVNowPlayingWidget: View {
             HVZoneWidget(zone: first, others: Array(on.dropFirst()))
         } else if !home.media.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
-                HVWidgetTop(symbol: "music.note", color: HV.media, name: "Media", state: "Nothing playing")
+                HVWidgetTop(symbol: "music.note", color: HV.media, name: L("Media"), state: L("Nothing playing"))
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     ForEach(home.media.prefix(2)) { zone in
@@ -767,13 +712,13 @@ struct HVTransport: View {
 
     var body: some View {
         HStack(spacing: big ? 26 : 18) {
-            button(.previous, "backward.fill", "Previous", main: false)
+            button(.previous, "backward.fill", L("Previous"), main: false)
             if zone.isPlaying {
-                button(.pause, "pause.fill", "Pause", main: true)
+                button(.pause, "pause.fill", L("Pause"), main: true)
             } else {
-                button(.play, "play.fill", "Play", main: true)
+                button(.play, "play.fill", L("Play"), main: true)
             }
-            button(.next, "forward.fill", "Next", main: false)
+            button(.next, "forward.fill", L("Next"), main: false)
         }
         .frame(maxWidth: .infinity)
     }
@@ -861,7 +806,7 @@ struct HVVolumeBar: View {
         }
         .animation(.easeOut(duration: 0.15), value: dragValue == nil)
         .accessibilityElement()
-        .accessibilityLabel("\(zone.name) volume")
+        .accessibilityLabel(L("{name} volume", ["name": zone.name]))
         .accessibilityValue(zone.volume.percentText)
         .accessibilityAdjustableAction { direction in
             let step = direction == .increment ? 0.05 : direction == .decrement ? -0.05 : 0
@@ -881,7 +826,7 @@ struct HVMovingBar: View {
                 LinearGradient(colors: [.clear, tint.opacity(0.35), .clear], startPoint: .leading, endPoint: .trailing)
                     .frame(width: geo.size.width * 0.6)
                     .offset(x: sweep ? geo.size.width * 0.7 : -geo.size.width * 0.7)
-                Text("Moving…").font(.body.weight(.semibold)).foregroundStyle(.secondary)
+                Text(L("Moving…")).font(.body.weight(.semibold)).foregroundStyle(.secondary)
             }
             .clipShape(Capsule())
         }
@@ -916,6 +861,6 @@ struct HVCameraTile: View {
                 .shadow(color: .black.opacity(0.15), radius: 14, y: 8)
         }
         .buttonStyle(HVPress())
-        .accessibilityLabel("\(camera.name) camera")
+        .accessibilityLabel(L("{name} camera", ["name": camera.name]))
     }
 }

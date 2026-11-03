@@ -3,37 +3,39 @@ import Observation
 
 /// The parts of Home (the iPad design) people can add, remove and reorder.
 enum HomePart: String, CaseIterable, Identifiable, Hashable {
-    case status, weather, gate, alarm, music, favorites, scenes, upcoming, cameras, rooms
+    case status, weather, gate, alarm, heating, music, favorites, scenes, upcoming, cameras, rooms
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
-        case .status: "Status bar"
-        case .weather: "Weather"
-        case .gate: "Gate"
-        case .alarm: "Alarm"
-        case .music: "Now Playing"
-        case .favorites: "Favorites"
-        case .scenes: "Scenes"
-        case .upcoming: "Coming up"
-        case .cameras: "Cameras"
-        case .rooms: "Rooms"
+        case .status: L("Status bar")
+        case .weather: L("Weather")
+        case .gate: L("Gate")
+        case .alarm: L("Alarm")
+        case .heating: L("Heating")
+        case .music: L("Now Playing")
+        case .favorites: L("Favorites")
+        case .scenes: L("Scenes")
+        case .upcoming: L("Coming up")
+        case .cameras: L("Cameras")
+        case .rooms: L("Rooms")
         }
     }
 
     var about: String {
         switch self {
-        case .status: "Lights, doors, alarm and gate at a glance"
-        case .weather: "Today's weather, sunrise and sunset"
-        case .gate: "Slide to open, close and stop"
-        case .alarm: "Arm away, arm home or turn off"
-        case .music: "What's playing, with play, pause and volume"
-        case .favorites: "Your most-used lights, shades and scenes"
-        case .scenes: "Whole-house scenes like Good Night"
-        case .upcoming: "Next schedules and running timers"
-        case .cameras: "Live pictures from your cameras"
-        case .rooms: "Every room with its lights, shades and music"
+        case .status: L("Lights, doors, alarm and gate at a glance")
+        case .weather: L("Today's weather, sunrise and sunset")
+        case .gate: L("Slide to open, close and stop")
+        case .alarm: L("Arm away, arm home or turn off")
+        case .heating: L("Temperature, heating mode and the sauna")
+        case .music: L("What's playing, with play, pause and volume")
+        case .favorites: L("Your most-used lights, shades and scenes")
+        case .scenes: L("Whole-house scenes like Good Night")
+        case .upcoming: L("Next schedules and running timers")
+        case .cameras: L("Live pictures from your cameras")
+        case .rooms: L("Every room with its lights, shades and music")
         }
     }
 
@@ -43,6 +45,7 @@ enum HomePart: String, CaseIterable, Identifiable, Hashable {
         case .weather: "cloud.sun.fill"
         case .gate: "door.garage.closed"
         case .alarm: "shield.fill"
+        case .heating: "thermometer.medium"
         case .music: "music.note"
         case .favorites: "star.fill"
         case .scenes: "sparkles"
@@ -55,7 +58,7 @@ enum HomePart: String, CaseIterable, Identifiable, Hashable {
     /// Widgets that sit next to each other on Home share one row.
     var isWidget: Bool {
         switch self {
-        case .weather, .gate, .alarm, .music: true
+        case .weather, .gate, .alarm, .heating, .music: true
         default: false
         }
     }
@@ -79,7 +82,15 @@ final class HomeLayout {
     init() {
         let d = UserDefaults.standard
         let saved = d.stringArray(forKey: Keys.parts)
-        parts = saved?.compactMap(HomePart.init(rawValue:)) ?? HomePart.allCases
+        var list = saved?.compactMap(HomePart.init(rawValue:)) ?? HomePart.allCases
+        // Layouts saved before Heating existed get it once, after the alarm.
+        if saved != nil, !d.bool(forKey: Keys.heatingAdded), !list.contains(.heating) {
+            let at = list.firstIndex(of: .alarm).map { $0 + 1 } ?? list.count
+            list.insert(.heating, at: at)
+            d.set(list.map(\.rawValue), forKey: Keys.parts)
+        }
+        d.set(true, forKey: Keys.heatingAdded)
+        parts = list
         favorites = d.stringArray(forKey: Keys.favorites) ?? []
     }
 
@@ -131,5 +142,6 @@ final class HomeLayout {
     private enum Keys {
         static let parts = "home.layout"
         static let favorites = "home.favorites"
+        static let heatingAdded = "home.layout.heating"
     }
 }

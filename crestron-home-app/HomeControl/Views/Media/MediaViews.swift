@@ -13,7 +13,7 @@ struct MediaZoneCard: View {
                     .foregroundStyle(zone.isOn ? Theme.media : .secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(zone.name).font(.headline)
-                    Text(zone.isOn ? (zone.currentSource?.name ?? "On") : "Off")
+                    Text(zone.isOn ? (zone.currentSource?.name ?? L("On")) : L("Off"))
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -49,7 +49,7 @@ struct MediaZoneCard: View {
                                  isOn: zone.isMuted, tint: Theme.alert, size: 46) {
                         store.perform(.mediaMute(zoneId: zone.id, muted: !zone.isMuted))
                     }
-                    LevelSlider(value: zone.volume, tint: Theme.media, icon: "speaker.wave.3.fill", label: "Volume", height: 46) { level in
+                    LevelSlider(value: zone.volume, tint: Theme.media, icon: "speaker.wave.3.fill", label: L("Volume"), height: 46) { level in
                         store.perform(.mediaVolume(zoneId: zone.id, level: level))
                     }
                 }
@@ -68,7 +68,7 @@ struct MediaView: View {
     var body: some View {
         ScrollView {
             if store.home.media.isEmpty {
-                EmptyState(icon: "hifispeaker.2", title: "No media rooms", message: "Audio/video zones from your system show up here.")
+                EmptyState(icon: "hifispeaker.2", title: L("No media rooms"), message: L("Audio/video zones from your system show up here."))
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 16)], spacing: 16) {
                     ForEach(store.home.media) { MediaZoneCard(zone: $0) }
@@ -77,7 +77,7 @@ struct MediaView: View {
             }
         }
         .screenBackground()
-        .navigationTitle("Media")
+        .navigationTitle(L("Media"))
     }
 }
 

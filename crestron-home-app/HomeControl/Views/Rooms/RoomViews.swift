@@ -8,7 +8,7 @@ struct RoomsView: View {
     var body: some View {
         ScrollView {
             if store.home.rooms.isEmpty {
-                EmptyState(icon: "square.split.2x2", title: "No rooms yet", message: "Rooms appear once the app is connected.")
+                EmptyState(icon: "square.split.2x2", title: L("No rooms yet"), message: L("Rooms appear once the app is connected."))
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 14)], spacing: 14) {
                     ForEach(store.home.rooms) { room in
@@ -20,7 +20,7 @@ struct RoomsView: View {
             }
         }
         .screenBackground()
-        .navigationTitle("Rooms")
+        .navigationTitle(L("Rooms"))
         .navigationDestination(for: String.self) { RoomDetailView(roomId: $0) }
     }
 }
@@ -35,7 +35,7 @@ struct RoomDetailView: View {
 
     var body: some View {
         let home = store.home
-        let room = home.room(roomId) ?? Room(id: roomId, name: "Room")
+        let room = home.room(roomId) ?? Room(id: roomId, name: L("Room"))
         let lights = home.lights(in: roomId)
         let shades = home.shades(in: roomId)
         let scenes = home.scenes(in: roomId)
@@ -50,7 +50,7 @@ struct RoomDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(room.name).font(.system(size: 34, weight: .bold, design: .rounded))
                         let on = lights.filter(\.isOn).count
-                        Text(on == 0 ? "Lights off" : "\(on) of \(lights.count) lights on")
+                        Text(on == 0 ? L("Lights off") : L("{on} of {all} lights on", ["on": String(on), "all": String(lights.count)]))
                             .font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.8))
                     }
                     .padding(20)
@@ -60,13 +60,13 @@ struct RoomDetailView: View {
 
                 if !lights.isEmpty {
                     HStack(spacing: 12) {
-                        allButton("All On", icon: "lightbulb.max.fill", level: 1, lights: lights)
-                        allButton("All Off", icon: "lightbulb.slash", level: 0, lights: lights)
+                        allButton(L("Turn all on"), icon: "lightbulb.max.fill", level: 1, lights: lights)
+                        allButton(L("Turn all off"), icon: "lightbulb.slash", level: 0, lights: lights)
                     }
                 }
 
                 if !scenes.isEmpty {
-                    SectionHeader(title: "Scenes")
+                    SectionHeader(title: L("Scenes"))
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 12) {
                         ForEach(scenes) { SceneTile(scene: $0) }
                     }
@@ -77,25 +77,25 @@ struct RoomDetailView: View {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                     if !lights.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Lights")
+                            SectionHeader(title: L("Lights"))
                             ForEach(lights) { LightRow(light: $0) }
                         }
                     }
                     if !shades.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Shades")
+                            SectionHeader(title: L("Shades"))
                             ForEach(shades) { ShadeRow(shade: $0).card(padding: 12) }
                         }
                     }
                     if !media.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Media")
+                            SectionHeader(title: L("Media"))
                             ForEach(media) { MediaZoneCard(zone: $0) }
                         }
                     }
                     if !locks.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Doors")
+                            SectionHeader(title: L("Doors"))
                             ForEach(locks) { LockRow(lock: $0) }
                         }
                     }
@@ -110,10 +110,10 @@ struct RoomDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label("Choose Room Photo", systemImage: "photo")
+                        Label(L("Choose Room Photo"), systemImage: "photo")
                     }
                     if photos.image(for: roomId) != nil {
-                        Button("Remove Photo", systemImage: "trash", role: .destructive) {
+                        Button(L("Remove Photo"), systemImage: "trash", role: .destructive) {
                             photos.removeImage(for: roomId)
                         }
                     }

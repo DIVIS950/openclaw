@@ -19,6 +19,9 @@ enum TimerCommand: Codable, Hashable {
     case mediaMute(id: String, muted: Bool)
     case mediaSource(id: String, sourceId: String)
     case lock(id: String)
+    case climate(id: String, target: Double)
+    case mode(id: String, value: String)
+    case setSwitch(id: String, on: Bool)
 
     var homeCommand: HomeCommand {
         switch self {
@@ -31,6 +34,9 @@ enum TimerCommand: Codable, Hashable {
         case let .mediaMute(id, muted): return .mediaMute(zoneId: id, muted: muted)
         case let .mediaSource(id, sourceId): return .mediaSource(zoneId: id, sourceId: sourceId)
         case let .lock(id): return .setLock(id: id, locked: true)
+        case let .climate(id, target): return .setClimate(id: id, target: target)
+        case let .mode(id, value): return .setMode(id: id, value: value)
+        case let .setSwitch(id, on): return .setSwitch(id: id, on: on)
         }
     }
 
@@ -49,6 +55,9 @@ enum TimerCommand: Codable, Hashable {
         case let .setLock(id, locked):
             guard locked else { return nil }
             self = .lock(id: id)
+        case let .setClimate(id, target): self = .climate(id: id, target: target)
+        case let .setMode(id, value): self = .mode(id: id, value: value)
+        case let .setSwitch(id, on): self = .setSwitch(id: id, on: on)
         case .mediaTransport, .setSecurity, .gate:
             return nil
         }
@@ -106,7 +115,17 @@ struct Automations: Codable, Hashable {
 /// The rules, without any state: what an action does, when a schedule runs, plain words for both.
 enum AutomationRules {
     static let everyDay = [0, 1, 2, 3, 4, 5, 6]
-    static let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    /// Short day names, 0 = Sunday.
+    static var dayNames: [String] {
+        L10n.isCzech ? ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    }
+
+    /// Full day names for VoiceOver, 0 = Sunday.
+    static var fullDayNames: [String] {
+        L10n.isCzech
+            ? ["neděle", "pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota"]
+            : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    }
 
     /// "2026-11-02" in local time.
     static func dayKey(_ date: Date) -> String {
@@ -147,45 +166,66 @@ enum AutomationRules {
 
     /// Plain words for an action: "Living Room lights off", "Scene: Good Night".
     static func describe(_ action: AutomationAction, home: HomeSnapshot) -> String {
-        func area(_ roomId: String?, _ label: String) -> String {
-            guard let roomId else { return "All \(label)" }
-            return "\(home.room(roomId)?.name ?? "Room") \(label)"
-        }
+        func room(_ roomId: String) -> String { home.room(roomId)?.name ?? L("Room") }
         switch action {
         case let .scene(id):
-            let name = home.scenes.first(where: { $0.id == id })?.name ?? "removed scene"
-            return "Scene: \(name)"
+            let name = home.scenes.first(where: { $0.id == id })?.name ?? L("removed scene")
+            return L("Scene: {name}", ["name": name])
         case let .lights(roomId, level):
-            let what = level <= 0 ? "off" : level >= 1 ? "on" : "to \(level.percentText)"
-            return "\(area(roomId, "lights")) \(what)"
-        case let .shades(roomId, position):
-            return "\(area(roomId, "shades")) \(position >= 0.5 ? "open" : "closed")"
-        case .mediaOff:
-            return "Turn off all music and TV"
-        case .lockAll:
-            return "Lock all doors"
-        case let .command(command):
-            switch command {
-            case let .light(id, level):
-                return "\(home.lights.first(where: { $0.id == id })?.name ?? "Light") \(level > 0 ? "on" : "off")"
-            case let .shade(id, position):
-                return "\(home.shades.first(where: { $0.id == id })?.name ?? "Shade") \(position >= 0.5 ? "open" : "closed")"
-            case let .mediaPower(id, on):
-                return "\(home.media.first(where: { $0.id == id })?.name ?? "Music") \(on ? "on" : "off")"
-            case let .stopShade(id):
-                return "\(home.shades.first(where: { $0.id == id })?.name ?? "Shade") stop"
-            case let .scene(id):
-                return "Scene: \(home.scenes.first(where: { $0.id == id })?.name ?? "removed scene")"
-            case let .mediaVolume(id, level):
-                return "\(home.media.first(where: { $0.id == id })?.name ?? "Music") volume \(level.percentText)"
-            case let .mediaMute(id, muted):
-                return "\(home.media.first(where: { $0.id == id })?.name ?? "Music") \(muted ? "muted" : "unmuted")"
-            case let .mediaSource(id, sourceId):
-                let zone = home.media.first(where: { $0.id == id })
-                return "\(zone?.name ?? "Music") → \(zone?.sources.first(where: { $0.id == sourceId })?.name ?? "source")"
-            case let .lock(id):
-                return "Lock \(home.locks.first(where: { $0.id == id })?.name ?? "door")"
+            if let roomId {
+                let vars = ["room": room(roomId), "level": level.percentText]
+                return level <= 0 ? L("{room} lights off", vars) : level >= 1 ? L("{room} lights on", vars) : L("{room} lights to {level}", vars)
             }
+            return level <= 0 ? L("Turn all lights off") : level >= 1 ? L("Turn all lights on") : L("All lights to {level}", ["level": level.percentText])
+        case let .shades(roomId, position):
+            if let roomId {
+                let vars = ["room": room(roomId)]
+                return position >= 0.5 ? L("Open {room} shades", vars) : L("Close {room} shades", vars)
+            }
+            return position >= 0.5 ? L("Open all shades") : L("Close all shades")
+        case .mediaOff:
+            return L("Turn off all music and TV")
+        case .lockAll:
+            return L("Lock all doors")
+        case let .command(command):
+            return describe(command, home: home)
+        }
+    }
+
+    /// Plain words for one timed command: "Ceiling off", "Sauna on", "Obývák → 22 °C".
+    static func describe(_ command: TimerCommand, home: HomeSnapshot) -> String {
+        func on(_ name: String, _ isOn: Bool) -> String {
+            isOn ? L("{name} on", ["name": name]) : L("{name} off", ["name": name])
+        }
+        switch command {
+        case let .light(id, level):
+            return on(home.lights.first(where: { $0.id == id })?.name ?? L("Light"), level > 0)
+        case let .shade(id, position):
+            let name = home.shades.first(where: { $0.id == id })?.name ?? L("Shade")
+            return position >= 0.5 ? L("{name} open", ["name": name]) : L("{name} closed", ["name": name])
+        case let .mediaPower(id, isOn):
+            return on(home.media.first(where: { $0.id == id })?.name ?? L("Music"), isOn)
+        case let .stopShade(id):
+            return L("{name} stop", ["name": home.shades.first(where: { $0.id == id })?.name ?? L("Shade")])
+        case let .scene(id):
+            return L("Scene: {name}", ["name": home.scenes.first(where: { $0.id == id })?.name ?? L("removed scene")])
+        case let .mediaVolume(id, level):
+            return L("{name} volume {level}", ["name": home.media.first(where: { $0.id == id })?.name ?? L("Music"), "level": level.percentText])
+        case let .mediaMute(id, muted):
+            let name = home.media.first(where: { $0.id == id })?.name ?? L("Music")
+            return muted ? L("{name} muted", ["name": name]) : L("{name} unmuted", ["name": name])
+        case let .mediaSource(id, sourceId):
+            let zone = home.media.first(where: { $0.id == id })
+            return "\(zone?.name ?? L("Music")) → \(zone?.sources.first(where: { $0.id == sourceId })?.name ?? L("source"))"
+        case let .lock(id):
+            return L("Lock {name}", ["name": home.locks.first(where: { $0.id == id })?.name ?? L("door")])
+        case let .climate(id, target):
+            return "\(home.climate.first(where: { $0.id == id })?.name ?? L("Heating")) → \(L10n.temp(target))"
+        case let .mode(id, value):
+            let mode = home.modes.first(where: { $0.id == id })
+            return "\(mode?.name ?? L("Mode")) → \(mode?.options.first(where: { $0.id == value })?.name ?? value)"
+        case let .setSwitch(id, isOn):
+            return on(home.switches.first(where: { $0.id == id })?.name ?? L("Switch"), isOn)
         }
     }
 
@@ -221,38 +261,41 @@ enum AutomationRules {
     /// "Every day at 11:00 PM", "Weekdays, 30 min after sunset".
     static func describeWhen(_ schedule: HomeSchedule) -> String {
         let days = activeDays(schedule)
+        let names = dayNames
         let dayText: String
         if days.count == 7 {
-            dayText = "Every day"
+            dayText = L("Every day")
         } else if days == [1, 2, 3, 4, 5] {
-            dayText = "Weekdays"
+            dayText = L("Weekdays")
         } else if days == [0, 6] {
-            dayText = "Weekends"
+            dayText = L("Weekends")
         } else {
-            dayText = days.map { dayNames[$0] }.joined(separator: ", ")
+            dayText = days.map { names[$0] }.joined(separator: ", ")
         }
         switch schedule.trigger {
         case .time:
-            return "\(dayText) at \(timeText(schedule.minutes))"
+            return L("{days} at {time}", ["days": dayText, "time": timeText(schedule.minutes)])
         case .sunrise, .sunset:
-            let event = schedule.trigger.rawValue
-            if schedule.offset == 0 { return "\(dayText) at \(event)" }
-            return "\(dayText), \(abs(schedule.offset)) min \(schedule.offset < 0 ? "before" : "after") \(event)"
+            let vars = ["days": dayText, "min": String(abs(schedule.offset))]
+            let sunrise = schedule.trigger == .sunrise
+            if schedule.offset == 0 { return sunrise ? L("{days} at sunrise", vars) : L("{days} at sunset", vars) }
+            if schedule.offset < 0 { return sunrise ? L("{days}, {min} min before sunrise", vars) : L("{days}, {min} min before sunset", vars) }
+            return sunrise ? L("{days}, {min} min after sunrise", vars) : L("{days}, {min} min after sunset", vars)
         }
     }
 
-    /// "11:00 PM" for minutes after midnight.
+    /// "23:00" for minutes after midnight.
     static func timeText(_ minutes: Int) -> String {
         let date = Calendar.current.date(bySettingHour: (minutes / 60) % 24, minute: minutes % 60, second: 0, of: Date()) ?? Date()
-        return date.formatted(date: .omitted, time: .shortened)
+        return L10n.time(date)
     }
 
     /// Checks a schedule before it is saved. Returns the problem, or nil.
     static func validate(_ schedule: HomeSchedule) -> String? {
-        if schedule.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Give the schedule a name." }
-        if schedule.trigger == .time && !(0..<(24 * 60)).contains(schedule.minutes) { return "Pick a time." }
-        if schedule.days.isEmpty || schedule.days.contains(where: { !(0...6).contains($0) }) { return "Pick the days." }
-        if schedule.actions.isEmpty { return "Add at least one action." }
+        if schedule.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return L("Give the schedule a name.") }
+        if schedule.trigger == .time && !(0..<(24 * 60)).contains(schedule.minutes) { return L("Pick a time.") }
+        if schedule.days.isEmpty || schedule.days.contains(where: { !(0...6).contains($0) }) { return L("Pick the days.") }
+        if schedule.actions.isEmpty { return L("Add at least one action.") }
         return nil
     }
 
@@ -263,19 +306,21 @@ enum AutomationRules {
         return m % 60 == 0 ? "\(m / 60) h" : "\(m / 60) h \(m % 60) min"
     }
 
-    /// "Today 11:00 PM", "Tomorrow 7:00 AM", "Friday 6:12 PM".
+    /// "Today 23:00", "Tomorrow 7:00", "Friday 18:12".
     static func whenText(_ at: Date, now: Date = Date()) -> String {
         let calendar = Calendar.current
         let diff = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: at)).day ?? 0
-        let name = diff == 0 ? "Today" : diff == 1 ? "Tomorrow" : at.formatted(.dateTime.weekday(.wide))
-        return "\(name) \(at.formatted(date: .omitted, time: .shortened))"
+        let name = diff == 0 ? L("Today") : diff == 1 ? L("Tomorrow") : L10n.weekday(at)
+        return "\(name) \(L10n.time(at))"
     }
 
-    /// Ideas shown on the Automations page.
-    static let templates: [HomeSchedule] = [
-        HomeSchedule(name: "Lights off at bedtime", minutes: 23 * 60, actions: [.lights(roomId: nil, level: 0)]),
-        HomeSchedule(name: "Close shades at sunset", trigger: .sunset, actions: [.shades(roomId: nil, position: 0)]),
-        HomeSchedule(name: "Open shades in the morning", minutes: 7 * 60, days: [1, 2, 3, 4, 5], actions: [.shades(roomId: nil, position: 1)]),
-        HomeSchedule(name: "Lock up at night", minutes: 22 * 60 + 30, actions: [.lockAll]),
-    ]
+    /// Ideas shown on the Automations page, named in the app's language.
+    static var templates: [HomeSchedule] {
+        [
+            HomeSchedule(name: L("Lights off at bedtime"), minutes: 23 * 60, actions: [.lights(roomId: nil, level: 0)]),
+            HomeSchedule(name: L("Close shades at sunset"), trigger: .sunset, actions: [.shades(roomId: nil, position: 0)]),
+            HomeSchedule(name: L("Open shades in the morning"), minutes: 7 * 60, days: [1, 2, 3, 4, 5], actions: [.shades(roomId: nil, position: 1)]),
+            HomeSchedule(name: L("Lock up at night"), minutes: 22 * 60 + 30, actions: [.lockAll]),
+        ]
+    }
 }

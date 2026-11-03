@@ -1,21 +1,22 @@
 import SwiftUI
 
-// Home is a few pages you swipe between: Home (the Edit Home layout), Rooms, Security,
-// Music and Cameras. Each page scrolls by itself; the header and tabs stay on top.
+// Home is a few pages you swipe between: Home (the Edit Home layout), Rooms, Heating,
+// Security, Music and Cameras. Each page scrolls by itself; the header and tabs stay on top.
 // Like HOME_PAGES in web/public/ipad/views.js.
 
 enum HVHomePageKind: String, CaseIterable, Identifiable, Hashable {
-    case overview, rooms, security, music, cameras
+    case overview, rooms, heating, security, music, cameras
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
-        case .overview: "Home"
-        case .rooms: "Rooms"
-        case .security: "Security"
-        case .music: "Music"
-        case .cameras: "Cameras"
+        case .overview: L("Home")
+        case .rooms: L("Rooms")
+        case .heating: L("Heating")
+        case .security: L("Security")
+        case .music: L("Music")
+        case .cameras: L("Cameras")
         }
     }
 
@@ -23,6 +24,7 @@ enum HVHomePageKind: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .overview: "house.fill"
         case .rooms: "square.grid.2x2.fill"
+        case .heating: "thermometer.medium"
         case .security: "checkmark.shield.fill"
         case .music: "music.note"
         case .cameras: "video.fill"
@@ -35,6 +37,7 @@ enum HVHomePageKind: String, CaseIterable, Identifiable, Hashable {
             switch page {
             case .overview: true
             case .rooms: !home.rooms.isEmpty
+            case .heating: home.hasHeating
             case .security: !(home.security.isEmpty && home.locks.isEmpty && home.gates.isEmpty)
             case .music: !home.media.isEmpty
             case .cameras: cameraCount > 0
@@ -62,7 +65,7 @@ struct HVHomePager: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 16) {
                 TimelineView(.everyMinute) { context in
-                    HVHeader(eyebrow: context.date.formatted(.dateTime.weekday(.wide).month(.wide).day()),
+                    HVHeader(eyebrow: L10n.longDate(context.date),
                              title: Self.greeting(context.date), subtitle: nothing ? nil : Self.summary(home), isHome: true)
                 }
                 HVConnectionNotice()
@@ -108,6 +111,7 @@ struct HVHomePager: View {
         switch kind {
         case .overview: HVOverviewBody()
         case .rooms: HVRoomsBody()
+        case .heating: HVHeatingBody()
         case .security: HVSecurityBody()
         case .music: HVMediaBody()
         case .cameras: HVCamerasBody()
@@ -141,7 +145,7 @@ struct HVHomePager: View {
                     }
                     .buttonStyle(HVPress())
                     .accessibilityAddTraits(selected ? .isSelected : [])
-                    .accessibilityHint("Shows the \(kind.name) page")
+                    .accessibilityHint(L("Shows the {name} page", ["name": kind.name]))
                 }
             }
             .padding(4)
@@ -172,25 +176,27 @@ struct HVHomePager: View {
 
     static func greeting(_ date: Date) -> String {
         switch Calendar.current.component(.hour, from: date) {
-        case 5..<12: "Good morning"
-        case 12..<17: "Good afternoon"
-        default: "Good evening"
+        case 5..<12: L("Good morning")
+        case 12..<17: L("Good afternoon")
+        default: L("Good evening")
         }
     }
 
     static func summary(_ home: HomeSnapshot) -> String {
         var parts: [String] = []
         let on = home.lightsOnCount
-        parts.append(on == 0 ? "All lights off" : "\(on) \(on == 1 ? "light" : "lights") on")
+        parts.append(on == 0 ? L("All lights off") : Ln(on, "{n} light on", "{n} lights on"))
         let unlocked = home.locks.filter { $0.isLocked == false }
+        let and = L(" and ")
         if !unlocked.isEmpty {
-            parts.append("\(unlocked.map(\.name).joined(separator: " and ")) \(unlocked.count == 1 ? "is" : "are") unlocked")
+            let names = unlocked.map(\.name).joined(separator: and)
+            parts.append(unlocked.count == 1 ? L("{names} is unlocked", ["names": names]) : L("{names} are unlocked", ["names": names]))
         } else if !home.locks.isEmpty {
-            parts.append("Doors locked")
+            parts.append(L("Doors locked"))
         }
         let playing = home.media.filter(\.isOn)
         if !playing.isEmpty {
-            parts.append("Playing in \(playing.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: " and "))")
+            parts.append(L("Playing in {rooms}", ["rooms": playing.map { home.room($0.roomId)?.name ?? $0.name }.joined(separator: and)]))
         }
         return parts.joined(separator: " · ")
     }

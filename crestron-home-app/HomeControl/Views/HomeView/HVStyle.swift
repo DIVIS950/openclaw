@@ -11,12 +11,13 @@ import UIKit
 @Observable
 final class HVNav {
     enum Route: Hashable {
-        case home, lights, shades, media, security, cameras, automations
+        case home, lights, heating, shades, media, security, cameras, automations
         case room(String)
     }
 
     enum Sheet: Identifiable, Hashable {
         case light(String), shade(String), media(String), lock(String), gate(String)
+        case climate(String), homeSwitch(String)
         case camera(UUID)
         case keypad(panelId: String, mode: SecurityMode)
         case confirmGate(String, GateAction)
@@ -31,6 +32,8 @@ final class HVNav {
             case let .media(id): "media:\(id)"
             case let .lock(id): "lock:\(id)"
             case let .gate(id): "gate:\(id)"
+            case let .climate(id): "climate:\(id)"
+            case let .homeSwitch(id): "switch:\(id)"
             case let .camera(id): "camera:\(id)"
             case let .keypad(id, mode): "keypad:\(id):\(mode.rawValue)"
             case let .confirmGate(id, action): "confirm:\(id):\(action.rawValue)"
@@ -276,13 +279,13 @@ struct HVOrb: View {
     }
 }
 
-/// Time with a small AM/PM, like the Lock Screen.
+/// The time, 24-hour, like the Lock Screen.
 struct HVClock: View {
     var size: CGFloat = 64
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            let parts = context.date.formatted(date: .omitted, time: .shortened).split(whereSeparator: \.isWhitespace)
+            let parts = L10n.time(context.date).split(whereSeparator: \.isWhitespace)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(String(parts.first ?? ""))
                     .font(.system(size: size, weight: .light))

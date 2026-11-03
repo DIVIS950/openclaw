@@ -25,6 +25,9 @@ struct RootView: View {
                     .tint(Theme.light)
             }
         }
+        // A new language (Settings › Language) rebuilds every screen, so all text is looked up again.
+        .id(settings.language)
+        .environment(\.locale, settings.language.locale)
         .overlay(alignment: .top) { if sizeClass != .regular { ErrorBanner() } }
         .overlay {
             if showSaver {
@@ -71,15 +74,15 @@ private struct TabRoot: View {
     var body: some View {
         TabView {
             NavigationStack { HomeDashboardView(openSettings: { showSettings = true }) }
-                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tabItem { Label(L("Home"), systemImage: "house.fill") }
             NavigationStack { RoomsView() }
-                .tabItem { Label("Rooms", systemImage: "square.split.2x2.fill") }
+                .tabItem { Label(L("Rooms"), systemImage: "square.split.2x2.fill") }
             NavigationStack { MediaView() }
-                .tabItem { Label("Media", systemImage: "hifispeaker.2.fill") }
+                .tabItem { Label(L("Media"), systemImage: "hifispeaker.2.fill") }
             NavigationStack { SecurityView() }
-                .tabItem { Label("Security", systemImage: "shield.lefthalf.filled") }
+                .tabItem { Label(L("Security"), systemImage: "shield.lefthalf.filled") }
             NavigationStack { CamerasView() }
-                .tabItem { Label("Cameras", systemImage: "video.fill") }
+                .tabItem { Label(L("Cameras"), systemImage: "video.fill") }
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack { SettingsView(isSheet: true) }

@@ -51,7 +51,7 @@ final class CustomProgramBackend: HomeBackend {
     }
 
     func connect() async throws {
-        guard !host.isEmpty else { throw BackendError.notConfigured("Enter the processor address in Settings.") }
+        guard !host.isEmpty else { throw BackendError.notConfigured(L("Enter the processor address in Settings.")) }
         client.start()
         let deadline = Date().addingTimeInterval(12)
         while Date() < deadline {
@@ -68,7 +68,7 @@ final class CustomProgramBackend: HomeBackend {
         if case let .failed(message) = client.state {
             reason = message
         } else {
-            reason = "No answer from \(host) on the touch-panel port. Check the address and IP ID."
+            reason = L("No answer from {host} on the touch-panel port. Check the address and IP ID.", ["host": host])
         }
         client.stop()
         throw BackendError.connection(reason)
@@ -102,7 +102,7 @@ final class CustomProgramBackend: HomeBackend {
 
     private func snapshot() -> HomeSnapshot {
         var home = HomeSnapshot()
-        home.rooms = map.rooms.map { Room(id: $0.id, name: $0.name) }
+        home.rooms = map.rooms.map { Room(id: $0.id, name: $0.name, floor: $0.floor) }
 
         home.lights = map.lights.indices.map { i -> Light in
             let e = map.lights[i]
@@ -158,13 +158,23 @@ final class CustomProgramBackend: HomeBackend {
 
         home.security = map.security.indices.map { i -> SecurityPanel in
             let e = map.security[i]
-            let mode: SecurityMode =
-                isHigh(e.alarmFeedback) ? .alarm :
-                isHigh(e.armedAwayFeedback) ? .armedAway :
-                isHigh(e.armedHomeFeedback) ? .armedHome :
-                isHigh(e.disarmedFeedback) ? .disarmed : .unknown
-            return SecurityPanel(id: "security-\(i)", name: e.name, mode: mode,
-                                 needsCode: e.code != nil, canArmHome: e.armHome != nil, canArmAway: e.armAway != nil)
+            let mode: SecurityMode
+            if isHigh(e.alarmFeedback) {
+                mode = .alarm
+            } else if isHigh(e.armedAwayFeedback) {
+                mode = .armedAway
+            } else if isHigh(e.armedHomeFeedback) {
+                mode = .armedHome
+            } else if isHigh(e.disarmedFeedback) {
+                mode = .disarmed
+            } else if e.toggle != nil && e.armedAwayFeedback != nil {
+                // A zone with one toggle button and one "armed" light: low means off.
+                mode = .disarmed
+            } else {
+                mode = .unknown
+            }
+            return SecurityPanel(id: "security-\(i)", name: e.name, mode: mode, needsCode: e.code != nil,
+                                 canArmHome: e.armHome != nil, canArmAway: e.armAway != nil || e.toggle != nil)
         }
 
         home.gates = map.gates.indices.map { i -> Gate in
@@ -187,14 +197,62 @@ final class CustomProgramBackend: HomeBackend {
             return Doorbell(id: "doorbell-\(i)", name: e.name, cameraName: e.camera,
                             lockId: lockIndex.map { "lock-\($0)" }, ringAt: ringAt[i])
         }
+
+        home.climate = map.climate.indices.map { i -> Climate in
+            let e = map.climate[i]
+            return Climate(id: "climate-\(i)", name: e.name, roomId: e.room,
+                           current: temperature(e.current, scale: e.scale), target: temperature(e.target, scale: e.scale),
+                           minimum: e.min ?? 5, maximum: e.max ?? 30, step: e.step ?? 0.5,
+                           heating: e.heating.map { digital[$0] ?? false })
+        }
+
+        home.modes = map.modes.indices.map { i -> HomeMode in
+            let e = map.modes[i]
+            let options = e.options.indices.map { oi -> ModeOption in
+                let o = e.options[oi]
+                return ModeOption(id: o.optionId(oi), name: o.name ?? o.id ?? String(oi + 1))
+            }
+            return HomeMode(id: "mode-\(i)", name: e.name, kind: e.kind ?? "other", value: modeValue(e), options: options)
+        }
+
+        home.switches = map.switches.indices.map { i -> HomeSwitch in
+            let e = map.switches[i]
+            return HomeSwitch(id: "switch-\(i)", name: e.name, roomId: e.room, kind: e.kind ?? "other",
+                              isOn: isHigh(e.feedback ?? e.on ?? e.toggle), current: temperature(e.temperature, scale: e.scale))
+        }
         return home
+    }
+
+    /// Temperatures arrive as whole numbers: °C × scale (10 by default, so 215 = 21.5 °C).
+    /// Analog joins are unsigned 16-bit; values above 32767 are negative temperatures.
+    private func temperature(_ join: Int?, scale: Double?) -> Double? {
+        guard let join, let raw = analog[join] else { return nil }
+        let signed = raw > 32767 ? raw - 65536 : raw
+        let divisor = Self.scale(scale)
+        return (Double(signed) / divisor * 10).rounded() / 10
+    }
+
+    private static func scale(_ value: Double?) -> Double {
+        guard let value, value.isFinite, value != 0 else { return 10 }
+        return value
+    }
+
+    /// The first option whose analog value matches, or whose feedback is high.
+    private func modeValue(_ e: JoinMap.ModeEntry) -> String? {
+        let hit: Int?
+        if let join = e.analog, let raw = analog[join] {
+            hit = e.options.indices.first { e.options[$0].value == Double(raw) }
+        } else {
+            hit = e.options.indices.first { isHigh(e.options[$0].feedback ?? e.options[$0].press) }
+        }
+        return hit.map { e.options[$0].optionId($0) }
     }
 
     // MARK: Model -> joins
 
     func perform(_ command: HomeCommand) async throws {
         guard client.state == .connected else {
-            throw BackendError.connection("Not connected to the processor yet.")
+            throw BackendError.connection(L("Not connected to the processor yet."))
         }
         switch command {
         case let .setLight(id, value):
@@ -216,27 +274,27 @@ final class CustomProgramBackend: HomeBackend {
             }
         case let .stopShade(id):
             let e = try entry(map.shades, id)
-            guard let join = e.stop else { throw BackendError.notSupported("Stopping this shade") }
+            guard let join = e.stop else { throw BackendError.notSupported(L("Stopping this shade")) }
             client.pulse(join)
         case let .recallScene(id):
             let e = try entry(map.scenes, id)
             client.pulse(e.press)
         case let .mediaPower(id, on):
             let e = try entry(map.media, id)
-            guard let join = on ? e.powerOn : (e.powerOff ?? e.powerOn) else { throw BackendError.notSupported("Media power") }
+            guard let join = on ? e.powerOn : (e.powerOff ?? e.powerOn) else { throw BackendError.notSupported(L("Media power")) }
             client.pulse(join)
         case let .mediaVolume(id, value):
             let e = try entry(map.media, id)
-            guard let join = e.volume else { throw BackendError.notSupported("Volume") }
+            guard let join = e.volume else { throw BackendError.notSupported(L("Volume")) }
             client.setAnalog(join, Int((value.clamped01 * 65535).rounded()))
         case let .mediaMute(id, muted):
             let e = try entry(map.media, id)
-            guard let join = e.mute else { throw BackendError.notSupported("Mute") }
+            guard let join = e.mute else { throw BackendError.notSupported(L("Mute")) }
             if muted != isHigh(e.muteFeedback ?? join) { client.pulse(join) }
         case let .mediaSource(id, sourceId):
             let e = try entry(map.media, id)
             let sources = e.sources ?? []
-            guard let i = index(sourceId), sources.indices.contains(i) else { throw BackendError.badResponse("Unknown source") }
+            guard let i = index(sourceId), sources.indices.contains(i) else { throw BackendError.badResponse(L("Unknown source")) }
             client.pulse(sources[i].press)
         case let .mediaTransport(id, action):
             let e = try entry(map.media, id)
@@ -248,7 +306,7 @@ final class CustomProgramBackend: HomeBackend {
             case .next: join = e.next
             case .previous: join = e.previous
             }
-            guard let join else { throw BackendError.notSupported("That music button") }
+            guard let join else { throw BackendError.notSupported(L("That music button")) }
             client.pulse(join)
         case let .setLock(id, locked):
             let e = try entry(map.locks, id)
@@ -263,8 +321,15 @@ final class CustomProgramBackend: HomeBackend {
             case .disarmed: target = e.disarm
             case .alarm, .unknown: target = nil
             }
-            guard let target else { throw BackendError.notSupported("That security mode") }
-            client.pulse(target)
+            if let target {
+                client.pulse(target)
+            } else if let toggle = e.toggle {
+                // One button that arms and disarms: press it only when the state has to change.
+                let armed = isHigh(e.armedAwayFeedback) || isHigh(e.armedHomeFeedback)
+                if armed != (mode != .disarmed) { client.pulse(toggle) }
+            } else {
+                throw BackendError.notSupported(L("That security mode"))
+            }
         case let .gate(id, action):
             let e = try entry(map.gates, id)
             let join: Int?
@@ -274,8 +339,57 @@ final class CustomProgramBackend: HomeBackend {
             case .stop: join = e.stop
             case .trigger: join = e.trigger ?? e.open
             }
-            guard let join else { throw BackendError.notSupported("That gate action") }
+            guard let join else { throw BackendError.notSupported(L("That gate action")) }
             client.pulse(join)
+        case let .setClimate(id, value):
+            let e = try entry(map.climate, id)
+            let scale = Self.scale(e.scale)
+            let step = (e.step ?? 0.5) > 0 ? (e.step ?? 0.5) : 0.5
+            let low = e.min ?? 5, high = e.max ?? 30
+            let target = Swift.min(high, Swift.max(low, (value / step).rounded() * step))
+            if let join = e.target, e.targetWritable != false {
+                // Signed 16-bit on the wire: negative values wrap to 65536 + value.
+                let scaled = Swift.min(32767, Swift.max(-32768, (target * scale).rounded()))
+                let raw = scaled.isFinite ? Int(scaled) : 0
+                client.setAnalog(join, raw < 0 ? raw + 65536 : raw)
+                return
+            }
+            // Only up/down buttons: press one of them once per step.
+            guard let now = temperature(e.target, scale: e.scale), let up = e.up, let down = e.down else {
+                throw BackendError.notSupported(L("Setting this thermostat"))
+            }
+            let steps = Swift.min(50, (abs(target - now) / step).rounded())
+            let presses = steps.isFinite ? Int(steps) : 0
+            for _ in 0..<Swift.max(0, presses) {
+                client.pulse(target > now ? up : down)
+                // A press is 200 ms; leave a gap so the program sees separate presses.
+                try await Task.sleep(for: .milliseconds(400))
+            }
+        case let .setMode(id, value):
+            let e = try entry(map.modes, id)
+            guard let optionIndex = e.options.indices.first(where: { e.options[$0].optionId($0) == value }) else {
+                throw BackendError.badResponse(L("Unknown option."))
+            }
+            let option = e.options[optionIndex]
+            if let join = e.analog, let number = option.value, number.isFinite {
+                client.setAnalog(join, Int(Swift.min(65535, Swift.max(0, number)).rounded()))
+            } else if let press = option.press {
+                client.pulse(press)
+            } else {
+                throw BackendError.notSupported(L("That option"))
+            }
+        case let .setSwitch(id, on):
+            let e = try entry(map.switches, id)
+            if on, let join = e.on {
+                client.pulse(join)
+            } else if !on, let join = e.off {
+                client.pulse(join)
+            } else if let toggle = e.toggle ?? (e.off == nil ? e.on : nil) {
+                // One button: press it only when the state has to change.
+                if on != isHigh(e.feedback ?? e.on ?? e.toggle) { client.pulse(toggle) }
+            } else {
+                throw BackendError.notSupported(L("This switch"))
+            }
         }
     }
 
@@ -286,7 +400,7 @@ final class CustomProgramBackend: HomeBackend {
 
     private func entry<T>(_ list: [T], _ id: String) throws -> T {
         guard let i = index(id), list.indices.contains(i) else {
-            throw BackendError.badResponse("“\(id)” isn't in the join map.")
+            throw BackendError.badResponse(L("“{id}” isn't in the join map.", ["id": id]))
         }
         return list[i]
     }

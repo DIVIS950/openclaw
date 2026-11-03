@@ -17,7 +17,7 @@ struct HomeDashboardView: View {
 
                 if !home.homeScenes.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Scenes")
+                        SectionHeader(title: L("Scenes"))
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass == .regular ? 170 : 140), spacing: 12)], spacing: 12) {
                             ForEach(home.homeScenes) { SceneTile(scene: $0) }
                         }
@@ -33,7 +33,7 @@ struct HomeDashboardView: View {
 
                 if !home.rooms.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Rooms", trailing: "\(home.rooms.count)")
+                        SectionHeader(title: L("Rooms"), trailing: "\(home.rooms.count)")
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass == .regular ? 240 : 160), spacing: 14)], spacing: 14) {
                             ForEach(home.rooms) { room in
                                 NavigationLink(value: room.id) { RoomCard(room: room) }
@@ -46,7 +46,7 @@ struct HomeDashboardView: View {
                 let playing = home.media.filter(\.isOn)
                 if !playing.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Now Playing")
+                        SectionHeader(title: L("Now Playing"))
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 16)], spacing: 16) {
                             ForEach(playing) { MediaZoneCard(zone: $0) }
                         }
@@ -82,7 +82,7 @@ struct HomeDashboardView: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .foregroundStyle(.white)
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(L("Settings"))
             }
         }
     }
@@ -90,21 +90,21 @@ struct HomeDashboardView: View {
     private var statusStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                StatusChip(icon: "lightbulb.fill", text: home.lightsOnCount == 0 ? "All lights off" : "\(home.lightsOnCount) lights on", tint: Theme.light)
+                StatusChip(icon: "lightbulb.fill", text: home.lightsOnCount == 0 ? L("All lights off") : Ln(home.lightsOnCount, "{n} light on", "{n} lights on"), tint: Theme.light)
                 ForEach(home.security) { panel in
-                    StatusChip(icon: "shield.fill", text: panel.mode.title, tint: panel.mode == .alarm ? Theme.alert : Theme.secure)
+                    StatusChip(icon: "shield.fill", text: "\(panel.name): \(panel.mode.label)", tint: panel.mode == .alarm ? Theme.alert : Theme.secure)
                 }
                 if !home.locks.isEmpty {
                     StatusChip(icon: home.unlockedCount > 0 ? "lock.open.fill" : "lock.fill",
-                               text: home.unlockedCount > 0 ? "\(home.unlockedCount) unlocked" : "Doors locked",
+                               text: home.unlockedCount > 0 ? L("{n} unlocked", ["n": String(home.unlockedCount)]) : L("Doors locked"),
                                tint: home.unlockedCount > 0 ? Theme.alert : Theme.secure)
                 }
                 ForEach(home.gates) { gate in
-                    StatusChip(icon: "door.garage.closed", text: "\(gate.name): \(gate.state.title)", tint: Theme.gate)
+                    StatusChip(icon: "door.garage.closed", text: "\(gate.name): \(gate.state.label)", tint: Theme.gate)
                 }
                 let playing = home.media.filter(\.isOn).count
                 if playing > 0 {
-                    StatusChip(icon: "music.note", text: "\(playing) playing", tint: Theme.media)
+                    StatusChip(icon: "music.note", text: L("{n} playing", ["n": String(playing)]), tint: Theme.media)
                 }
             }
         }
@@ -113,7 +113,7 @@ struct HomeDashboardView: View {
 
     private func greeting(for date: Date) -> String {
         let hour = Calendar.current.component(.hour, from: date)
-        let part = hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+        let part = hour < 5 ? L("Good night") : hour < 12 ? L("Good morning") : hour < 18 ? L("Good afternoon") : L("Good evening")
         return settings.homeName.isEmpty || settings.homeName == "Home" ? part : "\(part) · \(settings.homeName)"
     }
 }
@@ -138,10 +138,10 @@ struct RoomCard: View {
                         Label("\(lightsOn)", systemImage: "lightbulb.fill").foregroundStyle(Theme.light)
                     }
                     if let playing {
-                        Label(playing.currentSource?.name ?? "On", systemImage: "music.note").foregroundStyle(Theme.media).lineLimit(1)
+                        Label(playing.currentSource?.name ?? L("On"), systemImage: "music.note").foregroundStyle(Theme.media).lineLimit(1)
                     }
                     if lightsOn == 0 && playing == nil {
-                        Text("Off").foregroundStyle(.white.opacity(0.6))
+                        Text(L("Off")).foregroundStyle(.white.opacity(0.6))
                     }
                 }
                 .font(.caption.weight(.semibold))
@@ -186,10 +186,10 @@ struct ConnectionBadge: View {
 
     private var appearance: (text: String, color: Color) {
         switch store.connection {
-        case .connected: store.mode == .demo ? ("Demo", Theme.light) : ("Connected", Theme.secure)
-        case .connecting: ("Connecting…", Theme.light)
-        case .idle: ("Offline", Color.secondary)
-        case .failed: ("Offline", Theme.alert)
+        case .connected: store.mode == .demo ? (L("Demo"), Theme.light) : (L("Connected"), Theme.secure)
+        case .connecting: (L("Connecting…"), Theme.light)
+        case .idle: (L("Offline"), Color.secondary)
+        case .failed: (L("Offline"), Theme.alert)
         }
     }
 

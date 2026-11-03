@@ -33,9 +33,9 @@ enum BackendError: LocalizedError {
         switch self {
         case let .notConfigured(message): message
         case let .connection(message): message
-        case let .http(status, message): "The system answered \(status): \(message)"
+        case let .http(status, message): L("The system answered {status}: {message}", ["status": String(status), "message": message])
         case let .badResponse(message): message
-        case let .notSupported(what): "\(what) isn't supported by this system."
+        case let .notSupported(what): L("{what} isn't supported by this system.", ["what": what])
         }
     }
 }

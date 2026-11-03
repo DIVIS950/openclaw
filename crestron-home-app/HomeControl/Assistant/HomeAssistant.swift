@@ -27,6 +27,9 @@ enum HomeAssistant {
     - You cannot disarm the alarm; tell the person to use the keypad.
     - "Later" requests ("turn off the kitchen lights in 30 minutes", "sleep timer for an hour") use set_timer. Repeating requests ("every night at 11 close the shades", "weekdays at sunset turn on the patio lights") use create_schedule. Confirm what you set up in one sentence.
     - "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
+    - Heating: each room thermostat has a current and a target temperature in °C; setClimate sets the target (steps of 0.5). "Warmer"/"colder" means ±1 °C. The whole-house heating mode is a mode (setMode with one of its option ids). The sauna and similar things are switches (setSwitch on/off).
+    - Rooms are grouped by floor (for example 1.NP, 2.NP, Suterén, Venek); "upstairs"/"nahoře" means the floors above 1.NP.
+    - Names in this house are Czech. If the person writes Czech, answer in Czech.
 
     How to answer:
     - One or two short, friendly sentences in the person's language. No lists, no markdown, no ids.
@@ -40,7 +43,8 @@ enum HomeAssistant {
     private static let toolDescription =
         "Send one or more commands to the house. Each command needs `type` and the device `id` from the home state, plus the field its type uses: " +
         "setLight → level; setShade → position; stopShade → (nothing); recallScene → (nothing); mediaPower → on; mediaVolume → level; " +
-        "mediaMute → muted; mediaSource → sourceId; setLock → locked; setSecurity → mode (armedAway or armedHome); gate → action (open, close, stop, trigger). " +
+        "mediaMute → muted; mediaSource → sourceId; setLock → locked; setSecurity → mode (armedAway or armedHome); gate → action (open, close, stop, trigger); " +
+        "setClimate → target (°C); setMode → value (an option id of that mode); setSwitch → on. " +
         "Returns one line per command saying whether it was done, needs the person to confirm, or was refused."
 
     private static var toolSchema: [String: Any] {
@@ -55,7 +59,7 @@ enum HomeAssistant {
 
     private static let timerToolDescription =
         "Run commands once, later: after the given number of minutes (1 to 1440). Use it for \"in 30 minutes\", \"sleep timer\" and similar. " +
-        "Only lights, shades, scenes, music and locking (never unlocking, the gate or the alarm) can be timed."
+        "Only lights, shades, scenes, music, heating, the sauna and locking (never unlocking, the gate or the alarm) can be timed."
 
     private static var timerToolSchema: [String: Any] {
         let minutes: [String: Any] = ["type": "integer", "minimum": 1, "maximum": 1440]
@@ -109,11 +113,13 @@ enum HomeAssistant {
     /// One command, as control_home and set_timer take it.
     private static var commandItemSchema: [String: Any] {
         let commandTypes = ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume",
-                            "mediaMute", "mediaSource", "setLock", "setSecurity", "gate"]
+                            "mediaMute", "mediaSource", "setLock", "setSecurity", "gate", "setClimate", "setMode", "setSwitch"]
         let unit: [String: Any] = ["type": "number", "minimum": 0, "maximum": 1]
         let properties: [String: Any] = [
             "type": ["type": "string", "enum": commandTypes] as [String: Any],
-            "id": ["type": "string", "description": "Device, scene, media room, lock, alarm or gate id from the home state."],
+            "id": ["type": "string", "description": "Device, scene, media room, lock, alarm, gate, thermostat, mode or switch id from the home state."],
+            "target": ["type": "number", "minimum": 5, "maximum": 30, "description": "Target temperature in °C (setClimate)."] as [String: Any],
+            "value": ["type": "string", "description": "Option id (setMode)."],
             "level": unit,
             "position": unit,
             "on": ["type": "boolean"],
@@ -165,12 +171,12 @@ enum HomeAssistant {
 
         var errorDescription: String? {
             switch self {
-            case .badKey: "The AI key isn't valid. Check it in Settings › AI assistant."
-            case .notAllowed: "This AI key isn't allowed to use the assistant model."
-            case .busy: "The assistant is busy right now. Try again in a minute."
-            case .offline: "Can't reach the AI service. Check the internet connection."
-            case .badResponse: "The AI service sent an answer the app couldn't read. Try again."
-            case let .service(code): "The AI service had a problem (\(code)). Try again."
+            case .badKey: L("The AI key isn't valid. Check it in Settings › AI assistant.")
+            case .notAllowed: L("This AI key isn't allowed to use the assistant model.")
+            case .busy: L("The assistant is busy right now. Try again in a minute.")
+            case .offline: L("Can't reach the AI service. Check the internet connection.")
+            case .badResponse: L("The AI service sent an answer the app couldn't read. Try again.")
+            case let .service(code): L("The AI service had a problem ({code}). Try again.", ["code": String(code)])
             }
         }
     }
@@ -200,7 +206,7 @@ enum HomeAssistant {
             let content = response["content"] as? [[String: Any]] ?? []
             // A declined request (after Anthropic's own fallback model also declined).
             if stop == "refusal" {
-                reply.text = "Sorry, I can't help with that one."
+                reply.text = L("Sorry, I can't help with that one.")
                 return reply
             }
             let toolUses = content.filter { $0["type"] as? String == "tool_use" }
@@ -209,7 +215,7 @@ enum HomeAssistant {
                     .compactMap { $0["text"] as? String }
                     .joined(separator: " ")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                reply.text = text.isEmpty ? (reply.done.isEmpty ? "Sorry, I didn't catch that." : "Done.") : text
+                reply.text = text.isEmpty ? (reply.done.isEmpty ? L("Sorry, I didn't catch that.") : L("Done.")) : text
                 return reply
             }
             // Send the whole assistant turn back unchanged (thinking blocks included), then the results.
@@ -232,7 +238,7 @@ enum HomeAssistant {
             }
             messages.append(["role": "user", "content": results])
         }
-        reply.text = reply.done.isEmpty ? "Sorry, that took too many steps. Try asking in a simpler way." : "Done."
+        reply.text = reply.done.isEmpty ? L("Sorry, that took too many steps. Try asking in a simpler way.") : L("Done.")
         return reply
     }
 
@@ -327,8 +333,8 @@ enum HomeAssistant {
     @MainActor
     static func applyTimer(_ input: [String: Any], automations: AutomationStore) -> Outcome {
         let rawMinutes = (input["minutes"] as? NSNumber)?.doubleValue ?? .nan
-        let label = String((input["label"] as? String ?? "Timer").trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
-        let name = label.isEmpty ? "Timer" : label
+        let label = String((input["label"] as? String ?? L("Timer")).trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        let name = label.isEmpty ? L("Timer") : label
         // Checked before converting, so a huge or missing number can't crash Int().
         guard rawMinutes.isFinite, rawMinutes.rounded() >= 1, rawMinutes.rounded() <= 1440 else {
             return Outcome(text: "Refused: minutes must be 1 to 1440.", isError: true)
@@ -345,7 +351,7 @@ enum HomeAssistant {
         guard !timed.isEmpty else { return Outcome(text: "Refused: no commands.", isError: true) }
         automations.addTimer(minutes: minutes, label: name, commands: timed)
         let when = minutes >= 60 && minutes % 60 == 0 ? "\(minutes / 60) h" : "\(minutes) min"
-        return Outcome(text: "Timer set: \(name) in \(when).", done: ["Timer: \(name) in \(when)"])
+        return Outcome(text: "Timer set: \(name) in \(when).", done: [L("Timer: {name} in {when}", ["name": name, "when": when])])
     }
 
     /// Applies one create_schedule call: reads and checks the schedule, then saves it.
@@ -360,7 +366,7 @@ enum HomeAssistant {
         automations.save(schedule)
         let when = AutomationRules.describeWhen(schedule)
         let what = schedule.actions.map { AutomationRules.describe($0, home: home) }.joined(separator: ", ")
-        return Outcome(text: "Schedule created: \(schedule.name), \(when): \(what).", done: ["Schedule: \(schedule.name) · \(when)"])
+        return Outcome(text: "Schedule created: \(schedule.name), \(when): \(what).", done: [L("Schedule: {name} · {when}", ["name": schedule.name, "when": when])])
     }
 
     /// Reads a schedule from create_schedule input. Returns the schedule, or the problem.
@@ -460,6 +466,15 @@ enum HomeAssistant {
         case "gate":
             guard let action = (raw["action"] as? String).flatMap(GateAction.init(rawValue:)) else { return (nil, "bad action") }
             return (.gate(id: id, action: action), nil)
+        case "setClimate":
+            guard let target = number("target"), target.isFinite else { return (nil, "missing target") }
+            return (.setClimate(id: id, target: target), nil)
+        case "setMode":
+            guard let value = raw["value"] as? String, !value.isEmpty else { return (nil, "missing value") }
+            return (.setMode(id: id, value: value), nil)
+        case "setSwitch":
+            guard let on = raw["on"] as? Bool else { return (nil, "missing on") }
+            return (.setSwitch(id: id, on: on), nil)
         default:
             return (nil, "unknown command")
         }
@@ -472,30 +487,52 @@ enum HomeAssistant {
         }
         switch command {
         case let .setLight(id, level):
-            return "\(name(home.lights, id, \.name)) → \(level > 0 ? level.percentText : "off")"
+            return "\(name(home.lights, id, \.name)) → \(level > 0 ? level.percentText : L("off"))"
         case let .setShade(id, position):
-            return "\(name(home.shades, id, \.name)) → \(position >= 0.99 ? "open" : position <= 0.01 ? "closed" : position.percentText)"
+            return "\(name(home.shades, id, \.name)) → \(position >= 0.99 ? L("open") : position <= 0.01 ? L("closed") : position.percentText)"
         case let .stopShade(id):
-            return "\(name(home.shades, id, \.name)) → stop"
+            return "\(name(home.shades, id, \.name)) → \(L("stop"))"
         case let .recallScene(id):
-            return "Scene: \(name(home.scenes, id, \.name))"
+            return L("Scene: {name}", ["name": name(home.scenes, id, \.name)])
         case let .mediaPower(id, on):
-            return "\(name(home.media, id, \.name)) → \(on ? "on" : "off")"
+            return "\(name(home.media, id, \.name)) → \(on ? L("on") : L("off"))"
         case let .mediaVolume(id, level):
-            return "\(name(home.media, id, \.name)) volume → \(level.percentText)"
+            return L("{name} volume → {level}", ["name": name(home.media, id, \.name), "level": level.percentText])
         case let .mediaMute(id, muted):
-            return "\(name(home.media, id, \.name)) → \(muted ? "muted" : "unmuted")"
+            return "\(name(home.media, id, \.name)) → \(muted ? L("muted") : L("unmuted"))"
         case let .mediaSource(id, sourceId):
             let zone = home.media.first { $0.id == id }
             return "\(zone?.name ?? id) → \(zone?.sources.first { $0.id == sourceId }?.name ?? sourceId)"
         case let .mediaTransport(id, action):
-            return "\(name(home.media, id, \.name)) → \(action.rawValue)"
+            let button: String
+            switch action {
+            case .play: button = L("Play")
+            case .pause: button = L("Pause")
+            case .next: button = L("Next")
+            case .previous: button = L("Previous")
+            }
+            return "\(name(home.media, id, \.name)) → \(button)"
         case let .setLock(id, locked):
-            return "\(locked ? "Lock" : "Unlock") \(name(home.locks, id, \.name))"
+            let lock = name(home.locks, id, \.name)
+            return locked ? L("Lock {name}", ["name": lock]) : L("Unlock {name}", ["name": lock])
         case let .setSecurity(id, mode, _):
-            return "\(name(home.security, id, \.name)) → \(mode.title)"
+            return "\(name(home.security, id, \.name)) → \(mode.label)"
         case let .gate(id, action):
-            return "\(name(home.gates, id, \.name)) → \(action.rawValue)"
+            let vars = ["name": name(home.gates, id, \.name)]
+            switch action {
+            case .open: return L("Open {name}", vars)
+            case .close: return L("Close {name}", vars)
+            case .stop: return L("Stop {name}", vars)
+            case .trigger: return L("Press {name}", vars)
+            }
+        case let .setClimate(id, target):
+            let thermostat = home.climate.first { $0.id == id }
+            return "\(thermostat?.name ?? id) → \(L10n.temp(thermostat?.clampTarget(target) ?? target))"
+        case let .setMode(id, value):
+            let mode = home.modes.first { $0.id == id }
+            return "\(mode?.name ?? id) → \(mode?.options.first { $0.id == value }?.name ?? value)"
+        case let .setSwitch(id, on):
+            return "\(name(home.switches, id, \.name)) → \(on ? L("on") : L("off"))"
         }
     }
 
@@ -504,7 +541,11 @@ enum HomeAssistant {
     @MainActor
     static func homeForModel(_ home: HomeSnapshot, context: Context, automations: AutomationStore, now: Date = Date()) -> [String: Any] {
         var out = homeForModel(home)
-        out["roomIds"] = home.rooms.map { ["id": $0.id, "name": $0.name] }
+        out["roomIds"] = home.rooms.map { (room: Room) -> [String: Any] in
+            var entry: [String: Any] = ["id": room.id, "name": room.name]
+            if let floor = room.floor { entry["floor"] = floor }
+            return entry
+        }
         if let room = context.viewingRoom { out["viewingRoom"] = room }
         let clock = DateFormatter()
         clock.locale = Locale(identifier: "en_US")
@@ -551,9 +592,27 @@ enum HomeAssistant {
         let gates: [[String: Any]] = home.gates.map {
             ["id": $0.id, "name": $0.name, "state": $0.state.title, "separateOpenClose": $0.hasSeparateOpenClose]
         }
+        let orNull = { (value: Any?) -> Any in value ?? NSNull() }
+        let thermostats: [[String: Any]] = home.climate.map { (c: Climate) -> [String: Any] in
+            var entry: [String: Any] = ["id": c.id, "name": c.name, "room": room(c.roomId)]
+            entry["current"] = orNull(c.current)
+            entry["target"] = orNull(c.target)
+            entry["heating"] = orNull(c.heating)
+            return entry
+        }
+        let modes: [[String: Any]] = home.modes.map { (m: HomeMode) -> [String: Any] in
+            let options: [[String: Any]] = m.options.map { ["id": $0.id, "name": $0.name] }
+            return ["id": m.id, "name": m.name, "value": orNull(m.value), "options": options]
+        }
+        let switches: [[String: Any]] = home.switches.map { (w: HomeSwitch) -> [String: Any] in
+            var entry: [String: Any] = ["id": w.id, "name": w.name, "kind": w.kind, "room": room(w.roomId), "on": w.isOn]
+            if let temperature = w.current { entry["temperature"] = temperature }
+            return entry
+        }
         return [
             "rooms": home.rooms.map(\.name), "lights": lights, "shades": shades, "scenes": scenes,
             "media": media, "locks": locks, "alarms": alarms, "gates": gates,
+            "thermostats": thermostats, "modes": modes, "switches": switches,
         ]
     }
 }

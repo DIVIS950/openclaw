@@ -9,8 +9,8 @@ struct CamerasView: View {
     var body: some View {
         ScrollView {
             if settings.cameras.isEmpty {
-                EmptyState(icon: "video", title: "No cameras",
-                           message: "Add a camera's snapshot URL in Settings › Cameras. Most IP cameras and NVRs offer one.")
+                EmptyState(icon: "video", title: L("No cameras"),
+                           message: L("Add a camera's snapshot URL in Settings › Cameras. Most IP cameras and NVRs offer one."))
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16)], spacing: 16) {
                     ForEach(settings.cameras) { camera in
@@ -24,7 +24,7 @@ struct CamerasView: View {
             }
         }
         .screenBackground()
-        .navigationTitle("Cameras")
+        .navigationTitle(L("Cameras"))
         .fullScreenCover(item: $fullScreen) { camera in
             ZStack(alignment: .topTrailing) {
                 Color.black.ignoresSafeArea()
@@ -126,12 +126,12 @@ final class CameraLoader: NSObject, URLSessionTaskDelegate {
     }
 
     func fetch() async throws -> UIImage {
-        guard let url else { throw BackendError.notConfigured("Invalid snapshot URL") }
+        guard let url else { throw BackendError.notConfigured(L("Invalid snapshot URL")) }
         let (data, response) = try await session.data(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw BackendError.http(http.statusCode, http.statusCode == 401 ? "Wrong camera username or password" : "Camera error")
+            throw BackendError.http(http.statusCode, http.statusCode == 401 ? L("Wrong camera username or password") : L("Camera error"))
         }
-        guard let image = UIImage(data: data) else { throw BackendError.badResponse("The URL didn't return an image") }
+        guard let image = UIImage(data: data) else { throw BackendError.badResponse(L("The URL didn't return an image")) }
         return image
     }
 

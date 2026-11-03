@@ -22,11 +22,11 @@ struct SettingsView: View {
         @Bindable var settings = settings
         Form {
             Section {
-                Picker("System type", selection: $settings.mode) {
+                Picker(L("System type"), selection: $settings.mode) {
                     ForEach(ConnectionMode.allCases) { Text($0.title).tag($0) }
                 }
             } header: {
-                Text("Connection")
+                Text(L("Connection"))
             } footer: {
                 Text(settings.mode.explanation)
             }
@@ -36,27 +36,27 @@ struct SettingsView: View {
                 EmptyView()
             case .crestronHome:
                 Section {
-                    TextField("Processor IP address", text: $settings.host, prompt: Text("192.168.1.50"))
+                    TextField(L("Processor IP address"), text: $settings.host, prompt: Text(verbatim: "192.168.1.50"))
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("Web API token", text: $settings.apiToken)
+                    SecureField(L("Web API token"), text: $settings.apiToken)
                 } header: {
-                    Text("Crestron Home")
+                    Text(verbatim: "Crestron Home")
                 } footer: {
-                    Text("Get the token in the Crestron Home setup app: Installer Settings › System Control Options › Web API Settings › Update Token. Your installer can do this if you don't have the installer password.")
+                    Text(L("Get the token in the Crestron Home setup app: Installer Settings › System Control Options › Web API Settings › Update Token. Your installer can do this if you don't have the installer password."))
                 }
             case .customProgram:
                 Section {
-                    TextField("Processor IP address", text: $settings.host, prompt: Text("192.168.1.50"))
+                    TextField(L("Processor IP address"), text: $settings.host, prompt: Text(verbatim: "192.168.1.50"))
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    TextField("IP ID (hex)", text: $settings.cipIpId, prompt: Text("03"))
+                    TextField(L("IP ID (hex)"), text: $settings.cipIpId, prompt: Text(verbatim: "03"))
                         .textInputAutocapitalization(.characters).autocorrectionDisabled()
-                    TextField("Port", value: $settings.cipPort, format: .number.grouping(.never))
+                    TextField(L("Port"), value: $settings.cipPort, format: .number.grouping(.never))
                         .keyboardType(.numberPad)
-                    NavigationLink("Join map") { JoinMapEditor() }
+                    NavigationLink(L("Join map")) { JoinMapEditor() }
                 } header: {
-                    Text("Custom program (touch panel)")
+                    Text(L("Custom program (touch panel)"))
                 } footer: {
-                    Text("Ask your installer for a free XPanel IP ID in the program and the join numbers your Crestron Go panel uses. Don't reuse the IP ID of a panel that's in use.")
+                    Text(L("Ask your installer for a free XPanel IP ID in the program and the join numbers your Crestron Go panel uses. Don't reuse the IP ID of a panel that's in use."))
                 }
             }
 
@@ -65,7 +65,7 @@ struct SettingsView: View {
                     settings.save()
                     store.connect(using: settings)
                 } label: {
-                    Label("Save & Connect", systemImage: "bolt.horizontal.circle.fill")
+                    Label(L("Save & Connect"), systemImage: "bolt.horizontal.circle.fill")
                 }
                 connectionStatus
             }
@@ -84,38 +84,42 @@ struct SettingsView: View {
                     settings.cameras.remove(atOffsets: offsets)
                     settings.save()
                 }
-                Button("Add Camera", systemImage: "plus") {
-                    editingCamera = CameraConfig(name: "Camera \(settings.cameras.count + 1)", snapshotURL: "http://")
+                Button(L("Add Camera"), systemImage: "plus") {
+                    editingCamera = CameraConfig(name: L("Camera {n}", ["n": String(settings.cameras.count + 1)]), snapshotURL: "http://")
                 }
             } header: {
-                Text("Cameras")
+                Text(L("Cameras"))
             } footer: {
-                Text("Use the camera's JPEG snapshot URL. Hikvision: /ISAPI/Streaming/channels/101/picture · Dahua: /cgi-bin/snapshot.cgi · Axis: /axis-cgi/jpg/image.cgi")
+                Text(L("Use the camera's JPEG snapshot URL. Hikvision: /ISAPI/Streaming/channels/101/picture · Dahua: /cgi-bin/snapshot.cgi · Axis: /axis-cgi/jpg/image.cgi"))
             }
 
             Section {
-                SecureField("Anthropic API key", text: $settings.assistantKey, prompt: Text("sk-ant-…"))
+                SecureField(L("Anthropic API key"), text: $settings.assistantKey, prompt: Text(verbatim: "sk-ant-…"))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } header: {
-                Text("AI assistant")
+                Text(L("AI assistant"))
             } footer: {
-                Text("Ask Home uses Claude to understand requests like “turn off the kitchen lights” or “good night”. Create a key at console.anthropic.com; each request costs a fraction of a cent. The key stays in this iPad's Keychain. Unlocking doors and opening the gate always need a tap to confirm, and the assistant can't disarm the alarm.")
+                Text(L("Ask Home uses Claude to understand requests like “turn off the kitchen lights” or “good night”. Create a key at console.anthropic.com; each request costs a fraction of a cent. The key stays in this iPad's Keychain. Unlocking doors and opening the gate always need a tap to confirm, and the assistant can't disarm the alarm."))
             }
 
             Section {
-                TextField("Home name", text: $settings.homeName)
-                Picker("Appearance", selection: $settings.appearance) {
+                TextField(L("Home name"), text: $settings.homeName)
+                // Changing the language rebuilds the app's screens (see HomeControlApp).
+                Picker(L("Language"), selection: Binding(get: { settings.language }, set: { settings.setLanguage($0) })) {
+                    ForEach(AppLanguage.allCases) { Text($0.title).tag($0) }
+                }
+                Picker(L("Appearance"), selection: $settings.appearance) {
                     ForEach(Appearance.allCases) { Text($0.title).tag($0) }
                 }
-                Toggle("Wall panel mode", isOn: $settings.kioskMode)
+                Toggle(L("Wall panel mode"), isOn: $settings.kioskMode)
                 if settings.kioskMode {
-                    Stepper("Screensaver after \(settings.screensaverMinutes) min", value: $settings.screensaverMinutes, in: 1...60)
+                    Stepper(L("Screensaver after {n} min", ["n": String(settings.screensaverMinutes)]), value: $settings.screensaverMinutes, in: 1...60)
                 }
             } header: {
-                Text("This device")
+                Text(L("This device"))
             } footer: {
-                Text("Wall panel mode keeps the screen on and shows StandBy (a big clock with the house at a glance) when idle. For a mounted iPad also turn on Guided Access (Settings › Accessibility) to lock it to this app.")
+                Text(L("Wall panel mode keeps the screen on and shows StandBy (a big clock with the house at a glance) when idle. For a mounted iPad also turn on Guided Access (Settings › Accessibility) to lock it to this app."))
             }
 
             if homeView {
@@ -124,11 +128,11 @@ struct SettingsView: View {
         }
         .scrollContentBackground(homeView ? .automatic : .hidden)
         .background { if !homeView { Theme.background.ignoresSafeArea() } }
-        .navigationTitle("Settings")
+        .navigationTitle(L("Settings"))
         .toolbar {
             if isSheet {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                    Button(L("Done")) {
                         settings.save()
                         dismiss()
                     }
@@ -147,21 +151,21 @@ struct SettingsView: View {
         if let openEditHome, let openFavorites {
             Section {
                 Button(action: openEditHome) {
-                    Label("Edit Home", systemImage: "square.and.pencil")
+                    Label(L("Edit Home"), systemImage: "square.and.pencil")
                 }
                 Button(action: openFavorites) {
-                    Label("Favorites", systemImage: "star.fill")
+                    Label(L("Favorites"), systemImage: "star.fill")
                 }
             } header: {
-                Text("Home screen")
+                Text(L("Home screen"))
             } footer: {
-                Text("Add, remove and reorder what Home shows on this iPad, and pick your favorite lights, shades, music rooms and scenes.")
+                Text(L("Add, remove and reorder what Home shows on this iPad, and pick your favorite lights, shades, music rooms and scenes."))
             }
         }
 
         Section {
             HStack(spacing: 10) {
-                TextField("Town or city", text: $placeQuery, prompt: Text("Town or city, for weather and sunset"))
+                TextField(L("Town or city"), text: $placeQuery, prompt: Text(L("Town or city, for weather and sunset")))
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .submitLabel(.search)
@@ -169,28 +173,28 @@ struct SettingsView: View {
                 if placeBusy {
                     ProgressView()
                 } else {
-                    Button("Save") { findPlace() }
+                    Button(L("Save")) { findPlace() }
                         .disabled(placeQuery.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
             if let location = settings.location {
-                LabeledContent("Location", value: location.place)
-                Button("Remove location", role: .destructive) {
+                LabeledContent(L("Location"), value: location.place)
+                Button(L("Remove location"), role: .destructive) {
                     settings.location = nil
                     settings.save()
                     placeMessage = nil
                 }
             } else if settings.usesSamplePlace {
-                Text("The demo house uses a sample place and sample weather.")
+                Text(L("The demo house uses a sample place and sample weather."))
                     .foregroundStyle(.secondary)
             }
             if let placeMessage {
                 Text(placeMessage).font(.footnote).foregroundStyle(.secondary)
             }
         } header: {
-            Text("Location")
+            Text(L("Location"))
         } footer: {
-            Text("Used for the weather on Home and for schedules at sunrise or sunset. Weather comes from Open-Meteo every 15 minutes.")
+            Text(L("Used for the weather on Home and for schedules at sunrise or sunset. Weather comes from Open-Meteo every 15 minutes."))
         }
 
         if !store.home.doorbells.isEmpty {
@@ -201,13 +205,13 @@ struct SettingsView: View {
                         dismiss()
                         store.testDoorbell(bell.id)
                     } label: {
-                        Label("Test \(bell.name) doorbell", systemImage: "bell.fill")
+                        Label(L("Test {name} doorbell", ["name": bell.name]), systemImage: "bell.fill")
                     }
                 }
             } header: {
-                Text("Doorbell")
+                Text(L("Doorbell"))
             } footer: {
-                Text("Shows the doorbell pop-up on this iPad, as if someone pressed the button.")
+                Text(L("Shows the doorbell pop-up on this iPad, as if someone pressed the button."))
             }
         }
     }
@@ -225,9 +229,9 @@ struct SettingsView: View {
                     settings.location = found
                     settings.save()
                     placeQuery = ""
-                    placeMessage = "Location set to \(found.place)."
+                    placeMessage = L("Location set to {place}.", ["place": found.place])
                 } else {
-                    placeMessage = "Couldn't find “\(query)”. Try the nearest town or city."
+                    placeMessage = L("Couldn't find “{query}”. Try the nearest town or city.", ["query": query])
                 }
             } catch {
                 placeMessage = error.localizedDescription
@@ -239,11 +243,11 @@ struct SettingsView: View {
     private var connectionStatus: some View {
         switch store.connection {
         case .idle:
-            Label("Not connected", systemImage: "circle.dashed").foregroundStyle(.secondary)
+            Label(L("Not connected"), systemImage: "circle.dashed").foregroundStyle(.secondary)
         case .connecting:
-            Label("Connecting…", systemImage: "arrow.triangle.2.circlepath").foregroundStyle(Theme.light)
+            Label(L("Connecting…"), systemImage: "arrow.triangle.2.circlepath").foregroundStyle(Theme.light)
         case .connected:
-            Label(store.mode == .demo ? "Demo house running" : "Connected", systemImage: "checkmark.circle.fill")
+            Label(store.mode == .demo ? L("Demo house running") : L("Connected"), systemImage: "checkmark.circle.fill")
                 .foregroundStyle(Theme.secure)
         case let .failed(message):
             Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Theme.alert)
@@ -275,18 +279,18 @@ struct JoinMapEditor: View {
         }
         .padding()
         .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Join Map")
+        .navigationTitle(L("Join map"))
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
-                    Button("Load Example", systemImage: "doc.text") { settings.joinMapJSON = JoinMap.example }
-                    Button("Paste", systemImage: "doc.on.clipboard") {
+                    Button(L("Load Example"), systemImage: "doc.text") { settings.joinMapJSON = JoinMap.example }
+                    Button(L("Paste"), systemImage: "doc.on.clipboard") {
                         if let text = UIPasteboard.general.string { settings.joinMapJSON = text }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
-                Button("Check") { validate() }
+                Button(L("Check")) { validate() }
             }
         }
         .onDisappear { settings.save() }
@@ -295,9 +299,11 @@ struct JoinMapEditor: View {
     private func validate() {
         do {
             let map = try JoinMap.parse(settings.joinMapJSON)
-            let count = map.lights.count + map.shades.count + map.scenes.count + map.media.count
-                + map.locks.count + map.security.count + map.gates.count + map.doorbells.count
-            result = "Looks good: \(map.rooms.count) rooms, \(count) controls."
+            var count = map.lights.count + map.shades.count + map.scenes.count + map.media.count
+            count += map.locks.count + map.security.count + map.gates.count + map.doorbells.count
+            count += map.climate.count + map.modes.count + map.switches.count
+            result = L("Looks good: {rooms}, {controls}.", ["rooms": Ln(map.rooms.count, "{n} room", "{n} rooms"),
+                                                           "controls": Ln(count, "{n} control", "{n} controls")])
             resultIsError = false
         } catch {
             result = error.localizedDescription
@@ -320,17 +326,17 @@ struct CameraEditor: View {
 
     var body: some View {
         Form {
-            Section("Camera") {
-                TextField("Name", text: $camera.name)
-                TextField("Snapshot URL", text: $camera.snapshotURL)
+            Section(L("Camera")) {
+                TextField(L("Name"), text: $camera.name)
+                TextField(L("Snapshot URL"), text: $camera.snapshotURL)
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             }
-            Section("Login (if the camera needs one)") {
-                TextField("Username", text: $camera.username)
+            Section(L("Login (if the camera needs one)")) {
+                TextField(L("Username"), text: $camera.username)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
-                SecureField("Password", text: $password)
+                SecureField(L("Password"), text: $password)
             }
-            Section("Preview") {
+            Section(L("Preview")) {
                 CameraSnapshotView(camera: camera, password: password)
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -340,9 +346,9 @@ struct CameraEditor: View {
         .navigationTitle(camera.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(L("Cancel")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
+                Button(L("Save")) {
                     camera.password = password
                     if let i = settings.cameras.firstIndex(where: { $0.id == camera.id }) {
                         settings.cameras[i] = camera

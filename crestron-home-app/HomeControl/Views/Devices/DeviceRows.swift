@@ -51,7 +51,7 @@ struct LightRow: View {
                 HStack {
                     Text(light.name).font(.subheadline.weight(.semibold))
                     Spacer()
-                    Text(light.isOn ? "On" : "Off").foregroundStyle(.secondary)
+                    Text(light.isOn ? L("On") : L("Off")).foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 16)
                 .frame(height: 54)
@@ -72,7 +72,7 @@ struct ShadeRow: View {
         VStack(spacing: 10) {
             if shade.supportsPosition {
                 LevelSlider(value: shade.position, tint: Theme.shade, icon: "blinds.horizontal.open", label: shade.name,
-                            valueText: { $0 < 0.01 ? "Closed" : $0 > 0.99 ? "Open" : $0.percentText }) { position in
+                            valueText: { $0 < 0.01 ? L("Closed") : $0 > 0.99 ? L("Open") : $0.percentText }) { position in
                     store.perform(.setShade(id: shade.id, position: position))
                 }
             } else {
@@ -83,11 +83,11 @@ struct ShadeRow: View {
                 .padding(.horizontal, 4)
             }
             HStack(spacing: 10) {
-                shadeButton("Open", icon: "arrow.up") { store.perform(.setShade(id: shade.id, position: 1)) }
+                shadeButton(L("Open shade"), icon: "arrow.up") { store.perform(.setShade(id: shade.id, position: 1)) }
                 if shade.supportsStop {
-                    shadeButton("Stop", icon: "stop.fill") { store.perform(.stopShade(id: shade.id)) }
+                    shadeButton(L("Stop"), icon: "stop.fill") { store.perform(.stopShade(id: shade.id)) }
                 }
-                shadeButton("Close", icon: "arrow.down") { store.perform(.setShade(id: shade.id, position: 0)) }
+                shadeButton(L("Close shade"), icon: "arrow.down") { store.perform(.setShade(id: shade.id, position: 0)) }
             }
         }
         .opacity(shade.isOnline ? 1 : 0.45)
@@ -119,11 +119,11 @@ struct LockRow: View {
                 .frame(width: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(lock.name).font(.headline)
-                Text(lock.isLocked.map { $0 ? "Locked" : "Unlocked" } ?? "Status unknown")
+                Text(lock.isLocked.map { $0 ? L("Locked") : L("Unlocked") } ?? L("Status unknown"))
                     .font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
-            Button(lock.isLocked == false ? "Lock" : "Unlock") {
+            Button(lock.isLocked == false ? L("Lock") : L("Unlock")) {
                 if lock.isLocked == false {
                     store.perform(.setLock(id: lock.id, locked: true))
                 } else {
@@ -134,8 +134,8 @@ struct LockRow: View {
             .tint(lock.isLocked == false ? Theme.secure : .white.opacity(0.2))
         }
         .card()
-        .confirmationDialog("Unlock \(lock.name)?", isPresented: $confirmUnlock, titleVisibility: .visible) {
-            Button("Unlock", role: .destructive) { store.perform(.setLock(id: lock.id, locked: false)) }
+        .confirmationDialog(L("Unlock {name}?", ["name": lock.name]), isPresented: $confirmUnlock, titleVisibility: .visible) {
+            Button(L("Unlock"), role: .destructive) { store.perform(.setLock(id: lock.id, locked: false)) }
         }
     }
 }

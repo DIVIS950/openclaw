@@ -113,7 +113,7 @@ struct HVRoot: View {
             nav.sidebarOpen = false
             nav.doorbell = HVNav.DoorbellAlert(id: bell.id, ringAt: ringAt)
             store.wakeScreen()
-            UIAccessibility.post(notification: .announcement, argument: "\(bell.name): someone is at the door")
+            UIAccessibility.post(notification: .announcement, argument: L("{name}: someone is at the door", ["name": bell.name]))
         }
     }
 
@@ -141,6 +141,7 @@ struct HVRoot: View {
                 case .home: EmptyView()
                 case let .room(id): HVRoomPage(roomId: id)
                 case .lights: HVLightsPage()
+                case .heating: HVHeatingPage()
                 case .shades: HVShadesPage()
                 case .media: HVMediaPage()
                 case .security: HVSecurityPage()
@@ -242,46 +243,51 @@ struct HVSidebar: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 14)
 
-                item(.home, "Home", "house.fill", .orange)
+                item(.home, L("Home"), "house.fill", .orange)
 
-                if !home.rooms.isEmpty {
-                    heading("Rooms")
-                    ForEach(home.rooms) { room in
-                        let on = home.lights(in: room.id).filter(\.isOn).count
-                        item(.room(room.id), room.name, Theme.roomSymbol(room.name), HV.roomColor(home, room.id), count: on > 0 ? "\(on) on" : nil)
-                    }
-                }
-
-                heading("Controls")
+                heading(L("Controls"))
                 if !home.lights.isEmpty {
-                    item(.lights, "Lights", "lightbulb.fill", HV.light, count: home.lightsOnCount > 0 ? "\(home.lightsOnCount) on" : "Off")
+                    item(.lights, L("Lights"), "lightbulb.fill", HV.light,
+                         count: home.lightsOnCount > 0 ? L("{n} on", ["n": String(home.lightsOnCount)]) : L("Off"))
+                }
+                if home.hasHeating {
+                    item(.heating, L("Heating"), "thermometer.medium", HV.heat, count: home.averageTemp.map { L10n.temp($0) })
                 }
                 if !home.shades.isEmpty {
                     let open = home.shades.filter { $0.position > 0.02 }.count
-                    item(.shades, "Shades", "blinds.horizontal.closed", HV.shade, count: open > 0 ? "\(open) open" : "Closed")
+                    item(.shades, L("Shades"), "blinds.horizontal.closed", HV.shade, count: open > 0 ? L("{n} open", ["n": String(open)]) : L("Closed"))
                 }
                 if !home.media.isEmpty {
                     let playing = home.media.filter(\.isOn).count
-                    item(.media, "Media", "music.note", HV.media, count: playing > 0 ? "\(playing) playing" : nil)
+                    item(.media, L("Media"), "music.note", HV.media, count: playing > 0 ? L("{n} playing", ["n": String(playing)]) : nil)
                 }
                 if !(home.security.isEmpty && home.locks.isEmpty && home.gates.isEmpty) {
-                    let unlocked = home.unlockedCount
-                    item(.security, "Security", "checkmark.shield.fill", .indigo,
-                         count: unlocked > 0 ? "\(unlocked) unlocked" : home.security.first?.mode.title, attention: unlocked > 0)
+                    item(.security, L("Security"), "checkmark.shield.fill", .indigo, count: securityCount(home), attention: home.unlockedCount > 0)
                 }
                 if !settings.cameras.isEmpty {
-                    item(.cameras, "Cameras", "video.fill", HV.camera, count: "\(settings.cameras.count)")
+                    item(.cameras, L("Cameras"), "video.fill", HV.camera, count: "\(settings.cameras.count)")
                 }
                 let active = automations.activeCount
-                item(.automations, "Automations", "calendar", .green, count: active > 0 ? "\(active)" : nil)
+                item(.automations, L("Automations"), "calendar", .green, count: active > 0 ? "\(active)" : nil)
+
+                // With floors (1.NP, 2.NP…), each floor gets its own heading; otherwise one "Rooms" list.
+                if home.hasFloors {
+                    ForEach(home.floors) { floor in
+                        heading(floor.name.isEmpty ? L("Other") : floor.name)
+                        ForEach(floor.rooms) { roomItem($0, home) }
+                    }
+                } else if !home.rooms.isEmpty {
+                    heading(L("Rooms"))
+                    ForEach(home.rooms) { roomItem($0, home) }
+                }
             }
             .padding(12)
         }
         .scrollIndicators(.hidden)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 2) {
-                footButton("Ask Home") { nav.askOpen = true; nav.sidebarOpen = false } icon: { HVOrb(size: 28) }
-                footButton("Settings") { nav.sheet = .settings; nav.sidebarOpen = false } icon: {
+                footButton(L("Ask Home")) { nav.askOpen = true; nav.sidebarOpen = false } icon: { HVOrb(size: 28) }
+                footButton(L("Settings")) { nav.sheet = .settings; nav.sidebarOpen = false } icon: {
                     Image(systemName: "gearshape.fill").font(.system(size: 15, weight: .semibold)).foregroundStyle(.gray)
                         .frame(width: 30, height: 30).background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.gray.opacity(0.16)))
                 }
@@ -294,11 +300,25 @@ struct HVSidebar: View {
 
     private var statusText: String {
         switch store.connection {
-        case .connected: store.mode == .demo ? "Demo house" : store.mode.title
-        case .connecting: "Connecting…"
-        case .idle: "Not connected"
-        case .failed: "Connection problem"
+        case .connected: store.mode.title
+        case .connecting: L("Connecting…")
+        case .idle: L("Not connected")
+        case .failed: L("Connection problem")
         }
+    }
+
+    private func roomItem(_ room: Room, _ home: HomeSnapshot) -> some View {
+        let on = home.lights(in: room.id).filter(\.isOn).count
+        return item(.room(room.id), room.name, Theme.roomSymbol(room.name), HV.roomColor(home, room.id),
+                    count: on > 0 ? L("{n} on", ["n": String(on)]) : nil)
+    }
+
+    /// "2 unlocked", "1/4" armed zones, or the alarm's state.
+    private func securityCount(_ home: HomeSnapshot) -> String? {
+        let unlocked = home.unlockedCount
+        if unlocked > 0 { return L("{n} unlocked", ["n": String(unlocked)]) }
+        if home.security.count > 1 { return "\(home.armedZoneCount)/\(home.security.count)" }
+        return home.security.first?.mode.label
     }
 
     private var statusColor: Color {

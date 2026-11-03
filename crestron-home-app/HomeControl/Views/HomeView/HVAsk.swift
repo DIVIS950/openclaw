@@ -106,7 +106,7 @@ final class HVAskModel {
         guard speak, !text.isEmpty else { return }
         voice.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: AVSpeechSynthesisVoice.currentLanguageCode())
+        utterance.voice = AVSpeechSynthesisVoice(language: L10n.language.voiceCode)
         voice.speak(utterance)
     }
 
@@ -140,29 +140,40 @@ final class HVAskModel {
         var out: [Suggestion] = []
         let unlocked = home.locks.filter { $0.isLocked == false }
         if let first = unlocked.first {
-            out.append(Suggestion(symbol: "lock.fill", text: unlocked.count > 1 ? "Lock all the doors" : "Lock the \(first.name.lowercased())"))
+            out.append(Suggestion(symbol: "lock.fill", text: unlocked.count > 1 ? L("Lock all the doors")
+                : L("Lock the {name}", ["name": L10n.isCzech ? first.name : first.name.lowercased()])))
         }
         if let room {
             if home.lights(in: room.id).contains(where: \.isOn) {
-                out.append(Suggestion(symbol: "lightbulb.slash", text: "Turn off the lights in here"))
+                out.append(Suggestion(symbol: "lightbulb.slash", text: L("Turn off the lights in here")))
             } else {
-                out.append(Suggestion(symbol: "lightbulb.fill", text: "Turn on the lights in here"))
+                out.append(Suggestion(symbol: "lightbulb.fill", text: L("Turn on the lights in here")))
+            }
+            if let climate = home.roomClimate(room.id) {
+                let warmer = (climate.target ?? climate.current ?? 20) + 1
+                out.append(Suggestion(symbol: "thermometer.medium", text: L("Set it here to {t}", ["t": L10n.temp(climate.clampTarget(warmer))])))
             }
         }
-        if let playing = home.media.first(where: \.isOn) {
-            out.append(Suggestion(symbol: "timer", text: "Turn off the \(playing.name.lowercased()) music in 30 minutes"))
-        } else if !home.media.isEmpty {
-            out.append(Suggestion(symbol: "music.note", text: "Play Spotify in the kitchen"))
+        if let sauna = home.sauna, !sauna.isOn {
+            out.append(Suggestion(symbol: HVHeatText.switchSymbol(sauna), text: L("Turn on the sauna")))
         }
-        let words: [String] = hour >= 20 || hour < 5 ? ["night"] : hour < 11 ? ["morning", "wake"] : ["welcome", "home"]
+        if let playing = home.media.first(where: \.isOn) {
+            out.append(Suggestion(symbol: "timer", text: L("Turn off the {name} music in 30 minutes",
+                                                            ["name": L10n.isCzech ? playing.name : playing.name.lowercased()])))
+        } else if !home.media.isEmpty {
+            out.append(Suggestion(symbol: "music.note", text: L("Play Spotify in the kitchen")))
+        }
+        // Scene names may be English or Czech.
+        let words: [String] = hour >= 20 || hour < 5 ? ["night", "noc"]
+            : hour < 11 ? ["morning", "wake", "ráno", "budíček"] : ["welcome", "home", "příjezd", "domů"]
         let scene = home.scenes.first { candidate in
             let name = candidate.name.lowercased()
             return words.contains { name.contains($0) }
         }
         if let scene { out.append(Suggestion(symbol: Theme.sceneSymbol(scene), text: scene.name)) }
-        if !home.shades.isEmpty { out.append(Suggestion(symbol: "calendar", text: "Close all shades at sunset every day")) }
-        if home.lightsOnCount > 2 { out.append(Suggestion(symbol: "lightbulb.slash", text: "Turn off all the lights")) }
-        out.append(Suggestion(symbol: "sparkles", text: "What's on right now?"))
+        if !home.shades.isEmpty { out.append(Suggestion(symbol: "calendar", text: L("Close all shades at sunset every day"))) }
+        if home.lightsOnCount > 2 { out.append(Suggestion(symbol: "lightbulb.slash", text: L("Turn off all the lights"))) }
+        out.append(Suggestion(symbol: "sparkles", text: L("What's on right now?")))
         return Array(out.prefix(6))
     }
 }
@@ -195,9 +206,9 @@ struct HVAskPanel: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if keyMissing {
-                            Text("To use Ask Home, add an Anthropic API key in Settings › AI assistant.")
+                            Text(L("To use Ask Home, add an Anthropic API key in Settings › AI assistant."))
                                 .font(.title3.weight(.medium))
-                            HVWideButton(title: "Open Settings", symbol: "gearshape.fill", primary: true) {
+                            HVWideButton(title: L("Open Settings"), symbol: "gearshape.fill", primary: true) {
                                 nav.askOpen = false
                                 nav.sheet = .settings
                             }
@@ -210,7 +221,7 @@ struct HVAskPanel: View {
                                 HVThinkingDots()
                                     .padding(.vertical, 6)
                                     .id("thinking")
-                                    .accessibilityLabel("Thinking")
+                                    .accessibilityLabel(L("Thinking"))
                             }
                         }
                     }
@@ -228,7 +239,7 @@ struct HVAskPanel: View {
             }
 
             HStack(spacing: 8) {
-                TextField("Ask anything about the house…", text: $text)
+                TextField(L("Ask anything about the house…"), text: $text)
                     .focused($focused)
                     .submitLabel(.send)
                     .onSubmit(send)
@@ -246,7 +257,7 @@ struct HVAskPanel: View {
                 .buttonStyle(HVPress())
                 .disabled(keyMissing || ask.busy || text.trimmingCharacters(in: .whitespaces).isEmpty)
                 .opacity(keyMissing || ask.busy ? 0.4 : 1)
-                .accessibilityLabel("Send")
+                .accessibilityLabel(L("Send"))
             }
             .padding([.horizontal, .bottom], 12)
         }
@@ -263,10 +274,10 @@ struct HVAskPanel: View {
         HStack(spacing: 12) {
             HVOrb(size: 38)
             VStack(alignment: .leading, spacing: 3) {
-                Text("Ask Home").font(.title3.weight(.bold))
+                Text(L("Ask Home")).font(.title3.weight(.bold))
                 HStack(spacing: 6) {
                     if let room = viewingRoom {
-                        Label("In \(room.name)", systemImage: "house.fill")
+                        Label(L("In {room}", ["room": room.name]), systemImage: "house.fill")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.blue)
                             .lineLimit(1)
@@ -274,7 +285,7 @@ struct HVAskPanel: View {
                             .padding(.vertical, 3)
                             .background(Capsule().fill(Color.blue.opacity(0.16)))
                     }
-                    Text("Type, or tap the mic on the keyboard")
+                    Text(L("Type, or tap the mic on the keyboard"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -290,7 +301,7 @@ struct HVAskPanel: View {
                     .background(Circle().fill(ask.speak ? Color.blue : Color.primary.opacity(0.1)))
             }
             .buttonStyle(HVPress())
-            .accessibilityLabel("Read answers out loud")
+            .accessibilityLabel(L("Read answers out loud"))
             .accessibilityAddTraits(ask.speak ? .isSelected : [])
             Button {
                 ask.cancel()
@@ -300,7 +311,7 @@ struct HVAskPanel: View {
                     .frame(width: 36, height: 36).background(Circle().fill(Color.primary.opacity(0.1)))
             }
             .buttonStyle(HVPress())
-            .accessibilityLabel("Close Ask Home")
+            .accessibilityLabel(L("Close Ask Home"))
         }
         .padding([.horizontal, .top], 18)
     }
@@ -308,8 +319,8 @@ struct HVAskPanel: View {
     /// Before the first question: a greeting, what Ask Home can do, and ideas that fit the house now.
     private var hello: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("\(HVHomePager.greeting(Date())). What can I do for you?").font(.title3.weight(.medium))
-            Text("I can control anything in the house, set timers (\"in 30 minutes\") and schedules (\"every night at 11\"), and answer questions.")
+            Text(L("{greeting}. What can I do for you?", ["greeting": HVHomePager.greeting(Date())])).font(.title3.weight(.medium))
+            Text(L("I can control anything in the house, set timers (\"in 30 minutes\") and schedules (\"every night at 11\"), and answer questions."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], spacing: 8) {
@@ -376,10 +387,10 @@ struct HVAskPanel: View {
                 Text(entry.text).font(.body.weight(.semibold))
                 Spacer()
                 if entry.done {
-                    Label("Done", systemImage: "checkmark").font(.body.weight(.semibold)).foregroundStyle(.green)
+                    Label(L("Done"), systemImage: "checkmark").font(.body.weight(.semibold)).foregroundStyle(.green)
                 } else {
                     Button { ask.confirm(entry.id, store: store) } label: {
-                        Text("Confirm")
+                        Text(L("Confirm"))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 18)
@@ -408,10 +419,10 @@ struct HVAskPanel: View {
             if !entry.undo.isEmpty {
                 Button {
                     if ask.undo(entry.id, store: store) {
-                        nav.notify("Put back as it was", symbol: "arrow.uturn.backward", color: .blue)
+                        nav.notify(L("Put back as it was"), symbol: "arrow.uturn.backward", color: .blue)
                     }
                 } label: {
-                    Label(entry.undone ? "Undone" : "Undo", systemImage: "arrow.uturn.backward")
+                    Label(entry.undone ? L("Undone") : L("Undo"), systemImage: "arrow.uturn.backward")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.black)
                         .padding(.horizontal, 14)
@@ -422,7 +433,7 @@ struct HVAskPanel: View {
                 .disabled(entry.undone)
                 .opacity(entry.undone ? 0.5 : 1)
                 .padding(.top, 3)
-                .accessibilityHint("Puts the lights, shades and music back as they were")
+                .accessibilityHint(L("Puts the lights, shades and music back as they were"))
             }
         }
         .padding(.horizontal, 14)

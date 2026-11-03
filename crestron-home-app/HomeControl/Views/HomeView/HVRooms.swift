@@ -13,6 +13,8 @@ struct HVRoomStats {
     let shades: [Shade]
     let media: [MediaZone]
     let locks: [DoorLock]
+    /// The room's thermostat, if it has one.
+    let climate: Climate?
 
     init(_ home: HomeSnapshot, _ roomId: String) {
         let lights = home.lights(in: roomId)
@@ -23,6 +25,7 @@ struct HVRoomStats {
         shades = home.shades(in: roomId)
         media = home.media(in: roomId)
         locks = home.locks(in: roomId)
+        climate = home.roomClimate(roomId)
     }
 
     var openShades: Int { shades.filter { $0.position > 0.02 }.count }
@@ -32,21 +35,24 @@ struct HVRoomStats {
     /// "1 of 3 lights on · Playing Blue in Green", or "Nothing on".
     var status: String {
         var parts: [String] = []
-        if !lights.isEmpty { parts.append(on.isEmpty ? "Lights off" : "\(on.count) of \(lights.count) lights on") }
-        if let playing { parts.append("Playing \(Self.playingText(playing))") }
-        return parts.isEmpty ? "Nothing on" : parts.joined(separator: " · ")
+        if !lights.isEmpty {
+            parts.append(on.isEmpty ? L("Lights off") : L("{on} of {all} lights on", ["on": String(on.count), "all": String(lights.count)]))
+        }
+        if let playing { parts.append(L("Playing {name}", ["name": Self.playingText(playing)])) }
+        return parts.isEmpty ? L("Nothing on") : parts.joined(separator: " · ")
     }
 
     /// The song when the system sends it, else the source.
     static func playingText(_ zone: MediaZone) -> String {
         if let title = zone.nowPlaying?.title, !title.isEmpty { return title }
-        return zone.currentSource?.name ?? "On"
+        return zone.currentSource?.name ?? L("On")
     }
 }
 
 // MARK: - Rooms page
 
-/// The Rooms page of Home: quick buttons for the whole house, then a card per room.
+/// The Rooms page of Home: quick buttons for the whole house, then a card per room,
+/// under floor headings (1.NP, 2.NP…) when the rooms have floors.
 @MainActor
 struct HVRoomsBody: View {
     @Environment(HomeStore.self) private var store
@@ -59,27 +65,37 @@ struct HVRoomsBody: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     if !home.lights.isEmpty {
-                        HVQuickButton(title: "All lights off", symbol: "lightbulb.slash") {
+                        HVQuickButton(title: L("Turn all lights off"), symbol: "lightbulb.slash") {
                             for light in store.home.lights { store.perform(.setLight(id: light.id, level: 0)) }
-                            nav.notify("All lights off", symbol: "lightbulb.slash", color: HV.light)
+                            nav.notify(L("All lights off"), symbol: "lightbulb.slash", color: HV.light)
                         }
                     }
                     if !home.shades.isEmpty {
-                        HVQuickButton(title: "Close all shades", symbol: "arrow.down") {
+                        HVQuickButton(title: L("Close all shades"), symbol: "arrow.down") {
                             for shade in store.home.shades { store.perform(.setShade(id: shade.id, position: 0)) }
-                            nav.notify("Closing all shades", symbol: "blinds.horizontal.closed", color: HV.shade)
+                            nav.notify(L("Closing all shades"), symbol: "blinds.horizontal.closed", color: HV.shade)
                         }
                     }
                     if home.media.contains(where: \.isOn) {
-                        HVQuickButton(title: "All music off", symbol: "power") { HVAct.allMediaOff(store, nav) }
+                        HVQuickButton(title: L("All music off"), symbol: "power") { HVAct.allMediaOff(store, nav) }
                     }
                 }
                 .padding(.vertical, 4)
             }
             .scrollIndicators(.hidden)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 270), spacing: 16)], spacing: 16) {
-                ForEach(home.rooms) { room in
-                    HVRoomCard(room: room, aspect: compact ? 16 / 10 : 4 / 3)
+            ForEach(home.floors) { floor in
+                VStack(alignment: .leading, spacing: 12) {
+                    if !floor.name.isEmpty {
+                        Text(floor.name)
+                            .font(.title3.weight(.bold))
+                            .accessibilityAddTraits(.isHeader)
+                            .padding(.top, 4)
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 270), spacing: 16)], spacing: 16) {
+                        ForEach(floor.rooms) { room in
+                            HVRoomCard(room: room, aspect: compact ? 16 / 10 : 4 / 3)
+                        }
+                    }
                 }
             }
         }
@@ -108,7 +124,7 @@ struct HVRoomCard: View {
             }
             .buttonStyle(HVPress())
             .accessibilityLabel("\(room.name): \(stats.status)")
-            .accessibilityHint("Opens the room")
+            .accessibilityHint(L("Opens the room"))
 
             if !stats.lights.isEmpty {
                 quickLights(stats)
@@ -148,16 +164,19 @@ struct HVRoomCard: View {
 
     private func badges(_ stats: HVRoomStats) -> some View {
         HVFlow(spacing: 6) {
+            if let climate = stats.climate {
+                badge(HVHeatText.climateSymbol(climate), L10n.temp(climate.current))
+            }
             if !stats.shades.isEmpty {
                 badge(stats.openShades > 0 ? "blinds.horizontal.open" : "blinds.horizontal.closed",
-                      stats.openShades > 0 ? "\(stats.openShades) open" : "Closed")
+                      stats.openShades > 0 ? L("{n} open", ["n": String(stats.openShades)]) : L("Closed"))
             }
             if let playing = stats.playing {
-                badge("music.note", playing.currentSource?.name ?? "On")
+                badge("music.note", playing.currentSource?.name ?? L("On"))
             }
             if !stats.locks.isEmpty {
                 let unlocked = stats.unlocked > 0
-                badge(unlocked ? "lock.open.fill" : "lock.fill", unlocked ? "Unlocked" : "Locked", attention: unlocked)
+                badge(unlocked ? "lock.open.fill" : "lock.fill", unlocked ? L("Unlocked") : L("Locked"), attention: unlocked)
             }
         }
     }
@@ -175,7 +194,7 @@ struct HVRoomCard: View {
         let on = !stats.on.isEmpty
         return Button {
             for light in stats.lights { store.perform(.setLight(id: light.id, level: on ? 0 : 1)) }
-            nav.notify("\(room.name) lights \(on ? "off" : "on")", symbol: on ? "lightbulb.slash" : "lightbulb.fill", color: HV.light)
+            nav.notify(on ? L("{room}: lights turned off", ["room": room.name]) : L("{room}: lights turned on", ["room": room.name]), symbol: on ? "lightbulb.slash" : "lightbulb.fill", color: HV.light)
         } label: {
             Image(systemName: on ? "lightbulb.fill" : "lightbulb.slash")
                 .font(.system(size: 19, weight: .semibold))
@@ -186,7 +205,7 @@ struct HVRoomCard: View {
                 .contentShape(Circle())
         }
         .buttonStyle(HVPress())
-        .accessibilityLabel("\(room.name): lights \(on ? "off" : "on")")
+        .accessibilityLabel(on ? L("{room}: lights off", ["room": room.name]) : L("{room}: lights on", ["room": room.name]))
     }
 }
 
@@ -270,20 +289,25 @@ struct HVRoomHero: View {
         let stats = HVRoomStats(store.home, roomId)
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
         VStack(alignment: .leading, spacing: 18) {
-            if !stats.lights.isEmpty || !stats.shades.isEmpty || !stats.media.isEmpty || !stats.locks.isEmpty {
+            if stats.climate != nil || !stats.lights.isEmpty || !stats.shades.isEmpty || !stats.media.isEmpty || !stats.locks.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+                    if let climate = stats.climate {
+                        stat(HVHeatText.climateSymbol(climate), HV.heat, L("Temperature"), L10n.temp(climate.current))
+                    }
                     if !stats.lights.isEmpty {
-                        stat("lightbulb.fill", HV.light, "Lights", stats.on.isEmpty ? "Off" : "\(stats.on.count) on · \(stats.average.percentText)")
+                        let lightsText = stats.on.isEmpty ? L("Off")
+                            : L("{n} on · {level}", ["n": String(stats.on.count), "level": stats.average.percentText])
+                        stat("lightbulb.fill", HV.light, L("Lights"), lightsText)
                     }
                     if !stats.shades.isEmpty {
-                        stat("blinds.horizontal.closed", HV.shade, "Shades", stats.openShades > 0 ? "\(stats.openShades) open" : "Closed")
+                        stat("blinds.horizontal.closed", HV.shade, L("Shades"), stats.openShades > 0 ? L("{n} open", ["n": String(stats.openShades)]) : L("Closed"))
                     }
                     if !stats.media.isEmpty {
-                        stat("music.note", HV.media, "Music", stats.playing.map(HVRoomStats.playingText) ?? "Off")
+                        stat("music.note", HV.media, L("Music"), stats.playing.map(HVRoomStats.playingText) ?? L("Off"))
                     }
                     if !stats.locks.isEmpty {
                         let unlocked = stats.unlocked > 0
-                        stat(unlocked ? "lock.open.fill" : "lock.fill", unlocked ? .orange : .green, "Door", unlocked ? "Unlocked" : "Locked")
+                        stat(unlocked ? "lock.open.fill" : "lock.fill", unlocked ? .orange : .green, L("Door"), unlocked ? L("Unlocked") : L("Locked"))
                     }
                 }
             }
@@ -314,21 +338,21 @@ struct HVRoomHero: View {
     private func quickButtons(_ stats: HVRoomStats) -> some View {
         let anyOn = !stats.on.isEmpty
         if !stats.lights.isEmpty {
-            capsule(anyOn ? "Lights off" : "Lights on", anyOn ? "lightbulb.slash" : "lightbulb.fill") {
+            capsule(anyOn ? L("Turn lights off") : L("Turn lights on"), anyOn ? "lightbulb.slash" : "lightbulb.fill") {
                 for light in stats.lights { store.perform(.setLight(id: light.id, level: anyOn ? 0 : 1)) }
             }
         }
         if !stats.shades.isEmpty {
-            capsule("Open shades", "arrow.up") { for shade in stats.shades { store.perform(.setShade(id: shade.id, position: 1)) } }
-            capsule("Close shades", "arrow.down") { for shade in stats.shades { store.perform(.setShade(id: shade.id, position: 0)) } }
+            capsule(L("Open shades"), "arrow.up") { for shade in stats.shades { store.perform(.setShade(id: shade.id, position: 1)) } }
+            capsule(L("Close shades"), "arrow.down") { for shade in stats.shades { store.perform(.setShade(id: shade.id, position: 0)) } }
         }
         let hasPhoto = photos.image(for: roomId) != nil
         PhotosPicker(selection: $photoItem, matching: .images) {
-            capsuleLabel(hasPhoto ? "Change photo" : "Room photo", "photo")
+            capsuleLabel(hasPhoto ? L("Change photo") : L("Room photo"), "photo")
         }
         .buttonStyle(HVPress())
         if hasPhoto {
-            capsule("Remove photo", "xmark") { photos.removeImage(for: roomId) }
+            capsule(L("Remove photo"), "xmark") { photos.removeImage(for: roomId) }
         }
     }
 

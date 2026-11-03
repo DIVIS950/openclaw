@@ -37,7 +37,7 @@ final class CrestronHomeBackend: HomeBackend {
 
     func connect() async throws {
         guard !host.isEmpty, !token.isEmpty else {
-            throw BackendError.notConfigured("Enter the processor address and Web API token in Settings.")
+            throw BackendError.notConfigured(L("Enter the processor address and Web API token in Settings."))
         }
         try await login()
     }
@@ -181,7 +181,7 @@ final class CrestronHomeBackend: HomeBackend {
         case let .setShade(id, position):
             try await post("/shades/SetState", body: ["shades": [["id": Self.jsonId(id), "position": Self.raw(position)]]])
         case .stopShade:
-            throw BackendError.notSupported("Stopping shades")
+            throw BackendError.notSupported(L("Stopping shades"))
         case let .recallScene(id):
             try await post("/scenes/recall/\(id)")
         case let .mediaPower(id, on):
@@ -194,7 +194,7 @@ final class CrestronHomeBackend: HomeBackend {
         case let .mediaSource(id, sourceId):
             try await post("/mediarooms/\(id)/selectsource/\(sourceId)")
         case .mediaTransport:
-            throw BackendError.notSupported("Play, pause and skip")
+            throw BackendError.notSupported(L("Play, pause and skip"))
         case let .setLock(id, locked):
             try await post("/doorlocks/\(locked ? "lock" : "unlock")/\(id)")
         case let .setSecurity(id, mode, code):
@@ -203,13 +203,16 @@ final class CrestronHomeBackend: HomeBackend {
             case .armedAway: verb = "armaway"
             case .armedHome: verb = "armhome"
             case .disarmed: verb = "disarm"
-            case .alarm, .unknown: throw BackendError.notSupported("That security mode")
+            case .alarm, .unknown: throw BackendError.notSupported(L("That security mode"))
             }
             try await post("/securitydevices/\(verb)/\(id)", body: ["code": code ?? ""])
         case let .gate(id, action):
             // Crestron Home gates are momentary I/O scenes: recalling one pulses the relay.
-            guard action != .stop else { throw BackendError.notSupported("Stopping the gate") }
+            guard action != .stop else { throw BackendError.notSupported(L("Stopping the gate")) }
             try await post("/scenes/recall/\(id)")
+        case .setClimate, .setMode, .setSwitch:
+            // Thermostats aren't read from Crestron Home yet, so there is nothing to set.
+            throw BackendError.notSupported(L("Heating"))
         }
     }
 
@@ -221,12 +224,12 @@ final class CrestronHomeBackend: HomeBackend {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, status) = try await send(request)
         guard status == 200 else {
-            throw BackendError.http(status, "Login failed. Check the Web API token (it changes after some firmware updates).")
+            throw BackendError.http(status, L("Login failed. Check the Web API token (it changes after some firmware updates)."))
         }
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         // The docs say `AuthKey`, real processors send `authkey`.
         guard let key = (json["authkey"] ?? json["AuthKey"]) as? String, !key.isEmpty else {
-            throw BackendError.badResponse("Login returned no auth key. Is the Web API enabled in Crestron Home?")
+            throw BackendError.badResponse(L("Login returned no auth key. Is the Web API enabled in Crestron Home?"))
         }
         authKey = key
     }
@@ -283,13 +286,13 @@ final class CrestronHomeBackend: HomeBackend {
             let (data, response) = try await session.data(for: request)
             return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
         } catch {
-            throw BackendError.connection("Can't reach the processor at \(host): \(error.localizedDescription)")
+            throw BackendError.connection(L("Can't reach the processor at {host}: {error}", ["host": host, "error": error.localizedDescription]))
         }
     }
 
     private func url(_ path: String) throws -> URL {
         guard let url = URL(string: "https://\(host)/cws/api\(path)") else {
-            throw BackendError.notConfigured("“\(host)” isn't a valid processor address.")
+            throw BackendError.notConfigured(L("“{host}” isn't a valid processor address.", ["host": host]))
         }
         return url
     }

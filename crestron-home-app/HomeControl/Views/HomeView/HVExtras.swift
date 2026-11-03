@@ -16,7 +16,7 @@ struct HVWeatherWidget: View {
         VStack(alignment: .leading, spacing: 14) {
             if let location = settings.effectiveLocation {
                 if let w = weather.weather {
-                    HVWidgetTop(symbol: w.symbol, color: w.isDay ? .orange : .indigo, name: location.place, state: w.text)
+                    HVWidgetTop(symbol: w.symbol, color: w.isDay ? .orange : .indigo, name: location.place, state: L(w.text))
                         // Room for the drawing at the top right.
                         .padding(.trailing, 92)
                     HStack(alignment: .center, spacing: 14) {
@@ -25,8 +25,8 @@ struct HVWeatherWidget: View {
                             .monospacedDigit()
                             .tracking(-1.5)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("H \(w.high)°")
-                            Text("L \(w.low)°")
+                            Text(L("H {t}°", ["t": "\(w.high)"]))
+                            Text(L("L {t}°", ["t": "\(w.low)"]))
                         }
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -35,24 +35,24 @@ struct HVWeatherWidget: View {
                     Spacer(minLength: 0)
                     if let sun = Sun.times(on: Date(), lat: location.lat, lon: location.lon) {
                         HStack(spacing: 14) {
-                            Label(sun.sunrise.formatted(date: .omitted, time: .shortened), systemImage: "sunrise.fill")
-                                .accessibilityLabel("Sunrise \(sun.sunrise.formatted(date: .omitted, time: .shortened))")
-                            Label(sun.sunset.formatted(date: .omitted, time: .shortened), systemImage: "sunset.fill")
-                                .accessibilityLabel("Sunset \(sun.sunset.formatted(date: .omitted, time: .shortened))")
+                            Label(L10n.time(sun.sunrise), systemImage: "sunrise.fill")
+                                .accessibilityLabel(L("Sunrise {time}", ["time": L10n.time(sun.sunrise)]))
+                            Label(L10n.time(sun.sunset), systemImage: "sunset.fill")
+                                .accessibilityLabel(L("Sunset {time}", ["time": L10n.time(sun.sunset)]))
                         }
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
                     }
                 } else {
-                    HVWidgetTop(symbol: "cloud.sun.fill", color: .blue, name: location.place, state: "Weather is loading…")
+                    HVWidgetTop(symbol: "cloud.sun.fill", color: .blue, name: location.place, state: L("Weather is loading…"))
                 }
             } else {
-                HVWidgetTop(symbol: "cloud.sun.fill", color: .blue, name: "Weather", state: "Add your town")
-                Text("Weather, sunrise and sunset, and schedules that follow the sun.")
+                HVWidgetTop(symbol: "cloud.sun.fill", color: .blue, name: L("Weather"), state: L("Add your town"))
+                Text(L("Weather, sunrise and sunset, and schedules that follow the sun."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                HVWideButton(title: "Set location", symbol: "gearshape.fill", tint: .blue, primary: true) { nav.sheet = .settings }
+                HVWideButton(title: L("Set location"), symbol: "gearshape.fill", tint: .blue, primary: true) { nav.sheet = .settings }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -110,13 +110,13 @@ struct HVFavoritesPart: View {
         let home = store.home
         let items = HVFavorite.items(layout.favorites, home: home)
         if items.isEmpty {
-            HVSection(title: "Favorites") {
-                HVEmptyRow(symbol: "star", title: "Add your favorites",
-                           text: "Tap the star on any light, shade, music room or lock, or choose them here.",
-                           buttonTitle: "Choose") { nav.sheet = .favorites }
+            HVSection(title: L("Favorites")) {
+                HVEmptyRow(symbol: "star", title: L("Add your favorites"),
+                           text: L("Tap the star on any light, shade, music room or lock, or choose them here."),
+                           buttonTitle: L("Choose")) { nav.sheet = .favorites }
             }
         } else {
-            HVSection(title: "Favorites", actionTitle: "Edit", action: { nav.sheet = .favorites }) {
+            HVSection(title: L("Favorites"), actionTitle: L("Edit"), action: { nav.sheet = .favorites }) {
                 LazyVGrid(columns: HV.tileColumns, spacing: 12) {
                     ForEach(items) { item in
                         switch item {
@@ -230,7 +230,7 @@ struct HVFavoritesSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HVSheetHeader(symbol: "star.fill", color: HV.light, title: "Favorites", subtitle: "Tap to add or remove")
+                HVSheetHeader(symbol: "star.fill", color: HV.light, title: L("Favorites"), subtitle: L("Tap to add or remove"))
                 ForEach(groups) { group in
                     HVListLabel(text: group.title)
                     HVListBox {
@@ -257,9 +257,9 @@ struct HVFavoritesSheet: View {
                     }
                 }
                 if groups.isEmpty {
-                    Text("No devices yet.").font(.body).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text(L("No devices yet.")).font(.body).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
-                HVWideButton(title: "Done", symbol: "checkmark", tint: .blue, primary: true) { nav.sheet = nil }
+                HVWideButton(title: L("Done"), symbol: "checkmark", tint: .blue, primary: true) { nav.sheet = nil }
             }
             .hvCard()
         }
@@ -287,7 +287,7 @@ struct HVFavoritesSheet: View {
         // Whole-house scenes and devices without a known room first, then each room.
         var result: [RowGroup] = []
         let house = rows(nil)
-        if !house.isEmpty { result.append(RowGroup(title: "Whole house", rows: house)) }
+        if !house.isEmpty { result.append(RowGroup(title: L("Whole house"), rows: house)) }
         for room in home.rooms {
             let list = rows(room.id)
             if !list.isEmpty { result.append(RowGroup(title: room.name, rows: list)) }
@@ -307,11 +307,11 @@ struct HVEditHomeSheet: View {
         let parts = layout.parts
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HVSheetHeader(symbol: "square.and.pencil", color: .blue, title: "Edit Home", subtitle: "Choose what this iPad shows on Home")
-                HVListLabel(text: "On Home")
+                HVSheetHeader(symbol: "square.and.pencil", color: .blue, title: L("Edit Home"), subtitle: L("Choose what this iPad shows on Home"))
+                HVListLabel(text: L("On Home"))
                 HVListBox {
                     if parts.isEmpty {
-                        Text("Nothing yet. Add something below.")
+                        Text(L("Nothing yet. Add something below."))
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, minHeight: 50)
@@ -325,12 +325,12 @@ struct HVEditHomeSheet: View {
                                     .foregroundStyle(.white, .red)
                             }
                             .buttonStyle(HVPress())
-                            .accessibilityLabel("Remove \(part.name)")
+                            .accessibilityLabel(L("Remove {name}", ["name": part.name]))
                             HVRowIcon(symbol: part.symbol, color: .blue)
                             partText(part)
                             Spacer(minLength: 8)
-                            moveButton("chevron.up", label: "Move \(part.name) up", disabled: index == 0) { layout.move(part, by: -1) }
-                            moveButton("chevron.down", label: "Move \(part.name) down", disabled: index == parts.count - 1) { layout.move(part, by: 1) }
+                            moveButton("chevron.up", label: L("Move {name} up", ["name": part.name]), disabled: index == 0) { layout.move(part, by: -1) }
+                            moveButton("chevron.down", label: L("Move {name} down", ["name": part.name]), disabled: index == parts.count - 1) { layout.move(part, by: 1) }
                         }
                         .padding(.horizontal, 14)
                         .frame(minHeight: 60)
@@ -339,7 +339,7 @@ struct HVEditHomeSheet: View {
                 }
                 let hidden = layout.hidden
                 if !hidden.isEmpty {
-                    HVListLabel(text: "More to add")
+                    HVListLabel(text: L("More to add"))
                     HVListBox {
                         ForEach(hidden) { part in
                             HStack(spacing: 10) {
@@ -350,7 +350,7 @@ struct HVEditHomeSheet: View {
                                         .foregroundStyle(.white, .green)
                                 }
                                 .buttonStyle(HVPress())
-                                .accessibilityLabel("Add \(part.name)")
+                                .accessibilityLabel(L("Add {name}", ["name": part.name]))
                                 HVRowIcon(symbol: part.symbol, color: .gray)
                                 partText(part)
                                 Spacer(minLength: 8)
@@ -366,8 +366,8 @@ struct HVEditHomeSheet: View {
                         HStack(spacing: 10) {
                             HVRowIcon(symbol: "star.fill", color: HV.light)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("Choose favorites").font(.body)
-                                Text(layout.favorites.isEmpty ? "None yet" : "\(layout.favorites.count) chosen")
+                                Text(L("Choose favorites")).font(.body)
+                                Text(layout.favorites.isEmpty ? L("None yet") : L("{n} chosen", ["n": String(layout.favorites.count)]))
                                     .font(.footnote).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 8)
@@ -380,8 +380,8 @@ struct HVEditHomeSheet: View {
                     .buttonStyle(.plain)
                 }
                 HStack(spacing: 10) {
-                    HVWideButton(title: "Reset to standard", symbol: "arrow.counterclockwise") { withAnimation { layout.reset() } }
-                    HVWideButton(title: "Done", symbol: "checkmark", tint: .blue, primary: true) { nav.sheet = nil }
+                    HVWideButton(title: L("Reset to standard"), symbol: "arrow.counterclockwise") { withAnimation { layout.reset() } }
+                    HVWideButton(title: L("Done"), symbol: "checkmark", tint: .blue, primary: true) { nav.sheet = nil }
                 }
             }
             .hvCard()
@@ -443,7 +443,7 @@ struct HVCameraWall: View {
                                 .padding(12)
                             }
                             .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(camera.name) camera")
+                            .accessibilityLabel(L("{name} camera", ["name": camera.name]))
                     }
                 }
             }
@@ -453,7 +453,7 @@ struct HVCameraWall: View {
         .background(Color.black.ignoresSafeArea())
         .overlay(alignment: .top) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(context.date.formatted(date: .omitted, time: .standard))
+                Text(L10n.timeWithSeconds(context.date))
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.white)
@@ -473,7 +473,7 @@ struct HVCameraWall: View {
             }
             .buttonStyle(HVPress())
             .padding(22)
-            .accessibilityLabel("Close camera wall")
+            .accessibilityLabel(L("Close camera wall"))
         }
         .environment(\.colorScheme, .dark)
         .statusBarHidden()
@@ -506,8 +506,8 @@ struct HVDoorbellCard: View {
                         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.pink))
                         .symbolEffect(.bounce, options: .repeat(3), value: alert.ringAt)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(bell?.name ?? "Doorbell").font(.title2.weight(.bold))
-                        Text("Someone is at the door · \(alert.ringAt.formatted(date: .omitted, time: .shortened))")
+                        Text(bell?.name ?? L("Doorbell")).font(.title2.weight(.bold))
+                        Text(L("Someone is at the door · {time}", ["time": L10n.time(alert.ringAt)]))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -521,7 +521,7 @@ struct HVDoorbellCard: View {
                             Color.black
                             VStack(spacing: 8) {
                                 Image(systemName: "video.slash").font(.title)
-                                Text("No camera linked to this doorbell").font(.footnote)
+                                Text(L("No camera linked to this doorbell")).font(.footnote)
                             }
                             .foregroundStyle(.white.opacity(0.6))
                         }
@@ -532,15 +532,15 @@ struct HVDoorbellCard: View {
                 HStack(spacing: 28) {
                     if let lock, lock.isLocked != false {
                         VStack(spacing: 8) {
-                            HVHoldButton(symbol: "lock.fill", tint: .green, label: "Unlock \(lock.name)") {
+                            HVHoldButton(symbol: "lock.fill", tint: .green, label: L("Unlock {name}", ["name": lock.name])) {
                                 store.perform(.setLock(id: lock.id, locked: false))
-                                nav.notify("\(lock.name) unlocked", symbol: "lock.open.fill", color: .orange)
+                                nav.notify(L("{name} unlocked", ["name": lock.name]), symbol: "lock.open.fill", color: .orange)
                                 nav.doorbell = nil
                             }
-                            Text("Hold to unlock \(lock.name)").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                            Text(L("Hold to unlock {name}", ["name": lock.name])).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                         }
                     }
-                    HVWideButton(title: "Dismiss", symbol: "xmark") { nav.doorbell = nil }
+                    HVWideButton(title: L("Dismiss"), symbol: "xmark") { nav.doorbell = nil }
                         .frame(maxWidth: 200)
                 }
                 .frame(maxWidth: .infinity)

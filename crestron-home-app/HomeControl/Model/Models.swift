@@ -6,6 +6,8 @@ import Foundation
 struct Room: Identifiable, Hashable {
     let id: String
     var name: String
+    /// Floor name like "1.NP", used to group rooms. nil when the system has no floors.
+    var floor: String? = nil
 }
 
 struct Light: Identifiable, Hashable {
@@ -96,6 +98,11 @@ enum SecurityMode: String, Hashable {
         case .unknown: "Unknown"
         }
     }
+
+    /// `title` in the app's language. `title` itself stays English for Ask Home's model.
+    var label: String { L(title) }
+
+    var isArmed: Bool { self == .armedAway || self == .armedHome }
 }
 
 struct SecurityPanel: Identifiable, Hashable {
@@ -118,6 +125,9 @@ enum GateState: Hashable {
         case .unknown: "Ready"
         }
     }
+
+    /// `title` in the app's language.
+    var label: String { L(title) }
 }
 
 struct Gate: Identifiable, Hashable {
@@ -159,6 +169,9 @@ struct HomeSnapshot: Hashable {
     var gates: [Gate] = []
     var sensors: [HomeSensor] = []
     var doorbells: [Doorbell] = []
+    var climate: [Climate] = []
+    var modes: [HomeMode] = []
+    var switches: [HomeSwitch] = []
 }
 
 enum GateAction: String {
@@ -182,6 +195,12 @@ enum HomeCommand {
     case setLock(id: String, locked: Bool)
     case setSecurity(id: String, mode: SecurityMode, code: String?)
     case gate(id: String, action: GateAction)
+    /// A thermostat's target temperature in °C.
+    case setClimate(id: String, target: Double)
+    /// One of a mode's option ids (the house heating mode).
+    case setMode(id: String, value: String)
+    /// Sauna, motion-sensor lights, pumps…
+    case setSwitch(id: String, on: Bool)
 
     /// Key of the control this command changes. The store re-applies recent commands on
     /// top of polled state for a few seconds so a slow processor doesn't make sliders jump
@@ -197,6 +216,9 @@ enum HomeCommand {
         case let .mediaTransport(id, action): action == .play || action == .pause ? "playing:\(id)" : nil
         case let .setLock(id, _): "lock:\(id)"
         case let .setSecurity(id, _, _): "security:\(id)"
+        case let .setClimate(id, _): "climate:\(id)"
+        case let .setMode(id, _): "mode:\(id)"
+        case let .setSwitch(id, _): "switch:\(id)"
         case .stopShade, .recallScene, .gate: nil
         }
     }
@@ -238,6 +260,14 @@ extension HomeSnapshot {
             if let i = gates.firstIndex(where: { $0.id == id }) {
                 gates[i].state = action == .stop ? .unknown : .moving
             }
+        case let .setClimate(id, target):
+            if let i = climate.firstIndex(where: { $0.id == id }) { climate[i].target = climate[i].clampTarget(target) }
+        case let .setMode(id, value):
+            if let i = modes.firstIndex(where: { $0.id == id }), modes[i].options.contains(where: { $0.id == value }) {
+                modes[i].value = value
+            }
+        case let .setSwitch(id, on):
+            if let i = switches.firstIndex(where: { $0.id == id }) { switches[i].isOn = on }
         }
     }
 

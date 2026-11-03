@@ -100,7 +100,7 @@ final class CIPClient {
 
     private func openConnection() {
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-            state = .failed("Invalid port \(port)")
+            state = .failed(L("Invalid port {port}", ["port": String(port)]))
             return
         }
         buffer.removeAll()
@@ -122,9 +122,9 @@ final class CIPClient {
             // The processor now sends 0x0F asking us to register our IP ID.
             state = .registering
         case let .failed(error):
-            connectionLost("Can't connect to \(host): \(error.localizedDescription)")
+            connectionLost(L("Can't connect to {host}: {error}", ["host": host, "error": error.localizedDescription]))
         case let .waiting(error):
-            connectionLost("Waiting for \(host): \(error.localizedDescription)")
+            connectionLost(L("Waiting for {host}: {error}", ["host": host, "error": error.localizedDescription]))
         default:
             break
         }
@@ -153,8 +153,8 @@ final class CIPClient {
                     self.drainPackets()
                 }
                 if isComplete || error != nil {
-                    self.connectionLost(error.map { "Connection closed: \($0.localizedDescription)" }
-                        ?? "The processor closed the connection")
+                    self.connectionLost(error.map { L("Connection closed: {error}", ["error": $0.localizedDescription]) }
+                        ?? L("The processor closed the connection"))
                     return
                 }
                 self.receive(on: conn)
@@ -203,7 +203,8 @@ final class CIPClient {
                 heartbeatTask?.cancel()
                 connection?.cancel()
                 connection = nil
-                state = .failed(String(format: "IP ID %02X isn't defined in the processor program. Ask your installer to add an XPanel on this IP ID.", Int(ipId)))
+                state = .failed(L("IP ID {id} isn't defined in the processor program. Ask your installer to add an XPanel on this IP ID.",
+                                  ["id": String(format: "%02X", Int(ipId))]))
             } else {
                 // Registered: ask for the current value of every join.
                 send([0x05, 0x00, 0x05, 0x00, 0x00, 0x02, 0x03, 0x00])
@@ -236,7 +237,7 @@ final class CIPClient {
             let join = ((Int(p[5]) << 8) | Int(p[6])) + 1
             onSerial?(join, String(decoding: p.dropFirst(8), as: UTF8.self))
         case 0x03:
-            connectionLost("The processor ended the session")
+            connectionLost(L("The processor ended the session"))
         default:
             // 0x0D / 0x0E are heartbeats; anything else we don't need.
             break

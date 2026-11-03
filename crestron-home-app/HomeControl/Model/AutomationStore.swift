@@ -29,7 +29,7 @@ final class AutomationStore {
     func seedDemoIfNew(mode: ConnectionMode) {
         guard mode == .demo, UserDefaults.standard.data(forKey: Self.key) == nil else { return }
         automations.schedules = [
-            HomeSchedule(name: "Lights off at bedtime", minutes: 23 * 60, actions: [.lights(roomId: nil, level: 0)]),
+            HomeSchedule(name: L("Lights off at bedtime"), minutes: 23 * 60, actions: [.lights(roomId: nil, level: 0)]),
         ]
         save()
     }
