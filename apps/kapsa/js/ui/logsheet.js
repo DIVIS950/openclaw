@@ -101,7 +101,7 @@ export function LogSheet({ cardId }) {
     <form class="form" novalidate onSubmit=${submit}>
       <button
         type="button"
-        class="btn violet block"
+        class="btn block"
         disabled=${busy}
         onClick=${async () => {
           if (!(await hasApiKey())) {
@@ -174,7 +174,7 @@ export function LogSheet({ cardId }) {
       </label>
 
       <div class="form-foot">
-        <button type="submit" class="btn xl orange block"><${Icon} name="check" />${t("lg.save")}</button>
+        <button type="submit" class="btn xl primary block"><${Icon} name="check" />${t("lg.save")}</button>
       </div>
     </form>
   <//>`;

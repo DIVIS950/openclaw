@@ -35,7 +35,7 @@ function applyTheme() {
 /** Match the phone's status/address bar to the app background. */
 function syncThemeColor() {
   const color = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color || "#f2f2f5");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color || "#f5f6f8");
 }
 
 let updateRequested = false;

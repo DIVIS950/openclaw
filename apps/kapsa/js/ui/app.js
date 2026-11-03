@@ -25,10 +25,10 @@ import { go } from "../nav.js";
 import { useEffect, useReducer, useRef, useState } from "../../vendor/preact.js";
 
 const TAB_DEFS = [
-  { name: "wallet", hash: "", icon: "wallet-cards", label: "tab.wallet", c: "#2F5BFF", o: "#FFFFFF" },
-  { name: "coupons", hash: "#coupons", icon: "ticket-percent", label: "tab.coupons", c: "#FF4F9A", o: "#111114" },
-  { name: "stats", hash: "#stats", icon: "chart-column", label: "tab.stats", c: "#FF8A1F", o: "#111114" },
-  { name: "ai", hash: "#ai", icon: "sparkles", label: "tab.ai", c: "#7A5CFF", o: "#FFFFFF" },
+  { name: "wallet", hash: "", icon: "wallet-cards", label: "tab.wallet" },
+  { name: "coupons", hash: "#coupons", icon: "ticket-percent", label: "tab.coupons" },
+  { name: "stats", hash: "#stats", icon: "chart-column", label: "tab.stats" },
+  { name: "ai", hash: "#ai", icon: "sparkles", label: "tab.ai" },
 ];
 
 function applyLang() {
@@ -130,7 +130,6 @@ function Tab({ d, on }) {
   return html`<button
     type="button"
     class=${`tab${on ? " is-on" : ""}`}
-    style=${{ "--tc": d.c, "--to": d.o }}
     aria-current=${on ? "page" : undefined}
     onClick=${() => {
       buzz(8);

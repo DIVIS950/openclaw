@@ -129,11 +129,11 @@ export function Scanner({ kind, onCode, onAi, onManual, onClose }) {
       ${message ? html`<span class="box">${message}</span>` : null}
     </div>
     <div class="scan-bottom">
-      <button type="button" class="btn paper" onClick=${() => photo.current?.click()}><${Icon} name="image" />${t("scan.photo")}</button>
-      <button type="button" class="btn violet" onClick=${startAi}><${Icon} name="sparkles" />${t("scan.ai")}</button>
+      <button type="button" class="btn" onClick=${() => photo.current?.click()}><${Icon} name="image" />${t("scan.photo")}</button>
+      <button type="button" class="btn" onClick=${startAi}><${Icon} name="sparkles" />${t("scan.ai")}</button>
       <button
         type="button"
-        class="btn lime"
+        class="btn primary"
         onClick=${() => {
           done.current = true;
           scanner.current?.stop();

@@ -1,7 +1,7 @@
 // Service worker: the whole app works offline; map tiles are cached as you browse.
 // Also: daily reminder checks (Chrome on Android, installed app) and notification taps.
 
-const VERSION = "kapsa-v2.0.0";
+const VERSION = "kapsa-v2.1.0";
 const TILE_CACHE = "kapsa-tiles-v1";
 const MAX_TILES = 600;
 

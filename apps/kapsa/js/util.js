@@ -5,6 +5,10 @@ import { getLang, locale } from "./i18n.js";
 /** Light vibration where supported (Android). */
 export function buzz(pattern = 15) {
   try {
+    // Browsers refuse (and log a warning) before the first tap on the page.
+    if (/** @type {any} */ (navigator).userActivation?.hasBeenActive === false) {
+      return;
+    }
     navigator.vibrate?.(pattern);
   } catch {
     // Nice-to-have only.

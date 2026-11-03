@@ -7,10 +7,9 @@ import { byShop, monthOf, monthSummary, niceMax, trend } from "../stats.js";
 import { deletePurchase, getCard, state } from "../state.js";
 import { money, moneyShort, monthName } from "../util.js";
 import { receiptToLog } from "./logsheet.js";
-import { Icon, Section, heroVars, html, tint, toast } from "./kit.js";
+import { Icon, Section, html, tint, toast } from "./kit.js";
 import { useRef, useState } from "../../vendor/preact.js";
 
-const ORANGE = "#FF8A1F";
 
 export function StatsTab() {
   const [delta, setDelta] = useState(0);
@@ -46,10 +45,10 @@ export function StatsTab() {
   };
 
   return html`<div>
-    <header class="hero" style=${heroVars(ORANGE)}>
+    <header class="hero">
       <div class="hero-inner">
         <div class="topbar">
-          <span class="eyebrow"><${Icon} name="chart-column" />${t("st.title")}</span>
+          <h1 class="display sm">${t("st.title")}</h1>
         </div>
         <div class="hero-stack">
           <div class="month-nav">
@@ -60,17 +59,17 @@ export function StatsTab() {
             </button>
           </div>
           <span class="label" style="color:inherit">${t("st.spent")}</span>
-          <div class="display" style="font-stretch:110%;text-transform:none">${money(sum.spent, cur)}</div>
+          <div class="bignum">${money(sum.spent, cur)}</div>
           <div class="kpis">
             <div class="kpi"><span class="kpi-l">${t("st.saved")}</span><span class="kpi-v">${money(sum.saved, cur)}</span></div>
             <div class="kpi"><span class="kpi-l">${t("st.visits")}</span><span class="kpi-v">${sum.visits}</span></div>
             <div class="kpi"><span class="kpi-l">${t("st.couponsUsed")}</span><span class="kpi-v">${sum.couponsUsed}</span></div>
           </div>
           <div class="btn-row">
-            <button type="button" class="btn ink" onClick=${() => go("#log")}><${Icon} name="plus" />${t("st.log")}</button>
+            <button type="button" class="btn primary" onClick=${() => go("#log")}><${Icon} name="plus" />${t("st.log")}</button>
             <button
               type="button"
-              class="btn violet"
+              class="btn"
               disabled=${busy}
               onClick=${async () => {
                 if (!(await hasApiKey())) {

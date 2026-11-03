@@ -28,7 +28,7 @@ import {
 import { buildIcs, buzz, copyText, formatDate, formatNumber, money, offerFile } from "../util.js";
 import { CouponTile } from "./coupons.js";
 import { newCouponFor } from "./couponform.js";
-import { BigCode, ConfirmButton, Icon, Page, Section, Seg, Ticket, html, tint, toast, useWakeLock } from "./kit.js";
+import { BigCode, ConfirmButton, Icon, Page, Section, Seg, Ticket, html, toast, useWakeLock } from "./kit.js";
 import { useEffect, useState } from "../../vendor/preact.js";
 
 export function CardPage({ id, row }) {
@@ -68,13 +68,12 @@ export function CardPage({ id, row }) {
   };
 
   return html`<${Page}
-    color=${card.color}
     title=${card.name}
     actions=${html`<button type="button" class="hbtn" aria-label=${t("card.edit")} onClick=${() => go(`#edit-${card.id}`)}><${Icon} name="pencil" /></button>`}
     hero=${html`<div class="hero-stack">
       <div class="row" style="flex-wrap:wrap;gap:8px">
         <span class="chip"><${Icon} name=${categoryIcon(card.category)} />${t(`cat.${card.category}`)}</span>
-        ${row?.here ? html`<span class="chip here"><span class="pulse"></span>${t("w.here")}</span>` : null}
+        ${row?.here ? html`<span class="chip accent"><span class="pulse"></span>${t("w.here")}</span>` : null}
         ${row && !row.here && row.distance !== null ? html`<span class="chip">${formatDistance(row.distance, locale())}</span>` : null}
       </div>
       <h1 class="display">${card.name}</h1>
@@ -94,7 +93,7 @@ export function CardPage({ id, row }) {
       ? html`<${Section}
           title=${t("card.coupons")}
           count=${coupons.length}
-          action=${html`<button type="button" class="btn sm pink" aria-label=${t("card.addCoupon")} onClick=${() => newCouponFor(card.id)}><${Icon} name="plus" /></button>`}
+          action=${html`<button type="button" class="btn sm" aria-label=${t("card.addCoupon")} onClick=${() => newCouponFor(card.id)}><${Icon} name="plus" /></button>`}
         >
           <div class="coupon-strip">${coupons.map((c, i) => html`<${CouponTile} key=${c.id} coupon=${c} i=${i} />`)}</div>
         <//>`
@@ -159,7 +158,7 @@ function Stamps({ card }) {
     toast(t("stamps.redeemed"));
   };
   return html`<${Section} title=${t("stamps.title")} count=${`${s.count}/${s.goal}`}>
-    <div class="panel stack" style=${tint(card.color)}>
+    <div class="panel stack">
       <div class="stamps" aria-label=${`${s.count}/${s.goal}`}>
         ${Array.from({ length: s.goal }, (_, i) => {
           const on = i < s.count;
@@ -176,9 +175,9 @@ function Stamps({ card }) {
       <strong style="font-size:18px">${ready ? t("stamps.ready") : t("stamps.left", { n: s.goal - s.count })}</strong>
       ${s.reward ? html`<span class="row hint" style="gap:8px;font-weight:800"><${Icon} name="gift" />${s.reward}</span>` : null}
       ${ready
-        ? html`<button type="button" class="btn xl yellow block" onClick=${redeem}><${Icon} name="party-popper" />${t("stamps.redeem")}</button>`
+        ? html`<button type="button" class="btn xl primary block" onClick=${redeem}><${Icon} name="party-popper" />${t("stamps.redeem")}</button>`
         : html`<div class="btn-row">
-            <button type="button" class="btn xl lime" style="flex:3 1 200px" onClick=${add}><${Icon} name="stamp" />${t("stamps.add")}</button>
+            <button type="button" class="btn xl primary" style="flex:3 1 200px" onClick=${add}><${Icon} name="stamp" />${t("stamps.add")}</button>
             ${s.count > 0
               ? html`<button type="button" class="btn" style="flex:1 1 90px" onClick=${() => removeStamp(card.id)}><${Icon} name="undo-2" />${t("stamps.undo")}</button>`
               : null}
@@ -196,7 +195,7 @@ function StampSetup({ card }) {
   if (!open) {
     return html`<${Section}>
       <button type="button" class="mini" onClick=${() => setOpen(true)}>
-        <span class="mini-swatch" style=${tint("#C8F542")}><${Icon} name="stamp" /></span>
+        <span class="mini-swatch"><${Icon} name="stamp" /></span>
         <span style="min-width:0"><span class="mini-name">${t("stamps.setup")}</span><span class="mini-label" style="text-transform:none;letter-spacing:0">${t("stamps.setupHint")}</span></span>
         <${Icon} name="plus" />
       </button>
@@ -210,7 +209,7 @@ function StampSetup({ card }) {
       <input id="stamp-reward" class="input" value=${reward} placeholder=${t("stamps.rewardPlaceholder")} onInput=${(e) => setReward(e.currentTarget.value)} />
       <button
         type="button"
-        class="btn lime block"
+        class="btn primary block"
         onClick=${() => saveCard({ ...card, stamps: { goal, count: 0, reward: reward.trim(), redeemed: 0 } })}
       >
         <${Icon} name="check" />${t("common.save")}
@@ -239,7 +238,7 @@ function Points({ card }) {
       ${editing
         ? html`<form class="code-row" onSubmit=${save}>
             <input id="points-edit" class="input big" inputmode="numeric" value=${value} onInput=${(e) => setValue(e.currentTarget.value)} aria-label=${t("points.title")} />
-            <button type="submit" class="btn lime"><${Icon} name="check" /></button>
+            <button type="submit" class="btn primary"><${Icon} name="check" /></button>
           </form>`
         : html`<div class="row">
             <span class="bignum">${has ? formatNumber(card.points) : "—"}</span>
@@ -256,7 +255,7 @@ function Points({ card }) {
             </button>
           </div>`}
       ${goal
-        ? html`<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax=${goal} aria-valuenow=${card.points ?? 0} style=${tint(card.color)}>
+        ? html`<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax=${goal} aria-valuenow=${card.points ?? 0}>
               <i style=${{ width: `${pct}%` }}></i>
             </div>
             <strong>${(card.points ?? 0) >= goal ? t("points.reached") : t("points.toGoal", { n: formatNumber(goal - (card.points ?? 0)) })}</strong>`
@@ -274,7 +273,7 @@ function Spending({ card }) {
         <span class="hint">${t("card.visits", { n: m.visits })}</span>
       </div>
       <span class="spacer"></span>
-      <button type="button" class="btn orange" onClick=${() => go(`#log-${card.id}`)}><${Icon} name="receipt" />${t("card.logSpend")}</button>
+      <button type="button" class="btn" onClick=${() => go(`#log-${card.id}`)}><${Icon} name="receipt" />${t("card.logSpend")}</button>
     </div>
   <//>`;
 }
@@ -333,7 +332,7 @@ function Places({ card }) {
         ${!card.places.length && !learned.length ? html`<p class="hint">${t("card.noPlaces")}</p>` : null}
       </div>
       <div class="btn-row">
-        <button type="button" class="btn sm green" onClick=${addHere}><${Icon} name="locate-fixed" />${t("card.addHere")}</button>
+        <button type="button" class="btn sm primary" onClick=${addHere}><${Icon} name="locate-fixed" />${t("card.addHere")}</button>
         <button type="button" class="btn sm" onClick=${() => go(`#find-${card.id}`)}><${Icon} name="search" />${t("card.addSearch")}</button>
         <button type="button" class="btn sm" onClick=${() => go(`#pick-${card.id}`)}><${Icon} name="map" />${t("card.addMap")}</button>
       </div>

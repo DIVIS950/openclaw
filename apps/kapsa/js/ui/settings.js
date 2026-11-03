@@ -13,7 +13,7 @@ import { formatDistance } from "../geo.js";
 import { locale } from "../i18n.js";
 import { useEffect, useRef, useState } from "../../vendor/preact.js";
 
-export const APP_VERSION = "2.0.0";
+export const APP_VERSION = "2.1.0";
 
 /** @type {any} */
 let installPrompt = null;
@@ -57,7 +57,7 @@ export function SettingsPage() {
     toast(t("set.imported", { n: data.cards.length + data.coupons.length + data.purchases.length }));
   };
 
-  return html`<${Page} color="#111114" title=${t("set.title")} hero=${html`<h1 class="display sm">${t("set.title")}</h1>`}>
+  return html`<${Page} title=${t("set.title")} hero=${html`<h1 class="display sm">${t("set.title")}</h1>`}>
     <${Section} title=${t("set.install")}>
       <${InstallBlock} />
     <//>
@@ -67,7 +67,7 @@ export function SettingsPage() {
     <${Section} title=${t("set.reminders")}>
       <div class="stack">
         <button type="button" class="mini" onClick=${() => go("#reminders")}>
-          <span class="mini-swatch" style=${{ "--c": "#FF4F9A", "--on": "#111114" }}><${Icon} name="bell" /></span>
+          <span class="mini-swatch"><${Icon} name="bell" /></span>
           <span style="min-width:0"><span class="mini-name">${t("rm.title")}</span><span class="mini-label" style="text-transform:none;letter-spacing:0">${t("rm.notifyBody")}</span></span>
           <${Icon} name="chevron-right" />
         </button>
@@ -101,7 +101,7 @@ export function SettingsPage() {
         <span class="label">${t("set.theme")}</span>
         <${Seg}
           value=${s.theme}
-          options=${[["system", t("set.themeSystem")], ["light", t("set.themeLight")], ["dark", t("set.themeDark")]]}
+          options=${[["light", t("set.themeLight")], ["dark", t("set.themeDark")], ["system", t("set.themeSystem")]]}
           onChange=${(v) => updateSettings({ theme: v })}
         />
         <span class="label">${t("set.currency")}</span>
@@ -170,7 +170,7 @@ function InstallBlock() {
     ${installPrompt
       ? html`<button
           type="button"
-          class="btn lime"
+          class="btn primary"
           onClick=${async () => {
             installPrompt.prompt();
             await installPrompt.userChoice.catch(() => null);
@@ -247,7 +247,7 @@ function AiSettings() {
             value=${value}
             onInput=${(e) => setValue(e.currentTarget.value)}
           />
-          <button type="submit" class="btn violet">${t("ai.saveKey")}</button>
+          <button type="submit" class="btn primary">${t("ai.saveKey")}</button>
         </form>`}
     ${status.text
       ? html`<p class="hint" role="status" style=${{ fontWeight: 800, color: status.tone === "ok" ? "var(--green)" : status.tone === "bad" ? "var(--red)" : undefined }}>

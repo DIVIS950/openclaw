@@ -71,7 +71,7 @@ export function MapPage({ pickId, tick }) {
       name.textContent = card.name;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "btn sm lime";
+      btn.className = "btn sm primary";
       btn.textContent = t("map.open");
       btn.addEventListener("click", () => go(`#card-${card.id}`));
       pop.append(name, btn);
@@ -186,7 +186,7 @@ export function MapPage({ pickId, tick }) {
       ? html`<div class="pick-pin" aria-hidden="true"><${Icon} name="map-pin" /></div>
           <div class="map-foot">
             <p>${t("map.pickTitle")}</p>
-            <button type="button" class="btn xl lime block" onClick=${savePick}><${Icon} name="check" />${t("map.pickSave")}</button>
+            <button type="button" class="btn xl primary block" onClick=${savePick}><${Icon} name="check" />${t("map.pickSave")}</button>
           </div>`
       : null}
   </div>`;

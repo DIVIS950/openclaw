@@ -52,7 +52,7 @@ export function EditCardPage({ id }) {
   if (!card) {
     return null;
   }
-  return html`<${Page} color=${card.color} title=${t("form.titleEdit")} hero=${html`<h1 class="display sm">${t("form.titleEdit")}</h1>`}>
+  return html`<${Page} title=${t("form.titleEdit")} hero=${html`<h1 class="display sm">${t("form.titleEdit")}</h1>`}>
     <div style="padding:20px var(--gx-r) 0 var(--gx)"><${CardForm} mode="edit" prefill=${card} /></div>
   <//>`;
 }
@@ -202,7 +202,7 @@ function CardForm({ mode, prefill, onRescan }) {
               ${shops.map(
                 (s) => html`<button
                   type="button"
-                  class="chip here"
+                  class="chip accent"
                   onClick=${() => {
                     const n = s.brand || s.name;
                     setName(n);
@@ -362,7 +362,7 @@ function CardForm({ mode, prefill, onRescan }) {
     </details>
 
     <div class="form-foot">
-      <button type="submit" class="btn xl lime block"><${Icon} name="check" />${mode === "add" ? t("form.save") : t("form.saveChanges")}</button>
+      <button type="submit" class="btn xl primary block"><${Icon} name="check" />${mode === "add" ? t("form.save") : t("form.saveChanges")}</button>
     </div>
   </form>`;
 }

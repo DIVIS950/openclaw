@@ -10,7 +10,6 @@ import { go, replace } from "../nav.js";
 import { scanImageFile } from "../scanner.js";
 import { getCoupon, saveCoupon, state } from "../state.js";
 import { buzz } from "../util.js";
-import { couponColor } from "./coupons.js";
 import { Icon, Page, Sheet, html, tint, toast } from "./kit.js";
 import { Scanner } from "./scanner.js";
 import { useRef, useState } from "../../vendor/preact.js";
@@ -39,7 +38,7 @@ export function EditCouponPage({ id }) {
   if (!coupon) {
     return null;
   }
-  return html`<${Page} color=${couponColor(coupon)} title=${t("cf.titleEdit")} hero=${html`<h1 class="display sm">${t("cf.titleEdit")}</h1>`}>
+  return html`<${Page} title=${t("cf.titleEdit")} hero=${html`<h1 class="display sm">${t("cf.titleEdit")}</h1>`}>
     <div style="padding:20px var(--gx-r) 0 var(--gx)"><${CouponForm} mode="edit" prefill=${coupon} /></div>
   <//>`;
 }
@@ -161,7 +160,7 @@ function CouponForm({ mode, prefill }) {
   return html`<form class="form" novalidate onSubmit=${submit}>
     ${mode === "add"
       ? html`<div class="btn-row">
-          <button type="button" class="btn violet" onClick=${startAi} disabled=${aiBusy}>
+          <button type="button" class="btn" onClick=${startAi} disabled=${aiBusy}>
             ${aiBusy ? html`<span class="orb"></span>` : html`<${Icon} name="sparkles" />`}${aiBusy ? t("ai.reading") : t("cf.aiPhoto")}
           </button>
           <button type="button" class="btn" onClick=${() => setScanning(true)}><${Icon} name="scan-barcode" />${t("cf.scanCode")}</button>
@@ -229,7 +228,7 @@ function CouponForm({ mode, prefill }) {
     </label>
 
     <div class="form-foot">
-      <button type="submit" class="btn xl pink block"><${Icon} name="check" />${t("cf.save")}</button>
+      <button type="submit" class="btn xl primary block"><${Icon} name="check" />${t("cf.save")}</button>
     </div>
   </form>`;
 }

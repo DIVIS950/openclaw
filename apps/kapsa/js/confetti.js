@@ -1,6 +1,6 @@
 // A short confetti burst on a full-screen canvas, for rewards and new cards.
 
-const COLORS = ["#2F5BFF", "#FF4F9A", "#FF8A1F", "#C6F432", "#7A5CFF", "#FFD23F", "#12C77A"];
+const COLORS = ["#2563EB", "#5B8CFF", "#A9C1FF", "#FFC44D"];
 
 /**
  * @param {{ x?: number, y?: number, count?: number }} [opts] origin in viewport fractions

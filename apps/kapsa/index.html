@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Kapsa</title>
     <meta name="description" content="Věrnostní karty, kupóny a útraty. Karta vyskočí sama, když přijdeš do obchodu." />
-    <meta name="theme-color" content="#f2f2f5" />
+    <meta name="theme-color" content="#f5f6f8" />
     <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Kapsa" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icons/logo.svg" type="image/svg+xml" />
@@ -22,7 +22,7 @@
     <script>
       // Apply a saved light/dark choice before first paint to avoid a flash.
       try {
-        const theme = localStorage.getItem("kapsa-theme");
+        const theme = localStorage.getItem("kapsa-theme") || "light";
         if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
       } catch {}
     </script>

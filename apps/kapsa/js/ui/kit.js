@@ -20,11 +20,6 @@ export function tint(color) {
   return { "--c": color, "--on": inkFor(color) };
 }
 
-/** Hero colour variables (the full-bleed block at the top of each screen). */
-export function heroVars(color) {
-  return { "--hero": color, "--hero-ink": inkFor(color) };
-}
-
 // ---------- Toasts ----------
 
 let toastState = null;
@@ -112,12 +107,12 @@ export function Sheet({ title, tall, black, children, onClose, actions }) {
 }
 
 /**
- * Full-screen page pushed over the tabs, opening with a colour block.
- * @param {{ color?: string, title?: string, actions?: any, hero?: any, children?: any, cls?: string }} props
+ * Full-screen page pushed over the tabs, with a back button and a title block.
+ * @param {{ title?: string, actions?: any, hero?: any, children?: any, cls?: string }} props
  */
-export function Page({ color = "#2F5BFF", title, actions, hero, children, cls = "" }) {
+export function Page({ title, actions, hero, children, cls = "" }) {
   return html`<div class=${`page ${cls}`} role="dialog" aria-modal="true" aria-label=${title}>
-    <header class="hero" style=${heroVars(color)}>
+    <header class="hero">
       <div class="hero-inner">
         <div class="topbar">
           <button type="button" class="hbtn" aria-label=${t("common.back")} onClick=${() => back()}>

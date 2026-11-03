@@ -5,11 +5,10 @@ import { runTool, turnContext } from "../assistant-tools.js";
 import { t } from "../i18n.js";
 import { go } from "../nav.js";
 import { getCard, getCoupon, state } from "../state.js";
-import { Icon, heroVars, html, tint, toast } from "./kit.js";
+import { Icon, html, tint, toast } from "./kit.js";
 import { couponColor } from "./coupons.js";
 import { useEffect, useRef, useState } from "../../vendor/preact.js";
 
-const VIOLET = "#7A5CFF";
 
 /** Kept for the whole app session, so switching tabs doesn't lose the chat. */
 const transcript = [];
@@ -81,7 +80,7 @@ export function AssistantTab({ active }) {
   };
 
   return html`<div>
-    <header class="hero" style=${heroVars(VIOLET)}>
+    <header class="hero">
       <div class="hero-inner">
         <div class="topbar">
           <span class="eyebrow"><span class="orb"></span>Claude</span>
@@ -110,13 +109,13 @@ export function AssistantTab({ active }) {
 
     <div class="wrap chat" aria-live="polite">
       ${hasKey === false
-        ? html`<button type="button" class="btn xl violet block" onClick=${() => go("#settings")}><${Icon} name="settings" />${t("ai.setup")}</button>`
+        ? html`<button type="button" class="btn xl primary block" onClick=${() => go("#settings")}><${Icon} name="settings" />${t("ai.setup")}</button>`
         : !transcript.length
           ? html`<div class="stack">
               <strong style="font-size:18px">${t("ai.introTitle")}</strong>
               ${["ai.q1", "ai.q2", "ai.q3", "ai.q4"].map(
                 (k, i) => html`<button type="button" class="mini" style=${{ animation: `pop .35s ${i * 50}ms both` }} onClick=${() => ask(t(k))}>
-                  <span class="mini-swatch" style=${tint(["#C8F542", "#FF4F9A", "#FF8A1F", "#FFD23F"][i])}><${Icon} name=${["store", "ticket-percent", "chart-column", "receipt"][i]} /></span>
+                  <span class="mini-swatch"><${Icon} name=${["store", "ticket-percent", "chart-column", "receipt"][i]} /></span>
                   <span class="mini-name" style="white-space:normal">${t(k)}</span>
                   <${Icon} name="chevron-right" />
                 </button>`,

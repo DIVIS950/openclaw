@@ -41,7 +41,7 @@ export function RemindersPage({ reminders }) {
       toast(t("rm.notifyDone"));
     }
   };
-  return html`<${Page} color="#FF4F9A" title=${t("rm.title")} hero=${html`<h1 class="display sm">${t("rm.title")}</h1>`}>
+  return html`<${Page} title=${t("rm.title")} hero=${html`<h1 class="display sm">${t("rm.title")}</h1>`}>
     <section class="sec">
       ${reminders.length
         ? html`<div class="list">
@@ -49,7 +49,7 @@ export function RemindersPage({ reminders }) {
               const k = KIND[r.kind];
               const txt = reminderText(r);
               return html`<button type="button" class="li" key=${r.id} onClick=${() => go(reminderRoute(r))}>
-                <span class="li-icon" style=${r.color ? tint(r.color) : { "--c": "#FF4F9A", "--on": "#111114" }}><${Icon} name=${k.icon} /></span>
+                <span class="li-icon" style=${r.color ? tint(r.color) : undefined}><${Icon} name=${k.icon} /></span>
                 <span class="li-text"><span class="li-title">${txt.title}</span><span class="li-sub">${txt.body}</span></span>
                 <${Icon} name="chevron-right" />
                 <span></span>
@@ -68,7 +68,7 @@ export function RemindersPage({ reminders }) {
             ? html`<p class="hint" style="font-weight:800">${t("rm.notifyDenied")}</p>`
             : perm === "unsupported" || iosNeedsInstall
               ? html`<p class="hint" style="font-weight:800">${iosNeedsInstall ? t("rm.notifyIos") : t("rm.notifyUnsupported")}</p>`
-              : html`<button type="button" class="btn pink" onClick=${turnOn}><${Icon} name="bell" />${t("rm.notifyOn")}</button>`}
+              : html`<button type="button" class="btn primary" onClick=${turnOn}><${Icon} name="bell" />${t("rm.notifyOn")}</button>`}
         <p class="hint" style="font-size:13px">${t("rm.calendarHint")}</p>
       </div>
     </section>
@@ -77,14 +77,14 @@ export function RemindersPage({ reminders }) {
 
 export function AddSheet() {
   const items = [
-    { route: "#scan", icon: "credit-card", title: t("add.card"), sub: t("add.cardHint"), color: "#2F5BFF" },
-    { route: "#newc", icon: "ticket-percent", title: t("add.coupon"), sub: t("add.couponHint"), color: "#FF4F9A" },
-    { route: "#log", icon: "receipt", title: t("add.spend"), sub: t("add.spendHint"), color: "#FF8A1F" },
+    { route: "#scan", icon: "credit-card", title: t("add.card"), sub: t("add.cardHint") },
+    { route: "#newc", icon: "ticket-percent", title: t("add.coupon"), sub: t("add.couponHint") },
+    { route: "#log", icon: "receipt", title: t("add.spend"), sub: t("add.spendHint") },
   ];
   return html`<${Sheet} title=${t("add.title")}>
     <div class="choices">
       ${items.map(
-        (it, i) => html`<button type="button" class="choice" style=${{ ...tint(it.color), "--i": i }} onClick=${() => replace(it.route)}>
+        (it, i) => html`<button type="button" class="choice" style=${{ "--i": i }} onClick=${() => replace(it.route)}>
           <span class="choice-icon"><${Icon} name=${it.icon} /></span>
           <span><span class="choice-title">${it.title}</span><span class="choice-sub">${it.sub}</span></span>
           <${Icon} name="chevron-right" />
@@ -117,11 +117,11 @@ export function FindPage({ id }) {
       setError(t("search.error"));
     }
   };
-  return html`<${Page} color=${card.color} title=${t("search.title")} hero=${html`<h1 class="display sm">${t("search.title")}</h1>`}>
+  return html`<${Page} title=${t("search.title")} hero=${html`<h1 class="display sm">${t("search.title")}</h1>`}>
     <section class="sec">
       <form class="code-row" onSubmit=${run} style="grid-template-columns:1fr auto">
         <input id="find-query" class="input" type="search" placeholder=${t("search.placeholder")} aria-label=${t("search.title")} value=${q} onInput=${(e) => setQ(e.currentTarget.value)} />
-        <button type="submit" class="btn ink"><${Icon} name="search" />${t("search.go")}</button>
+        <button type="submit" class="btn primary"><${Icon} name="search" />${t("search.go")}</button>
       </form>
       ${error ? html`<p class="err" style="margin-top:12px">${error}</p>` : null}
       ${rows && !rows.length ? html`<p class="hint" style="margin-top:12px">${t("search.none")}</p>` : null}
@@ -170,7 +170,7 @@ export function ImportSheet({ data }) {
       </div>
       <button
         type="button"
-        class="btn xl lime block"
+        class="btn xl primary block"
         onClick=${async () => {
           const saved = await saveCard({ ...card, uses: 0, lastUsedAt: 0 });
           buzz();

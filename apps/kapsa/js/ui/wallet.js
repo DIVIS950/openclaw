@@ -12,7 +12,7 @@ import { go } from "../nav.js";
 import { addStamp, couponsForCard, markUsed, state } from "../state.js";
 import { buzz, formatNumber, greetingPart } from "../util.js";
 import { confetti } from "../confetti.js";
-import { BigCode, Icon, Section, Ticket, heroVars, html, tint, toast } from "./kit.js";
+import { BigCode, Icon, Section, Ticket, html, tint, toast } from "./kit.js";
 import { useMemo, useState } from "../../vendor/preact.js";
 
 /**
@@ -52,14 +52,13 @@ export function Wallet({ rows, reminders }) {
     return true;
   });
 
-  const heroColor = here ? here.card.color : "#2F5BFF";
   const openBig = (card, code = card.code, format = card.format) => {
     markUsed(card.id);
     setBig({ code, format, name: card.name });
   };
 
   return html`<div class="wallet">
-    <header class="hero" style=${heroVars(heroColor)}>
+    <header class="hero">
       <div class="hero-inner">
         <${TopBar} reminders=${reminders} />
         ${here
@@ -74,7 +73,7 @@ export function Wallet({ rows, reminders }) {
       ? html`<${Section}
           title=${t("w.myCards")}
           count=${state.cards.length}
-          action=${html`<button type="button" class="btn sm lime" onClick=${() => go("#scan")}><${Icon} name="plus" />${t("tab.add")}</button>`}
+          action=${html`<button type="button" class="btn sm" onClick=${() => go("#scan")}><${Icon} name="plus" />${t("tab.add")}</button>`}
         >
           ${state.cards.length >= 6
             ? html`<input
@@ -146,7 +145,7 @@ function HereHero({ row, coupons, onBig }) {
   };
   return html`<div class="hero-stack">
     <div class="row" style="flex-wrap:wrap;gap:8px">
-      <span class="chip here"><span class="pulse"></span>${t("w.here")}</span>
+      <span class="chip accent"><span class="pulse"></span>${t("w.here")}</span>
       <span class="chip">${t("w.hereAway", { d: formatDistance(row.distance ?? 0, locale()) })}</span>
     </div>
     <button type="button" class="display" style="text-align:left;color:inherit" onClick=${() => go(`#card-${card.id}`)}>
@@ -156,12 +155,12 @@ function HereHero({ row, coupons, onBig }) {
     <div class="hero-chips">
       <button type="button" class="chip solid" onClick=${onBig}><${Icon} name="maximize-2" />${t("w.fullscreen")}</button>
       ${card.stamps
-        ? html`<button type="button" class="chip lime" onClick=${stampAction}>
+        ? html`<button type="button" class="chip accent" onClick=${stampAction}>
             <${Icon} name="stamp" />${t("stamps.add")} · ${card.stamps.count}/${card.stamps.goal}
           </button>`
         : null}
       ${coupons
-        ? html`<button type="button" class="chip pink" onClick=${() => go(`#card-${card.id}`)}>
+        ? html`<button type="button" class="chip accent" onClick=${() => go(`#card-${card.id}`)}>
             <${Icon} name="ticket-percent" />${t("w.coupons", { n: coupons })}
           </button>`
         : null}
@@ -180,8 +179,8 @@ function HomeHero({ rows, coupons }) {
     <h1 class="display sm">${t(`w.greet.${greetingPart(now)}`)}</h1>
     <div class="hero-chips">
       <span class="chip">${t("w.cards", { n: state.cards.length })}</span>
-      ${coupons ? html`<button type="button" class="chip pink" onClick=${() => go("#coupons")}>${t("w.coupons", { n: coupons })}</button>` : null}
-      ${rewards ? html`<span class="chip lime"><${Icon} name="gift" />${t("w.rewards", { n: rewards })}</span>` : null}
+      ${coupons ? html`<button type="button" class="chip accent" onClick=${() => go("#coupons")}>${t("w.coupons", { n: coupons })}</button>` : null}
+      ${rewards ? html`<span class="chip accent"><${Icon} name="gift" />${t("w.rewards", { n: rewards })}</span>` : null}
     </div>
     ${suggestion
       ? html`<${Mini} card=${suggestion.card} label=${t("w.usuallyNow")} meta=${t(`habit.${dayPart(now)}`)} />`
@@ -212,12 +211,12 @@ function LocationPrompt() {
   }
   const denied = s === "denied";
   return html`<div class="mini" style="grid-template-columns:auto 1fr auto">
-    <span class="mini-swatch" style=${tint("#13C27A")}><${Icon} name=${denied ? "locate-off" : "locate-fixed"} /></span>
+    <span class="mini-swatch"><${Icon} name=${denied ? "locate-off" : "locate-fixed"} /></span>
     <span style="min-width:0">
       <span class="mini-name">${t("w.locTitle")}</span>
       <span class="mini-label" style="text-transform:none;letter-spacing:0;font-weight:700">${denied ? t("w.locDenied") : t("w.locBody")}</span>
     </span>
-    ${denied ? null : html`<button type="button" class="btn sm green" onClick=${() => startLocation()}>${t("w.locOn")}</button>`}
+    ${denied ? null : html`<button type="button" class="btn sm primary" onClick=${() => startLocation()}>${t("w.locOn")}</button>`}
   </div>`;
 }
 
@@ -231,10 +230,10 @@ function EmptyHero() {
       <li>${t("w.step2")}</li>
       <li>${t("w.step3")}</li>
     </ol>
-    <button type="button" class="btn xl lime block" onClick=${() => go("#scan")}><${Icon} name="scan-barcode" />${t("w.emptyScan")}</button>
+    <button type="button" class="btn xl primary block" onClick=${() => go("#scan")}><${Icon} name="scan-barcode" />${t("w.emptyScan")}</button>
     <button
       type="button"
-      class="btn block paper"
+      class="btn block"
       onClick=${async () => {
         if (!state.pos && state.locStatus !== "denied") {
           startLocation();
@@ -276,13 +275,13 @@ function CardTile({ row, i, coupons }) {
     </span>
     <span class="tile-end">
       ${row.distance !== null
-        ? html`<span class=${`badge${row.here ? " green" : ""}`}>${row.here ? html`<span class="pulse"></span>` : null}${formatDistance(row.distance, locale())}</span>`
+        ? html`<span class=${`badge${row.here ? " accent" : ""}`}>${row.here ? html`<span class="pulse"></span>` : null}${formatDistance(row.distance, locale())}</span>`
         : null}
       <span class="row" style="gap:4px">
-        ${coupons ? html`<span class="badge pink"><${Icon} name="ticket" />${coupons}</span>` : null}
-        ${card.stamps ? html`<span class="badge lime"><${Icon} name="stamp" />${card.stamps.count}/${card.stamps.goal}</span>` : null}
+        ${coupons ? html`<span class="badge accent"><${Icon} name="ticket" />${coupons}</span>` : null}
+        ${card.stamps ? html`<span class="badge accent"><${Icon} name="stamp" />${card.stamps.count}/${card.stamps.goal}</span>` : null}
         ${exp && exp.state !== "ok"
-          ? html`<span class=${`badge ${exp.state === "expired" ? "red" : "yellow"}`}>
+          ? html`<span class=${`badge ${exp.state === "expired" ? "bad" : "warn"}`}>
               ${exp.state === "expired" ? t("card.expired") : exp.days === 0 ? t("card.expiresToday") : `${exp.days} d`}
             </span>`
           : null}

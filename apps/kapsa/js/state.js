@@ -5,7 +5,9 @@ import { cardsStore, couponsStore, kv, newId, purchasesStore } from "./store.js"
 
 export const DEFAULT_SETTINGS = {
   lang: "auto",
-  theme: "system",
+  theme: "light",
+  // Look version: older installs followed the phone (often dark); 2.1 moves them to light once.
+  look: 2,
   radius: 120,
   autoOpen: true,
   osm: true,
@@ -81,7 +83,11 @@ export async function loadState() {
   state.cards = cards ?? [];
   state.coupons = coupons ?? [];
   state.purchases = purchases ?? [];
-  state.settings = { ...DEFAULT_SETTINGS, ...settings };
+  const migrate = settings && settings.look !== DEFAULT_SETTINGS.look;
+  state.settings = { ...DEFAULT_SETTINGS, ...settings, ...(migrate ? { theme: "light", look: DEFAULT_SETTINGS.look } : null) };
+  if (migrate) {
+    await kv.set("settings", state.settings);
+  }
 }
 
 /** @param {Partial<typeof DEFAULT_SETTINGS>} patch */

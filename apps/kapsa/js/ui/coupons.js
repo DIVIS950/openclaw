@@ -6,14 +6,14 @@ import { back, go } from "../nav.js";
 import { deleteCoupon, getCard, getCoupon, saveCoupon, state, useCoupon } from "../state.js";
 import { buildIcs, buzz, formatDate, money, offerFile } from "../util.js";
 import { confetti } from "../confetti.js";
-import { BigCode, ConfirmButton, Icon, Page, Section, Ticket, heroVars, html, tint, toast, useWakeLock } from "./kit.js";
+import { BigCode, ConfirmButton, Icon, Page, Section, Ticket, html, tint, toast, useWakeLock } from "./kit.js";
 import { useState } from "../../vendor/preact.js";
 
-const PINK = "#FF4F9A";
+const NEUTRAL = "#2563EB";
 
-/** Colour of a coupon: its card's colour, or pink. */
+/** Colour of a coupon's little shop dot: its card's colour, or blue. */
 export function couponColor(c) {
-  return (c.cardId && getCard(c.cardId)?.color) || PINK;
+  return (c.cardId && getCard(c.cardId)?.color) || NEUTRAL;
 }
 
 /** Short status line: "3 days left", "ends today", "expired", "used 2 Nov". */
@@ -26,12 +26,12 @@ export function couponStatus(c, now = Date.now()) {
     return { text: t("cp.noExpiry"), tone: "" };
   }
   if (exp.state === "expired") {
-    return { text: t("cp.expired"), tone: "red" };
+    return { text: t("cp.expired"), tone: "bad" };
   }
   if (exp.days === 0) {
-    return { text: t("cp.today"), tone: "yellow" };
+    return { text: t("cp.today"), tone: "warn" };
   }
-  return { text: t("cp.daysLeft", { n: exp.days }), tone: exp.days <= state.settings.remindDays ? "yellow" : "" };
+  return { text: t("cp.daysLeft", { n: exp.days }), tone: exp.days <= state.settings.remindDays ? "warn" : "" };
 }
 
 export function CouponTile({ coupon, i = 0 }) {
@@ -65,19 +65,17 @@ export function CouponsTab() {
   const sorted = [...list];
   sorted.sort((a, b) => (a.expiry || "9999").localeCompare(b.expiry || "9999") || b.createdAt - a.createdAt);
   return html`<div>
-    <header class="hero" style=${heroVars(PINK)}>
+    <header class="hero">
       <div class="hero-inner">
         <div class="topbar">
-          <span class="eyebrow"><${Icon} name="ticket-percent" />${t("tab.coupons")}</span>
-          <button type="button" class="hbtn" aria-label=${t("cp.add")} onClick=${() => go("#newc")}><${Icon} name="plus" /></button>
+          <h1 class="display sm">${t("cp.title")}</h1>
         </div>
         <div class="hero-stack">
-          <h1 class="display">${t("cp.title")}</h1>
           <div class="hero-chips">
             <span class="chip">${t("cp.active", { n: active.length })}</span>
-            ${soon.length ? html`<span class="chip yellow">${t("cp.soon", { n: soon.length })}</span>` : null}
+            ${soon.length ? html`<span class="chip warn">${t("cp.soon", { n: soon.length })}</span>` : null}
           </div>
-          <button type="button" class="btn xl block ink" onClick=${() => go("#newc")}><${Icon} name="plus" />${t("cp.add")}</button>
+          <button type="button" class="btn xl block primary" onClick=${() => go("#newc")}><${Icon} name="plus" />${t("cp.add")}</button>
         </div>
       </div>
     </header>
@@ -114,7 +112,6 @@ export function CouponPage({ id }) {
   if (!coupon) {
     return null;
   }
-  const color = couponColor(coupon);
   const card = coupon.cardId ? getCard(coupon.cardId) : null;
   const shop = card?.name ?? coupon.shop;
   const st = couponStatus(coupon);
@@ -134,7 +131,6 @@ export function CouponPage({ id }) {
     );
 
   return html`<${Page}
-    color=${color}
     title=${coupon.title}
     actions=${html`<button type="button" class="hbtn" aria-label=${t("cf.titleEdit")} onClick=${() => go(`#ecoupon-${coupon.id}`)}><${Icon} name="pencil" /></button>`}
     hero=${html`<div class="hero-stack">
@@ -167,12 +163,12 @@ export function CouponPage({ id }) {
                 />
                 <div class="btn-row">
                   <button type="button" class="btn" onClick=${() => finishUse(null)}>${t("cp.skip")}</button>
-                  <button type="button" class="btn lime" onClick=${() => finishUse(Number(saved.replace(",", ".")) || null)}>
+                  <button type="button" class="btn primary" onClick=${() => finishUse(Number(saved.replace(",", ".")) || null)}>
                     <${Icon} name="check" />${t("common.save")}
                   </button>
                 </div>
               </div>`
-            : html`<button type="button" class="btn xl lime block" onClick=${() => setAsking(true)}><${Icon} name="circle-check" />${t("cp.markUsed")}</button>`}
+            : html`<button type="button" class="btn xl primary block" onClick=${() => setAsking(true)}><${Icon} name="circle-check" />${t("cp.markUsed")}</button>`}
         ${coupon.saved ? html`<p class="hint">${t("st.saved")}: <strong>${money(coupon.saved, state.settings.currency)}</strong></p>` : null}
         ${coupon.note ? html`<div class="panel"><div class="label">${t("cp.conditions")}</div><p style="margin:6px 0 0">${coupon.note}</p></div>` : null}
         ${card ? html`<button type="button" class="mini" onClick=${() => go(`#card-${card.id}`)}>
