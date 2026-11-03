@@ -17,6 +17,9 @@ How to act:
 - You cannot disarm the alarm; tell the person to use the keypad.
 - "Later" requests ("turn off the kitchen lights in 30 minutes", "sleep timer for an hour") use set_timer. Repeating requests ("every night at 11 close the shades", "weekdays at sunset turn on the patio lights") use create_schedule. Confirm what you set up in one sentence.
 - "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
+- Heating: each room thermostat has a current and a target temperature in °C; setClimate sets the target (steps of 0.5). "Warmer"/"colder" means ±1 °C. The whole-house heating mode is a mode (setMode with one of its option ids). The sauna and similar things are switches (setSwitch on/off).
+- Rooms are grouped by floor (for example 1.NP, 2.NP, Suterén, Venek); "upstairs"/"nahoře" means the floors above 1.NP.
+- Names in this house are Czech. If the person writes Czech, answer in Czech.
 
 How to answer:
 - One or two short, friendly sentences in the person's language. No lists, no markdown, no ids.
@@ -31,7 +34,7 @@ const COMMAND_ITEM = () => CONTROL_TOOL_SCHEMA.properties.commands.items;
 export const TIMER_TOOL = {
   name: TIMER_TOOL_NAME,
   description: "Run commands once, later: after the given number of minutes (1 to 1440). Use it for \"in 30 minutes\", \"sleep timer\" and similar. " +
-    "Only lights, shades, scenes, music and locking (never unlocking, the gate or the alarm) can be timed.",
+    "Only lights, shades, scenes, music, heating, the sauna and locking (never unlocking, the gate or the alarm) can be timed.",
   get schema() {
     return {
       type: "object",
@@ -90,7 +93,8 @@ export const SCHEDULE_TOOL = {
 export const CONTROL_TOOL_DESCRIPTION =
   "Send one or more commands to the house. Each command needs `type` and the device `id` from the home state, plus the field its type uses: " +
   "setLight → level; setShade → position; stopShade → (nothing); recallScene → (nothing); mediaPower → on; mediaVolume → level; " +
-  "mediaMute → muted; mediaSource → sourceId; setLock → locked; setSecurity → mode (armedAway or armedHome); gate → action (open, close, stop, trigger). " +
+  "mediaMute → muted; mediaSource → sourceId; setLock → locked; setSecurity → mode (armedAway or armedHome); gate → action (open, close, stop, trigger); " +
+  "setClimate → target (°C); setMode → value (an option id of that mode); setSwitch → on. " +
   "Returns one line per command saying whether it was done, needs the person to confirm, or was refused.";
 
 export const CONTROL_TOOL_SCHEMA = {
@@ -104,9 +108,11 @@ export const CONTROL_TOOL_SCHEMA = {
         properties: {
           type: {
             type: "string",
-            enum: ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock", "setSecurity", "gate"],
+            enum: ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock", "setSecurity", "gate", "setClimate", "setMode", "setSwitch"],
           },
-          id: { type: "string", description: "Device, scene, media room, lock, alarm or gate id from the home state." },
+          id: { type: "string", description: "Device, scene, media room, lock, alarm, gate, thermostat, mode or switch id from the home state." },
+          target: { type: "number", minimum: 5, maximum: 30, description: "Target temperature in °C (setClimate)." },
+          value: { type: "string", description: "Option id (setMode)." },
           level: { type: "number", minimum: 0, maximum: 1 },
           position: { type: "number", minimum: 0, maximum: 1 },
           on: { type: "boolean" },
@@ -142,7 +148,10 @@ export function homeForModel(home, extra = {}) {
     locks: home.locks.map((l) => ({ id: l.id, name: l.name, room: room(l.roomId), locked: l.locked })),
     alarms: home.security.map((p) => ({ id: p.id, name: p.name, mode: SECURITY_TITLES[p.mode] })),
     gates: home.gates.map((g) => ({ id: g.id, name: g.name, state: GATE_TITLES[g.state], separateOpenClose: g.separateOpenClose })),
-    roomIds: home.rooms.map((r) => ({ id: r.id, name: r.name })),
+    roomIds: home.rooms.map((r) => ({ id: r.id, name: r.name, ...(r.floor ? { floor: r.floor } : {}) })),
+    thermostats: (home.climate ?? []).map((c) => ({ id: c.id, name: c.name, room: room(c.roomId), current: c.current, target: c.target, heating: c.heating })),
+    modes: (home.modes ?? []).map((m) => ({ id: m.id, name: m.name, value: m.value, options: m.options })),
+    switches: (home.switches ?? []).map((w) => ({ id: w.id, name: w.name, kind: w.kind, room: room(w.roomId), on: w.on, ...(w.current != null ? { temperature: w.current } : {}) })),
     ...contextForModel(home, extra),
   };
 }
@@ -167,6 +176,12 @@ export function describeCommand(cmd, home) {
     case "setLock": return `${cmd.locked ? "Lock" : "Unlock"} ${name(find(home.locks))}`;
     case "setSecurity": return `${name(find(home.security))} → ${SECURITY_TITLES[cmd.mode]}`;
     case "gate": return `${name(find(home.gates))} → ${cmd.action}`;
+    case "setClimate": return `${name(find(home.climate ?? []))} → ${String(cmd.target).replace(".", ",")} °C`;
+    case "setMode": {
+      const m = find(home.modes ?? []);
+      return `${name(m)} → ${m?.options.find((o) => o.id === cmd.value)?.name ?? cmd.value}`;
+    }
+    case "setSwitch": return `${name(find(home.switches ?? []))} → ${cmd.on ? "on" : "off"}`;
     default: return String(cmd.type);
   }
 }
@@ -186,6 +201,7 @@ export function cleanCommand(raw) {
   const keep = {
     setLight: ["level"], setShade: ["position"], mediaVolume: ["level"], mediaPower: ["on"], mediaMute: ["muted"],
     mediaSource: ["sourceId"], setLock: ["locked"], setSecurity: ["mode"], gate: ["action"],
+    setClimate: ["target"], setMode: ["value"], setSwitch: ["on"],
   }[raw?.type] ?? [];
   const cmd = { type: raw?.type, id: raw?.id };
   for (const key of keep) cmd[key] = raw[key];
@@ -245,7 +261,7 @@ function contextForModel(home, { viewingRoom, now, weather, automations } = {}) 
   return out;
 }
 
-const TIMED_TYPES = new Set(["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock"]);
+const TIMED_TYPES = new Set(["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock", "setClimate", "setMode", "setSwitch"]);
 
 /** set_timer: checks the commands (nothing that opens the house) and hands them to addTimer. */
 export async function applyTimerCall(input, { addTimer }) {

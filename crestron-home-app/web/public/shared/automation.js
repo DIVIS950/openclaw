@@ -59,6 +59,12 @@ export function describeAction(action, home) {
       if (c.type === "setLight") return `${find(home.lights)} ${c.level > 0 ? "on" : "off"}`;
       if (c.type === "setShade") return `${find(home.shades)} ${c.position >= 0.5 ? "open" : "closed"}`;
       if (c.type === "mediaPower") return `${find(home.media)} ${c.on ? "on" : "off"}`;
+      if (c.type === "setSwitch") return `${find(home.switches ?? [])} ${c.on ? "on" : "off"}`;
+      if (c.type === "setClimate") return `${find(home.climate ?? [])} ${String(c.target).replace(".", ",")} °C`;
+      if (c.type === "setMode") {
+        const m = (home.modes ?? []).find((x) => x.id === c.id);
+        return `${m?.name ?? "Mode"}: ${m?.options.find((o) => o.id === c.value)?.name ?? c.value}`;
+      }
       return "Device";
     }
     default: return "Unknown action";
