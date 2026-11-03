@@ -1,45 +1,72 @@
 {
   "rooms": [
-    { "id": "living", "name": "Living Room" },
-    { "id": "kitchen", "name": "Kitchen" }
+    { "id": "obyvak", "name": "Obývák", "floor": "1.NP" },
+    { "id": "kuchyne", "name": "Kuchyně", "floor": "1.NP" },
+    { "id": "loznice", "name": "Ložnice", "floor": "2.NP" },
+    { "id": "sauna", "name": "Sauna", "floor": "Suterén" },
+    { "id": "zahrada", "name": "Zahrada", "floor": "Venek" }
   ],
   "lights": [
-    { "name": "Ceiling", "room": "living", "level": 11 },
-    { "name": "Pendants", "room": "kitchen", "level": 12 },
-    { "name": "Patio Lights", "on": 41, "off": 42, "onFeedback": 41 }
+    { "name": "Strop", "room": "obyvak", "level": 11 },
+    { "name": "Linka", "room": "kuchyne", "level": 12 },
+    { "name": "Bodovky", "room": "loznice", "on": 43, "off": 44, "onFeedback": 43 },
+    { "name": "Zahrada", "room": "zahrada", "on": 41, "off": 42, "onFeedback": 41 }
   ],
   "shades": [
-    { "name": "Window Shades", "room": "living", "position": 21, "open": 51, "close": 52, "stop": 53 }
+    { "name": "Žaluzie", "room": "obyvak", "position": 21, "open": 51, "close": 52, "stop": 53 }
   ],
   "scenes": [
-    { "name": "Good Night", "press": 101 },
-    { "name": "Movie", "room": "living", "press": 102 }
+    { "name": "Vypnout vše", "press": 100 },
+    { "name": "Dobrou noc", "press": 101 },
+    { "name": "Televize", "room": "obyvak", "press": 102 },
+    { "name": "Čtení", "room": "obyvak", "press": 103 }
   ],
   "media": [
     {
-      "name": "Living Room", "room": "living",
+      "name": "Obývák", "room": "obyvak",
       "powerOn": 201, "powerOff": 202, "powerFeedback": 201,
       "volume": 31, "mute": 203,
       "play": 221, "pause": 222, "next": 223, "previous": 224, "playingFeedback": 221,
       "title": 1, "artist": 2, "album": 3,
       "sources": [
         { "name": "Apple TV", "press": 211 },
-        { "name": "Cable", "press": 212 }
+        { "name": "Satelit", "press": 212 }
       ]
     }
   ],
   "locks": [
-    { "name": "Front Door", "lock": 301, "unlock": 302, "lockedFeedback": 301 }
+    { "name": "Vchodové dveře", "lock": 301, "unlock": 302, "lockedFeedback": 301 }
   ],
   "security": [
-    { "name": "Alarm", "armAway": 401, "armHome": 402, "disarm": 403, "code": 401,
-      "armedAwayFeedback": 401, "armedHomeFeedback": 402, "disarmedFeedback": 403, "alarmFeedback": 404 }
+    { "name": "Dům", "toggle": 401, "armedAwayFeedback": 401 },
+    { "name": "Garáž", "toggle": 402, "armedAwayFeedback": 402 },
+    { "name": "Klub", "armAway": 403, "disarm": 404, "armedAwayFeedback": 403, "disarmedFeedback": 404 }
   ],
   "doorbells": [
-    { "name": "Front Door", "ring": 601, "camera": "Front Door", "lock": "Front Door" }
+    { "name": "Brána", "ring": 601, "camera": "Brána", "lock": "Vchodové dveře" }
   ],
   "gates": [
-    { "name": "Driveway Gate", "open": 501, "close": 502, "stop": 503,
-      "openFeedback": 504, "closedFeedback": 505 }
+    { "name": "Brána", "open": 501, "close": 502, "stop": 503, "openFeedback": 504, "closedFeedback": 505 },
+    { "name": "Vjezd ke garáži", "trigger": 511 },
+    { "name": "Garáž", "open": 521, "close": 522, "openFeedback": 523, "closedFeedback": 524 }
+  ],
+  "climate": [
+    { "name": "Obývák", "room": "obyvak", "current": 61, "target": 62, "heating": 701 },
+    { "name": "Ložnice", "room": "loznice", "current": 63, "target": 64, "up": 711, "down": 712, "targetWritable": false, "heating": 713 }
+  ],
+  "modes": [
+    {
+      "name": "Topení v domě", "kind": "heating",
+      "options": [
+        { "id": "on", "name": "Zapnuto", "press": 721 },
+        { "id": "individual", "name": "Individuální", "press": 722 },
+        { "id": "eco", "name": "Útlum", "press": 723 },
+        { "id": "off", "name": "Vypnuto", "press": 724 }
+      ]
+    }
+  ],
+  "switches": [
+    { "name": "Sauna", "room": "sauna", "kind": "sauna", "on": 731, "off": 732, "feedback": 733, "temperature": 65 },
+    { "name": "Venkovní světla na pohyb", "room": "zahrada", "kind": "motion", "toggle": 741 }
   ]
 }

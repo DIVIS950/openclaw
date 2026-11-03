@@ -4,7 +4,7 @@
 // press join, the usual SIMPL convention.
 import { CIPClient } from "./cip-client.js";
 
-const SECTIONS = ["rooms", "lights", "shades", "scenes", "media", "locks", "security", "gates", "doorbells"];
+const SECTIONS = ["rooms", "lights", "shades", "scenes", "media", "locks", "security", "gates", "doorbells", "climate", "modes", "switches"];
 
 export function parseJoinMap(text) {
   let map;
@@ -24,6 +24,9 @@ export function parseJoinMap(text) {
     out[key] = list;
   }
   out.rooms.forEach((r, i) => { if (typeof r.id !== "string") throw new Error(`Join map: rooms #${i + 1} needs an "id".`); });
+  out.modes.forEach((m, i) => {
+    if (!Array.isArray(m.options) || !m.options.length) throw new Error(`Join map: modes #${i + 1} needs a list of "options".`);
+  });
   return out;
 }
 
@@ -90,11 +93,25 @@ export class CustomProgramBackend {
   #high(join) { return join ? this.digital.get(join) === true : false; }
   #level(join) { return join ? (this.analog.get(join) ?? 0) / 65535 : null; }
   #text(join) { return join ? (this.serial.get(join) ?? "").trim() : ""; }
+  /** Temperatures arrive as whole numbers: °C × scale (10 by default, so 215 = 21.5 °C). */
+  #temp(join, scale = 10) {
+    if (!join || !this.analog.has(join)) return null;
+    const raw = this.analog.get(join);
+    // Analog joins are unsigned 16-bit; values above 32767 are negative temperatures.
+    return Math.round(((raw > 32767 ? raw - 65536 : raw) / (scale || 10)) * 10) / 10;
+  }
+  #modeValue(e) {
+    const opts = e.options ?? [];
+    const hit = e.analog && this.analog.has(e.analog)
+      ? opts.find((o) => Number(o.value) === this.analog.get(e.analog))
+      : opts.find((o) => this.#high(o.feedback ?? o.press));
+    return hit ? optionId(hit, opts.indexOf(hit)) : null;
+  }
 
   #snapshot() {
     const m = this.map;
     return {
-      rooms: m.rooms.map((r) => ({ id: r.id, name: r.name })),
+      rooms: m.rooms.map((r) => ({ id: r.id, name: r.name, ...(r.floor ? { floor: String(r.floor) } : {}) })),
       lights: m.lights.map((e, i) => ({
         id: `light-${i}`, name: e.name, roomId: e.room ?? null,
         level: e.level ? this.#level(e.level) : this.#high(e.onFeedback ?? e.on) ? 1 : 0,
@@ -134,8 +151,10 @@ export class CustomProgramBackend {
         mode: this.#high(e.alarmFeedback) ? "alarm"
           : this.#high(e.armedAwayFeedback) ? "armedAway"
           : this.#high(e.armedHomeFeedback) ? "armedHome"
-          : this.#high(e.disarmedFeedback) ? "disarmed" : "unknown",
-        needsCode: Boolean(e.code), canArmHome: Boolean(e.armHome), canArmAway: Boolean(e.armAway),
+          : this.#high(e.disarmedFeedback) ? "disarmed"
+          // A zone with one toggle button and one "armed" light: low means off.
+          : e.toggle && e.armedAwayFeedback ? "disarmed" : "unknown",
+        needsCode: Boolean(e.code), canArmHome: Boolean(e.armHome), canArmAway: Boolean(e.armAway || e.toggle),
       })),
       gates: m.gates.map((e, i) => ({
         id: `gate-${i}`, name: e.name,
@@ -150,6 +169,20 @@ export class CustomProgramBackend {
         cameraId: null, cameraName: e.camera ?? null,
         lockId: (() => { const li = m.locks.findIndex((l) => l.name === e.lock); return li >= 0 ? `lock-${li}` : null; })(),
         ringAt: this.ringAt.get(i) ?? null,
+      })),
+      climate: m.climate.map((e, i) => ({
+        id: `climate-${i}`, name: e.name, roomId: e.room ?? null,
+        current: this.#temp(e.current, e.scale), target: this.#temp(e.target, e.scale),
+        min: e.min ?? 5, max: e.max ?? 30, step: e.step ?? 0.5,
+        heating: e.heating ? this.#high(e.heating) : null, online: true,
+      })),
+      modes: m.modes.map((e, i) => ({
+        id: `mode-${i}`, name: e.name, kind: e.kind ?? "other", value: this.#modeValue(e),
+        options: (e.options ?? []).map((o, oi) => ({ id: optionId(o, oi), name: String(o.name ?? o.id ?? oi + 1) })),
+      })),
+      switches: m.switches.map((e, i) => ({
+        id: `switch-${i}`, name: e.name, roomId: e.room ?? null, kind: e.kind ?? "other",
+        on: this.#high(e.feedback ?? e.on ?? e.toggle), current: this.#temp(e.temperature, e.scale),
       })),
     };
   }
@@ -220,8 +253,51 @@ export class CustomProgramBackend {
         const e = this.#entry("security", cmd.id);
         if (e.code && cmd.code) c.setSerial(e.code, cmd.code);
         const join = { armedAway: e.armAway, armedHome: e.armHome, disarmed: e.disarm }[cmd.mode];
-        if (!join) throw new Error("That security mode has no join.");
-        return c.pulse(join);
+        if (join) return c.pulse(join);
+        if (e.toggle) {
+          // One button that arms and disarms: press it only when the state has to change.
+          const armed = this.#high(e.armedAwayFeedback) || this.#high(e.armedHomeFeedback);
+          if (armed !== (cmd.mode !== "disarmed")) c.pulse(e.toggle);
+          return;
+        }
+        throw new Error("That security mode has no join.");
+      }
+      case "setClimate": {
+        const e = this.#entry("climate", cmd.id);
+        const scale = e.scale || 10;
+        const step = e.step || 0.5;
+        const target = Math.min(e.max ?? 30, Math.max(e.min ?? 5, Math.round(cmd.target / step) * step));
+        if (e.target && e.targetWritable !== false) {
+          const raw = Math.round(target * scale);
+          return c.setAnalog(e.target, raw < 0 ? raw + 65536 : raw);
+        }
+        // Only up/down buttons: press one of them once per step.
+        const now = this.#temp(e.target, scale);
+        if (now == null || !e.up || !e.down) throw new Error("This thermostat has no setpoint join.");
+        const presses = Math.min(50, Math.round(Math.abs(target - now) / step));
+        for (let k = 0; k < presses; k++) {
+          c.pulse(target > now ? e.up : e.down);
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        return;
+      }
+      case "setMode": {
+        const e = this.#entry("modes", cmd.id);
+        const opts = e.options ?? [];
+        const o = opts.find((x, oi) => optionId(x, oi) === cmd.value);
+        if (!o) throw new Error("Unknown option.");
+        if (e.analog && o.value != null) return c.setAnalog(e.analog, Number(o.value));
+        if (!o.press) throw new Error("That option has no join.");
+        return c.pulse(o.press);
+      }
+      case "setSwitch": {
+        const e = this.#entry("switches", cmd.id);
+        if (cmd.on && e.on) return c.pulse(e.on);
+        if (!cmd.on && e.off) return c.pulse(e.off);
+        const toggle = e.toggle ?? (e.off ? null : e.on);
+        if (!toggle) throw new Error("This switch has no join for that.");
+        if (cmd.on !== this.#high(e.feedback ?? e.on ?? e.toggle)) c.pulse(toggle);
+        return;
       }
       case "gate": {
         const e = this.#entry("gates", cmd.id);
@@ -238,6 +314,11 @@ export class CustomProgramBackend {
     if (!e) throw new Error(`“${id}” isn't in the join map.`);
     return e;
   }
+}
+
+/** An option's id: its own "id", or its position ("1", "2"…). */
+function optionId(o, i) {
+  return String(o.id ?? i + 1);
 }
 
 function indexOf(id) {

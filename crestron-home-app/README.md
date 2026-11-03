@@ -191,7 +191,11 @@ Join map rules:
 - Music rooms can also have `play`, `pause`, `next` and `previous` (digital, pressed like buttons). If you only have one play/pause button, map just `play` or just `pause` and it is used for both. `playingFeedback` is high while music plays (if you leave it out, "on" counts as playing).
 - `title`, `artist` and `album` in a music room are **serial** joins that the program sends with the song or show name.
 - `doorbells`: `ring` is the digital join that goes high when someone presses the doorbell. `camera` is the name of a camera from Settings › Cameras, and `lock` is the name of a lock from `locks`, for hold to unlock.
-- Rooms are optional, but they make the app look much better.
+- Rooms are optional, but they make the app look much better. Give each room a `floor` (for example `"1.NP"`, `"2.NP"`, `"Suterén"`, `"Venek"`) and the app groups rooms by floor.
+- `security` zones: besides `armAway` / `armHome` / `disarm`, a zone can have one `toggle` button (pressed only when the state has to change) with `armedAwayFeedback` high while the zone is armed. Without a `code` join, a zone arms and disarms with one tap, like the padlock buttons on the old panel.
+- `climate` (one per room thermostat): `current` and `target` are **analog** joins in °C × 10 (so 215 means 21.5 °C; set `scale` if the program uses something else). The app writes a new setpoint to `target`. If the program only has up/down buttons, add `up` and `down` (digital) and `"targetWritable": false`, and the app presses them once per 0.5 °C step. `heating` is a digital join that is high while the room is heating. Optional `min`, `max` and `step`.
+- `modes` (for example the house heating mode Zapnuto / Individuální / Útlum / Vypnuto): a list of `options`, each with a `press` digital join (and `feedback` if it differs). If the program uses one analog join instead, set `analog` on the mode and a `value` on each option. Use `"kind": "heating"` for the heating mode so it shows on the Heating page.
+- `switches` (the sauna, motion-sensor lights, pumps…): `on` and `off`, or one `toggle`, plus `feedback`. A sauna can have a `temperature` analog join (°C × 10). Use `"kind": "sauna"` for the big sauna card.
 
 > If the processor has **authentication** turned on (common on 4-Series), the touch-panel connection may be refused. Your installer can allow it or turn it off for that IP ID.
 
