@@ -33,7 +33,21 @@ export function sampleHome() {
   const shade = (id, name, roomId, position, canStop = true) => ({ id, name, roomId, position, hasPosition: true, canStop, online: true });
   const zone = (id, name, roomId, on, volume, sourceId) => ({
     id, name, roomId, on, volume, muted: false, hasVolume: true, sources, sourceId,
-    playing: on, canTransport: true, nowPlaying: on ? track(sourceId) : null,
+    playing: on, canTransport: true, nowPlaying: on ? track(sourceId) : null, origin: "demo",
+  });
+  // A Samsung TV reached over Wi-Fi, like the real one: inputs, apps, channels and a remote.
+  const tv = (id, name, roomId, on, sourceId) => ({
+    id, name, roomId, on, volume: 0.18, muted: false, hasVolume: true,
+    sources: [
+      { id: "tv-hdmi1", name: "HDMI 1 · Apple TV" }, { id: "tv-hdmi2", name: "HDMI 2 · Satelit" }, { id: "tv-dtv", name: "TV" },
+    ],
+    sourceId, playing: on, canTransport: true, nowPlaying: on ? { title: "Večerní zprávy", artist: "ČT1", album: "TV" } : null,
+    kind: "tv", canRemote: true, origin: "samsungtv",
+    apps: [
+      { id: "app-netflix", name: "Netflix" }, { id: "app-youtube", name: "YouTube" }, { id: "app-disney", name: "Disney+" },
+      { id: "app-hbo", name: "Max" }, { id: "app-prime", name: "Prime Video" }, { id: "app-spotify", name: "Spotify" },
+    ],
+    channel: on && sourceId === "tv-dtv" ? { number: 1, name: "ČT1" } : null,
   });
   const climate = (id, name, roomId, current, target) => ({
     id, name, roomId, current, target, min: 5, max: 30, step: 0.5, heating: current < target - 0.2, online: true,
@@ -103,6 +117,8 @@ export function sampleHome() {
     ],
     media: [
       zone("m-obyvak", "Obývák", "obyvak", true, 0.35, "src-appletv"),
+      tv("tv-obyvak", "Samsung TV", "obyvak", true, "tv-dtv"),
+      tv("tv-loznice", "Samsung TV", "loznice", false, null),
       zone("m-kuchyne", "Kuchyně", "kuchyne", true, 0.25, "src-spotify"),
       zone("m-klub", "Klub", "klub", false, 0.4, null),
       zone("m-zahrada", "Zahrada", "zahrada", false, 0.5, null),
@@ -212,7 +228,7 @@ export class DemoEngine {
     const s = this.state;
     applyCommand(s, cmd);
     if (cmd.type === "recallScene") this.#runScene(cmd.id);
-    if (cmd.type.startsWith("media")) this.#media(cmd);
+    if (cmd.type.startsWith("media") || cmd.type.startsWith("tv")) this.#media(cmd);
     if (cmd.type === "gate" && cmd.action !== "stop") {
       // A real gate takes a while to travel; report the end position later.
       const t = setTimeout(() => {
@@ -238,6 +254,25 @@ export class DemoEngine {
   #media(cmd) {
     const zone = this.state.media.find((m) => m.id === cmd.id);
     if (!zone) return;
+    const CHANNELS = ["ČT1", "ČT2", "Nova", "Prima", "ČT24", "Nova Cinema", "Prima Cool", "ČT sport"];
+    if (cmd.type === "tvApp") {
+      const app = zone.apps.find((a) => a.id === cmd.appId);
+      zone.channel = null;
+      zone.nowPlaying = app ? { title: app.name, artist: "App", album: zone.name } : null;
+      return;
+    }
+    if (cmd.type === "mediaChannel" || (cmd.type === "tvKey" && (cmd.key === "chUp" || cmd.key === "chDown"))) {
+      const cur = zone.channel?.number ?? 1;
+      const n = cmd.type === "mediaChannel" ? cmd.channel : Math.max(1, cur + (cmd.key === "chUp" ? 1 : -1));
+      zone.on = true; zone.sourceId = "tv-dtv"; zone.playing = true;
+      zone.channel = { number: n, name: CHANNELS[(n - 1) % CHANNELS.length] };
+      zone.nowPlaying = { title: zone.channel.name, artist: `Kanál ${n}`, album: "TV" };
+      return;
+    }
+    if (cmd.type === "tvKey") {
+      if (cmd.key === "power") { zone.on = !zone.on; zone.playing = zone.on; if (!zone.on) zone.nowPlaying = null; }
+      return;
+    }
     if (cmd.type === "mediaSource") {
       this.trackIndex.set(zone.id, 0);
       zone.nowPlaying = track(zone.sourceId);

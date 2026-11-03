@@ -8,7 +8,8 @@
 //   shades:   [{ id, name, roomId, position 0..1 (1 = open), hasPosition, canStop, online }]
 //   scenes:   [{ id, name, roomId, kind, active }]
 //   media:    [{ id, name, roomId, on, volume 0..1, muted, hasVolume, sources: [{ id, name }], sourceId,
-//               playing, canTransport, nowPlaying: { title, artist, album } | null }]
+//               playing, canTransport, nowPlaying: { title, artist, album } | null,
+//               kind: "tv" | "audio", canRemote (TV remote keys), apps: [{ id, name }], channel: { number, name } | null }]
 //   locks:    [{ id, name, roomId, locked: true | false | null }]
 //   security: [{ id, name, mode, needsCode, canArmHome, canArmAway }]
 //   gates:    [{ id, name, state, separateOpenClose, canStop }]
@@ -18,6 +19,8 @@
 //   modes:    [{ id, name, kind, value, options: [{ id, name }] }]  (e.g. the house heating mode)
 //   switches: [{ id, name, roomId, kind, on, current °C | null }]  (sauna, motion-sensor lights, pumps…)
 // }
+// Every device may carry `origin`: "crestron" | "homekit" | "samsungtv" | "demo" (which system it comes from).
+// Devices from several systems live in one home; ids are unique across systems (each origin prefixes its own).
 //
 // Commands are plain objects, e.g. { type: "setLight", id, level }.
 
@@ -26,6 +29,16 @@ export const COMMAND_TYPES = [
   "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "mediaTransport",
   "setLock", "setSecurity", "gate",
   "setClimate", "setMode", "setSwitch",
+  "tvKey", "tvApp", "mediaChannel",
+];
+
+/** Remote-control keys a TV may accept (tvKey.key). */
+export const TV_KEYS = [
+  "up", "down", "left", "right", "ok", "back", "home", "menu", "exit", "info", "guide",
+  "chUp", "chDown", "volUp", "volDown", "mute", "power",
+  "play", "pause", "stop", "rewind", "fastForward",
+  "num0", "num1", "num2", "num3", "num4", "num5", "num6", "num7", "num8", "num9",
+  "red", "green", "yellow", "blue",
 ];
 
 export const SECURITY_TITLES = {
@@ -61,6 +74,10 @@ export function normalizeHome(home) {
     m.playing ??= m.on;
     m.canTransport ??= false;
     m.nowPlaying ??= null;
+    m.kind ??= /\btv\b|telev/i.test(m.name) ? "tv" : "audio";
+    m.canRemote ??= false;
+    if (!Array.isArray(m.apps)) m.apps = [];
+    m.channel ??= null;
   }
   for (const c of h.climate) {
     c.min ??= 5;
@@ -90,6 +107,8 @@ export function stateKey(cmd) {
     case "setClimate": return `climate:${cmd.id}`;
     case "setMode": return `mode:${cmd.id}`;
     case "setSwitch": return `switch:${cmd.id}`;
+    case "tvApp": return `source:${cmd.id}`;
+    case "mediaChannel": return `channel:${cmd.id}`;
     default: return null;
   }
 }
@@ -113,6 +132,9 @@ export function validateCommand(cmd) {
     case "setClimate": return num("target") ? null : "Missing target";
     case "setMode": return typeof cmd.value === "string" && cmd.value ? null : "Missing value";
     case "setSwitch": return typeof cmd.on === "boolean" ? null : "Missing on";
+    case "tvKey": return TV_KEYS.includes(cmd.key) ? null : "Bad key";
+    case "tvApp": return typeof cmd.appId === "string" && cmd.appId ? null : "Missing appId";
+    case "mediaChannel": return Number.isInteger(cmd.channel) && cmd.channel > 0 ? null : "Bad channel";
     default: return null;
   }
 }
@@ -163,6 +185,21 @@ export function applyCommand(home, cmd) {
       break;
     case "setSwitch":
       if ((item = find(home.switches ?? []))) item.on = cmd.on;
+      break;
+    case "tvKey":
+      if ((item = find(home.media))) {
+        if (cmd.key === "mute") item.muted = !item.muted;
+        else if (cmd.key === "volUp" && item.hasVolume) item.volume = clamp01(item.volume + 0.05);
+        else if (cmd.key === "volDown" && item.hasVolume) item.volume = clamp01(item.volume - 0.05);
+        else if (cmd.key === "play") item.playing = true;
+        else if (cmd.key === "pause") item.playing = false;
+      }
+      break;
+    case "tvApp":
+      if ((item = find(home.media))) { item.on = true; item.sourceId = null; item.playing = true; }
+      break;
+    case "mediaChannel":
+      if ((item = find(home.media))) item.channel = { number: cmd.channel, name: item.channel?.number === cmd.channel ? item.channel.name : "" };
       break;
   }
   return home;
