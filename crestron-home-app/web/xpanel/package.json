@@ -1,0 +1,14 @@
+{
+  "name": "home-view-xpanel",
+  "private": true,
+  "description": "Packages Home View as a Crestron HTML5 Web XPanel (.ch5z) that the processor hosts itself.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@crestron/ch5-crcomlib": "2.20.0",
+    "@crestron/ch5-utilities-cli": "2.19.0",
+    "@crestron/ch5-webxpanel": "2.8.0"
+  }
+}
