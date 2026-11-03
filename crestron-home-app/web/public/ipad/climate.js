@@ -167,7 +167,7 @@ export function climateSheet(app, c, sheetHead) {
   const step = c.step || 0.5;
   const pctOf = (v) => ((v - c.min) / (c.max - c.min)) * 100;
   const off = heatingOff(app.home);
-  return `${sheetHead(c.heating ? HEAT : COOL, c.heating ? "flame" : "thermo", c.name, room && room.name !== c.name ? room.name : t("Heating"), app, `climate:${c.id}`)}
+  return `${sheetHead(c.heating ? HEAT : COOL, c.heating ? "flame" : "thermo", c.name, room && room.name !== c.name ? room.name : t("Heating"), app, `climate:${c.id}`, c.origin)}
     <div class="sheet-body">
       <div class="dial" style="--now:${pctOf(c.current ?? c.min).toFixed(1)};--set:${pctOf(c.target ?? c.min).toFixed(1)}">
         <div class="dial-ring" aria-hidden="true"></div>
@@ -185,7 +185,7 @@ export function climateSheet(app, c, sheetHead) {
 
 export function switchSheet(app, s, sheetHead, timerPills) {
   const room = roomOf(app.home, s.roomId);
-  return `${sheetHead(s.on ? (s.kind === "sauna" ? HEAT : "var(--green)") : "#8e8e93", switchIcon(s), s.name, room && room.name !== s.name ? room.name : "", app, `switch:${s.id}`)}
+  return `${sheetHead(s.on ? (s.kind === "sauna" ? HEAT : "var(--green)") : "#8e8e93", switchIcon(s), s.name, room && room.name !== s.name ? room.name : "", app, `switch:${s.id}`, s.origin)}
     <div class="sheet-body">
       <div class="big-val">${esc(s.current != null ? temp(s.current) : s.on ? t("On") : t("Off"))}</div>
       ${s.kind === "sauna" && s.on ? `<p class="hint">${esc((s.current ?? 0) >= 70 ? t("The sauna is ready") : t("The sauna is heating up"))}</p>` : ""}

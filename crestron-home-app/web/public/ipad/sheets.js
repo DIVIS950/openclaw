@@ -3,18 +3,23 @@ import { icon } from "../icons.js";
 import { GATE_TITLES, pct, roomOf, SECURITY_TITLES } from "../shared/model.js";
 import { LANGS, lang, t, tn } from "../shared/i18n.js";
 import { climateSheet, switchSheet } from "./climate.js";
+import { originLabel, tvSheet } from "./tv.js";
 import { art, attr, cameraPicture, esc, fmtDate, gateControls, isOn, lightState, shadeState, sourceName, transportRow } from "./views.js";
 
 const closeBtn = () => `<button type="button" class="sheet-close" data-act="sheet-close" aria-label="${t("Close")}">${icon("close")}</button>`;
 
-/** Card title row. With `favKey` ("light:l1"), a star adds or removes it from Favorites. */
-export function sheetHead(color, ic, title, sub, app = null, favKey = null) {
+/**
+ * Card title row. With `favKey` ("light:l1"), a star adds or removes it from Favorites.
+ * `origin` (the device's system) shows a small badge when it isn't the main system.
+ */
+export function sheetHead(color, ic, title, sub, app = null, favKey = null, origin = null) {
   const fav = app && favKey ? app.favorites.includes(favKey) : false;
   const star = favKey
     ? `<button type="button" class="sheet-fav${fav ? " on" : ""}" aria-pressed="${fav}" aria-label="${fav ? t("Remove from Favorites") : t("Add to Favorites")}"${attr({ act: "favorite", fav: favKey })}>${icon(fav ? "starFill" : "star")}</button>`
     : "";
+  const badge = app && origin ? originLabel(app, origin) : null;
   return `<div class="sheet-head"><span class="w-glyph" style="--c:${color}">${icon(ic)}</span>
-    <div><div class="sheet-title" id="sheet-title">${esc(title)}</div>${sub ? `<div class="sheet-sub">${esc(sub)}</div>` : ""}</div>${star}${closeBtn()}</div>`;
+    <div class="sheet-text"><div class="sheet-title" id="sheet-title">${esc(title)}${badge ? `<span class="origin-badge">${esc(badge)}</span>` : ""}</div>${sub ? `<div class="sheet-sub">${esc(sub)}</div>` : ""}</div>${star}${closeBtn()}</div>`;
 }
 
 /** "Turn off in 15 min / 30 min / 1 h / 2 h". `verb` and `label` come already translated. */
@@ -24,7 +29,7 @@ export function timerPills(verb, label, command) {
     ${opts.map(([m, t]) => `<button type="button" class="pill small"${attr({ act: "timer-add", minutes: m, label, cmd: JSON.stringify(command) })}>${t}</button>`).join("")}</div>`;
 }
 
-function vslider({ kind, id, value, cls, ic, label }) {
+export function vslider({ kind, id, value, cls, ic, label }) {
   return `<div class="vslider ${cls}${value > 0.04 ? " lit" : ""}" role="slider" tabindex="0" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(value * 100)}"
     style="--v:${value.toFixed(3)}" data-slider="${kind}" data-id="${esc(id)}" data-key="vs:${kind}:${esc(id)}">
     <span class="fill"></span><span class="vs-icon">${icon(ic)}</span></div>`;
@@ -39,13 +44,13 @@ function lightSheet(app, l) {
        <div class="pills">${presets.map(([v, t]) => `<button type="button" class="pill" aria-pressed="${Math.abs(l.level - v) < 0.02}" data-act="light-set" data-id="${esc(l.id)}" data-level="${v}">${t}</button>`).join("")}</div>`
     : `${vslider({ kind: "light-switch", id: l.id, value: isOn(l) ? 1 : 0, cls: "light switch", ic: "bulb", label: t(isOn(l) ? "{name}, tap to turn off" : "{name}, tap to turn on", { name: l.name }) })}
        <p class="hint">${t(isOn(l) ? "Tap to turn off." : "Tap to turn on.")}</p>`;
-  return `${sheetHead("var(--yellow)", "bulb", l.name, roomName(app.home, l), app, `light:${l.id}`)}
+  return `${sheetHead("var(--yellow)", "bulb", l.name, roomName(app.home, l), app, `light:${l.id}`, l.origin)}
     <div class="sheet-body"><div class="big-val" data-live="light:${esc(l.id)}">${esc(lightState(l))}</div>${body}
       ${isOn(l) ? timerPills(t("Turn off"), t("{name} off", { name: l.name }), { type: "setLight", id: l.id, level: 0 }) : ""}</div>`;
 }
 
 function shadeSheet(app, s) {
-  return `${sheetHead("var(--teal)", "blinds", s.name, roomName(app.home, s), app, `shade:${s.id}`)}
+  return `${sheetHead("var(--teal)", "blinds", s.name, roomName(app.home, s), app, `shade:${s.id}`, s.origin)}
     <div class="sheet-body"><div class="big-val" data-live="shade:${esc(s.id)}">${esc(shadeState(s))}</div>
       ${s.hasPosition !== false ? vslider({ kind: "shade", id: s.id, value: s.position, cls: "shade", ic: "blinds", label: t("{name} position", { name: s.name }) }) : ""}
       <div class="pills">
@@ -57,6 +62,8 @@ function shadeSheet(app, s) {
 }
 
 function mediaSheet(app, m) {
+  // A TV with remote keys gets the remote; music rooms keep this card.
+  if (m.canRemote) return tvSheet(app, m, { sheetHead, timerPills, vslider });
   const sources = m.sources.map((s) => `<button type="button" class="row" data-act="media-source" data-id="${esc(m.id)}" data-source="${esc(s.id)}" aria-pressed="${m.on && m.sourceId === s.id}">
       <span class="grow">${esc(s.name)}</span>${m.on && m.sourceId === s.id ? `<span class="check">${icon("check")}</span>` : ""}</button>`).join("");
   const left = m.hasVolume
@@ -74,7 +81,7 @@ function mediaSheet(app, m) {
         ${m.canTransport ? transportRow(m, true) : ""}</div>`
     : "";
   const others = app.home.media.filter((z) => z.id !== m.id);
-  return `${sheetHead("var(--purple)", "music", m.name, m.on ? `${m.playing ? t("Playing") : t("Paused")} · ${sourceName(m)}` : t("Off"), app, `media:${m.id}`)}
+  return `${sheetHead("var(--purple)", "music", m.name, m.on ? `${m.playing ? t("Playing") : t("Paused")} · ${sourceName(m)}` : t("Off"), app, `media:${m.id}`, m.origin)}
     <div class="sheet-cols"${m.hasVolume ? "" : ' style="grid-template-columns:minmax(0,1fr)"'}>
       ${left}
       <div style="display:grid;gap:18px;width:100%">
@@ -96,7 +103,7 @@ function lockSheet(app, l) {
        <p class="hint">${t("Tap to lock.")}</p>`
     : `<button type="button" class="hold locked" data-hold="unlock" data-id="${esc(l.id)}" aria-label="${esc(t("Unlock {name}: press and hold", { name: l.name }))}">${ring}${icon("lock")}</button>
        <p class="hint">${t("Press and hold for a second to unlock.")}</p>`;
-  return `${sheetHead(unlocked ? "var(--orange)" : "var(--green)", unlocked ? "unlock" : "lock", l.name, roomName(app.home, l), app, `lock:${l.id}`)}
+  return `${sheetHead(unlocked ? "var(--orange)" : "var(--green)", unlocked ? "unlock" : "lock", l.name, roomName(app.home, l), app, `lock:${l.id}`, l.origin)}
     <div class="sheet-body"><div class="big-val">${l.locked === null ? t("Unknown") : unlocked ? t("Unlocked") : t("Locked")}</div>${control}</div>`;
 }
 

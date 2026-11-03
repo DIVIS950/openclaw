@@ -16,6 +16,7 @@ import { CrestronHomeBackend } from "./backends/crestron-home.js";
 import { CustomProgramBackend, parseJoinMap } from "./backends/custom-program.js";
 import { assistantErrorMessage, runAssistant } from "./assistant.js";
 import { fetchSnapshot } from "./camera.js";
+import { SourceHub } from "./sources/hub.js";
 import { fetchWeather, findPlace } from "./weather.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +49,7 @@ const DEFAULT_CONFIG = {
   port: 41794,
   joinMap: readExampleJoinMap(),
   cameras: [], // { id, name, snapshotURL, username, password }
+  samsungTVs: [], // { id, name, host, mac, room, token }: Samsung TVs reached over Wi-Fi beside the main system
   assistantKey: "", // Anthropic API key for the AI assistant (or set ANTHROPIC_API_KEY)
   roomPhotos: {}, // roomId -> version (time of upload); the files live in data/photos
   location: null, // { place, lat, lon, unit } for weather and sunrise/sunset schedules
@@ -81,6 +83,8 @@ function publicConfig() {
     port: config.port,
     joinMap: config.joinMap,
     cameras: config.cameras.map(({ password, ...c }) => ({ ...c, hasPassword: Boolean(password) })),
+    // The pairing token stays here; the page only learns whether the TV is paired.
+    samsungTVs: config.samsungTVs.map(({ token, ...tv }) => ({ ...tv, paired: Boolean(token) })),
     hasAssistantKey: Boolean(config.assistantKey),
     assistantFromEnv: Boolean(process.env.ANTHROPIC_API_KEY),
   };
@@ -100,8 +104,9 @@ const clients = new Set();
 
 function payload() {
   return {
-    home,
+    home: hub.merge(home),
     status: { ...status, mode: config.mode },
+    sources: hub.statuses(),
     homeName: config.homeName,
     cameras: cameraList(),
     assistant: { available: assistantAvailable() },
@@ -139,8 +144,43 @@ async function refreshWeather() {
 
 // ---------- automations ----------
 
+// ---------- extra sources: Samsung TVs beside the main system ----------
+
+const hub = new SourceHub({
+  onChange: () => broadcast(),
+  onToken: (host, token) => {
+    // A TV handed out its pairing token after someone pressed Allow: keep it for next time.
+    config = { ...config, samsungTVs: config.samsungTVs.map((tv) => (tv.host === host ? { ...tv, token } : tv)) };
+    saveConfig(config);
+  },
+  log: (text) => console.error(text),
+});
+
+/** Samsung TVs from the Setup page: a cleaned list, keeping each TV's saved token. */
+function cleanSamsungTVs(list) {
+  return list
+    .filter((tv) => tv && typeof tv.host === "string" && tv.host.trim())
+    .map((tv) => {
+      const host = tv.host.trim();
+      const old = config.samsungTVs.find((o) => (tv.id && o.id === tv.id) || o.host === host);
+      const mac = String(tv.mac ?? "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+      return {
+        id: typeof tv.id === "string" && tv.id ? tv.id : crypto.randomUUID(),
+        name: String(tv.name ?? "").trim() || "Samsung TV",
+        host,
+        mac: mac.length === 12 ? mac.match(/../g).join(":") : "",
+        room: typeof tv.room === "string" && tv.room.trim() ? tv.room.trim() : null,
+        token: old?.host === host ? old.token ?? "" : "",
+        // Only for tests and odd setups: a TV answers on 8001/8002 otherwise.
+        ...(Number.isInteger(tv.httpPort) ? { httpPort: tv.httpPort } : {}),
+        ...(Number.isInteger(tv.wsPort) ? { wsPort: tv.wsPort } : {}),
+      };
+    })
+    .slice(0, 20);
+}
+
 const automations = new AutomationEngine({
-  getHome: () => home,
+  getHome: () => hub.merge(home),
   perform: (cmd) => perform(cmd),
   getAutomations: () => config.automations,
   save: (a) => {
@@ -264,6 +304,8 @@ function connect() {
 }
 
 async function perform(cmd) {
+  // Devices from an extra source ("stv:…") go to that source; everything else to the processor.
+  if (hub.owns(cmd.id)) return hub.perform(cmd);
   if (!backend) throw new Error("Not connected.");
   applyCommand(home, cmd);
   const key = stateKey(cmd);
@@ -360,7 +402,7 @@ const server = http.createServer(async (req, res) => {
         const result = await runAssistant({
           message,
           history: Array.isArray(body.history) ? body.history : [],
-          getHome: () => home,
+          getHome: () => hub.merge(home),
           perform,
           apiKey: config.assistantKey || undefined,
           addTimer: async ({ minutes, label, commands }) => {
@@ -424,10 +466,13 @@ const server = http.createServer(async (req, res) => {
               };
             });
         }
+        if (Array.isArray(body.samsungTVs)) next.samsungTVs = cleanSamsungTVs(body.samsungTVs);
         // Only a change to how we reach the processor needs a reconnect (not the AI key or cameras).
         const reconnect = ["mode", "host", "token", "ipId", "port", "joinMap"].some((k) => next[k] !== config[k]);
+        const tvsChanged = JSON.stringify(next.samsungTVs) !== JSON.stringify(config.samsungTVs);
         config = next;
         saveConfig(config);
+        if (tvsChanged) hub.configure(config.samsungTVs);
         if (reconnect) connect();
         else broadcast();
         return sendJSON(res, 200, publicConfig());
@@ -573,6 +618,7 @@ server.listen(PORT, HOST, () => {
   console.log(`Home Control is running: open http://<this-computer's-ip>:${PORT} on your iPad or phone (classic view: /index.html)`);
   console.log(`Mode: ${config.mode}${ADMIN_PIN ? " · Setup is protected by ADMIN_PIN" : ""}`);
   connect();
+  hub.configure(config.samsungTVs);
   refreshWeather();
   setInterval(refreshWeather, 15 * 60000);
   setInterval(() => automations.tick().catch((err) => console.error("automation:", err.message)), 20000);

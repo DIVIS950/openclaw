@@ -3,7 +3,7 @@
 // and the safety rules for which commands a person must confirm.
 import { describeAction, describeWhen, validateSchedule } from "./automation.js";
 import { t } from "./i18n.js";
-import { GATE_TITLES, SECURITY_TITLES, validateCommand } from "./model.js";
+import { GATE_TITLES, SECURITY_TITLES, TV_KEYS, validateCommand } from "./model.js";
 
 export const ASSISTANT_RULES = `You are the voice-and-chat assistant for a Crestron-controlled home, shown on wall iPads and phones.
 You control the house only through the control_home tool. Each request includes the current home state as JSON; use the exact ids from it.
@@ -20,6 +20,7 @@ How to act:
 - "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
 - Heating: each room thermostat has a current and a target temperature in °C; setClimate sets the target (steps of 0.5). "Warmer"/"colder" means ±1 °C. The whole-house heating mode is a mode (setMode with one of its option ids). The sauna and similar things are switches (setSwitch on/off).
 - Rooms are grouped by floor (for example 1.NP, 2.NP, Suterén, Venek); "upstairs"/"nahoře" means the floors above 1.NP.
+- TVs with canRemote accept tvKey (remote buttons), tvApp (launch an app by appId) and mediaChannel (number). "Put on Netflix" → tvApp; "channel 4" → mediaChannel.
 - Names in this house are Czech. Answer in appLanguage from the state (the language the app is set to), unless the person clearly writes in another language.
 
 How to answer:
@@ -95,7 +96,8 @@ export const CONTROL_TOOL_DESCRIPTION =
   "Send one or more commands to the house. Each command needs `type` and the device `id` from the home state, plus the field its type uses: " +
   "setLight → level; setShade → position; stopShade → (nothing); recallScene → (nothing); mediaPower → on; mediaVolume → level; " +
   "mediaMute → muted; mediaSource → sourceId; setLock → locked; setSecurity → mode (armedAway or armedHome); gate → action (open, close, stop, trigger); " +
-  "setClimate → target (°C); setMode → value (an option id of that mode); setSwitch → on. " +
+  "setClimate → target (°C); setMode → value (an option id of that mode); setSwitch → on; " +
+  "tvKey → key (a remote button); tvApp → appId (from the TV's apps); mediaChannel → channel (a number). " +
   "Returns one line per command saying whether it was done, needs the person to confirm, or was refused.";
 
 export const CONTROL_TOOL_SCHEMA = {
@@ -109,11 +111,14 @@ export const CONTROL_TOOL_SCHEMA = {
         properties: {
           type: {
             type: "string",
-            enum: ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock", "setSecurity", "gate", "setClimate", "setMode", "setSwitch"],
+            enum: ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "setLock", "setSecurity", "gate", "setClimate", "setMode", "setSwitch", "tvKey", "tvApp", "mediaChannel"],
           },
           id: { type: "string", description: "Device, scene, media room, lock, alarm, gate, thermostat, mode or switch id from the home state." },
           target: { type: "number", minimum: 5, maximum: 30, description: "Target temperature in °C (setClimate)." },
           value: { type: "string", description: "Option id (setMode)." },
+          key: { type: "string", enum: TV_KEYS, description: "Remote button (tvKey)." },
+          appId: { type: "string", description: "App id from the TV's apps list (tvApp)." },
+          channel: { type: "integer", minimum: 1, description: "Channel number (mediaChannel)." },
           level: { type: "number", minimum: 0, maximum: 1 },
           position: { type: "number", minimum: 0, maximum: 1 },
           on: { type: "boolean" },
@@ -142,9 +147,12 @@ export function homeForModel(home, extra = {}) {
     shades: home.shades.map((s) => ({ id: s.id, name: s.name, room: room(s.roomId), openPercent: pct(s.position), canStop: s.canStop })),
     scenes: home.scenes.map((s) => ({ id: s.id, name: s.name, room: room(s.roomId) ?? "whole house", active: s.active })),
     media: home.media.map((m) => ({
-      id: m.id, name: m.name, on: m.on, volume: pct(m.volume), muted: m.muted,
+      id: m.id, name: m.name, room: room(m.roomId), kind: m.kind ?? "audio", on: m.on, volume: pct(m.volume), muted: m.muted,
       source: m.sources.find((s) => s.id === m.sourceId)?.name ?? null,
       sources: m.sources.map((s) => ({ id: s.id, name: s.name })),
+      // TVs: the remote keys they take, their apps and the channel they show.
+      ...(m.canRemote ? { canRemote: true, apps: (m.apps ?? []).map((a) => ({ id: a.id, name: a.name })), channel: m.channel ?? null } : {}),
+      ...(m.origin ? { origin: m.origin } : {}),
     })),
     locks: home.locks.map((l) => ({ id: l.id, name: l.name, room: room(l.roomId), locked: l.locked })),
     alarms: home.security.map((p) => ({ id: p.id, name: p.name, mode: SECURITY_TITLES[p.mode] })),
@@ -183,6 +191,12 @@ export function describeCommand(cmd, home) {
       return `${name(m)} → ${m?.options.find((o) => o.id === cmd.value)?.name ?? cmd.value}`;
     }
     case "setSwitch": return `${name(find(home.switches ?? []))} → ${cmd.on ? t("cmd::on") : t("cmd::off")}`;
+    case "tvKey": return t("{name}: button {key}", { name: name(find(home.media)), key: cmd.key });
+    case "tvApp": {
+      const tv = find(home.media);
+      return `${name(tv)} → ${tv?.apps?.find((a) => a.id === cmd.appId)?.name ?? cmd.appId}`;
+    }
+    case "mediaChannel": return t("{name} → channel {n}", { name: name(find(home.media)), n: cmd.channel });
     default: return String(cmd.type);
   }
 }
@@ -203,6 +217,7 @@ export function cleanCommand(raw) {
     setLight: ["level"], setShade: ["position"], mediaVolume: ["level"], mediaPower: ["on"], mediaMute: ["muted"],
     mediaSource: ["sourceId"], setLock: ["locked"], setSecurity: ["mode"], gate: ["action"],
     setClimate: ["target"], setMode: ["value"], setSwitch: ["on"],
+    tvKey: ["key"], tvApp: ["appId"], mediaChannel: ["channel"],
   }[raw?.type] ?? [];
   const cmd = { type: raw?.type, id: raw?.id };
   for (const key of keep) cmd[key] = raw[key];

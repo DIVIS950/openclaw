@@ -80,6 +80,15 @@ const P = {
   steam: '<path d="M8 3.5c-1.2 1.4 1.2 2.6 0 4M12 3.5c-1.2 1.4 1.2 2.6 0 4M16 3.5c-1.2 1.4 1.2 2.6 0 4"/><path d="M3.5 12.5c1.4-1.2 2.8-1.2 4.2 0s2.8 1.2 4.3 0 2.8-1.2 4.3 0 2.8 1.2 4.2 0"/><path d="M3.5 17c1.4-1.2 2.8-1.2 4.2 0s2.8 1.2 4.3 0 2.8-1.2 4.3 0 2.8 1.2 4.2 0"/>',
   motion: '<circle cx="13" cy="4.6" r="1.6"/><path d="m8 21 3-6.5 3 2.5v4.5"/><path d="M6.5 11.5 9 8.5l3.5-.5 2.5 3.5 3 1"/><path d="m11 14.5 1.5-6"/>',
   wifi: '<path d="M4.5 10a11 11 0 0 1 15 0"/><path d="M7.5 13.3a6.6 6.6 0 0 1 9 0"/><path d="M12 17.2h.01"/>',
+  // TV remote
+  remote: '<rect x="7.5" y="2.5" width="9" height="19" rx="2.6"/><circle cx="12" cy="9.5" r="2.4"/><path d="M10 15h4M10 18h4"/><path d="M12 5.2h.01"/>',
+  appsGrid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><path d="M16.75 13.5v6.5M13.5 16.75H20"/>',
+  chevronUp: '<path d="m6 14.5 6-6 6 6"/>',
+  chevronDown: '<path d="m6 9.5 6 6 6-6"/>',
+  chevronLeft: '<path d="m14.5 6-6 6 6 6"/>',
+  chevronRight: '<path d="m9.5 6 6 6-6 6"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.8h.01"/>',
 };
 
 export function icon(name, extraClass = "") {

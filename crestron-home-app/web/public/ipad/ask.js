@@ -44,6 +44,8 @@ function smartSuggestions(app) {
   const playing = h.media.find((m) => m.on);
   if (playing) out.push({ ic: "timer", text: t("Turn off the {name} music in 30 minutes", { name: lang() === "cs" ? playing.name : playing.name.toLowerCase() }) });
   else if (h.media.length) out.push({ ic: "music", text: t("Play Spotify in the kitchen") });
+  // A TV with a remote: launch an app, switch a channel.
+  if (h.media.some((m) => m.canRemote)) out.push({ ic: "tv", text: t("Put on Netflix in the living room") }, { ic: "tv", text: t("Switch to ČT1") });
   // Scene names in this house are Czech (Dobrou noc, Příjezd…), so match both languages.
   const scene = h.scenes.find((s) => (hour >= 20 || hour < 5 ? /night|noc/i : hour < 11 ? /morning|wake|ráno|budíček/i : /welcome|home|příjezd|domů/i).test(s.name));
   if (scene) out.push({ ic: sceneIcon(scene), text: scene.name });

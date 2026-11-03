@@ -7,6 +7,7 @@ import { applyCommand, clamp01, clampTarget, emptyHome, normalizeHome, pct, stat
 import { createAsk } from "./ask.js";
 import { createFeatures } from "./features.js";
 import { dots, isWideSheet, sheetHTML } from "./sheets.js";
+import { createTvControls } from "./tv.js";
 import { homePages, isOn, isOpen, setFlash, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
 
 const $ = (s, root = document) => root.querySelector(s);
@@ -33,6 +34,7 @@ const app = {
   status: { connection: "connecting", message: null, mode: "demo" },
   homeName: "", // empty: shown as "Home" in the current language
   cameras: [],
+  sources: [], // extra systems beside the main one (Samsung TVs): { id, name, origin, connection, message }
   assistant: { available: false },
   askVisible: false,
   transport: null, // "server" | "local"
@@ -65,6 +67,7 @@ const features = createFeatures({
   wake: () => { if (!$("#standby").hidden) showStandby(false); },
   ringDemo: (id) => engine?.ring(id),
 });
+const tv = createTvControls({ app, send, notify, escText: (s) => escText(s), renderSheet: () => renderSheet(true) });
 
 // ---------- connection ----------
 
@@ -116,6 +119,7 @@ function receive(p) {
   app.status = p.status ?? app.status;
   app.homeName = p.homeName || "";
   app.cameras = p.cameras ?? [];
+  app.sources = Array.isArray(p.sources) ? p.sources : [];
   app.assistant = p.assistant ?? { available: false };
   app.roomPhotos = p.roomPhotos ?? {};
   features.receive(p);
@@ -139,7 +143,7 @@ async function send(cmd) {
     if (l && isOn(l)) app.lastLevel.set(l.id, l.level);
   }
   applyCommand(app.home, cmd);
-  const kind = { setLight: "light", setShade: "shade", mediaPower: "media", mediaSource: "media", setLock: "lock", recallScene: "scene" }[cmd.type];
+  const kind = { setLight: "light", setShade: "shade", mediaPower: "media", mediaSource: "media", tvApp: "media", mediaChannel: "media", setLock: "lock", recallScene: "scene" }[cmd.type];
   if (kind) app.flash.set(`${kind}:${cmd.id}`, Date.now());
   const key = stateKey(cmd);
   if (key) app.recent.set(key, { cmd, at: Date.now() });
@@ -408,6 +412,7 @@ function renderSheet(force = false) {
 function closeSheet() {
   app.sheet = null;
   cancelHold();
+  tv.reset();
   $("#sheet-root").innerHTML = "";
 }
 
@@ -626,7 +631,7 @@ const actions = {
   "ask-mic": () => ask.toggleListening(),
 };
 
-Object.assign(actions, features.actions);
+Object.assign(actions, features.actions, tv.actions);
 
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");

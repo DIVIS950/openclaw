@@ -602,6 +602,11 @@ function setupHTML() {
       <div class="section-head"><h2 class="section-title" id="cam-title">Cameras</h2><button class="btn" type="button" data-act="cam-add">${icon("plus")}Add camera</button></div>
       <p class="help">Use each camera's JPEG snapshot URL. Hikvision: <code>/ISAPI/Streaming/channels/101/picture</code> · Dahua: <code>/cgi-bin/snapshot.cgi</code> · Axis: <code>/axis-cgi/jpg/image.cgi</code>. Passwords stay on the home server.</p>
       <div id="cam-list" class="stack"></div>
+    </section>
+    <section class="card form" aria-labelledby="tv-title">
+      <div class="section-head"><h2 class="section-title" id="tv-title">Samsung TVs</h2><button class="btn" type="button" data-act="tv-add">${icon("plus")}Add TV</button></div>
+      <p class="help">Samsung TVs on the home Wi-Fi get a remote in the app. Enter each TV's IP address (give it a fixed one in the router) and, to turn it on from here, its MAC address; turn on “Power On with Mobile” in the TV's network settings. The first time, the TV asks you to allow Home Control on its screen.</p>
+      <div id="tv-list" class="stack"></div>
     </section>`}
     <section class="card form" aria-labelledby="ai-title">
       <h2 class="section-title" id="ai-title">AI assistant</h2>
@@ -661,6 +666,7 @@ async function mountSetup() {
   setupConfig = await res.json();
   renderConnectionForm();
   renderCameraList();
+  renderTVList();
   updateAiStatus();
 }
 
@@ -749,6 +755,41 @@ function readCameraEdits() {
   }
 }
 
+/** Samsung TVs: name, IP, MAC and the room they stand in (a room of the main system). */
+function renderTVList() {
+  const list = $("#tv-list");
+  if (!list) return;
+  const tvs = (setupConfig.samsungTVs ??= []);
+  const rooms = app.home.rooms;
+  const roomOptions = (tv) => {
+    const known = rooms.some((r) => r.id === tv.room);
+    return [`<option value="">No room</option>`, ...rooms.map((r) => `<option value="${esc(r.id)}"${tv.room === r.id ? " selected" : ""}>${esc(r.name)}</option>`),
+      tv.room && !known ? `<option value="${esc(tv.room)}" selected>${esc(tv.room)}</option>` : ""].join("");
+  };
+  list.innerHTML = tvs.length ? tvs.map((tv, i) => `
+    <div class="cam-edit" data-tv-index="${i}">
+      <div class="fields-2">
+        <div class="field"><label for="tv-name-${i}">Name</label><input class="input" id="tv-name-${i}" data-tv-field="name" value="${esc(tv.name)}" placeholder="Samsung TV"></div>
+        <div class="field"><label for="tv-host-${i}">IP address</label><input class="input" id="tv-host-${i}" data-tv-field="host" value="${esc(tv.host)}" placeholder="192.168.1.80" inputmode="url" autocapitalize="off" spellcheck="false"></div>
+        <div class="field"><label for="tv-mac-${i}">MAC address (for power on)</label><input class="input" id="tv-mac-${i}" data-tv-field="mac" value="${esc(tv.mac ?? "")}" placeholder="AA:BB:CC:DD:EE:FF" autocapitalize="characters" spellcheck="false"></div>
+        <div class="field"><label for="tv-room-${i}">Room</label>${rooms.length
+          ? `<select class="select" id="tv-room-${i}" data-tv-field="room">${roomOptions(tv)}</select>`
+          : `<input class="input" id="tv-room-${i}" data-tv-field="room" value="${esc(tv.room ?? "")}" placeholder="Room name">`}</div>
+      </div>
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <span class="status-line${tv.paired ? " ok" : ""}"><span class="dot ${tv.paired ? "ok" : "warn"}"></span>${tv.paired ? "Paired with the TV" : "Not paired yet: the TV will ask you to allow Home Control"}</span>
+        <button class="btn ghost" type="button" data-act="tv-remove" data-index="${i}">${icon("close")}Remove</button>
+      </div>
+    </div>`).join("") : '<p class="help">No Samsung TVs yet.</p>';
+}
+
+function readTVEdits() {
+  for (const row of $$("[data-tv-index]")) {
+    const tv = setupConfig.samsungTVs[Number(row.dataset.tvIndex)];
+    for (const input of $$("[data-tv-field]", row)) tv[input.dataset.tvField] = input.value;
+  }
+}
+
 function updateSetupStatus() {
   const el = $("#conn-status");
   if (!el) return;
@@ -759,6 +800,7 @@ function updateSetupStatus() {
 
 async function saveSetup() {
   readCameraEdits();
+  readTVEdits();
   const body = {
     mode: setupConfig.mode,
     homeName: $("#f-name").value,
@@ -768,6 +810,7 @@ async function saveSetup() {
     port: Number($("#f-port").value) || 41794,
     joinMap: $("#f-map").value,
     cameras: setupConfig.cameras,
+    samsungTVs: setupConfig.samsungTVs ?? [],
   };
   const status = $("#conn-status");
   status.className = "status-line";
@@ -780,6 +823,7 @@ async function saveSetup() {
     $("#f-token").value = "";
     $("#f-token").placeholder = json.hasToken ? "Saved. Leave empty to keep it." : "Paste the token";
     renderCameraList();
+    renderTVList();
     updateSetupStatus();
   } catch (err) {
     status.className = "status-line bad";
@@ -1033,6 +1077,16 @@ function handleAction(el) {
       readCameraEdits();
       setupConfig.cameras.splice(Number(el.dataset.index), 1);
       renderCameraList();
+      return;
+    case "tv-add":
+      readTVEdits();
+      (setupConfig.samsungTVs ??= []).push({ id: "", name: "Samsung TV", host: "", mac: "", room: "" });
+      renderTVList();
+      return;
+    case "tv-remove":
+      readTVEdits();
+      setupConfig.samsungTVs.splice(Number(el.dataset.index), 1);
+      renderTVList();
       return;
     case "ai-save": return saveAiKey(false);
     case "ai-remove": return saveAiKey(true);

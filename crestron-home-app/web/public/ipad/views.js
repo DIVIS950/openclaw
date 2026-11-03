@@ -14,6 +14,34 @@ export const isOpen = (s) => s.position > 0.02;
 export const sourceName = (m) => m.sources.find((s) => s.id === m.sourceId)?.name ?? t("On");
 export const roomHref = (id) => `#room-${encodeURIComponent(id)}`;
 
+/** The app a TV is showing ("Netflix"), from its now-playing line; null when it's a channel or an input. */
+export const tvApp = (m) => {
+  const np = m.nowPlaying;
+  if (!np?.title || m.channel) return null;
+  return np.artist === "App" || m.apps?.some((a) => a.name === np.title) ? np.title : null;
+};
+/** What a TV shows: the channel ("Nova"), the app ("Netflix") or the input. */
+export function tvTitle(m) {
+  if (!m.on) return t("Off");
+  if (m.channel) return m.channel.name || t("Channel {n}", { n: m.channel.number });
+  return tvApp(m) || m.nowPlaying?.title || sourceName(m);
+}
+/** One line for what a zone plays: a TV's channel or app, otherwise the track or source. */
+export const playingTitle = (m) => (m.kind === "tv" ? tvTitle(m) : m.nowPlaying?.title || sourceName(m));
+
+// Brand-like colors for app tiles; anything else gets a hue from its name.
+const APP_COLORS = [
+  [/netflix/i, "#e50914", "#8a0410"], [/youtube/i, "#ff3d3d", "#b00020"], [/disney/i, "#1f4fd8", "#0b2a8f"],
+  [/prime|amazon/i, "#00a8e1", "#0b5f9e"], [/spotify/i, "#1ed760", "#0a8f4a"], [/apple/i, "#3a3a3c", "#111113"],
+  [/max|hbo/i, "#6a3cff", "#2d0d8f"], [/plex/i, "#e5a00d", "#9a6a05"], [/twitch/i, "#9146ff", "#5a1fbd"],
+];
+export function appColors(name) {
+  const hit = APP_COLORS.find(([re]) => re.test(name));
+  if (hit) return { a1: hit[1], a2: hit[2] };
+  const h = [...String(name)].reduce((x, c) => (x * 31 + c.charCodeAt(0)) % 360, 11);
+  return { a1: `hsl(${h} 70% 52%)`, a2: `hsl(${(h + 40) % 360} 75% 36%)` };
+}
+
 // ---------- wallpaper ----------
 
 // Three hues per wallpaper: two corners and the floor glow.
@@ -73,6 +101,12 @@ const SOURCE_ART = [
 export function art(m) {
   const n = sourceName(m);
   let [, a1, a2, ic] = SOURCE_ART.find(([re]) => re.test(n)) ?? [null, "#7a7bff", "#ff5fa2", "music"];
+  if (m.kind === "tv") {
+    // A TV shows its app's colors, or a channel's blue; the glyph is always a TV.
+    const app = tvApp(m);
+    ({ a1, a2 } = app ? appColors(app) : m.channel ? { a1: "#3b6cff", a2: "#6a3bff" } : { a1, a2 });
+    return { a1, a2, ic: "tv" };
+  }
   if (m.nowPlaying?.title && ic === "music") {
     const h = [...m.nowPlaying.title].reduce((x, c) => (x * 31 + c.charCodeAt(0)) % 360, 7);
     a1 = `hsl(${h} 80% 62%)`;
@@ -126,7 +160,7 @@ export function shadeState(s) {
   if (s.position <= 0.02) return t("Closed");
   return t("{pct} open", { pct: pct(s.position) });
 }
-const mediaIcon = (m) => (/tv|cable|apple/i.test(m.on ? sourceName(m) : m.name) ? "tv" : "speaker");
+const mediaIcon = (m) => (m.kind === "tv" || /tv|cable|apple/i.test(m.on ? sourceName(m) : m.name) ? "tv" : "speaker");
 
 export function accessoryTiles(home, items, showRoom) {
   const room = (x) => (showRoom ? roomOf(home, x.roomId)?.name ?? "" : "");
@@ -140,9 +174,10 @@ export function accessoryTiles(home, items, showRoom) {
           toggleLabel: t(isOpen(x) ? "{name}: close" : "{name}: open", { name: x.name }), offline: x.online === false });
       case "media":
         // A media room is usually named after its room; call it TV or Speakers on the tile instead.
+        // A TV's state is what it shows: the channel or the app ("Nova", "Netflix").
         return tile({ kind, id: x.id, on: x.on, color: "var(--purple)", iconName: mediaIcon(x), room: room(x),
-          name: roomOf(home, x.roomId)?.name === x.name ? (/tv|cable|apple/i.test(x.sources.map((s) => s.name).join(" ")) ? t("TV") : t("Speakers")) : x.name,
-          state: x.on ? `${sourceName(x)}${x.hasVolume ? ` · ${x.muted ? t("Muted") : pct(x.volume)}` : ""}` : t("Off"),
+          name: roomOf(home, x.roomId)?.name === x.name ? (x.kind === "tv" || /tv|cable|apple/i.test(x.sources.map((s) => s.name).join(" ")) ? t("TV") : t("Speakers")) : x.name,
+          state: !x.on ? t("Off") : x.kind === "tv" ? `${tvTitle(x)}${x.muted ? ` · ${t("Muted")}` : ""}` : `${sourceName(x)}${x.hasVolume ? ` · ${x.muted ? t("Muted") : pct(x.volume)}` : ""}`,
           toggleLabel: t(x.on ? "{name}: turn off" : "{name}: turn on", { name: x.name }) });
       case "lock": {
         const unlocked = x.locked === false;
@@ -228,20 +263,23 @@ export function zoneWidget(home, m, others = []) {
     return `<div data-tilt class="widget" style="--c:var(--purple)">
       <div class="w-top"><span class="w-glyph">${icon(mediaIcon(m))}</span>
         <div class="w-text"><div class="w-name">${esc(room)}</div><div class="w-state">${t("Off")}</div></div>
-        <button type="button" class="w-more" aria-label="${esc(t("{name} controls", { name: m.name }))}"${attr({ act: "detail", kind: "media", id: m.id })}>${icon("more")}</button></div>
+        <button type="button" class="w-more" aria-label="${esc(t(m.canRemote ? "{name} remote" : "{name} controls", { name: m.name }))}"${attr({ act: "detail", kind: "media", id: m.id, key: `d:media:${m.id}` })}>${icon(m.canRemote ? "remote" : "more")}</button></div>
       <div class="w-row"><button type="button" class="w-btn primary"${attr({ act: "toggle", kind: "media", id: m.id })}>${icon("power")}${t("Turn on")}</button></div>
     </div>`;
   }
   const a = art(m);
   const np = m.nowPlaying;
-  const title = np?.title || sourceName(m);
-  const detail = [np?.artist, np ? sourceName(m) : null, room].filter(Boolean).join(" · ");
+  const title = playingTitle(m);
+  // A TV: the show under the channel, the input under an app; music: artist and source.
+  const detail = (m.kind === "tv"
+    ? [np?.title !== title ? np?.title : null, m.channel ? t("Channel {n}", { n: m.channel.number }) : m.sourceId ? sourceName(m) : null, room]
+    : [np?.artist, np ? sourceName(m) : null, room]).filter(Boolean).join(" · ");
   const state = m.muted ? ` · ${t("Muted")}` : m.playing ? `<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>` : ` · ${t("Paused")}`;
   return `<div data-tilt class="widget" style="--c:var(--purple)">
     <div class="np"><span class="art" style="--a1:${a.a1};--a2:${a.a2}">${icon(a.ic)}</span>
       <div class="w-text"><div class="w-state">${esc(title)}</div>
         <div class="w-name">${esc(detail)}${state}</div></div>
-      <button type="button" class="w-more" aria-label="${esc(t("{name} controls", { name: m.name }))}"${attr({ act: "detail", kind: "media", id: m.id })}>${icon("more")}</button></div>
+      <button type="button" class="w-more" aria-label="${esc(t(m.canRemote ? "{name} remote" : "{name} controls", { name: m.name }))}"${attr({ act: "detail", kind: "media", id: m.id, key: `d:media:${m.id}` })}>${icon(m.canRemote ? "remote" : "more")}</button></div>
     ${m.canTransport ? transportRow(m) : ""}
     ${m.hasVolume ? hbar(m) : ""}
     ${others.length ? `<a class="w-name" href="#media">${t("Also playing in {rooms}", { rooms: esc(others.map((o) => roomOf(home, o.roomId)?.name ?? o.name).join(", ")) })}</a>` : ""}
@@ -615,7 +653,7 @@ function roomCard(app, r) {
   const photo = app.photoURL(r.id);
   const playing = st.media.find((m) => m.on);
   const status = [st.lights.length ? (st.on.length ? t("{on} of {total} lights on", { on: st.on.length, total: st.lights.length }) : t("Lights off")) : "",
-    playing ? t("Playing {what}", { what: playing.nowPlaying?.title || sourceName(playing) }) : ""].filter(Boolean).join(" · ") || t("Nothing on");
+    playing ? t("Playing {what}", { what: playingTitle(playing) }) : ""].filter(Boolean).join(" · ") || t("Nothing on");
   const open = st.shades.filter(isOpen).length;
   const unlocked = st.locks.filter((l) => l.locked === false).length;
   return `<article class="room-card${st.on.length ? " lit" : ""}" style="--rh1:${h1};--rh2:${h2};--glow:${st.avg.toFixed(2)}" data-tilt>
@@ -625,7 +663,7 @@ function roomCard(app, r) {
     <div class="rc-top"><span class="rc-icon">${icon(roomIcon(r.name))}</span>
       ${st.lights.length ? `<button type="button" class="rc-quick${st.on.length ? " on" : ""}" aria-label="${esc(t(st.on.length ? "{name}: lights off" : "{name}: lights on", { name: r.name }))}"${attr({ act: "room-lights", id: r.id, level: st.on.length ? 0 : 1, key: `rq:${r.id}` })}>${icon(st.on.length ? "bulb" : "bulbOff")}</button>` : ""}</div>
     <div class="rc-bottom"><b>${esc(r.name)}</b><span>${esc(status)}</span>
-      <div class="rc-badges">${st.climate ? badge(st.climate.heating ? "flame" : "thermo", temp(st.climate.current), false) : ""}${st.shades.length ? badge("blinds", open ? tn(open, "{n} open", "{n} open") : t("Closed")) : ""}${playing ? badge("music", sourceName(playing)) : ""}${st.locks.length ? badge(unlocked ? "unlock" : "lock", unlocked ? t("Unlocked") : t("Locked"), unlocked > 0) : ""}</div></div>
+      <div class="rc-badges">${st.climate ? badge(st.climate.heating ? "flame" : "thermo", temp(st.climate.current), false) : ""}${st.shades.length ? badge("blinds", open ? tn(open, "{n} open", "{n} open") : t("Closed")) : ""}${playing ? badge(playing.kind === "tv" ? "tv" : "music", playing.kind === "tv" ? tvTitle(playing) : sourceName(playing)) : ""}${st.locks.length ? badge(unlocked ? "unlock" : "lock", unlocked ? t("Unlocked") : t("Locked"), unlocked > 0) : ""}</div></div>
   </article>`;
 }
 
@@ -678,7 +716,7 @@ function roomView(app) {
   const scenes = h.scenes.filter((s) => s.roomId === room.id);
   const items = roomItems(h, room.id).filter(([k]) => k !== "media");
   const on = lights.filter(isOn).length;
-  const sub = [lights.length ? (on ? t("{on} of {total} lights on", { on, total: lights.length }) : t("Lights off")) : "", ...media.filter((m) => m.on).map((m) => t("Playing {what}", { what: sourceName(m) }))].filter(Boolean).join(" · ");
+  const sub = [lights.length ? (on ? t("{on} of {total} lights on", { on, total: lights.length }) : t("Lights off")) : "", ...media.filter((m) => m.on).map((m) => t("Playing {what}", { what: m.kind === "tv" ? tvTitle(m) : sourceName(m) }))].filter(Boolean).join(" · ");
   const eyebrow = [lights.length && tn(lights.length, "{n} light", "{n} lights"), shades.length && tn(shades.length, "{n} shade", "{n} shades"), media.length && t("media")].filter(Boolean).join(" · ") || t("Room");
   const quick = [
     lights.length ? `<button type="button" class="capsule"${attr({ act: "room-lights", id: room.id, level: on ? 0 : 1 })}>${icon(on ? "bulbOff" : "bulb")}${on ? t("action::Lights off") : t("action::Lights on")}</button>` : "",
@@ -700,7 +738,7 @@ function roomView(app) {
         ${st.climate ? stat(st.climate.heating ? "flame" : "thermo", "var(--orange)", t("Temperature"), temp(st.climate.current)) : ""}
         ${lights.length ? stat("bulb", "var(--yellow)", t("Lights"), on ? `${tn(on, "{n} on", "{n} on")} · ${pct(st.avg)}` : t("Off")) : ""}
         ${shades.length ? stat("blinds", "var(--teal)", t("Shades"), shades.filter(isOpen).length ? tn(shades.filter(isOpen).length, "{n} open", "{n} open") : t("Closed")) : ""}
-        ${media.length ? stat("music", "var(--purple)", t("Music"), playing ? (playing.nowPlaying?.title || sourceName(playing)) : t("Off")) : ""}
+        ${media.length ? stat(playing?.kind === "tv" ? "tv" : "music", "var(--purple)", playing?.kind === "tv" ? t("TV") : t("Music"), playing ? playingTitle(playing) : t("Off")) : ""}
         ${st.locks.length ? stat(anyUnlocked ? "unlock" : "lock", anyUnlocked ? "var(--orange)" : "var(--green)", t("Door"), anyUnlocked ? t("Unlocked") : t("Locked")) : ""}
       </div>
       ${quick ? `<div class="quick">${quick}</div>` : ""}
