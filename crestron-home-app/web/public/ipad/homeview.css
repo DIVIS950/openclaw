@@ -1120,3 +1120,87 @@ select.text-input { appearance: auto; }
   .tv-keypad { grid-template-columns: repeat(3, 56px); gap: 10px 12px; }
   .tv-keypad .key { width: 56px; height: 56px; }
 }
+
+/* ---------- setup guide (Průvodce nastavením) and the Web XPanel bits ---------- */
+.setup {
+  position: fixed; inset: 0; z-index: 88; display: grid; place-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--scrim); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); animation: fade 0.25s ease-out;
+}
+.setup-card {
+  width: min(640px, 100%); max-height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden;
+  border-radius: 36px; color: var(--label); background: var(--sheet); -webkit-backdrop-filter: blur(50px) saturate(180%); backdrop-filter: blur(50px) saturate(180%);
+  border: 0.5px solid var(--glass-line); box-shadow: 0 40px 90px rgba(0, 0, 0, 0.28); animation: sheet-in 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.12);
+}
+.setup-top { display: flex; align-items: center; gap: 14px; padding: 18px 22px 0; min-width: 0; }
+.setup-eyebrow { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px var(--font); color: var(--label2); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.setup-eyebrow .icon { width: 15px; height: 15px; }
+.setup-strip { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; min-width: 40px; }
+.setup-strip i { height: 4px; border-radius: 2px; background: var(--fill-2); transition: background-color 0.3s; }
+.setup-strip i.on { background: var(--blue); }
+.setup-top .text-btn { white-space: nowrap; flex: none; }
+/* A column that scrolls; nothing in it may be squeezed (a grid would shrink the clipped table and lists to fit). */
+.setup-body { overflow-y: auto; padding: 18px 22px 22px; display: flex; flex-direction: column; align-items: stretch; gap: 16px; scrollbar-width: none; }
+.setup-body > * { flex: none; }
+.setup-count { font: 600 13px var(--font); color: var(--label2); text-transform: uppercase; letter-spacing: 0.04em; }
+.setup-body h1 { margin: 0; font: 700 28px/1.15 var(--font-display); letter-spacing: -0.02em; }
+.setup-lead { margin: 0; font-size: 16px; line-height: 1.45; color: var(--label2); }
+.setup-foot { display: flex; justify-content: space-between; gap: 10px; padding: 14px 22px 20px; border-top: 0.5px solid var(--hair); }
+.setup-foot .w-btn { flex: none; min-width: 150px; }
+.setup-foot .w-btn:disabled { opacity: 0.45; }
+.setup-actions { display: grid; gap: 10px; justify-items: start; }
+.setup-actions .w-btn { min-width: 220px; }
+.setup-inline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.setup-result { display: inline-flex; align-items: center; gap: 6px; font-size: 14.5px; min-height: 24px; }
+.setup-result .icon, .setup-ok .icon, .setup-bad .icon { width: 18px; height: 18px; flex: none; }
+.setup-ok { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 600; }
+.setup-bad { display: inline-flex; align-items: center; gap: 6px; color: var(--red); font-weight: 600; }
+.setup-tick { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: var(--label3); flex: none; }
+.setup-tick .icon { width: 15px; height: 15px; stroke-width: 2.6; }
+.setup-tick.on { background: var(--green); color: #fff; }
+.pills.left { justify-content: flex-start; }
+.pill:disabled { opacity: 0.45; }
+a.pill { text-decoration: none; }
+.setup-log { display: grid; gap: 10px; padding: 14px 16px; border-radius: 18px; background: var(--fill); font: 500 15px var(--font); }
+.setup-log div { display: flex; align-items: center; gap: 10px; }
+.spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--fill-2); border-top-color: var(--blue); animation: spin 0.9s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.setup-big {
+  display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border: 0.5px solid var(--glass-line); border-radius: 26px;
+  background: var(--glass); color: var(--label); text-align: left; transition: background-color 0.3s, transform 0.15s;
+}
+.setup-big:active { transform: scale(0.98); }
+.setup-big.on { background: var(--tile-on); box-shadow: var(--shadow); }
+.setup-big .tile-icon { width: 56px; height: 56px; }
+.setup-big-text { display: grid; gap: 2px; }
+.setup-big-text b { font: 700 19px var(--font-display); }
+.setup-big-text span { font-size: 14.5px; color: var(--label2); }
+.setup-ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 600; }
+.setup-table { display: grid; border-radius: 16px; overflow: hidden; background: var(--hair); gap: 1px; font-size: 14px; }
+.setup-trow { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 1px; }
+.setup-trow > * { background: var(--glass-2); padding: 10px 12px; min-width: 0; overflow-wrap: anywhere; }
+.setup-trow b { font-weight: 700; }
+.setup-trow.th { font-weight: 700; }
+.setup-trow.th > * { background: var(--fill); }
+textarea.text-input { height: auto; min-height: 150px; padding: 12px 14px; font: 500 13px/1.45 ui-monospace, Menlo, Consolas, monospace; resize: vertical; }
+.notice.setup-banner { background: color-mix(in srgb, var(--blue) 14%, var(--glass)); }
+.notice.setup-banner .icon { color: var(--blue); }
+.notice.setup-banner > div { flex: 1; min-width: 0; }
+.notice .pill.small { flex: none; }
+#setup-root .row[aria-pressed="true"] .note { color: var(--label); }
+@media (max-width: 600px) {
+  .setup { padding: 8px; }
+  .setup-card { border-radius: 26px; }
+  .setup-top { padding: 14px 16px 0; gap: 10px; }
+  .setup-eyebrow span { display: none; }
+  .setup-body { padding: 14px 16px 18px; }
+  .setup-body h1 { font-size: 24px; }
+  .setup-foot { padding: 12px 16px 16px; }
+  .setup-foot .w-btn { min-width: 0; flex: 1; }
+  .setup-actions .w-btn { min-width: 0; width: 100%; }
+  .setup-trow { grid-template-columns: minmax(0, 1fr); }
+  .setup-trow.th > :not(:first-child) { display: none; }
+  .setup-trow > span { padding-top: 6px; }
+}
+/* A sheet opened from the guide (the installer message) sits above it. */
+body.setup-open .sheet-backdrop { z-index: 89; }

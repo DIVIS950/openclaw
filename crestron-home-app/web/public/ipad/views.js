@@ -11,6 +11,8 @@ export const attr = (o) => Object.entries(o).filter(([, v]) => v != null).map(([
 
 export const isOn = (l) => l.level > 0.005;
 export const isOpen = (s) => s.position > 0.02;
+/** No home server: the browser demo, or Web XPanel on the processor. Engine, automations and photos live in this browser. */
+export const isLocal = (app) => app.transport === "local" || app.transport === "xpanel";
 export const sourceName = (m) => m.sources.find((s) => s.id === m.sourceId)?.name ?? t("On");
 export const roomHref = (id) => `#room-${encodeURIComponent(id)}`;
 
@@ -339,8 +341,16 @@ export function head(app, { eyebrow, title, sub, back, home = false }) {
 
 export function notice(app) {
   const s = app.status;
-  if (s.connection === "connected" || !s.message) return "";
-  return `<div class="notice">${icon("alert")}<div>${esc(s.message)}</div></div>`;
+  const parts = [];
+  // Until the setup guide is finished and the house answers, a slim reminder with the way back into it.
+  if (app.setupNeeded) parts.push(`<div class="notice setup-banner">${icon("sliders")}<div>${t("The house isn't connected yet")}</div><button type="button" class="pill small" data-act="setup-open">${t("Finish setup")}</button></div>`);
+  if (s.connection !== "connected" && s.message) {
+    // Web XPanel failures carry a kind: a retry is a page reload, and a login goes to the processor's own page.
+    const fix = s.loginURL ? `<a class="pill small" href="${esc(s.loginURL)}">${t("Sign in")}</a>`
+      : s.kind ? `<button type="button" class="pill small" data-act="xpanel-reload">${t("Try again")}</button>` : "";
+    parts.push(`<div class="notice">${icon("alert")}<div>${esc(s.message)}</div>${fix}</div>`);
+  }
+  return parts.join("");
 }
 
 // ---------- sidebar ----------
@@ -587,7 +597,8 @@ function roomsPart(app) {
 
 const PART_HTML = {
   status: (app) => chips(app),
-  weather: (app) => weatherWidget(app),
+  // On the processor (Web XPanel) there is no server to fetch weather: no widget, no dead-end "set location".
+  weather: (app) => (app.transport === "xpanel" && !app.demoHouse ? "" : weatherWidget(app)),
   gate: (app) => (app.home.gates.length > 1 ? arrivalWidget(app.home) : app.home.gates.map(gateWidget).join("")),
   alarm: (app) => (app.home.security.length > 1 ? zonesWidget(app.home) : app.home.security.slice(0, 1).map(securityWidget).join("")),
   heating: (app) => heatingSummaryWidget(app.home),

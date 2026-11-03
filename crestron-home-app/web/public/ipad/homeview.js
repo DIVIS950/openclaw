@@ -3,12 +3,15 @@
 import { icon, sceneIcon } from "../icons.js";
 import { DemoEngine } from "../shared/demo.js";
 import { LANGS, locale, setLang, t } from "../shared/i18n.js";
+import { parseJoinMap } from "../shared/joinmap.js";
 import { applyCommand, clamp01, clampTarget, emptyHome, normalizeHome, pct, stateKey } from "../shared/model.js";
 import { createAsk } from "./ask.js";
 import { createFeatures } from "./features.js";
+import { createSetup } from "./setup.js";
 import { dots, isWideSheet, sheetHTML } from "./sheets.js";
 import { createTvControls } from "./tv.js";
-import { homePages, isOn, isOpen, setFlash, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
+import { homePages, isLocal, isOn, isOpen, setFlash, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
+import { createXPanelEngine, isXPanelPage, loadXPanelSettings, needsReload, reconnect, saveXPanelSettings } from "./xpanel.js";
 
 const $ = (s, root = document) => root.querySelector(s);
 
@@ -37,7 +40,10 @@ const app = {
   sources: [], // extra systems beside the main one (Samsung TVs): { id, name, origin, connection, message }
   assistant: { available: false },
   askVisible: false,
-  transport: null, // "server" | "local"
+  transport: null, // "server" | "local" (the demo in this browser) | "xpanel" (on the processor)
+  xpanel: null, // Web XPanel settings: { host, ipId, joinMapText }
+  demoHouse: false, // Web XPanel: the demo house shown while setup isn't finished ("look at the demo first")
+  setupNeeded: false, // Home shows the "finish setup" banner
   route: { name: "home", arg: null },
   lastRoute: "",
   sheet: null, // what the open sheet shows: { kind, id, … }
@@ -54,20 +60,34 @@ const app = {
   roomPhotos: {}, // roomId -> version, from the home server
   localPhotos: new Map(), // roomId -> object URL, for the demo in this browser
   photoURL(roomId) {
-    if (this.transport === "local") return this.localPhotos.get(roomId) ?? null;
+    if (isLocal(this)) return this.localPhotos.get(roomId) ?? null;
     const version = this.roomPhotos[roomId];
     return version ? `${this.api}rooms/${encodeURIComponent(roomId)}/photo?v=${version}` : null;
   },
 };
 
 let engine = null;
-const ask = createAsk({ app, send, notify, onVisibility: () => scheduleRender(), automation: () => features.assistantAutomation });
+const DEMO_CAMERAS = [
+  { id: "demo-drive", name: "Příjezd", demo: "drive" },
+  { id: "demo-door", name: "Brána", demo: "door" },
+];
+const ask = createAsk({ app, send, notify, onVisibility: () => scheduleRender(), automation: () => features.assistantAutomation, onKeyChange: () => renderSheet(true) });
 const features = createFeatures({
   app, prefs, send, notify, escText: (t) => escText(t), openSheet, closeSheet, renderSheet: () => renderSheet(true), scheduleRender,
   wake: () => { if (!$("#standby").hidden) showStandby(false); },
   ringDemo: (id) => engine?.ring(id),
 });
 const tv = createTvControls({ app, send, notify, escText: (s) => escText(s), renderSheet: () => renderSheet(true) });
+// The setup guide: it asks for the processor, IP ID and join map and calls connectHouse() for the actual connecting.
+const setup = createSetup({
+  app, prefs, send, notify, escText: (s) => escText(s), openSheet, closeSheet, scheduleRender,
+  mode: () => (app.transport === "xpanel" ? "xpanel" : app.transport === "server" ? "server" : "demo"),
+  status: () => app.status,
+  connect: connectHouse,
+  saveMap: (text) => { app.xpanel = { ...app.xpanel, joinMapText: text }; saveXPanelSettings(app.xpanel); },
+  showDemoHouse,
+  toggleWall,
+});
 
 // ---------- connection ----------
 
@@ -75,25 +95,31 @@ async function start() {
   applyLook();
   translateStatic();
   app.route = parseHash();
-  try {
-    const res = await fetch(`${app.api}state`, { cache: "no-store" });
-    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) throw new Error("no server");
-    receive(await res.json());
-    app.transport = "server";
-    const events = new EventSource(`${app.api}events`);
-    events.addEventListener("state", (e) => {
-      try { receive(JSON.parse(e.data)); } catch {}
-    });
-    events.onerror = () => {
-      app.status = { ...app.status, connection: "failed", message: t("Lost the home server. Reconnecting…") };
-      scheduleRender();
-    };
-  } catch {
-    startLocal();
+  if (isXPanelPage()) {
+    // Built for the processor: never look for a home server.
+    await startXPanel();
+  } else {
+    try {
+      const res = await fetch(`${app.api}state`, { cache: "no-store" });
+      if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) throw new Error("no server");
+      receive(await res.json());
+      app.transport = "server";
+      const events = new EventSource(`${app.api}events`);
+      events.addEventListener("state", (e) => {
+        try { receive(JSON.parse(e.data)); } catch {}
+      });
+      events.onerror = () => {
+        app.status = { ...app.status, connection: "failed", message: t("Lost the home server. Reconnecting…") };
+        scheduleRender();
+      };
+    } catch {
+      startLocal();
+    }
   }
   render();
   startTimers();
   ask.init();
+  setup.init();
 }
 
 function startLocal() {
@@ -101,17 +127,119 @@ function startLocal() {
   engine = new DemoEngine((snap) => {
     app.home = merge(snap);
     features.checkDoorbells();
+    setup.onHome();
     scheduleRender();
   });
   app.home = engine.snapshot();
   app.homeName = "Můj dům";
   app.status = { connection: "connected", message: null, mode: "demo" };
-  app.cameras = [
-    { id: "demo-drive", name: "Příjezd", demo: "drive" },
-    { id: "demo-door", name: "Brána", demo: "door" },
-  ];
+  app.cameras = DEMO_CAMERAS;
   features.startLocal();
   features.checkDoorbells();
+}
+
+// ---------- Web XPanel: the processor hosts the app, no home server ----------
+
+async function startXPanel() {
+  app.transport = "xpanel";
+  app.status = { connection: "idle", message: null, mode: "xpanel" };
+  app.xpanel = await loadXPanelSettings();
+  // Automations and the doorbell check run in this browser, like the demo; nothing else is sample data.
+  features.startLocal({ demo: false });
+  if (app.xpanel.joinMapText) connectXPanel();
+}
+
+/** Starts (or, after a new join map, restarts) the engine on the saved settings. */
+function connectXPanel() {
+  engine?.stop();
+  engine = null;
+  let map;
+  try {
+    map = parseJoinMap(app.xpanel.joinMapText);
+  } catch (err) {
+    app.status = { connection: "failed", kind: "map", message: t("The saved join map is broken: {error}", { error: err.message }), mode: "xpanel" };
+    return scheduleRender();
+  }
+  engine = createXPanelEngine({
+    host: app.xpanel.host, ipId: app.xpanel.ipId || "03", joinMap: map,
+    onChange: (snap) => {
+      app.home = merge(snap);
+      features.checkDoorbells();
+      setup.onHome();
+      scheduleRender();
+    },
+    onStatus: (status) => {
+      app.status = { ...status, mode: "xpanel" };
+      setup.onStatus(app.status);
+      scheduleRender();
+    },
+  });
+  app.home = merge(engine.snapshot());
+  app.status = { ...engine.status, mode: "xpanel" };
+  scheduleRender();
+}
+
+/** The setup guide's "connect": saves the settings and starts the house the way this page runs. */
+async function connectHouse({ host, ipId, joinMapText, pin }) {
+  if (app.transport === "xpanel") {
+    // The page's own host is stored as "", so the package keeps working if the processor's address changes.
+    app.xpanel = { ...app.xpanel, host: host === location.hostname ? "" : host, ipId, joinMapText };
+    saveXPanelSettings(app.xpanel);
+    showDemoHouse(false, { connect: false });
+    // WebXPanel can't be pointed at another processor once started: reload, and the guide resumes here.
+    if (needsReload(app.xpanel.host, app.xpanel.ipId)) {
+      prefs.set("setup", { ...(prefs.get("setup", null) ?? {}), step: "connect" });
+      reconnect();
+      return { reloading: true };
+    }
+    connectXPanel();
+    return {};
+  }
+  if (app.transport === "server") {
+    // The same PIN flow as the classic Setup page: the PIN is kept for this tab only.
+    const headers = { "Content-Type": "application/json" };
+    let savedPin = "";
+    try { savedPin = sessionStorage.getItem("hc.pin") ?? ""; } catch {}
+    if (pin || savedPin) headers["X-Admin-Pin"] = pin || savedPin;
+    const res = await fetch(`${app.api}config`, { method: "PUT", headers, body: JSON.stringify({ mode: "customProgram", host, ipId, joinMap: joinMapText }) });
+    if (res.status === 401) {
+      const err = new Error(t("Enter the setup PIN."));
+      err.code = "pin";
+      throw err;
+    }
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t("The home server answered {status}.", { status: res.status }));
+    if (pin) try { sessionStorage.setItem("hc.pin", pin); } catch {}
+    app.status = { ...app.status, connection: "connecting", message: null };
+    return {};
+  }
+  // The demo: pretend to connect.
+  setTimeout(() => setup.onStatus({ connection: "connected", message: null, mode: "demo" }), 900);
+  return { simulated: true };
+}
+
+/** "Look at the demo first": the demo house stands in for the real one until setup is finished. */
+function showDemoHouse(on, { connect = true } = {}) {
+  if (app.transport !== "xpanel" || on === app.demoHouse) return;
+  app.demoHouse = on;
+  engine?.stop();
+  engine = null;
+  if (on) {
+    engine = new DemoEngine((snap) => {
+      app.home = merge(snap);
+      features.checkDoorbells();
+      setup.onHome();
+      scheduleRender();
+    });
+    app.home = engine.snapshot();
+    app.status = { connection: "connected", message: null, mode: "demo" };
+    app.cameras = DEMO_CAMERAS;
+  } else {
+    app.home = emptyHome();
+    app.cameras = [];
+    app.status = { connection: "idle", message: null, mode: "xpanel" };
+    if (connect && app.xpanel?.joinMapText) connectXPanel();
+  }
+  scheduleRender();
 }
 
 function receive(p) {
@@ -123,6 +251,7 @@ function receive(p) {
   app.assistant = p.assistant ?? { available: false };
   app.roomPhotos = p.roomPhotos ?? {};
   features.receive(p);
+  setup.onStatus(app.status);
   ask.onStateChange();
   scheduleRender();
 }
@@ -148,8 +277,13 @@ async function send(cmd) {
   const key = stateKey(cmd);
   if (key) app.recent.set(key, { cmd, at: Date.now() });
   scheduleRender();
-  if (app.transport === "local") {
-    engine.perform(cmd);
+  if (isLocal(app)) {
+    // The demo engine answers at once; the Web XPanel engine can refuse (not connected, no join for it).
+    try {
+      await engine?.perform(cmd);
+    } catch (err) {
+      notify(escText(err.message || t("The house didn't take that.")), { error: true });
+    }
     return;
   }
   try {
@@ -197,6 +331,7 @@ function render() {
     return;
   }
   app.pendingRender = false;
+  app.setupNeeded = setup.needed();
   applyWallpaper();
   const content = $("#content");
   const routeKey = `${app.route.name}:${app.route.arg ?? ""}`;
@@ -349,7 +484,7 @@ document.addEventListener("change", async (e) => {
   input.value = "";
   try {
     const blob = await resizePhoto(file);
-    if (app.transport === "local") {
+    if (isLocal(app)) {
       const old = app.localPhotos.get(roomId);
       if (old) URL.revokeObjectURL(old);
       app.localPhotos.set(roomId, URL.createObjectURL(blob));
@@ -365,7 +500,7 @@ document.addEventListener("change", async (e) => {
 });
 
 async function removePhoto(roomId) {
-  if (app.transport === "local") {
+  if (isLocal(app)) {
     const old = app.localPhotos.get(roomId);
     if (old) URL.revokeObjectURL(old);
     app.localPhotos.delete(roomId);
@@ -593,10 +728,19 @@ const actions = {
     renderSheet();
   },
   wall: () => {
-    app.device.wall = !app.device.wall;
-    prefs.set("wall", app.device.wall);
-    applyWall();
+    toggleWall();
     renderSheet();
+  },
+  // Web XPanel: a reconnect is a page reload (the library can't be re-initialized; see xpanel.js).
+  "xpanel-reload": () => reconnect(),
+  "ask-settings": () => {
+    ask.close();
+    openSheet({ kind: "settings" });
+  },
+  "ask-key-remove": () => {
+    ask.clearKey();
+    renderSheet(true);
+    notify(t("Key removed"), { ic: "check" });
   },
   lang: (el) => {
     if (!LANGS[el.dataset.v]) return;
@@ -631,7 +775,7 @@ const actions = {
   "ask-mic": () => ask.toggleListening(),
 };
 
-Object.assign(actions, features.actions, tv.actions);
+Object.assign(actions, features.actions, tv.actions, setup.actions);
 
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
@@ -642,7 +786,8 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (features.overlayOpen) features.closeOverlay();
+    if (setup.isOpen) setup.close(); // the same as "Continue later"
+    else if (features.overlayOpen) features.closeOverlay();
     else if (app.sheet) closeSheet();
     else if (ask.isOpen) ask.close();
     else document.body.classList.remove("drawer");
@@ -829,6 +974,13 @@ function drawStandby() {
   const t = Math.floor(Date.now() / 60000);
   inner.style.setProperty("--dx", `${((t * 37) % 41) - 20}px`);
   inner.style.setProperty("--dy", `${((t * 23) % 31) - 15}px`);
+}
+
+/** Wall panel mode on or off (Settings and the setup guide). */
+function toggleWall() {
+  app.device.wall = !app.device.wall;
+  prefs.set("wall", app.device.wall);
+  applyWall();
 }
 
 let wakeLock = null;

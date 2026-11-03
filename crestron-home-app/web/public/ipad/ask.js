@@ -7,6 +7,7 @@ import {
   applyControlCall, applyScheduleCall, applyTimerCall, ASSISTANT_RULES, CONTROL_TOOL_DESCRIPTION, CONTROL_TOOL_NAME,
   CONTROL_TOOL_SCHEMA, homeForModel, SCHEDULE_TOOL, TIMER_TOOL,
 } from "../shared/assistant-core.js";
+import { runDirectAssistant } from "../shared/assistant-direct.js";
 import { lang, t } from "../shared/i18n.js";
 import { attr, esc, isOn } from "./views.js";
 
@@ -29,6 +30,17 @@ const LANGUAGE_NOTE = {
   cs: "The app is set to Czech: always answer in Czech.",
   en: "The app is set to English: answer in English unless the person writes Czech.",
 };
+
+// Web XPanel mode (no home server): the person's own Anthropic key, kept only in this browser.
+const KEY_PREF = "hv.anthropicKey";
+export const directKey = () => { try { return localStorage.getItem(KEY_PREF) ?? ""; } catch { return ""; } };
+export const hasDirectKey = () => Boolean(directKey());
+export function setDirectKey(key) {
+  try {
+    if (key) localStorage.setItem(KEY_PREF, key);
+    else localStorage.removeItem(KEY_PREF);
+  } catch {}
+}
 
 /** Suggestions that fit the house right now: something open, music playing, the time of day. */
 function smartSuggestions(app) {
@@ -76,9 +88,10 @@ function undoCommands(before, after) {
   return cmds;
 }
 
-export function createAsk({ app, send, notify, onVisibility, automation }) {
+export function createAsk({ app, send, notify, onVisibility, automation, onKeyChange = () => {} }) {
   const ask = { open: false, log: [], turns: [], busy: false, ctl: null, rec: null, listening: false, sample: null, speak: false };
-  const keyMissing = () => app.transport === "server" && !app.assistant?.available;
+  // The home server needs its key from Setup; on the processor (Web XPanel) the key lives in this browser.
+  const keyMissing = () => (app.transport === "server" && !app.assistant?.available) || (app.transport === "xpanel" && !hasDirectKey());
   try { ask.speak = localStorage.getItem("hv.askSpeak") === "1"; } catch {}
 
   async function init() {
@@ -94,7 +107,7 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
   }
 
   function refreshVisibility() {
-    const visible = app.transport === "server" || Boolean(ask.sample);
+    const visible = app.transport === "server" || app.transport === "xpanel" || Boolean(ask.sample);
     if (visible !== app.askVisible) {
       app.askVisible = visible;
       onVisibility();
@@ -130,7 +143,7 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
     $("#siri").innerHTML = `
       <div class="siri-head"><span class="orb big"></span>
         <div class="siri-titles"><div class="siri-title">${t("Ask Home")}</div>
-          <div class="siri-sub">${room ? `<span class="ctx-pill">${icon("home")}${t("In {room}", { room: esc(room) })}</span>` : ""}${app.transport === "local" ? t("Demo house · uses your Claude account") : SpeechRec ? t("Type, or tap the mic and speak") : t("Type what you'd like")}</div></div>
+          <div class="siri-sub">${room ? `<span class="ctx-pill">${icon("home")}${t("In {room}", { room: esc(room) })}</span>` : ""}${app.transport === "local" ? t("Demo house · uses your Claude account") : app.transport === "xpanel" ? t("Straight from this iPad with your own key") : SpeechRec ? t("Type, or tap the mic and speak") : t("Type what you'd like")}</div></div>
         ${"speechSynthesis" in window ? `<button type="button" class="siri-icon-btn${ask.speak ? " on" : ""}" data-act="ask-speak" aria-pressed="${ask.speak}" aria-label="${t("Read answers out loud")}">${icon("volume")}</button>` : ""}
         <button type="button" class="siri-icon-btn" data-act="ask-close" aria-label="${t("Close Ask Home")}">${icon("close")}</button>
       </div>
@@ -156,7 +169,10 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
     if (!log) return;
     $("#glow").classList.toggle("busy", ask.busy || ask.listening);
     if (keyMissing()) {
-      log.innerHTML = `<div class="msg ai">${t("To use Ask Home, add an Anthropic API key in {link}.", { link: `<a href="../index.html#setup"><u>${t("System setup › AI assistant")}</u></a>` })}</div>`;
+      log.innerHTML = app.transport === "xpanel"
+        ? `<div class="ask-hello"><div class="msg ai">${t("To use Ask Home, add an Anthropic API key in Settings › Assistant. You get one at console.anthropic.com; it stays in this iPad.")}</div>
+            <div class="suggest-grid"><button type="button" class="suggest-card" data-act="ask-settings"><span class="sg-icon">${icon("gear")}</span><span>${t("Open Settings")}</span></button></div></div>`
+        : `<div class="msg ai">${t("To use Ask Home, add an Anthropic API key in {link}.", { link: `<a href="../index.html#setup"><u>${t("System setup › AI assistant")}</u></a>` })}</div>`;
       return;
     }
     if (!ask.log.length) {
@@ -209,7 +225,7 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
     renderLog();
     const before = structuredClone(app.home);
     try {
-      const result = app.transport === "local" ? await askLocal(text, reply) : await askServer(text);
+      const result = app.transport === "xpanel" ? await askDirect(text) : app.transport === "local" ? await askLocal(text, reply) : await askServer(text);
       reply.text = result.reply;
       reply.thinking = false;
       say(result.reply);
@@ -240,6 +256,26 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error ?? t("The home server answered {status}.", { status: res.status }));
     return { reply: json.reply ?? t("Done."), done: json.done ?? [], confirm: json.confirm ?? [], failed: json.failed ?? [] };
+  }
+
+  /** Web XPanel: this iPad talks to Claude itself with the saved key; the same tool loop as the server. */
+  async function askDirect(text) {
+    ask.ctl = new AbortController();
+    const auto = automation();
+    try {
+      return await runDirectAssistant({
+        apiKey: directKey(), message: text, history: ask.turns, signal: ask.ctl.signal,
+        getHome: () => app.home, perform: async (cmd) => send(cmd),
+        addTimer: auto.addTimer, addSchedule: auto.addSchedule,
+        getContext: () => ({
+          viewingRoom: viewingRoom(), lang: lang(),
+          now: new Date().toLocaleString(lang() === "en" ? "en-US" : "cs-CZ", { weekday: "long", hour: "numeric", minute: "2-digit" }),
+          weather: app.weather ?? undefined, automations: app.automations,
+        }),
+      });
+    } finally {
+      ask.ctl = null;
+    }
   }
 
   async function askLocal(text, reply) {
@@ -387,6 +423,20 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
   }
 
   document.addEventListener("submit", (e) => {
+    if (e.target.id === "key-form") {
+      // Settings › Assistant (Web XPanel): save the key in this browser.
+      e.preventDefault();
+      const input = $("#key-input");
+      const key = input?.value.trim() ?? "";
+      if (!key) return;
+      setDirectKey(key);
+      input.value = "";
+      notify(t("Key saved in this iPad"), { ic: "check" });
+      onKeyChange();
+      refreshVisibility();
+      if (ask.open) render();
+      return;
+    }
     if (e.target.id !== "siri-form") return;
     e.preventDefault();
     const input = $("#siri-input");
@@ -397,6 +447,12 @@ export function createAsk({ app, send, notify, onVisibility, automation }) {
   return {
     init, open, close, submit, confirmAt, undoAt, toggleListening, toggleSpeak, refreshVisibility,
     get isOpen() { return ask.open; },
+    /** Forgets the Anthropic key saved in this browser (Web XPanel). */
+    clearKey() {
+      setDirectKey("");
+      refreshVisibility();
+      if (ask.open) render();
+    },
     /** Redraws the open panel, e.g. after the language changed. Keeps what was typed. */
     refresh() {
       if (!ask.open) return;

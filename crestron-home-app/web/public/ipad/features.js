@@ -3,7 +3,7 @@
 import { AutomationEngine, emptyAutomations, EVERY_DAY, normalizeAutomations, validateSchedule } from "../shared/automation.js";
 import { t } from "../shared/i18n.js";
 import { cameraWallHTML, decodeAction, doorbellHTML, TEMPLATES } from "./extras.js";
-import { DEFAULT_LAYOUT, HOME_PARTS } from "./views.js";
+import { DEFAULT_LAYOUT, HOME_PARTS, isLocal } from "./views.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -44,11 +44,14 @@ export function createFeatures(ctx) {
     return json;
   }
 
+  // On the processor (Web XPanel) there is no server to keep schedules: this browser does.
+  const persistLocal = () => { if (app.transport === "xpanel") prefs.set("automations", app.automations); };
+
   async function saveAutomations(next) {
     const before = app.automations;
     app.automations = normalizeAutomations(next);
     scheduleRender();
-    if (app.transport === "local") return;
+    if (isLocal(app)) return persistLocal();
     try {
       await api("automations", "PUT", { schedules: app.automations.schedules, vacation: { enabled: app.automations.vacation.enabled } });
     } catch (err) {
@@ -59,23 +62,32 @@ export function createFeatures(ctx) {
     }
   }
 
-  function startLocal() {
-    // A sample place and weather so every part of the demo can be tried.
-    // The demo place sits in the viewer's own time zone, so sunrise and sunset look right.
-    const fahrenheit = /-US$/.test(navigator.language);
-    app.location = { place: t("Demo town"), lat: 40, lon: -new Date().getTimezoneOffset() / 4, unit: fahrenheit ? "F" : "C" };
-    const hour = new Date().getHours();
-    app.weather = fahrenheit
-      ? { temp: 64, code: 2, isDay: hour >= 7 && hour < 18, high: 68, low: 55, unit: "F" }
-      : { temp: 18, code: 2, isDay: hour >= 7 && hour < 18, high: 20, low: 13, unit: "C" };
-    app.automations = normalizeAutomations({
-      schedules: [{ id: "demo-1", name: t("Lights off at bedtime"), enabled: true, when: { type: "time", time: "23:00" }, days: EVERY_DAY, actions: [{ type: "lights", roomId: null, level: 0 }] }],
-    });
+  /** Runs automations in this browser. `demo`: the sample place, weather and schedule of the demo house. */
+  function startLocal({ demo = true } = {}) {
+    if (demo) {
+      // A sample place and weather so every part of the demo can be tried.
+      // The demo place sits in the viewer's own time zone, so sunrise and sunset look right.
+      const fahrenheit = /-US$/.test(navigator.language);
+      app.location = { place: t("Demo town"), lat: 40, lon: -new Date().getTimezoneOffset() / 4, unit: fahrenheit ? "F" : "C" };
+      const hour = new Date().getHours();
+      app.weather = fahrenheit
+        ? { temp: 64, code: 2, isDay: hour >= 7 && hour < 18, high: 68, low: 55, unit: "F" }
+        : { temp: 18, code: 2, isDay: hour >= 7 && hour < 18, high: 20, low: 13, unit: "C" };
+      app.automations = normalizeAutomations({
+        schedules: [{ id: "demo-1", name: t("Lights off at bedtime"), enabled: true, when: { type: "time", time: "23:00" }, days: EVERY_DAY, actions: [{ type: "lights", roomId: null, level: 0 }] }],
+      });
+    } else {
+      // A real house without a server: no weather, and the schedules this browser saved earlier.
+      app.location = null;
+      app.weather = null;
+      app.automations = normalizeAutomations(prefs.get("automations", null));
+    }
+    if (localEngine) return;
     localEngine = new AutomationEngine({
       getHome: () => app.home,
       perform: (cmd) => send(cmd),
       getAutomations: () => app.automations,
-      save: (a) => { app.automations = normalizeAutomations(a); scheduleRender(); },
+      save: (a) => { app.automations = normalizeAutomations(a); persistLocal(); scheduleRender(); },
       getPlace: () => app.location,
     });
     setInterval(() => localEngine.tick(), 20000);
@@ -169,8 +181,9 @@ export function createFeatures(ctx) {
   }
 
   async function addTimer(minutes, label, command) {
-    if (app.transport === "local") {
+    if (isLocal(app)) {
       app.automations.timers.push({ id: String(Date.now()), label, at: Date.now() + minutes * 60000, actions: [{ type: "command", command }] });
+      persistLocal();
       scheduleRender();
     } else {
       try {
@@ -185,7 +198,7 @@ export function createFeatures(ctx) {
   async function cancelTimer(id) {
     app.automations.timers = app.automations.timers.filter((tm) => tm.id !== id);
     scheduleRender();
-    if (app.transport === "local") return;
+    if (isLocal(app)) return persistLocal();
     try {
       await api(`timers/${encodeURIComponent(id)}`, "DELETE");
     } catch (err) {
@@ -307,6 +320,8 @@ export function createFeatures(ctx) {
 
     "doorbell-test": async (el) => {
       closeSheet();
+      // On the processor the real bell rings through its join; the test only shows the pop-up.
+      if (app.transport === "xpanel") return showOverlay({ kind: "bell", id: el.dataset.id, ringAt: Date.now() });
       if (app.transport === "local") return ctx.ringDemo(el.dataset.id);
       try {
         await api(`doorbells/${encodeURIComponent(el.dataset.id)}/test`, "POST");
@@ -332,6 +347,7 @@ export function createFeatures(ctx) {
   const assistantAutomation = {
     addTimer: async ({ minutes, label, commands }) => {
       app.automations.timers.push({ id: String(Date.now()), label, at: Date.now() + minutes * 60000, actions: commands.map((command) => ({ type: "command", command })) });
+      persistLocal();
       scheduleRender();
     },
     addSchedule: async (schedule) => {

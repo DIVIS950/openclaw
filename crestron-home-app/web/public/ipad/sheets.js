@@ -2,6 +2,7 @@
 import { icon } from "../icons.js";
 import { GATE_TITLES, pct, roomOf, SECURITY_TITLES } from "../shared/model.js";
 import { LANGS, lang, t, tn } from "../shared/i18n.js";
+import { hasDirectKey } from "./ask.js";
 import { climateSheet, switchSheet } from "./climate.js";
 import { originLabel, tvSheet } from "./tv.js";
 import { art, attr, cameraPicture, esc, fmtDate, gateControls, isOn, lightState, shadeState, sourceName, transportRow } from "./views.js";
@@ -157,8 +158,13 @@ function settingsSheet(app) {
   const langs = Object.entries(LANGS).map(([v, label]) => `<button type="button" aria-pressed="${lang() === v}" lang="${v}" data-act="lang" data-v="${v}">${label}</button>`).join("");
   const mins = [2, 5, 10].map((m) => `<button type="button" aria-pressed="${app.device.saverMin === m}" data-act="saver-min" data-v="${m}">${m} min</button>`).join("");
   const s = app.status;
-  const system = app.transport === "local" ? t("Demo in this browser") : { demo: t("Demo house"), crestronHome: "Crestron Home", customProgram: t("Custom program") }[s.mode] ?? "Crestron";
+  const xp = app.transport === "xpanel";
+  const system = app.transport === "local" ? t("Demo in this browser")
+    : xp ? (app.demoHouse ? t("Demo house") : t("Crestron via Web XPanel"))
+    : { demo: t("Demo house"), crestronHome: "Crestron Home", customProgram: t("Custom program") }[s.mode] ?? "Crestron";
   const state = s.connection === "connected" ? t("Connected") : s.connection === "connecting" ? t("Connecting…") : t("Not connected");
+  // On the processor: where it connects and as which panel.
+  const systemNote = xp && !app.demoHouse ? [app.xpanel?.host || location.hostname, app.xpanel?.ipId ? `IP ID ${app.xpanel.ipId}` : "", state].filter(Boolean).join(" · ") : state;
   return `${sheetHead("#8e8e93", "gear", t("Settings"), t("This iPad"))}
     <div class="sheet-body" style="justify-items:stretch">
       <div class="list-label">${t("Display")}</div>
@@ -179,8 +185,9 @@ function settingsSheet(app) {
       </div>
       <div class="list-label">${t("Location")}</div>
       <div class="list">
-        ${app.transport === "local"
+        ${app.transport === "local" || (xp && app.demoHouse)
           ? `<div class="row"><span class="row-icon" style="--c:var(--teal)">${icon("cloudSun")}</span><span class="grow">${esc(app.location?.place ?? t("Demo"))}<div class="note">${t("The demo house uses a sample place and sample weather")}</div></span></div>`
+          : xp ? `<div class="row"><span class="row-icon" style="--c:var(--teal)">${icon("cloudSun")}</span><span class="grow">${t("Weather")}<div class="note">${t("Weather and sunrise times need the home server; schedules by the clock work here")}</div></span></div>`
           : `<form class="row" id="loc-form"><span class="row-icon" style="--c:var(--teal)">${icon("cloudSun")}</span>
               <input class="text-input" id="loc-input" autocomplete="off" placeholder="${t("Town or city, for weather and sunset")}" value="${esc(app.location?.place ?? "")}" aria-label="${t("Town or city")}">
               <button type="submit" class="pill small">${t("Save")}</button></form>`}
@@ -189,10 +196,45 @@ function settingsSheet(app) {
       <div class="list">${app.home.doorbells.map((b) => `<button type="button" class="row"${attr({ act: "doorbell-test", id: b.id })}><span class="row-icon" style="--c:var(--pink)">${icon("bell")}</span><span class="grow">${t("Test {name} doorbell", { name: esc(b.name) })}<div class="note">${t("Shows the doorbell pop-up on every screen")}</div></span>${icon("chevron")}</button>`).join("")}</div>` : ""}
       <div class="list-label">${t("System")}</div>
       <div class="list">
-        <div class="row"><span class="row-icon" style="--c:var(--green)">${icon("wifi")}</span><span class="grow">${esc(system)}<div class="note">${esc(state)}</div></span></div>
-        ${app.transport === "local" ? `<div class="row"><span class="row-icon" style="--c:var(--orange)">${icon("alert")}</span><span class="grow">${t("This is a demo house")}<div class="note">${t("Run the home server at home to connect your Crestron system")}</div></span></div>` : `<a class="row" href="../index.html#setup"><span class="row-icon" style="--c:var(--blue)">${icon("sliders")}</span><span class="grow">${t("System setup")}<div class="note">${t("Processor, join map, cameras and the AI key")}</div></span>${icon("chevron")}</a>
-        <a class="row" href="../index.html"><span class="row-icon" style="--c:var(--pink)">${icon("grid")}</span><span class="grow">${t("Classic view")}</span>${icon("chevron")}</a>`}
+        <div class="row"><span class="row-icon" style="--c:${s.connection === "connected" ? "var(--green)" : "var(--orange)"}">${icon("wifi")}</span><span class="grow">${esc(system)}<div class="note">${esc(systemNote)}</div></span></div>
+        ${systemRows(app)}
       </div>
+      ${xp ? assistantSection() : ""}
+    </div>`;
+}
+
+/** The rows under System: the way into the setup guide and help, per way of running. */
+function systemRows(app) {
+  const s = app.status;
+  const row = (act, ic, color, title, note, extra = {}) => `<button type="button" class="row"${attr({ act, ...extra })}><span class="row-icon" style="--c:${color}">${icon(ic)}</span><span class="grow">${esc(title)}${note ? `<div class="note">${esc(note)}</div>` : ""}</span>${icon("chevron")}</button>`;
+  const help = row("setup-help", "info", "var(--teal)", t("Help"), t("Checklist and what to do when it doesn't connect"));
+  if (app.transport === "local") {
+    return `<div class="row"><span class="row-icon" style="--c:var(--orange)">${icon("alert")}</span><span class="grow">${t("This is a demo house")}<div class="note">${t("Run the home server at home to connect your Crestron system")}</div></span></div>
+      ${row("setup-demo", "sliders", "var(--blue)", t("Guide demo"), t("A walk through the setup guide with pretend steps"))}`;
+  }
+  if (app.transport === "xpanel") {
+    const trouble = s.connection === "failed" && s.message
+      ? `<div class="row"><span class="row-icon" style="--c:var(--red)">${icon("alert")}</span><span class="grow">${esc(s.message)}</span>
+          ${s.loginURL ? `<a class="pill small" href="${esc(s.loginURL)}">${t("Sign in")}</a>` : `<button type="button" class="pill small" data-act="xpanel-reload">${t("Try again")}</button>`}</div>`
+      : "";
+    return `${trouble}${row("setup-go", "sliders", "var(--blue)", t("Connection to the processor"), t("IP address, IP ID and the join map"), { step: "processor" })}${help}`;
+  }
+  return `${row("setup-open", "sliders", "var(--blue)", t("Setup guide"), t("Processor, IP ID and the join map, step by step"))}${help}
+    <a class="row" href="../index.html#setup"><span class="row-icon" style="--c:var(--indigo)">${icon("gear")}</span><span class="grow">${t("System setup")}<div class="note">${t("Processor, join map, cameras and the AI key")}</div></span>${icon("chevron")}</a>
+    <a class="row" href="../index.html"><span class="row-icon" style="--c:var(--pink)">${icon("grid")}</span><span class="grow">${t("Classic view")}</span>${icon("chevron")}</a>`;
+}
+
+/** Web XPanel: Ask Home uses the person's own Anthropic key, kept only in this browser. */
+function assistantSection() {
+  const has = hasDirectKey();
+  return `<div class="list-label">${t("Assistant")}</div>
+    <div class="list">
+      ${has ? `<div class="row"><span class="row-icon" style="--c:var(--purple)">${icon("sparkle")}</span><span class="grow">${t("Ask Home is on")}<div class="note">${t("The key stays in this iPad only")}</div></span>
+          <button type="button" class="pill small" data-act="ask-key-remove">${t("Remove key")}</button></div>` : ""}
+      <form class="row" id="key-form"><span class="row-icon" style="--c:var(--purple)">${icon("sparkle")}</span>
+        <input class="text-input" id="key-input" type="password" autocomplete="off" placeholder="${has ? t("New Anthropic API key") : t("Anthropic API key (sk-ant-…)")}" aria-label="${t("Anthropic API key")}">
+        <button type="submit" class="pill small">${t("Save")}</button></form>
+      <div class="row"><span class="grow note">${t("You get a key at console.anthropic.com. Ask Home then answers straight from this iPad, for a few crowns a month.")}</span></div>
     </div>`;
 }
 
