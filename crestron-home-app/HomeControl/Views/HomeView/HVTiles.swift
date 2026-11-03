@@ -63,6 +63,7 @@ enum HVAct {
 extension HomeSnapshot {
     /// Media rooms are usually named after their room; on a tile call them TV or Speakers instead.
     func tileName(_ zone: MediaZone) -> String {
+        if zone.isTV { return L("TV") }
         guard room(zone.roomId)?.name == zone.name else { return zone.name }
         let names = zone.sources.map(\.name).joined(separator: " ").lowercased()
         return ["tv", "cable", "apple", "satelit"].contains { names.contains($0) } ? L("TV") : L("Speakers")
@@ -320,7 +321,7 @@ struct HVMediaTile: View {
     @Environment(HVNav.self) private var nav
 
     var body: some View {
-        let source = zone.currentSource?.name ?? L("On")
+        let source = zone.canRemote ? HVText.tvState(zone) : (zone.currentSource?.name ?? L("On"))
         let volume = zone.isMuted ? L("Muted") : zone.volume.percentText
         let state = zone.isOn ? (zone.hasVolume ? "\(source) · \(volume)" : source) : L("Off")
         let toggleLabel = zone.isOn ? L("{name}: turn off", ["name": zone.name]) : L("{name}: turn on", ["name": zone.name])

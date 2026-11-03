@@ -29,6 +29,8 @@ enum HomeAssistant {
     - "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
     - Heating: each room thermostat has a current and a target temperature in °C; setClimate sets the target (steps of 0.5). "Warmer"/"colder" means ±1 °C. The whole-house heating mode is a mode (setMode with one of its option ids). The sauna and similar things are switches (setSwitch on/off).
     - Rooms are grouped by floor (for example 1.NP, 2.NP, Suterén, Venek); "upstairs"/"nahoře" means the floors above 1.NP.
+    - TVs with canRemote accept tvKey (remote buttons), tvApp (launch an app by appId) and mediaChannel (number). "Put on Netflix" → tvApp; "channel 4" → mediaChannel.
+    - Media rooms with kind "tv" are televisions; their apps list what can be opened, and channel is what is on. origin says which system a device belongs to.
     - Names in this house are Czech. If the person writes Czech, answer in Czech.
 
     How to answer:
@@ -44,7 +46,8 @@ enum HomeAssistant {
         "Send one or more commands to the house. Each command needs `type` and the device `id` from the home state, plus the field its type uses: " +
         "setLight → level; setShade → position; stopShade → (nothing); recallScene → (nothing); mediaPower → on; mediaVolume → level; " +
         "mediaMute → muted; mediaSource → sourceId; setLock → locked; setSecurity → mode (armedAway or armedHome); gate → action (open, close, stop, trigger); " +
-        "setClimate → target (°C); setMode → value (an option id of that mode); setSwitch → on. " +
+        "setClimate → target (°C); setMode → value (an option id of that mode); setSwitch → on; " +
+        "tvKey → key (a remote button); tvApp → appId (from the TV's apps); mediaChannel → channel (a number). " +
         "Returns one line per command saying whether it was done, needs the person to confirm, or was refused."
 
     private static var toolSchema: [String: Any] {
@@ -113,8 +116,10 @@ enum HomeAssistant {
     /// One command, as control_home and set_timer take it.
     private static var commandItemSchema: [String: Any] {
         let commandTypes = ["setLight", "setShade", "stopShade", "recallScene", "mediaPower", "mediaVolume",
-                            "mediaMute", "mediaSource", "setLock", "setSecurity", "gate", "setClimate", "setMode", "setSwitch"]
+                            "mediaMute", "mediaSource", "setLock", "setSecurity", "gate", "setClimate", "setMode", "setSwitch",
+                            "tvKey", "tvApp", "mediaChannel"]
         let unit: [String: Any] = ["type": "number", "minimum": 0, "maximum": 1]
+        let tvKeys = TVKey.allCases.map(\.rawValue)
         let properties: [String: Any] = [
             "type": ["type": "string", "enum": commandTypes] as [String: Any],
             "id": ["type": "string", "description": "Device, scene, media room, lock, alarm, gate, thermostat, mode or switch id from the home state."],
@@ -128,6 +133,9 @@ enum HomeAssistant {
             "locked": ["type": "boolean"],
             "mode": ["type": "string", "enum": ["armedAway", "armedHome", "disarmed"]] as [String: Any],
             "action": ["type": "string", "enum": ["open", "close", "stop", "trigger"]] as [String: Any],
+            "key": ["type": "string", "enum": tvKeys, "description": "Remote button (tvKey)."] as [String: Any],
+            "appId": ["type": "string", "description": "App id from the TV's apps (tvApp)."] as [String: Any],
+            "channel": ["type": "integer", "minimum": 1, "description": "Channel number (mediaChannel)."] as [String: Any],
         ]
         return [
             "type": "object",
@@ -475,6 +483,18 @@ enum HomeAssistant {
         case "setSwitch":
             guard let on = raw["on"] as? Bool else { return (nil, "missing on") }
             return (.setSwitch(id: id, on: on), nil)
+        case "tvKey":
+            guard let key = (raw["key"] as? String).flatMap(TVKey.init(rawValue:)) else { return (nil, "bad key") }
+            return (.tvKey(zoneId: id, key: key), nil)
+        case "tvApp":
+            guard let appId = raw["appId"] as? String, !appId.isEmpty else { return (nil, "missing appId") }
+            return (.tvApp(zoneId: id, appId: appId), nil)
+        case "mediaChannel":
+            // Checked before converting, so a huge or fractional number can't crash Int().
+            guard let channel = number("channel"), channel.isFinite, channel.rounded() == channel, channel >= 1, channel <= 9999 else {
+                return (nil, "bad channel")
+            }
+            return (.mediaChannel(zoneId: id, channel: Int(channel)), nil)
         default:
             return (nil, "unknown command")
         }
@@ -533,6 +553,13 @@ enum HomeAssistant {
             return "\(mode?.name ?? id) → \(mode?.options.first { $0.id == value }?.name ?? value)"
         case let .setSwitch(id, on):
             return "\(name(home.switches, id, \.name)) → \(on ? L("on") : L("off"))"
+        case let .tvKey(id, key):
+            return "\(name(home.media, id, \.name)) → \(key.rawValue)"
+        case let .tvApp(id, appId):
+            let zone = home.media.first { $0.id == id }
+            return "\(zone?.name ?? id) → \(zone?.apps.first { $0.id == appId }?.name ?? appId)"
+        case let .mediaChannel(id, channel):
+            return "\(name(home.media, id, \.name)) → \(L("Channel {n}", ["n": String(channel)]))"
         }
     }
 
@@ -577,12 +604,18 @@ enum HomeAssistant {
         let scenes: [[String: Any]] = home.scenes.map {
             ["id": $0.id, "name": $0.name, "room": home.room($0.roomId)?.name ?? "whole house", "active": $0.isActive]
         }
-        let media: [[String: Any]] = home.media.map { zone in
+        let media: [[String: Any]] = home.media.map { (zone: MediaZone) -> [String: Any] in
             let sources: [[String: Any]] = zone.sources.map { ["id": $0.id, "name": $0.name] }
-            return [
-                "id": zone.id, "name": zone.name, "on": zone.isOn, "volume": pct(zone.volume), "muted": zone.isMuted,
+            let apps: [[String: Any]] = zone.apps.map { ["id": $0.id, "name": $0.name] }
+            var entry: [String: Any] = [
+                "id": zone.id, "name": zone.name, "room": room(zone.roomId), "on": zone.isOn, "volume": pct(zone.volume), "muted": zone.isMuted,
                 "source": zone.currentSource.map { $0.name as Any } ?? NSNull(), "sources": sources,
+                "kind": zone.resolvedKind, "canRemote": zone.canRemote, "apps": apps,
             ]
+            let channel: Any = zone.channel.map { (["number": $0.number, "name": $0.name] as [String: Any]) as Any } ?? NSNull()
+            entry["channel"] = channel
+            if let origin = zone.origin { entry["origin"] = origin }
+            return entry
         }
         let locks: [[String: Any]] = home.locks.map { lock in
             let locked: Any = lock.isLocked.map { $0 as Any } ?? NSNull()

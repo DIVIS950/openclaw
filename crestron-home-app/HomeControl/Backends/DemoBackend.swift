@@ -30,7 +30,7 @@ final class DemoBackend: HomeBackend {
         switch command {
         case let .recallScene(id):
             runScene(id)
-        case .mediaPower, .mediaSource, .mediaTransport:
+        case .mediaPower, .mediaSource, .mediaTransport, .tvKey, .tvApp, .mediaChannel:
             updateMedia(command)
         case let .gate(id, action) where action != .stop:
             // A real gate takes a while; report the end position after a few seconds.
@@ -81,13 +81,50 @@ final class DemoBackend: HomeBackend {
         return list[((index % list.count) + list.count) % list.count]
     }
 
+    /// Channel names for the demo TVs, by channel number (wrapping).
+    private static let channels = ["ČT1", "ČT2", "Nova", "Prima", "ČT24", "Nova Cinema", "Prima Cool", "ČT sport"]
+
+    /// Tunes a demo TV: on, the TV input, and the channel's name. Same as #media in demo.js.
+    private func tune(_ i: Int, to number: Int) {
+        let name = Self.channels[(number - 1) % Self.channels.count]
+        state.media[i].isOn = true
+        state.media[i].currentSourceId = "tv-dtv"
+        state.media[i].isPlaying = true
+        state.media[i].channel = Channel(number: number, name: name)
+        state.media[i].nowPlaying = NowPlaying(title: name, artist: "Kanál \(number)", album: "TV")
+    }
+
     private func updateMedia(_ command: HomeCommand) {
         switch command {
-        case let .mediaSource(id, _):
+        case let .tvApp(id, appId):
+            guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
+            let app = state.media[i].apps.first { $0.id == appId }
+            let zoneName = state.media[i].name
+            state.media[i].channel = nil
+            state.media[i].nowPlaying = app.map { NowPlaying(title: $0.name, artist: "App", album: zoneName) }
+        case let .mediaChannel(id, number):
+            guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
+            tune(i, to: max(1, number))
+        case let .tvKey(id, key):
+            guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
+            switch key {
+            case .chUp, .chDown:
+                let current = state.media[i].channel?.number ?? 1
+                tune(i, to: max(1, current + (key == .chUp ? 1 : -1)))
+            case .power:
+                state.media[i].isOn.toggle()
+                state.media[i].isPlaying = state.media[i].isOn
+                if !state.media[i].isOn { state.media[i].nowPlaying = nil }
+            default:
+                break
+            }
+        case let .mediaSource(id, sourceId):
             guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
             trackIndex[id] = 0
             state.media[i].nowPlaying = Self.track(state.media[i].currentSourceId)
             state.media[i].isPlaying = true
+            // A TV switched to an HDMI input leaves its channel behind.
+            if state.media[i].canRemote && sourceId != "tv-dtv" { state.media[i].channel = nil }
         case let .mediaPower(id, on):
             guard let i = state.media.firstIndex(where: { $0.id == id }) else { return }
             state.media[i].isPlaying = on
@@ -237,7 +274,27 @@ final class DemoBackend: HomeBackend {
         }
         func zone(_ id: String, _ name: String, _ roomId: String, on: Bool, volume: Double, source: String?) -> MediaZone {
             MediaZone(id: id, name: name, roomId: roomId, isOn: on, volume: volume, isMuted: false, sources: sources,
-                      currentSourceId: source, isPlaying: on, canTransport: true, nowPlaying: on ? DemoBackend.track(source) : nil)
+                      currentSourceId: source, isPlaying: on, canTransport: true, nowPlaying: on ? DemoBackend.track(source) : nil,
+                      origin: "demo")
+        }
+        // A Samsung TV reached over Wi-Fi, like the real one: inputs, apps, channels and a remote.
+        func tv(_ id: String, _ name: String, _ roomId: String, on: Bool, source: String?) -> MediaZone {
+            MediaZone(id: id, name: name, roomId: roomId, isOn: on, volume: 0.18, isMuted: false,
+                      sources: [
+                          MediaSource(id: "tv-hdmi1", name: "HDMI 1 · Apple TV"),
+                          MediaSource(id: "tv-hdmi2", name: "HDMI 2 · Satelit"),
+                          MediaSource(id: "tv-dtv", name: "TV"),
+                      ],
+                      currentSourceId: source, isPlaying: on, canTransport: true,
+                      nowPlaying: on ? NowPlaying(title: "Večerní zprávy", artist: "ČT1", album: "TV") : nil,
+                      kind: "tv", canRemote: true,
+                      apps: [
+                          MediaApp(id: "app-netflix", name: "Netflix"), MediaApp(id: "app-youtube", name: "YouTube"),
+                          MediaApp(id: "app-disney", name: "Disney+"), MediaApp(id: "app-hbo", name: "Max"),
+                          MediaApp(id: "app-prime", name: "Prime Video"), MediaApp(id: "app-spotify", name: "Spotify"),
+                      ],
+                      channel: on && source == "tv-dtv" ? Channel(number: 1, name: "ČT1") : nil,
+                      origin: "samsungtv")
         }
         func thermostat(_ id: String, _ name: String, _ roomId: String, _ current: Double, _ target: Double) -> Climate {
             Climate(id: id, name: name, roomId: roomId, current: current, target: target, heating: current < target - 0.2)
@@ -309,6 +366,8 @@ final class DemoBackend: HomeBackend {
         ]
         home.media = [
             zone("m-obyvak", "Obývák", "obyvak", on: true, volume: 0.35, source: "src-appletv"),
+            tv("tv-obyvak", "Samsung TV", "obyvak", on: true, source: "tv-dtv"),
+            tv("tv-loznice", "Samsung TV", "loznice", on: false, source: nil),
             zone("m-kuchyne", "Kuchyně", "kuchyne", on: true, volume: 0.25, source: "src-spotify"),
             zone("m-klub", "Klub", "klub", on: false, volume: 0.4, source: nil),
             zone("m-zahrada", "Zahrada", "zahrada", on: false, volume: 0.5, source: nil),

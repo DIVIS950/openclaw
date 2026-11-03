@@ -52,11 +52,11 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.characters).autocorrectionDisabled()
                     TextField(L("Port"), value: $settings.cipPort, format: .number.grouping(.never))
                         .keyboardType(.numberPad)
-                    NavigationLink(L("Join map")) { JoinMapEditor() }
+                    JoinMapRows()
                 } header: {
                     Text(L("Custom program (touch panel)"))
                 } footer: {
-                    Text(L("Ask your installer for a free XPanel IP ID in the program and the join numbers your Crestron Go panel uses. Don't reuse the IP ID of a panel that's in use."))
+                    Text(L("Ask your installer for a free XPanel IP ID in the program and the joinmap.json file for this app (the join numbers your Crestron Go panel uses). Don't reuse the IP ID of a panel that's in use."))
                 }
             }
 
@@ -92,6 +92,9 @@ struct SettingsView: View {
             } footer: {
                 Text(L("Use the camera's JPEG snapshot URL. Hikvision: /ISAPI/Streaming/channels/101/picture · Dahua: /cgi-bin/snapshot.cgi · Axis: /axis-cgi/jpg/image.cgi"))
             }
+
+            AppleHomeSection()
+            SamsungTVSection()
 
             Section {
                 SecureField(L("Anthropic API key"), text: $settings.assistantKey, prompt: Text(verbatim: "sk-ant-…"))

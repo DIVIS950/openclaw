@@ -19,7 +19,12 @@ struct HVSheetContent: View {
             case let .shade(id):
                 if let shade = home.shades.first(where: { $0.id == id }) { HVShadeSheet(shade: shade) } else { gone }
             case let .media(id):
-                if let zone = home.media.first(where: { $0.id == id }) { HVMediaSheet(zone: zone) } else { gone }
+                // TVs with remote keys get the remote; music rooms keep the volume-and-source card.
+                if let zone = home.media.first(where: { $0.id == id }) {
+                    if zone.canRemote { HVTVRemoteSheet(zone: zone) } else { HVMediaSheet(zone: zone) }
+                } else {
+                    gone
+                }
             case let .lock(id):
                 if let lock = home.locks.first(where: { $0.id == id }) { HVLockSheet(lock: lock) } else { gone }
             case let .gate(id):

@@ -63,6 +63,23 @@ struct CameraConfig: Codable, Identifiable, Hashable {
     }
 }
 
+/// A Samsung TV reached over Wi-Fi. The pairing token the TV hands out lives in the Keychain.
+struct SamsungTVConfig: Codable, Identifiable, Hashable {
+    var id = UUID()
+    var name: String
+    /// IP address on the home network, e.g. 192.168.1.80.
+    var host: String
+    /// For turning it on from standby (wake-on-LAN). Optional.
+    var mac: String = ""
+    /// The room (from the main system) its tile sits in. Optional.
+    var roomId: String? = nil
+
+    var token: String {
+        get { Keychain.read("samsungtv.\(id.uuidString)") ?? "" }
+        nonmutating set { Keychain.write(newValue, for: "samsungtv.\(id.uuidString)") }
+    }
+}
+
 /// Everything the user configures. Plain values live in UserDefaults, secrets in the Keychain.
 @MainActor
 @Observable
@@ -84,6 +101,10 @@ final class AppSettings {
     var assistantKey: String
     /// Town or city for the weather and for sunrise/sunset schedules.
     var location: HomeLocation?
+    /// Show the Matter and HomeKit accessories from Apple Home next to the main system.
+    var homeKitEnabled: Bool
+    /// Samsung TVs controlled directly over Wi-Fi.
+    var samsungTVs: [SamsungTVConfig]
 
     @ObservationIgnored private let defaults = UserDefaults.standard
 
@@ -105,6 +126,8 @@ final class AppSettings {
         L10n.language = savedLanguage
         assistantKey = Keychain.read(Keys.assistantKey) ?? ""
         location = d.data(forKey: Keys.location).flatMap { try? JSONDecoder().decode(HomeLocation.self, from: $0) }
+        homeKitEnabled = d.bool(forKey: Keys.homeKit)
+        samsungTVs = (d.data(forKey: Keys.samsungTVs)).flatMap { try? JSONDecoder().decode([SamsungTVConfig].self, from: $0) } ?? []
     }
 
     /// Switches the app's language. The root view is rebuilt for it (see HomeControlApp).
@@ -133,6 +156,8 @@ final class AppSettings {
         } else {
             defaults.removeObject(forKey: Keys.location)
         }
+        defaults.set(homeKitEnabled, forKey: Keys.homeKit)
+        defaults.set(try? JSONEncoder().encode(samsungTVs), forKey: Keys.samsungTVs)
     }
 
     /// True when the demo house is shown without a location: it uses a sample place and weather.
@@ -187,5 +212,7 @@ final class AppSettings {
         static let language = "language"
         static let assistantKey = "anthropic.apikey"
         static let location = "location"
+        static let homeKit = "homekit.enabled"
+        static let samsungTVs = "samsungtvs"
     }
 }

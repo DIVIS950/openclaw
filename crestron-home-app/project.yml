@@ -29,6 +29,8 @@ targets:
         # Set your Apple developer team here or pick it in Xcode › Signing & Capabilities.
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
+        # HomeKit (Apple Home / Matter accessories). Automatic signing adds the capability to the App ID.
+        CODE_SIGN_ENTITLEMENTS: HomeControl/HomeControl.entitlements
     info:
       path: HomeControl/Info.plist
       properties:
@@ -47,8 +49,10 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        # Talking to the processor and cameras on the home network.
-        NSLocalNetworkUsageDescription: Home Control connects to your Crestron processor and cameras on your home network.
+        # Talking to the processor, TVs and cameras on the home network.
+        NSLocalNetworkUsageDescription: Home Control connects to your Crestron processor, Samsung TVs and cameras on your home network.
+        # Matter and HomeKit accessories, through Apple Home.
+        NSHomeKitUsageDescription: Home Control shows and controls the Matter and HomeKit accessories you added in Apple Home.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSPhotoLibraryUsageDescription: Pick a photo to show on a room's card.

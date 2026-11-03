@@ -174,6 +174,7 @@ enum HV {
     }
 
     static func symbol(for zone: MediaZone) -> String {
+        if zone.isTV { return "tv" }
         let text = (zone.currentSource?.name ?? zone.name).lowercased()
         return ["tv", "cable", "apple"].contains { text.contains($0) } ? "tv" : "hifispeaker.fill"
     }

@@ -213,6 +213,8 @@ final class CrestronHomeBackend: HomeBackend {
         case .setClimate, .setMode, .setSwitch:
             // Thermostats aren't read from Crestron Home yet, so there is nothing to set.
             throw BackendError.notSupported(L("Heating"))
+        case .tvKey, .tvApp, .mediaChannel:
+            throw BackendError.notSupported(L("The TV remote"))
         }
     }
 

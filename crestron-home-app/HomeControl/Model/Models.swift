@@ -8,6 +8,8 @@ struct Room: Identifiable, Hashable {
     var name: String
     /// Floor name like "1.NP", used to group rooms. nil when the system has no floors.
     var floor: String? = nil
+    /// Which system it comes from: "crestron", "homekit", "samsungtv" or "demo".
+    var origin: String? = nil
 }
 
 struct Light: Identifiable, Hashable {
@@ -18,6 +20,8 @@ struct Light: Identifiable, Hashable {
     var level: Double
     var isDimmable = true
     var isOnline = true
+    /// Which system it comes from: "crestron", "homekit", "samsungtv" or "demo".
+    var origin: String? = nil
 
     var isOn: Bool { level > 0.005 }
 }
@@ -32,6 +36,7 @@ struct Shade: Identifiable, Hashable {
     var supportsPosition = true
     var supportsStop = false
     var isOnline = true
+    var origin: String? = nil
 }
 
 enum SceneKind: String, Hashable {
@@ -44,10 +49,23 @@ struct HomeScene: Identifiable, Hashable {
     var roomId: String?
     var kind: SceneKind
     var isActive = false
+    var origin: String? = nil
 }
 
 struct MediaSource: Identifiable, Hashable {
     let id: String
+    var name: String
+}
+
+/// An app a TV can open (Netflix, YouTube…). `id` is what the TV wants (tvApp.appId).
+struct MediaApp: Identifiable, Hashable {
+    let id: String
+    var name: String
+}
+
+/// The TV channel that is on, when the system knows it.
+struct Channel: Hashable {
+    var number: Int
     var name: String
 }
 
@@ -74,8 +92,25 @@ struct MediaZone: Identifiable, Hashable {
     /// True when the room has play/pause/next/previous buttons.
     var canTransport = false
     var nowPlaying: NowPlaying? = nil
+    /// "tv" or "audio". nil when the system doesn't say; then the name decides (see `resolvedKind`).
+    var kind: String? = nil
+    /// True for TVs that take remote-control keys (tvKey), apps (tvApp) and channel numbers.
+    var canRemote = false
+    var apps: [MediaApp] = []
+    var channel: Channel? = nil
+    /// Which system it comes from: "crestron", "homekit", "samsungtv" or "demo".
+    var origin: String? = nil
 
     var currentSource: MediaSource? { sources.first { $0.id == currentSourceId } }
+
+    /// "tv" or "audio": `kind`, or guessed from the name like normalizeHome in model.js.
+    var resolvedKind: String { kind ?? (MediaZone.looksLikeTV(name) ? "tv" : "audio") }
+    var isTV: Bool { resolvedKind == "tv" }
+
+    /// Names like "TV", "Samsung TV" or "Televize" mean a television.
+    static func looksLikeTV(_ name: String) -> Bool {
+        name.range(of: "\\btv\\b|telev", options: [.regularExpression, .caseInsensitive]) != nil
+    }
 }
 
 struct DoorLock: Identifiable, Hashable {
@@ -84,6 +119,7 @@ struct DoorLock: Identifiable, Hashable {
     var roomId: String?
     /// nil when the system gives no feedback.
     var isLocked: Bool?
+    var origin: String? = nil
 }
 
 enum SecurityMode: String, Hashable {
@@ -112,6 +148,7 @@ struct SecurityPanel: Identifiable, Hashable {
     var needsCode = true
     var canArmHome = true
     var canArmAway = true
+    var origin: String? = nil
 }
 
 enum GateState: Hashable {
@@ -138,6 +175,7 @@ struct Gate: Identifiable, Hashable {
     /// "trigger" pulse toggles the gate (the usual relay setup).
     var hasSeparateOpenClose: Bool
     var canStop: Bool
+    var origin: String? = nil
 }
 
 struct HomeSensor: Identifiable, Hashable {
@@ -146,6 +184,7 @@ struct HomeSensor: Identifiable, Hashable {
     var roomId: String?
     var kind: String
     var isActive: Bool
+    var origin: String? = nil
 }
 
 /// A doorbell button. `ringAt` is when it was last pressed; the iPad shows a pop-up
@@ -156,6 +195,7 @@ struct Doorbell: Identifiable, Hashable {
     var cameraName: String? = nil
     var lockId: String? = nil
     var ringAt: Date? = nil
+    var origin: String? = nil
 }
 
 struct HomeSnapshot: Hashable {
@@ -182,6 +222,21 @@ enum MediaTransportAction: String, Hashable {
     case play, pause, next, previous
 }
 
+/// Remote-control keys a TV may accept. Same list as TV_KEYS in model.js.
+enum TVKey: String, Hashable, CaseIterable {
+    case up, down, left, right, ok, back, home, menu, exit, info, guide
+    case chUp, chDown, volUp, volDown, mute, power
+    case play, pause, stop, rewind, fastForward
+    case num0, num1, num2, num3, num4, num5, num6, num7, num8, num9
+    case red, green, yellow, blue
+
+    /// The digit for num0…num9, else nil.
+    var digit: Int? {
+        guard rawValue.hasPrefix("num") else { return nil }
+        return Int(rawValue.dropFirst(3))
+    }
+}
+
 enum HomeCommand {
     case setLight(id: String, level: Double)
     case setShade(id: String, position: Double)
@@ -201,6 +256,26 @@ enum HomeCommand {
     case setMode(id: String, value: String)
     /// Sauna, motion-sensor lights, pumps…
     case setSwitch(id: String, on: Bool)
+    /// One press on a TV remote (TVs with `canRemote`).
+    case tvKey(zoneId: String, key: TVKey)
+    /// Open an app on a TV, by its id from `apps`.
+    case tvApp(zoneId: String, appId: String)
+    /// Tune a TV to a channel number.
+    case mediaChannel(zoneId: String, channel: Int)
+
+    /// The device, scene, zone… the command is for. The store routes it to the system that owns it.
+    var deviceId: String {
+        switch self {
+        case let .setLight(id, _), let .setShade(id, _), let .stopShade(id), let .recallScene(id):
+            return id
+        case let .mediaPower(id, _), let .mediaVolume(id, _), let .mediaMute(id, _), let .mediaSource(id, _), let .mediaTransport(id, _):
+            return id
+        case let .setLock(id, _), let .setSecurity(id, _, _), let .gate(id, _), let .setClimate(id, _), let .setMode(id, _), let .setSwitch(id, _):
+            return id
+        case let .tvKey(id, _), let .tvApp(id, _), let .mediaChannel(id, _):
+            return id
+        }
+    }
 
     /// Key of the control this command changes. The store re-applies recent commands on
     /// top of polled state for a few seconds so a slow processor doesn't make sliders jump
@@ -219,7 +294,9 @@ enum HomeCommand {
         case let .setClimate(id, _): "climate:\(id)"
         case let .setMode(id, _): "mode:\(id)"
         case let .setSwitch(id, _): "switch:\(id)"
-        case .stopShade, .recallScene, .gate: nil
+        case let .tvApp(id, _): "source:\(id)"
+        case let .mediaChannel(id, _): "channel:\(id)"
+        case .stopShade, .recallScene, .gate, .tvKey: nil
         }
     }
 }
@@ -268,6 +345,28 @@ extension HomeSnapshot {
             }
         case let .setSwitch(id, on):
             if let i = switches.firstIndex(where: { $0.id == id }) { switches[i].isOn = on }
+        case let .tvKey(id, key):
+            guard let i = media.firstIndex(where: { $0.id == id }) else { return }
+            switch key {
+            case .mute: media[i].isMuted.toggle()
+            case .volUp where media[i].hasVolume: media[i].volume = (media[i].volume + 0.05).clamped01
+            case .volDown where media[i].hasVolume: media[i].volume = (media[i].volume - 0.05).clamped01
+            case .play: media[i].isPlaying = true
+            case .pause: media[i].isPlaying = false
+            default: break
+            }
+        case let .tvApp(id, _):
+            if let i = media.firstIndex(where: { $0.id == id }) {
+                media[i].isOn = true
+                media[i].currentSourceId = nil
+                media[i].isPlaying = true
+            }
+        case let .mediaChannel(id, number):
+            if let i = media.firstIndex(where: { $0.id == id }) {
+                // Keep the channel name only when it's the same channel.
+                let name = media[i].channel?.number == number ? (media[i].channel?.name ?? "") : ""
+                media[i].channel = Channel(number: number, name: name)
+            }
         }
     }
 

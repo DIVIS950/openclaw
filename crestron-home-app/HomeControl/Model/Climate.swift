@@ -20,6 +20,8 @@ struct Climate: Identifiable, Hashable {
     /// True while it heats; nil without feedback.
     var heating: Bool? = nil
     var isOnline = true
+    /// Which system it comes from: "crestron", "homekit", "samsungtv" or "demo".
+    var origin: String? = nil
 
     var isHeating: Bool { heating == true }
 
@@ -48,6 +50,7 @@ struct HomeMode: Identifiable, Hashable {
     /// The id of the current option; nil when the system doesn't say.
     var value: String?
     var options: [ModeOption]
+    var origin: String? = nil
 
     var current: ModeOption? { options.first { $0.id == value } }
 }
@@ -62,6 +65,7 @@ struct HomeSwitch: Identifiable, Hashable {
     var isOn: Bool
     /// A temperature that goes with it (the sauna), °C.
     var current: Double? = nil
+    var origin: String? = nil
 
     var isSauna: Bool { kind == "sauna" }
 }

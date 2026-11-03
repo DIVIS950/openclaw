@@ -390,6 +390,8 @@ final class CustomProgramBackend: HomeBackend {
             } else {
                 throw BackendError.notSupported(L("This switch"))
             }
+        case .tvKey, .tvApp, .mediaChannel:
+            throw BackendError.notSupported(L("The TV remote"))
         }
     }
 

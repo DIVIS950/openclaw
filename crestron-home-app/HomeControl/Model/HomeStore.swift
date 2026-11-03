@@ -1,8 +1,9 @@
 import Foundation
 import Observation
 
-/// The single source of truth the views read. Owns the active backend, keeps the
-/// snapshot fresh (polling or push), and applies commands optimistically.
+/// The single source of truth the views read. Owns the sources (the main system plus
+/// Apple Home and Samsung TVs when turned on), merges their snapshots into one home,
+/// routes commands to the system that owns the device, and applies them optimistically.
 @MainActor
 @Observable
 final class HomeStore {
@@ -12,7 +13,12 @@ final class HomeStore {
     }
 
     private(set) var home = HomeSnapshot()
+    /// The main system's connection (demo, Crestron Home or the custom program).
     private(set) var connection: Connection = .idle
+    /// The extra systems' connections, by source name ("homekit", "samsungtv").
+    private(set) var extraStatus: [String: Connection] = [:]
+    /// Each Samsung TV's pairing state in plain words, by its address (for Settings).
+    private(set) var tvStatus: [String: String] = [:]
     private(set) var mode: ConnectionMode = .demo
     /// Short-lived message for a command that didn't go through.
     private(set) var commandError: String?
@@ -24,66 +30,61 @@ final class HomeStore {
     /// tile can play a short "just changed" animation.
     private(set) var pulses: [String: Int] = [:]
 
-    @ObservationIgnored private var backend: HomeBackend?
-    @ObservationIgnored private var loopTask: Task<Void, Never>?
+    @ObservationIgnored private var sources: [HomeSource] = []
     @ObservationIgnored private var errorTask: Task<Void, Never>?
     @ObservationIgnored private var recent: [String: (command: HomeCommand, at: Date)] = [:]
     /// Brightness each light had before it was turned off, so tapping it back on restores it.
     @ObservationIgnored private var lastLevels: [String: Double] = [:]
 
+    /// Connects everything: the main system first, then the extra sources that are set up.
     func connect(using settings: AppSettings) {
         disconnect()
         mode = settings.mode
-        let backend: HomeBackend
         do {
-            backend = try settings.makeBackend()
+            let backend = try settings.makeBackend()
+            sources.append(HomeSource(name: "main", backend: backend, isMain: true, idPrefix: nil))
         } catch {
             connection = .failed(error.localizedDescription)
-            return
         }
-        self.backend = backend
-        connection = .connecting
-        backend.onChange = { [weak self] snapshot in self?.receive(snapshot) }
-        backend.onStatusChange = { [weak self] status in
-            switch status {
-            case .connected: self?.connection = .connected
-            case let .reconnecting(reason): self?.connection = .failed(reason)
-            }
-        }
+        let extras = makeExtras(settings)
+        sources += extras
+        for source in sources { source.start { [weak self] in self?.refresh() } }
+        refresh()
+    }
 
-        loopTask = Task { [weak self] in
-            var connected = false
-            while !Task.isCancelled {
-                do {
-                    if !connected {
-                        try await backend.connect()
-                        connected = true
-                    }
-                    let snapshot = try await backend.fetch()
-                    guard !Task.isCancelled else { return }
-                    self?.receive(snapshot)
-                    self?.connection = .connected
-                } catch {
-                    guard !Task.isCancelled else { return }
-                    self?.connection = .failed(error.localizedDescription)
-                }
-                // Push backends only need polling until the first connect succeeds.
-                guard let wait = backend.pollInterval ?? (connected ? nil : .seconds(5)) else { return }
-                try? await Task.sleep(for: wait)
-            }
-        }
+    /// Restarts only Apple Home and the TVs (after their settings changed); the main system stays up.
+    func reconnectExtras(using settings: AppSettings) {
+        for source in sources where !source.isMain { source.stop() }
+        sources.removeAll { !$0.isMain }
+        let extras = makeExtras(settings)
+        sources += extras
+        for source in extras { source.start { [weak self] in self?.refresh() } }
+        refresh()
     }
 
     func disconnect() {
-        loopTask?.cancel()
-        loopTask = nil
-        backend?.onChange = nil
-        backend?.onStatusChange = nil
-        backend?.disconnect()
-        backend = nil
+        for source in sources { source.stop() }
+        sources.removeAll()
         recent.removeAll()
         home = HomeSnapshot()
         connection = .idle
+        extraStatus = [:]
+        tvStatus = [:]
+    }
+
+    private func makeExtras(_ settings: AppSettings) -> [HomeSource] {
+        var extras: [HomeSource] = []
+        tvStatus = [:]
+        if settings.homeKitEnabled {
+            extras.append(HomeSource(name: HomeKitSource.sourceName, backend: HomeKitSource(), isMain: false, idPrefix: HomeKitSource.idPrefix))
+        }
+        let tvs = settings.samsungTVs.filter { !$0.host.trimmingCharacters(in: .whitespaces).isEmpty }
+        if !tvs.isEmpty {
+            let backend = SamsungTVSource(tvs: tvs)
+            backend.onTVStatus = { [weak self] status in self?.tvStatus = status }
+            extras.append(HomeSource(name: SamsungTVSource.sourceName, backend: backend, isMain: false, idPrefix: SamsungTVSource.idPrefix))
+        }
+        return extras
     }
 
     /// `fromUser: false` for schedules and timers, so they don't keep StandBy away.
@@ -95,7 +96,9 @@ final class HomeStore {
         home.apply(command)
         if let key = command.stateKey { recent[key] = (command, Date()) }
         if fromUser, let key = command.tileKey { pulses[key, default: 0] += 1 }
-        guard let backend else { return }
+        // `owner`, not `source`: a local named like the method would shadow it in its own initializer.
+        guard let owner = source(owning: command.deviceId) else { return }
+        let backend = owner.backend
         Task { [weak self] in
             do {
                 try await backend.perform(command)
@@ -127,21 +130,32 @@ final class HomeStore {
 
     /// Shows the doorbell pop-up as if the button was pressed (Settings › Test doorbell).
     func testDoorbell(_ id: String) {
-        if let demo = backend as? DemoBackend {
+        if let demo = sources.first(where: \.isMain)?.backend as? DemoBackend {
             demo.ring(id)
         } else if let i = home.doorbells.firstIndex(where: { $0.id == id }) {
             home.doorbells[i].ringAt = Date()
         }
     }
 
-    private func receive(_ snapshot: HomeSnapshot) {
-        // Keep what the user just set for a few seconds; processors report the old
-        // value until the load actually reaches it.
-        var merged = snapshot
+    /// The extra source that owns the id by prefix, else the main system.
+    private func source(owning id: String) -> HomeSource? {
+        sources.first { !$0.isMain && $0.owns(id: id) } ?? sources.first(where: \.isMain)
+    }
+
+    /// Rebuilds `home` from every source, main first, and the status lines. Keeps what the
+    /// user just set for a few seconds; processors report the old value until the load
+    /// actually reaches it.
+    private func refresh() {
+        var merged = HomeSnapshot()
+        for source in sources { merged.merge(source.snapshot) }
         let now = Date()
         recent = recent.filter { now.timeIntervalSince($0.value.at) < 3 }
         for entry in recent.values { merged.apply(entry.command) }
         if merged != home { home = merged }
+        if let main = sources.first(where: \.isMain), main.connection != connection { connection = main.connection }
+        var status: [String: Connection] = [:]
+        for source in sources where !source.isMain { status[source.name] = source.connection }
+        if status != extraStatus { extraStatus = status }
     }
 
     private func showError(_ message: String) {
@@ -161,12 +175,12 @@ extension HomeCommand {
         switch self {
         case let .setLight(id, _): "light:\(id)"
         case let .setShade(id, _): "shade:\(id)"
-        case let .mediaPower(id, _), let .mediaSource(id, _): "media:\(id)"
+        case let .mediaPower(id, _), let .mediaSource(id, _), let .tvApp(id, _), let .mediaChannel(id, _): "media:\(id)"
         case let .setLock(id, _): "lock:\(id)"
         case let .recallScene(id): "scene:\(id)"
         case let .setClimate(id, _): "climate:\(id)"
         case let .setSwitch(id, _): "switch:\(id)"
-        case .stopShade, .mediaVolume, .mediaMute, .mediaTransport, .setSecurity, .gate, .setMode: nil
+        case .stopShade, .mediaVolume, .mediaMute, .mediaTransport, .setSecurity, .gate, .setMode, .tvKey: nil
         }
     }
 }

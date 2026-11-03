@@ -43,11 +43,12 @@ enum L10n {
         pairs.append(contentsOf: csSettings)
         pairs.append(contentsOf: csAutomations)
         pairs.append(contentsOf: csAssistant)
+        pairs.append(contentsOf: csTV)
         return Dictionary(pairs, uniquingKeysWith: { first, _ in first })
     }()
 
     /// "one|other" -> [one, few (2–4), many (0, 5+)].
-    static let czechPlurals: [String: [String]] = Dictionary(csPlurals, uniquingKeysWith: { first, _ in first })
+    static let czechPlurals: [String: [String]] = Dictionary(csPlurals + csTVPlurals, uniquingKeysWith: { first, _ in first })
 
     static func fill(_ text: String, _ vars: [String: String]) -> String {
         var out = text

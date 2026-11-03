@@ -58,7 +58,7 @@ enum TimerCommand: Codable, Hashable {
         case let .setClimate(id, target): self = .climate(id: id, target: target)
         case let .setMode(id, value): self = .mode(id: id, value: value)
         case let .setSwitch(id, on): self = .setSwitch(id: id, on: on)
-        case .mediaTransport, .setSecurity, .gate:
+        case .mediaTransport, .setSecurity, .gate, .tvKey, .tvApp, .mediaChannel:
             return nil
         }
     }
