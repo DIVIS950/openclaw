@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../context.ts";
 import { accountSync } from "../lib/accountSync.ts";
 import { type SyncStatus, syncStatus } from "../lib/classroomSync.ts";
+import { useCapability } from "../lib/claudeRuntime.ts";
 import { driveSync } from "../pages/driveSync.ts";
 import { PAGES } from "../pages/runtime.ts";
 import { whenLabel } from "../pages/SyncCard.tsx";
@@ -30,6 +31,9 @@ export function connections(
     : ["Connect Gmail", sync].filter(Boolean).join(" · ");
   return { gmail, synced, label };
 }
+
+export const GMAIL_OFF =
+  "Gmail is turned off for Student Hub. In Claude, open this app's Permissions and allow Gmail, then tap here again.";
 
 function lastSync(): string {
   return PAGES ? (driveSync.on ? driveSync.lastSync : "") : accountSync.lastSync;
@@ -60,7 +64,21 @@ export function ConnectionLine() {
     setBusy(true);
     const before = syncStatus.get()?.at ?? "";
     if (!state.gmail) {
-      // Checking Classroom now asks for Gmail if this page doesn't have it yet.
+      // Ask for Gmail on its own first, so its question can't clash with another
+      // app's. A "no" stays for this artifact until it's allowed again in Claude.
+      const perms = await useCapability("permissions");
+      const answer = perms
+        ? await perms.request(["mcp:Gmail"]).then(
+            (r) => r["mcp:Gmail"] ?? "",
+            () => "",
+          )
+        : "";
+      if (answer === "denied") {
+        setBusy(false);
+        toast(GMAIL_OFF);
+        return;
+      }
+      // Checking Classroom now reads Gmail (and asks for it if it still needs to).
       reloadHomework(true);
     }
     if (!PAGES) {

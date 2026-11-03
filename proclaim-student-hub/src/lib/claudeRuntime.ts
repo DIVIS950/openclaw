@@ -28,6 +28,9 @@ export interface McpError {
   code: string;
   message: string;
   server?: string;
+  /** Set only when trying the same call again, unattended, may work. */
+  retryable?: boolean;
+  retryAfterMs?: number;
 }
 
 export interface Mcp {
@@ -68,6 +71,12 @@ export interface Downloads {
   save(file: { filename: string; data: string | Blob }): Promise<unknown>;
 }
 
+/** "granted" | "prompt" | "denied" | "unavailable". Never rejects on a "no". */
+export interface Permissions {
+  state(name: string): Promise<string>;
+  request(names: readonly string[]): Promise<Record<string, string>>;
+}
+
 /** The page's own comment writes; only the "send to Claude" part is used here. */
 export interface Comments {
   /** "available" | "writers_only" | "no_session" | "off" (anything else: unavailable). */
@@ -83,6 +92,7 @@ interface CapabilityMap {
   mcp: Mcp;
   db: Db;
   user: UserCap;
+  permissions: Permissions;
 }
 
 interface ClaudeRuntime {
@@ -102,10 +112,66 @@ export async function useCapability<K extends keyof CapabilityMap>(
     return null;
   }
   try {
-    return await claude.use(name);
+    const cap = await claude.use(name);
+    if (name === "mcp" && cap) {
+      // Every part of the app shares one wrapped connector namespace.
+      shared ??= takeTurns(cap as Mcp);
+      return shared as CapabilityMap[K];
+    }
+    return cap;
   } catch {
     return null;
   }
+}
+
+let shared: Mcp | null = null;
+
+/** Connector tools that only read, so a call can safely be made twice. */
+const READS = new Set([
+  "search_threads",
+  "get_thread",
+  "list_events",
+  "read_doc",
+  "read_presentation",
+  "get-create-design-async-job",
+  "get_generation_status",
+]);
+
+const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * The first call to each connector may ask the student to allow it, and
+ * Claude can show only one such question at a time: when Today asked for
+ * Gmail and Google Calendar together, one of them failed and Gmail stayed
+ * "not connected". So first calls wait their turn, and a read that failed
+ * for a reason that clears by itself (marked retryable) is tried once more.
+ */
+export function takeTurns(mcp: Mcp, wait: (ms: number) => Promise<void> = pause): Mcp {
+  const settled = new Set<string>();
+  let turn: Promise<unknown> = Promise.resolve();
+  const call = async (server: string, tool: string, input?: unknown) => {
+    try {
+      return await mcp.callTool(server, tool, input);
+    } catch (err) {
+      const e = err as McpError | undefined;
+      if (!e?.retryable || !READS.has(tool)) {
+        throw err;
+      }
+      await wait(Math.min(Math.max(e.retryAfterMs ?? 1500, 500), 10_000));
+      return mcp.callTool(server, tool, input);
+    }
+  };
+  return {
+    callTool(server, tool, input) {
+      if (settled.has(server)) {
+        return call(server, tool, input);
+      }
+      const run = turn.then(() => call(server, tool, input));
+      const done = () => void settled.add(server);
+      turn = run.then(done, done);
+      return run;
+    },
+  };
 }
 
 export function isSampleError(err: unknown): err is SampleError {

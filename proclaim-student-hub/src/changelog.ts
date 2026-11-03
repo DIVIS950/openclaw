@@ -11,6 +11,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.5.1",
+    date: "2026-11-03",
+    title: "Gmail connects again",
+    items: [
+      'Fixed: Gmail and Google Calendar asked to connect at the same moment, so Gmail often stayed "not connected"; now they ask one after the other',
+      "Fixed: Classroom emails came in without a course or due date, because Gmail stopped sending those in its quick list; the app now reads each email for them",
+      "Fixed: if Gmail was turned off for the app, Connect Gmail now says where to turn it back on",
+    ],
+  },
+  {
     version: "1.5.0",
     date: "2026-11-02",
     title: "Classic, made better",

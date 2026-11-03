@@ -34,6 +34,7 @@ interface GmailMessage {
 
 interface GmailThread {
   id?: string;
+  messageCount?: number;
   messages?: GmailMessage[];
   viewUrl?: string;
 }
@@ -47,13 +48,28 @@ function gmailError(err: unknown): Error {
     case "needs_reauth":
       return new Error("Reconnect Gmail in claude.ai Settings → Connectors.");
     case "not_in_manifest":
-    case "not_granted":
-      return new Error("Gmail isn't allowed for this page. Reload and allow it when asked.");
+      return new Error(
+        "Gmail is turned off for Student Hub. Allow it in this app's Permissions in Claude, then tap Connect Gmail.",
+      );
     case "blocked_by_policy":
     case "approval_required":
       return new Error("Your account's settings block Gmail on this page.");
     case "server_unavailable":
       return new Error("Gmail isn't answering right now. Try again in a minute.");
+    case "selection_required":
+      return new Error(
+        "You have Gmail connected twice in Claude. Pick one when Claude asks, or remove one in Settings → Connectors.",
+      );
+    case "not_granted":
+    case "capability_disabled":
+    case "capability_removed":
+      return new Error("Gmail can't be used in this view. Open Student Hub in the Claude app.");
+    case "upstream_error":
+      if ((err as McpError).retryable) {
+        // Claude couldn't ask about Gmail just then (another question was open).
+        return new Error("Claude couldn't ask about Gmail just then. Tap Connect Gmail again.");
+      }
+      return new Error((err as McpError).message || "Couldn't reach Gmail.");
     default:
       return new Error((err as McpError | undefined)?.message || "Couldn't reach Gmail.");
   }
@@ -235,9 +251,10 @@ export class ClaudeData implements DataSource {
     } catch (err) {
       throw gmailError(err);
     }
-    const threads = ((payload as { threads?: GmailThread[] } | undefined)?.threads ?? []).filter(
+    const found = ((payload as { threads?: GmailThread[] } | undefined)?.threads ?? []).filter(
       (t) => t.id && t.messages?.length,
     );
+    const threads = await Promise.all(found.map((t) => this.withDetails(t)));
     return threads.map((t) => {
       // Search previews carry the oldest messages; the first one names the thread.
       const first = t.messages?.[0] ?? {};
@@ -256,6 +273,39 @@ export class ClaudeData implements DataSource {
         link: t.viewUrl,
       };
     });
+  }
+
+  /** Thread details already read, by thread id and message count. */
+  private readonly details = new Map<string, GmailThread>();
+
+  /**
+   * Gmail's search previews stopped carrying the date, snippet and labels
+   * (only sender and subject now). Without them a Classroom email has no
+   * course or due date and the inbox shows 1970, so read the thread for them.
+   * A thread that can't be read keeps its preview.
+   */
+  private async withDetails(t: GmailThread): Promise<GmailThread> {
+    const first = t.messages?.[0];
+    if (!this.mcp || !t.id || (first?.snippet && first.date)) {
+      return t;
+    }
+    const key = `${t.id}:${t.messageCount ?? t.messages?.length ?? 0}`;
+    let full = this.details.get(key);
+    if (!full) {
+      try {
+        const { payload } = await this.mcp.callTool(GMAIL, "get_thread", {
+          threadId: t.id,
+          messageFormat: "MINIMAL",
+        });
+        full = (payload as GmailThread | undefined) ?? {};
+      } catch {
+        return t;
+      }
+      if (full.messages?.length) {
+        this.details.set(key, full);
+      }
+    }
+    return full.messages?.length ? { ...t, ...full, viewUrl: t.viewUrl ?? full.viewUrl } : t;
   }
 
   async sendReply(email: Email, body: string): Promise<void> {
