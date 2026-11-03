@@ -1,6 +1,7 @@
 // Home View detail sheets (the card that opens over the page). Pure HTML builders.
 import { icon } from "../icons.js";
 import { GATE_TITLES, pct, roomOf, SECURITY_TITLES } from "../shared/model.js";
+import { climateSheet, switchSheet } from "./climate.js";
 import { art, attr, cameraPicture, esc, fmtDate, gateControls, isOn, lightState, shadeState, sourceName, transportRow } from "./views.js";
 
 const closeBtn = `<button type="button" class="sheet-close" data-act="sheet-close" aria-label="Close">${icon("close")}</button>`;
@@ -16,7 +17,7 @@ export function sheetHead(color, ic, title, sub, app = null, favKey = null) {
 }
 
 /** "Turn off in 15 min / 30 min / 1 h / 2 h". */
-function timerPills(verb, label, command) {
+export function timerPills(verb, label, command) {
   const opts = [[15, "15 min"], [30, "30 min"], [60, "1 h"], [120, "2 h"]];
   return `<div class="timer-row"><span class="timer-label">${icon("timer")}${esc(verb)} in</span>
     ${opts.map(([m, t]) => `<button type="button" class="pill small"${attr({ act: "timer-add", minutes: m, label, cmd: JSON.stringify(command) })}>${t}</button>`).join("")}</div>`;
@@ -197,6 +198,8 @@ export function sheetHTML(app, spec) {
     case "media": { const m = find(h.media); return m && mediaSheet(app, m); }
     case "lock": { const l = find(h.locks); return l && lockSheet(app, l); }
     case "gate": { const g = find(h.gates); return g && gateSheet(app, g); }
+    case "climate": { const c = find(h.climate); return c && climateSheet(app, c, sheetHead); }
+    case "switch": { const s = find(h.switches); return s && switchSheet(app, s, sheetHead, timerPills); }
     case "camera": { const c = app.cameras.find((x) => x.id === spec.id); return c && cameraSheet(app, c); }
     case "keypad": return keypadSheet(app, spec);
     case "confirm": return confirmSheet(app, spec);

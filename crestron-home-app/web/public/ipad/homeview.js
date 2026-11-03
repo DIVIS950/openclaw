@@ -2,7 +2,8 @@
 // (../api/…) and falls back to the demo house when it can't reach one.
 import { icon, sceneIcon } from "../icons.js";
 import { DemoEngine } from "../shared/demo.js";
-import { applyCommand, clamp01, emptyHome, normalizeHome, pct, stateKey } from "../shared/model.js";
+import { t } from "../shared/i18n.js";
+import { applyCommand, clamp01, clampTarget, emptyHome, normalizeHome, pct, stateKey } from "../shared/model.js";
 import { createAsk } from "./ask.js";
 import { createFeatures } from "./features.js";
 import { dots, isWideSheet, sheetHTML } from "./sheets.js";
@@ -96,11 +97,11 @@ function startLocal() {
     scheduleRender();
   });
   app.home = engine.snapshot();
-  app.homeName = "Maple House";
+  app.homeName = "Můj dům";
   app.status = { connection: "connected", message: null, mode: "demo" };
   app.cameras = [
-    { id: "demo-drive", name: "Driveway", demo: "drive" },
-    { id: "demo-door", name: "Front Door", demo: "door" },
+    { id: "demo-drive", name: "Příjezd", demo: "drive" },
+    { id: "demo-door", name: "Brána", demo: "door" },
   ];
   features.startLocal();
   features.checkDoorbells();
@@ -153,7 +154,7 @@ async function send(cmd) {
 
 // ---------- routing & rendering ----------
 
-const ROUTES = ["home", "lights", "shades", "media", "security", "cameras", "automations"];
+const ROUTES = ["home", "lights", "shades", "media", "heating", "security", "cameras", "automations"];
 
 function parseHash() {
   const h = decodeURIComponent(location.hash.slice(1));
@@ -450,7 +451,24 @@ function toggle(kind, id) {
       }
       return openSheet({ kind: "lock", id });
     }
+    // A thermostat has no on/off: its icon opens the temperature card too.
+    case "climate": return openSheet({ kind: "climate", id });
+    case "switch": {
+      const sw = h.switches.find((x) => x.id === id);
+      if (!sw) return;
+      const on = !sw.on;
+      send({ type: "setSwitch", id, on });
+      return notify(escText(sw.name), { ic: sw.kind === "sauna" ? "steam" : "power", color: "#ff9f0a", sub: on ? t("is on") : t("is off") });
+    }
   }
+}
+
+function setTarget(id, target) {
+  const c = app.home.climate.find((x) => x.id === id);
+  if (!c) return;
+  const next = clampTarget(c, target);
+  if (next === c.target) return;
+  send({ type: "setClimate", id, target: next });
 }
 
 function gateAction(id, action) {
@@ -466,6 +484,7 @@ function arm(id, mode) {
   if (!panel || panel.mode === mode) return;
   if (panel.needsCode) return openSheet({ kind: "keypad", id, mode, code: "" });
   send({ type: "setSecurity", id, mode });
+  notify(escText(panel.name), { ic: mode === "disarmed" ? "unlock" : "lock", color: "#5e5ce6", sub: t(mode === "disarmed" ? "Disarmed" : mode === "armedAway" ? "Armed away" : "Armed home") });
 }
 
 const SLIDER_SEND = {
@@ -506,6 +525,19 @@ const actions = {
   },
   "media-source": (el) => send({ type: "mediaSource", id: el.dataset.id, sourceId: el.dataset.source }),
   "lock-now": (el) => toggle("lock", el.dataset.id),
+  "climate-step": (el) => {
+    const c = app.home.climate.find((x) => x.id === el.dataset.id);
+    if (c) setTarget(c.id, (c.target ?? c.current ?? 20) + Number(el.dataset.delta));
+  },
+  "climate-set": (el) => setTarget(el.dataset.id, Number(el.dataset.target)),
+  mode: (el) => {
+    const m = app.home.modes.find((x) => x.id === el.dataset.id);
+    const o = m?.options.find((x) => x.id === el.dataset.value);
+    if (!m || !o || m.value === o.id) return;
+    send({ type: "setMode", id: m.id, value: o.id });
+    notify(escText(m.name), { ic: "flame", color: "#ff9f0a", sub: escText(o.name) });
+  },
+  switch: (el) => toggle("switch", el.dataset.id),
   "photo-remove": (el) => removePhoto(el.dataset.id),
   "room-lights": (el) => {
     for (const l of app.home.lights) if (l.roomId === el.dataset.id) send({ type: "setLight", id: l.id, level: Number(el.dataset.level) });

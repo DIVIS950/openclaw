@@ -75,6 +75,10 @@ const P = {
   suitcase: '<rect x="3" y="7.5" width="18" height="12.5" rx="2.4"/><path d="M8.5 7.5V5.6A1.6 1.6 0 0 1 10.1 4h3.8a1.6 1.6 0 0 1 1.6 1.6v1.9"/><path d="M3 12.5h18"/>',
   wall: '<rect x="3" y="4" width="8" height="7" rx="1.6"/><rect x="13" y="4" width="8" height="7" rx="1.6"/><rect x="3" y="13" width="8" height="7" rx="1.6"/><rect x="13" y="13" width="8" height="7" rx="1.6"/>',
   speakers: '<rect x="2.5" y="5" width="8" height="14" rx="2"/><circle cx="6.5" cy="13.5" r="2"/><rect x="13.5" y="5" width="8" height="14" rx="2"/><circle cx="17.5" cy="13.5" r="2"/>',
+  thermo: '<path d="M10 13.6V5a2 2 0 0 1 4 0v8.6a4 4 0 1 1-4 0z"/><path d="M12 9v7.2"/><circle cx="12" cy="17" r="1.2"/>',
+  flame: '<path d="M12 21a6 6 0 0 0 6-6c0-3.6-2.6-5.6-3.6-8.9-.4 1.7-1.3 2.9-2.4 3.6C11.6 6.9 10.4 4.6 8.6 3c.3 3.4-2.6 6.4-2.6 10.4A6 6 0 0 0 12 21z"/><path d="M12 21a2.6 2.6 0 0 1-2.6-2.6c0-1.6 1.3-2.5 2.6-4 1.3 1.5 2.6 2.4 2.6 4A2.6 2.6 0 0 1 12 21z"/>',
+  steam: '<path d="M8 3.5c-1.2 1.4 1.2 2.6 0 4M12 3.5c-1.2 1.4 1.2 2.6 0 4M16 3.5c-1.2 1.4 1.2 2.6 0 4"/><path d="M3.5 12.5c1.4-1.2 2.8-1.2 4.2 0s2.8 1.2 4.3 0 2.8-1.2 4.3 0 2.8 1.2 4.2 0"/><path d="M3.5 17c1.4-1.2 2.8-1.2 4.2 0s2.8 1.2 4.3 0 2.8-1.2 4.3 0 2.8 1.2 4.2 0"/>',
+  motion: '<circle cx="13" cy="4.6" r="1.6"/><path d="m8 21 3-6.5 3 2.5v4.5"/><path d="M6.5 11.5 9 8.5l3.5-.5 2.5 3.5 3 1"/><path d="m11 14.5 1.5-6"/>',
   wifi: '<path d="M4.5 10a11 11 0 0 1 15 0"/><path d="M7.5 13.3a6.6 6.6 0 0 1 9 0"/><path d="M12 17.2h.01"/>',
 };
 
@@ -89,6 +93,13 @@ const ROOM_ICONS = [
   ["garden", "tree"], ["yard", "tree"], ["outdoor", "tree"], ["pool", "sun"], ["garage", "car"],
   ["entry", "door"], ["foyer", "door"], ["hall", "door"], ["theater", "film"], ["cinema", "film"],
   ["media", "film"], ["tv", "film"], ["gym", "bolt"], ["wine", "fork"],
+  // Czech room names
+  ["kuchyň", "fork"], ["kuchyn", "fork"], ["jídeln", "fork"], ["obýv", "sofa"], ["obyv", "sofa"], ["salon", "sofa"],
+  ["ložnic", "bed"], ["loznic", "bed"], ["pokoj", "bed"], ["pracovn", "desk"], ["knihovn", "book"],
+  ["koupeln", "bath"], ["wc", "bath"], ["sauna", "steam"], ["fitk", "bolt"], ["posilovn", "bolt"],
+  ["zahrad", "tree"], ["venek", "tree"], ["dvůr", "tree"], ["terasa", "sun"], ["balkon", "sun"], ["bazén", "sun"],
+  ["garáž", "car"], ["garaz", "car"], ["zádveří", "door"], ["chodb", "door"], ["vstup", "door"], ["schod", "door"],
+  ["klub", "film"], ["kino", "film"], ["sklep", "fork"], ["vinný", "fork"],
 ];
 
 export function roomIcon(name) {
@@ -98,14 +109,15 @@ export function roomIcon(name) {
 
 export function sceneIcon(scene) {
   const n = scene.name.toLowerCase();
-  if (/night|sleep|bed/.test(n)) return "moon";
-  if (/morning|wake|sunrise/.test(n)) return "sunrise";
-  if (/away|leave|vacation/.test(n)) return "away";
-  if (/welcome|home|arrive/.test(n)) return "home";
-  if (/movie|tv|cinema|film/.test(n)) return "film";
-  if (/dinner|cook|kitchen|meal/.test(n)) return "fork";
-  if (/read|book/.test(n)) return "book";
-  if (/off/.test(n)) return "power";
-  if (/bright|on$|all on/.test(n)) return "sun";
+  if (/night|sleep|bed|noc|spánek|spat/.test(n)) return "moon";
+  if (/morning|wake|sunrise|ráno|rano|budíček/.test(n)) return "sunrise";
+  if (/away|leave|vacation|odchod|pryč|dovolen/.test(n)) return "away";
+  if (/welcome|home|arrive|vítej|příchod|příjezd/.test(n)) return "home";
+  if (/movie|tv|cinema|film|televiz|kino/.test(n)) return "film";
+  if (/dinner|cook|kitchen|meal|večeře|vaření|oběd/.test(n)) return "fork";
+  if (/read|book|čtení|cteni/.test(n)) return "book";
+  if (/party|párty/.test(n)) return "sparkle";
+  if (/off|vypnout|vypnuto/.test(n)) return "power";
+  if (/bright|on$|all on|zapnout vše/.test(n)) return "sun";
   return { lighting: "bulb", shades: "blinds", media: "music", climate: "sun" }[scene.kind] ?? "sparkle";
 }

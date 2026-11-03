@@ -41,7 +41,7 @@ function readExampleJoinMap() {
 
 const DEFAULT_CONFIG = {
   mode: "demo", // demo | crestronHome | customProgram
-  homeName: "Home",
+  homeName: "Domov",
   host: "",
   token: "",
   ipId: "03",
@@ -115,7 +115,7 @@ function payload() {
 /** Cameras for the app. The demo house shows two pretend ones until real cameras are added. */
 function cameraList() {
   if (config.mode === "demo" && !config.cameras.length) {
-    return [{ id: "demo-drive", name: "Driveway", demo: "drive" }, { id: "demo-door", name: "Front Door", demo: "door" }];
+    return [{ id: "demo-drive", name: "Příjezd", demo: "drive" }, { id: "demo-door", name: "Brána", demo: "door" }];
   }
   return config.cameras.map((c) => ({ id: c.id, name: c.name }));
 }

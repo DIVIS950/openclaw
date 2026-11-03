@@ -3,7 +3,7 @@
 //
 // A home snapshot:
 // {
-//   rooms:    [{ id, name }]
+//   rooms:    [{ id, name, floor }]   (floor: optional name like "1.NP", used to group rooms)
 //   lights:   [{ id, name, roomId, level 0..1, dimmable, online }]
 //   shades:   [{ id, name, roomId, position 0..1 (1 = open), hasPosition, canStop, online }]
 //   scenes:   [{ id, name, roomId, kind, active }]
@@ -14,6 +14,9 @@
 //   gates:    [{ id, name, state, separateOpenClose, canStop }]
 //   sensors:  [{ id, name, roomId, kind, active }]
 //   doorbells: [{ id, name, cameraId, lockId, ringAt }]  (ringAt: time of the last ring, ms)
+//   climate:  [{ id, name, roomId, current °C | null, target °C | null, min, max, step, heating: bool | null, online }]
+//   modes:    [{ id, name, kind, value, options: [{ id, name }] }]  (e.g. the house heating mode)
+//   switches: [{ id, name, roomId, kind, on, current °C | null }]  (sauna, motion-sensor lights, pumps…)
 // }
 //
 // Commands are plain objects, e.g. { type: "setLight", id, level }.
@@ -22,6 +25,7 @@ export const COMMAND_TYPES = [
   "setLight", "setShade", "stopShade", "recallScene",
   "mediaPower", "mediaVolume", "mediaMute", "mediaSource", "mediaTransport",
   "setLock", "setSecurity", "gate",
+  "setClimate", "setMode", "setSwitch",
 ];
 
 export const SECURITY_TITLES = {
@@ -43,7 +47,10 @@ export const clamp01 = (v) => Math.min(1, Math.max(0, Number(v) || 0));
 export const pct = (v) => `${Math.round(clamp01(v) * 100)}%`;
 
 export function emptyHome() {
-  return { rooms: [], lights: [], shades: [], scenes: [], media: [], locks: [], security: [], gates: [], sensors: [], doorbells: [] };
+  return {
+    rooms: [], lights: [], shades: [], scenes: [], media: [], locks: [], security: [], gates: [], sensors: [], doorbells: [],
+    climate: [], modes: [], switches: [],
+  };
 }
 
 /** Fills in lists and fields that older backends leave out, so the app can rely on them. */
@@ -55,6 +62,16 @@ export function normalizeHome(home) {
     m.canTransport ??= false;
     m.nowPlaying ??= null;
   }
+  for (const c of h.climate) {
+    c.min ??= 5;
+    c.max ??= 30;
+    c.step ??= 0.5;
+    c.current ??= null;
+    c.target ??= null;
+    c.heating ??= null;
+  }
+  for (const m of h.modes) if (!Array.isArray(m.options)) m.options = [];
+  for (const s of h.switches) s.current ??= null;
   return h;
 }
 
@@ -70,6 +87,9 @@ export function stateKey(cmd) {
     case "mediaTransport": return cmd.action === "play" || cmd.action === "pause" ? `playing:${cmd.id}` : null;
     case "setLock": return `lock:${cmd.id}`;
     case "setSecurity": return `security:${cmd.id}`;
+    case "setClimate": return `climate:${cmd.id}`;
+    case "setMode": return `mode:${cmd.id}`;
+    case "setSwitch": return `switch:${cmd.id}`;
     default: return null;
   }
 }
@@ -90,6 +110,9 @@ export function validateCommand(cmd) {
     case "setSecurity": return ["disarmed", "armedHome", "armedAway"].includes(cmd.mode) ? null : "Bad mode";
     case "gate": return ["open", "close", "stop", "trigger"].includes(cmd.action) ? null : "Bad action";
     case "mediaTransport": return ["play", "pause", "next", "previous"].includes(cmd.action) ? null : "Bad action";
+    case "setClimate": return num("target") ? null : "Missing target";
+    case "setMode": return typeof cmd.value === "string" && cmd.value ? null : "Missing value";
+    case "setSwitch": return typeof cmd.on === "boolean" ? null : "Missing on";
     default: return null;
   }
 }
@@ -132,8 +155,38 @@ export function applyCommand(home, cmd) {
     case "gate":
       if ((item = find(home.gates))) item.state = cmd.action === "stop" ? "unknown" : "moving";
       break;
+    case "setClimate":
+      if ((item = find(home.climate ?? []))) item.target = clampTarget(item, cmd.target);
+      break;
+    case "setMode":
+      if ((item = find(home.modes ?? [])) && item.options.some((o) => o.id === cmd.value)) item.value = cmd.value;
+      break;
+    case "setSwitch":
+      if ((item = find(home.switches ?? []))) item.on = cmd.on;
+      break;
   }
   return home;
+}
+
+/** Keeps a thermostat target inside its range, on its step (0.5 °C by default). */
+export function clampTarget(c, value) {
+  const step = c.step || 0.5;
+  const v = Math.round(Number(value) / step) * step;
+  return Math.min(c.max ?? 30, Math.max(c.min ?? 5, Number.isFinite(v) ? v : c.min ?? 5));
+}
+
+/** "21,5 °C" (Czech) or "21.5 °C". */
+export function fmtTemp(v, lang = "cs") {
+  if (v == null || !Number.isFinite(Number(v))) return "–";
+  const n = Math.round(Number(v) * 10) / 10;
+  return `${n.toLocaleString(lang === "cs" ? "cs-CZ" : "en-US", { maximumFractionDigits: 1 })} °C`;
+}
+
+/** Floors in the order their rooms appear; rooms without a floor go last under "". */
+export function floorsOf(home) {
+  const order = [];
+  for (const r of home.rooms) if (!order.includes(r.floor ?? "")) order.push(r.floor ?? "");
+  return order.sort((a, b) => (a === "") - (b === "")).map((name) => ({ name, rooms: home.rooms.filter((r) => (r.floor ?? "") === name) }));
 }
 
 export function roomOf(home, roomId) {
