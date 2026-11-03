@@ -1,9 +1,14 @@
-# Home Control: a nicer iPhone and iPad app for your Crestron system
+# Home View: a nicer iPad app for your Crestron house
 
-Two apps with the same design, made to replace Crestron Go with something closer to the new Crestron Home look: big room cards, scene tiles, and controls you can drag.
+One design, three ways to run it. All of them show only what your Crestron program has: the app reads the join map from your installer and builds its pages from that (floors, rooms, lights, blinds, heating, sauna, gates, alarm zones, audio/video, cameras). Czech by default, English in Settings.
 
-- **Web app** (`web/`): works on every iPad, iPhone, Android phone and computer. Add it to the Home Screen and it runs full screen like an app. It needs a small home server running on any always-on computer at home. **This is the quickest way to start.**
-- **Native iOS app** (`HomeControl/`): SwiftUI, built with Xcode on a Mac. On iPad it opens in **Home View**, the same iPad design as the web version, with Ask Home built in. iPhone keeps the dark design.
+| Way | Costs | Needs | Read |
+|---|---|---|---|
+| **A. On the Crestron itself (Web XPanel)** — the processor hosts the page, the wall iPad opens it over Wi‑Fi. **Recommended, free.** | nothing | 4‑Series firmware 2.500+ or 3‑Series 1.7000+; the installer loads one file (`HomeView.ch5z`) | [`WEB-XPANEL.md`](WEB-XPANEL.md) |
+| **B. Web app with a home server** — any always-on computer at home (Raspberry Pi, NAS, old laptop) runs it; every iPad, phone and laptop opens the page. | the computer | Node 22 | sections 2a and 3 below |
+| **C. Native iPad app** (`HomeControl/`) — talks to the Crestron over Wi‑Fi, plus Apple Home (Matter) accessories and Samsung TVs. | Apple Developer, $99/year | TestFlight, GitHub Actions | [`PRIPOJENI-CRESTRON.md`](PRIPOJENI-CRESTRON.md), [`TESTFLIGHT.md`](TESTFLIGHT.md) |
+
+Start with the message for the installer, [`ZPRAVA-PRO-INSTALATERA.md`](ZPRAVA-PRO-INSTALATERA.md) (Czech), and the shared **Rooms and devices** page where the join numbers go in and `joinmap.json` comes out. The app has a built-in setup guide (Průvodce nastavením) that walks through the rest.
 
 It controls:
 
@@ -30,9 +35,13 @@ The app can talk to the house in two ways, and you pick one in **Settings**:
 
 You can also try the app first with **Demo house**, which needs no setup at all.
 
+## 2. Run it on the Crestron itself (free)
+
+See [`WEB-XPANEL.md`](WEB-XPANEL.md). In short: `cd web/xpanel && npm install && npm run build` makes `dist/HomeView.ch5z` (GitHub Actions builds it too, under **Actions › Home View Web XPanel › Artifacts**); the installer loads it onto the processor; the iPad opens `https://<processor-ip>/` in Safari and adds it to the Home Screen.
+
 ## 2a. Run the web app (any computer at home)
 
-A browser can't talk to the Crestron processor directly, so a small home server does that part. It needs one computer that **stays on** and is on the same network as the processor.
+A plain web page can't open the Crestron touch-panel port itself, so when the processor can't host it (old firmware), a small home server does that part. It needs one computer that **stays on** and is on the same network as the processor.
 
 **Don't have one?** The cheapest good option is a **Raspberry Pi 5** (2 GB or 4 GB) with its official power supply, a case and a 32 GB microSD card, about US$80–100 in total. It uses about as much power as a night light. An old Mac or PC that stays on works too, and so does a Synology/QNAP NAS that runs Docker.
 
@@ -273,7 +282,8 @@ To add another kind of system, implement the small `HomeBackend` protocol in `Ba
 - **Not yet tested on a real system.** It was written without access to your processor, so expect a round of small fixes the first time you connect. Testing with Demo mode first is the easiest start.
 - **Crestron Home:** the endpoint paths and field names follow traffic captured from real processors by the open-source [CH2HA](https://github.com/jonahshem/CH2HA) integration. Arming and disarming security through the Web API is **not verified** anywhere, and some systems return no security devices at all. Climate isn't included because you didn't ask for it; it's easy to add.
 - **Custom program:** the touch-panel protocol follows the open-source [python-cipclient](https://pypi.org/project/python-cipclient/) project. It isn't an official Crestron SDK, but it's the same connection Crestron Go uses.
-- **Native app:** written without a Mac, so it hasn't been compiled yet. Expect a few small build fixes the first time you open it in Xcode; tell me the errors and I'll fix them.
+- **Web XPanel:** the page uses Crestron's own browser libraries (CrComLib and WebXPanel from npm) exactly as their CH5 template does, but it was tested only against a simulated processor. The first real connection is the test; the in-app guide shows the exact error if something is off.
+- **Native app:** written without a Mac, so it hasn't been compiled yet. Expect a few small build fixes the first time you open it in Xcode; tell me the errors and I'll fix them. Apple Home (Matter) and Samsung TV support are also untested on devices.
 - **AI assistant:** tested against a simulated Claude API (there was no real key in my workspace). It checks the safety rules, the tool calls and the request settings, but not real answers. Try it with your key and tell me how it handles your phrasing.
 - Crestron processors use self-signed HTTPS certificates. The app accepts the certificate **only for the processor address you type in**.
 - Only use this on your own home network. For control away from home, use a VPN (for example WireGuard or Tailscale on your router) rather than opening ports on the router.
