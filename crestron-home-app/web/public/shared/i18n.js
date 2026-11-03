@@ -19,9 +19,16 @@ export const locale = () => (LANG === "cs" ? "cs-CZ" : "en-US");
 
 const fill = (s, vars) => (vars ? s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m)) : s);
 
+// A key may carry a context before "::" when one English word needs two Czech ones,
+// e.g. "Open" (a state: Otevřeno) and "action::Open" (a button: Otevřít). English drops it.
+const plain = (en) => {
+  const i = en.indexOf("::");
+  return i < 0 ? en : en.slice(i + 2);
+};
+
 export function t(en, vars) {
   const s = LANG === "cs" ? CS[en] : null;
-  return fill(typeof s === "string" ? s : en, vars);
+  return fill(typeof s === "string" ? s : plain(en), vars);
 }
 
 /**

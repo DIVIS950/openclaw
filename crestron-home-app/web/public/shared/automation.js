@@ -9,9 +9,11 @@
 // when    = { type: "time", time: "23:00" } | { type: "sunrise" | "sunset", offset: minutes }
 // action  = { type: "scene", id } | { type: "lights", roomId|null, level } | { type: "shades", roomId|null, position }
 //         | { type: "mediaOff" } | { type: "lockAll" } | { type: "command", command }
+import { locale, t } from "./i18n.js";
 import { sunTimes } from "./sun.js";
 
 export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+// English keys: show them with t(DAY_NAMES[d]).
 export const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function emptyAutomations() {
@@ -44,30 +46,37 @@ export function expandAction(action, home) {
   }
 }
 
-/** Plain words for an action: "Living Room lights off", "Scene: Good Night". */
+/** Plain words for an action, in the app language: "Living Room lights off", "Scene: Good Night". */
 export function describeAction(action, home) {
-  const where = (label) => (action.roomId ? `${roomName(home, action.roomId) ?? "Room"} ${label}` : `All ${label}`);
+  const room = action?.roomId ? roomName(home, action.roomId) ?? t("Room") : null;
   switch (action?.type) {
-    case "scene": return `Scene: ${home.scenes.find((s) => s.id === action.id)?.name ?? "removed scene"}`;
-    case "lights": return `${where("lights")} ${action.level > 0 ? (action.level >= 1 ? "on" : `to ${Math.round(action.level * 100)}%`) : "off"}`;
-    case "shades": return `${where("shades")} ${action.position >= 0.5 ? "open" : "closed"}`;
-    case "mediaOff": return "Turn off all music and TV";
-    case "lockAll": return "Lock all doors";
+    case "scene": return t("Scene: {name}", { name: home.scenes.find((s) => s.id === action.id)?.name ?? t("removed scene") });
+    case "lights": {
+      const pct = `${Math.round(action.level * 100)}%`;
+      if (!(action.level > 0)) return room ? t("{room} lights off", { room }) : t("All lights off");
+      if (action.level >= 1) return room ? t("{room} lights on", { room }) : t("All lights on");
+      return room ? t("{room} lights to {pct}", { room, pct }) : t("All lights to {pct}", { pct });
+    }
+    case "shades":
+      if (action.position >= 0.5) return room ? t("{room} shades open", { room }) : t("All shades open");
+      return room ? t("{room} shades closed", { room }) : t("All shades closed");
+    case "mediaOff": return t("Turn off all music and TV");
+    case "lockAll": return t("Lock all doors");
     case "command": {
       const c = action.command ?? {};
-      const find = (list) => list.find((x) => x.id === c.id)?.name ?? "Device";
-      if (c.type === "setLight") return `${find(home.lights)} ${c.level > 0 ? "on" : "off"}`;
-      if (c.type === "setShade") return `${find(home.shades)} ${c.position >= 0.5 ? "open" : "closed"}`;
-      if (c.type === "mediaPower") return `${find(home.media)} ${c.on ? "on" : "off"}`;
-      if (c.type === "setSwitch") return `${find(home.switches ?? [])} ${c.on ? "on" : "off"}`;
+      const find = (list) => list.find((x) => x.id === c.id)?.name ?? t("Device");
+      if (c.type === "setLight") return t(c.level > 0 ? "{name} on" : "{name} off", { name: find(home.lights) });
+      if (c.type === "setShade") return t(c.position >= 0.5 ? "{name} open" : "{name} closed", { name: find(home.shades) });
+      if (c.type === "mediaPower") return t(c.on ? "{name} on" : "{name} off", { name: find(home.media) });
+      if (c.type === "setSwitch") return t(c.on ? "{name} on" : "{name} off", { name: find(home.switches ?? []) });
       if (c.type === "setClimate") return `${find(home.climate ?? [])} ${String(c.target).replace(".", ",")} °C`;
       if (c.type === "setMode") {
         const m = (home.modes ?? []).find((x) => x.id === c.id);
-        return `${m?.name ?? "Mode"}: ${m?.options.find((o) => o.id === c.value)?.name ?? c.value}`;
+        return `${m?.name ?? t("Mode")}: ${m?.options.find((o) => o.id === c.value)?.name ?? c.value}`;
       }
-      return "Device";
+      return t("Device");
     }
-    default: return "Unknown action";
+    default: return t("Unknown action");
   }
 }
 
@@ -100,22 +109,25 @@ export function nextRun(schedule, now, place) {
   return null;
 }
 
-/** "Every day at 11:00 PM", "Weekdays, 30 min after sunset". */
+/** "Every day at 11:00 PM", "Weekdays, 30 min after sunset" (Czech: "Každý den, 23:00"). */
 export function describeWhen(schedule) {
   const when = schedule.when ?? {};
   const days = schedule.days?.length ? [...schedule.days].sort() : EVERY_DAY;
-  const dayText = days.length === 7 ? "Every day"
-    : days.join() === "1,2,3,4,5" ? "Weekdays"
-    : days.join() === "0,6" ? "Weekends"
-    : days.map((d) => DAY_NAMES[d]).join(", ");
+  const dayText = days.length === 7 ? t("Every day")
+    : days.join() === "1,2,3,4,5" ? t("Weekdays")
+    : days.join() === "0,6" ? t("Weekends")
+    : days.map((d) => t(DAY_NAMES[d])).join(", ");
   if (when.type === "time") {
     const [h, m] = String(when.time ?? "0:0").split(":").map(Number);
-    return `${dayText} at ${new Date(2000, 0, 1, h, m).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+    return t("{days} at {time}", { days: dayText, time: new Date(2000, 0, 1, h, m).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" }) });
   }
   const offset = Number(when.offset) || 0;
-  const event = when.type === "sunrise" ? "sunrise" : "sunset";
-  if (!offset) return `${dayText} at ${event}`;
-  return `${dayText}, ${Math.abs(offset)} min ${offset < 0 ? "before" : "after"} ${event}`;
+  const sunrise = when.type === "sunrise";
+  if (!offset) return t(sunrise ? "{days} at sunrise" : "{days} at sunset", { days: dayText });
+  const key = offset < 0
+    ? (sunrise ? "{days}, {n} min before sunrise" : "{days}, {n} min before sunset")
+    : (sunrise ? "{days}, {n} min after sunrise" : "{days}, {n} min after sunset");
+  return t(key, { days: dayText, n: Math.abs(offset) });
 }
 
 /**

@@ -1,6 +1,7 @@
 // Handlers for the Home View extras: favorites, Edit Home, music, timers, schedules,
 // vacation mode, location, the camera wall and the doorbell pop-up.
 import { AutomationEngine, emptyAutomations, EVERY_DAY, normalizeAutomations, validateSchedule } from "../shared/automation.js";
+import { t } from "../shared/i18n.js";
 import { cameraWallHTML, decodeAction, doorbellHTML, TEMPLATES } from "./extras.js";
 import { DEFAULT_LAYOUT, HOME_PARTS } from "./views.js";
 
@@ -39,7 +40,7 @@ export function createFeatures(ctx) {
       body: body ? JSON.stringify(body) : undefined,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error ?? `The home server answered ${res.status}.`);
+    if (!res.ok) throw new Error(json.error ?? t("The home server answered {status}.", { status: res.status }));
     return json;
   }
 
@@ -62,13 +63,13 @@ export function createFeatures(ctx) {
     // A sample place and weather so every part of the demo can be tried.
     // The demo place sits in the viewer's own time zone, so sunrise and sunset look right.
     const fahrenheit = /-US$/.test(navigator.language);
-    app.location = { place: "Demo town", lat: 40, lon: -new Date().getTimezoneOffset() / 4, unit: fahrenheit ? "F" : "C" };
+    app.location = { place: t("Demo town"), lat: 40, lon: -new Date().getTimezoneOffset() / 4, unit: fahrenheit ? "F" : "C" };
     const hour = new Date().getHours();
     app.weather = fahrenheit
       ? { temp: 64, code: 2, isDay: hour >= 7 && hour < 18, high: 68, low: 55, unit: "F" }
       : { temp: 18, code: 2, isDay: hour >= 7 && hour < 18, high: 20, low: 13, unit: "C" };
     app.automations = normalizeAutomations({
-      schedules: [{ id: "demo-1", name: "Lights off at bedtime", enabled: true, when: { type: "time", time: "23:00" }, days: EVERY_DAY, actions: [{ type: "lights", roomId: null, level: 0 }] }],
+      schedules: [{ id: "demo-1", name: t("Lights off at bedtime"), enabled: true, when: { type: "time", time: "23:00" }, days: EVERY_DAY, actions: [{ type: "lights", roomId: null, level: 0 }] }],
     });
     localEngine = new AutomationEngine({
       getHome: () => app.home,
@@ -151,7 +152,7 @@ export function createFeatures(ctx) {
     const problem = validateSchedule(draft);
     if (problem) {
       const err = $("#sched-error");
-      err.textContent = problem;
+      err.textContent = t(problem); // validateSchedule answers with English keys
       err.hidden = false;
       return;
     }
@@ -163,7 +164,7 @@ export function createFeatures(ctx) {
     try {
       await saveAutomations({ ...app.automations, schedules: list });
       closeSheet();
-      notify(`${escText(saved.name)} saved`, { ic: "calendar", color: "#30d158" });
+      notify(t("{name} saved", { name: escText(saved.name) }), { ic: "calendar", color: "#30d158" });
     } catch {}
   }
 
@@ -178,11 +179,11 @@ export function createFeatures(ctx) {
         return notify(escText(err.message), { error: true });
       }
     }
-    notify(`${escText(label)} in ${minutes >= 60 ? `${minutes / 60} h` : `${minutes} min`}`, { ic: "timer", color: "#ff9f0a" });
+    notify(t("{label} in {time}", { label: escText(label), time: minutes >= 60 ? `${minutes / 60} h` : `${minutes} min` }), { ic: "timer", color: "#ff9f0a" });
   }
 
   async function cancelTimer(id) {
-    app.automations.timers = app.automations.timers.filter((t) => t.id !== id);
+    app.automations.timers = app.automations.timers.filter((tm) => tm.id !== id);
     scheduleRender();
     if (app.transport === "local") return;
     try {
@@ -198,7 +199,7 @@ export function createFeatures(ctx) {
     if (!query) return;
     try {
       const res = await api("location", "PUT", { query });
-      notify(`Location set to ${escText(res.place)}`, { ic: "cloudSun", color: "#40c8e0" });
+      notify(t("Location set to {place}", { place: escText(res.place) }), { ic: "cloudSun", color: "#40c8e0" });
     } catch (err) {
       notify(escText(err.message), { error: true });
     }
@@ -212,7 +213,7 @@ export function createFeatures(ctx) {
       const has = app.favorites.includes(key);
       app.favorites = has ? app.favorites.filter((k) => k !== key) : [...app.favorites, key];
       saveFavorites();
-      if (app.sheet?.kind !== "favorites") notify(has ? "Removed from Favorites" : "Added to Favorites", { ic: "star", color: "#ffb300" });
+      if (app.sheet?.kind !== "favorites") notify(has ? t("Removed from Favorites") : t("Added to Favorites"), { ic: "star", color: "#ffb300" });
     },
     "pick-favorites": () => openSheet({ kind: "favorites" }),
     "edit-home": () => openSheet({ kind: "edit-home" }),
@@ -231,14 +232,14 @@ export function createFeatures(ctx) {
     "play-everywhere": (el) => {
       const lead = app.home.media.find((m) => m.id === el.dataset.id);
       if (!lead?.sourceId) return;
-      const name = lead.sources.find((s) => s.id === lead.sourceId)?.name ?? "Music";
+      const name = lead.sources.find((s) => s.id === lead.sourceId)?.name ?? t("Music");
       for (const m of app.home.media) {
         if (m.id === lead.id) continue;
         const same = m.sources.find((s) => s.name === name);
         if (same) send({ type: "mediaSource", id: m.id, sourceId: same.id });
         if (m.hasVolume && lead.hasVolume) send({ type: "mediaVolume", id: m.id, level: lead.volume });
       }
-      notify(`${escText(name)} in every room`, { ic: "speakers", color: "#bf5af2" });
+      notify(t("{name} in every room", { name: escText(name) }), { ic: "speakers", color: "#bf5af2" });
     },
     "all-media-off": () => {
       for (const m of app.home.media) if (m.on) send({ type: "mediaPower", id: m.id, on: false });
@@ -253,12 +254,15 @@ export function createFeatures(ctx) {
     vacation: () => {
       const enabled = !app.automations.vacation.enabled;
       saveAutomations({ ...app.automations, vacation: { ...app.automations.vacation, enabled, next: 0 } })
-        .then(() => notify(enabled ? "Vacation mode on" : "Vacation mode off", { ic: "suitcase", color: "#30d158" }))
+        .then(() => notify(enabled ? t("Vacation mode on") : t("Vacation mode off"), { ic: "suitcase", color: "#30d158" }))
         .catch(() => {});
     },
 
     "schedule-new": () => editSchedule({ name: "", enabled: true, when: { type: "time", time: "23:00" }, days: [...EVERY_DAY], actions: [] }),
-    "schedule-template": (el) => editSchedule({ ...TEMPLATES[Number(el.dataset.i)], enabled: true }),
+    "schedule-template": (el) => {
+      const tp = TEMPLATES[Number(el.dataset.i)];
+      if (tp) editSchedule({ ...tp, name: t(tp.name), enabled: true });
+    },
     "schedule-edit": (el) => {
       const s = app.automations.schedules.find((x) => x.id === el.dataset.id);
       if (s) editSchedule(s);
@@ -271,7 +275,7 @@ export function createFeatures(ctx) {
       const id = app.sheet?.draft?.id;
       if (!id) return;
       saveAutomations({ ...app.automations, schedules: app.automations.schedules.filter((s) => s.id !== id) })
-        .then(() => { closeSheet(); notify("Schedule deleted", { ic: "calendar", color: "#ff453a" }); })
+        .then(() => { closeSheet(); notify(t("Schedule deleted"), { ic: "calendar", color: "#ff453a" }); })
         .catch(() => {});
     },
     "sched-when": (el) => {

@@ -379,7 +379,8 @@ const server = http.createServer(async (req, res) => {
           },
           getContext: () => ({
             viewingRoom: typeof body.context?.room === "string" ? body.context.room.slice(0, 60) : undefined,
-            now: new Date().toLocaleString("en-US", { weekday: "long", hour: "numeric", minute: "2-digit" }),
+            lang: (body.context?.lang ?? body.lang) === "en" ? "en" : "cs",
+            now: new Date().toLocaleString((body.context?.lang ?? body.lang) === "en" ? "en-US" : "cs-CZ", { weekday: "long", hour: "numeric", minute: "2-digit" }),
             weather: weather ?? undefined,
             automations: normalizeAutomations(config.automations),
           }),

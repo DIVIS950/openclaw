@@ -2,7 +2,7 @@
 // (../api/…) and falls back to the demo house when it can't reach one.
 import { icon, sceneIcon } from "../icons.js";
 import { DemoEngine } from "../shared/demo.js";
-import { t } from "../shared/i18n.js";
+import { LANGS, locale, setLang, t } from "../shared/i18n.js";
 import { applyCommand, clamp01, clampTarget, emptyHome, normalizeHome, pct, stateKey } from "../shared/model.js";
 import { createAsk } from "./ask.js";
 import { createFeatures } from "./features.js";
@@ -24,11 +24,14 @@ const prefs = {
   },
 };
 
+// Language before anything is drawn: Czech unless this iPad was switched to English.
+setLang(prefs.get("lang", "cs"));
+
 const app = {
   api: new URL("../api/", location.href).href,
   home: emptyHome(),
   status: { connection: "connecting", message: null, mode: "demo" },
-  homeName: "Home",
+  homeName: "", // empty: shown as "Home" in the current language
   cameras: [],
   assistant: { available: false },
   askVisible: false,
@@ -67,6 +70,7 @@ const features = createFeatures({
 
 async function start() {
   applyLook();
+  translateStatic();
   app.route = parseHash();
   try {
     const res = await fetch(`${app.api}state`, { cache: "no-store" });
@@ -78,7 +82,7 @@ async function start() {
       try { receive(JSON.parse(e.data)); } catch {}
     });
     events.onerror = () => {
-      app.status = { ...app.status, connection: "failed", message: "Lost the home server. Reconnecting…" };
+      app.status = { ...app.status, connection: "failed", message: t("Lost the home server. Reconnecting…") };
       scheduleRender();
     };
   } catch {
@@ -110,7 +114,7 @@ function startLocal() {
 function receive(p) {
   app.home = merge(p.home ?? emptyHome());
   app.status = p.status ?? app.status;
-  app.homeName = p.homeName || "Home";
+  app.homeName = p.homeName || "";
   app.cameras = p.cameras ?? [];
   app.assistant = p.assistant ?? { available: false };
   app.roomPhotos = p.roomPhotos ?? {};
@@ -146,9 +150,9 @@ async function send(cmd) {
   }
   try {
     const res = await fetch(`${app.api}command`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cmd) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `The home server answered ${res.status}.`);
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t("The home server answered {status}.", { status: res.status }));
   } catch (err) {
-    notify(err.message || "Couldn't reach the home server.", { error: true });
+    notify(escText(err.message || t("Couldn't reach the home server.")), { error: true });
   }
 }
 
@@ -318,7 +322,7 @@ async function resizePhoto(file) {
     source = await new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Couldn't read that photo. Try a JPEG or PNG."));
+      img.onerror = () => reject(new Error(t("Couldn't read that photo. Try a JPEG or PNG.")));
       img.src = URL.createObjectURL(file);
     });
   }
@@ -330,7 +334,7 @@ async function resizePhoto(file) {
   canvas.height = Math.round(h * scale);
   canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
   source.close?.();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't read that photo."))), "image/jpeg", 0.85));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t("Couldn't read that photo.")))), "image/jpeg", 0.85));
 }
 
 document.addEventListener("change", async (e) => {
@@ -348,11 +352,11 @@ document.addEventListener("change", async (e) => {
       scheduleRender();
     } else {
       const res = await fetch(`${app.api}rooms/${encodeURIComponent(roomId)}/photo`, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: blob });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `The home server answered ${res.status}.`);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t("The home server answered {status}.", { status: res.status }));
     }
-    notify("Room photo saved", { ic: "camera" });
+    notify(t("Room photo saved"), { ic: "camera" });
   } catch (err) {
-    notify(escText(err.message || "Couldn't save the photo."), { error: true });
+    notify(escText(err.message || t("Couldn't save the photo.")), { error: true });
   }
 });
 
@@ -365,7 +369,7 @@ async function removePhoto(roomId) {
   }
   try {
     const res = await fetch(`${app.api}rooms/${encodeURIComponent(roomId)}/photo`, { method: "DELETE" });
-    if (!res.ok) throw new Error(`The home server answered ${res.status}.`);
+    if (!res.ok) throw new Error(t("The home server answered {status}.", { status: res.status }));
   } catch (err) {
     notify(escText(err.message), { error: true });
   }
@@ -420,6 +424,12 @@ function notify(text, { error = false, ic = error ? "alert" : "check", color, su
   clearTimeout(islandTimer);
   islandTimer = setTimeout(() => { el.hidden = true; }, error ? 4200 : 2400);
 }
+/** Static text in index.html: elements with data-i18n-aria get their aria-label in the current language. */
+function translateStatic() {
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+}
+
 const escText = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 // ---------- actions ----------
@@ -447,7 +457,7 @@ function toggle(kind, id) {
       // Locking is instant; unlocking always goes through press-and-hold.
       if (l.locked === false) {
         send({ type: "setLock", id, locked: true });
-        return notify(`${escText(l.name)} locked`, { ic: "lock" });
+        return notify(t("{name} locked", { name: escText(l.name) }), { ic: "lock" });
       }
       return openSheet({ kind: "lock", id });
     }
@@ -475,8 +485,8 @@ function gateAction(id, action) {
   const g = app.home.gates.find((x) => x.id === id);
   const opens = action === "open" || (action === "trigger" && g?.state !== "open");
   send({ type: "gate", id, action });
-  if (action === "stop") notify(`${escText(g?.name ?? "Gate")} stopped`, { ic: "stop", color: "#0a84ff" });
-  else notify(`${opens ? "Opening" : "Closing"} ${escText(g?.name ?? "the gate")}`, { ic: "gate", color: "#0a84ff" });
+  if (action === "stop") notify(t("{name} stopped", { name: escText(g?.name ?? t("Gate")) }), { ic: "stop", color: "#0a84ff" });
+  else notify(t(opens ? "Opening {name}" : "Closing {name}", { name: escText(g?.name ?? t("the gate")) }), { ic: "gate", color: "#0a84ff" });
 }
 
 function arm(id, mode) {
@@ -502,7 +512,7 @@ const actions = {
     app.pop = s.id;
     ripple(el);
     send({ type: "recallScene", id: s.id });
-    notify(`${escText(s.name)}`, { ic: sceneIcon(s), color: "#ff9f0a", sub: "is on" });
+    notify(escText(s.name), { ic: sceneIcon(s), color: "#ff9f0a", sub: t("activated") });
   },
   arm: (el) => arm(el.dataset.id, el.dataset.mode),
   gate: (el) => gateAction(el.dataset.id, el.dataset.action),
@@ -548,7 +558,7 @@ const actions = {
   "all-lights": (el) => {
     const level = Number(el.dataset.level);
     for (const l of app.home.lights) send({ type: "setLight", id: l.id, level });
-    notify(level ? "All lights on" : "All lights off", { ic: level ? "bulb" : "bulbOff", color: "#ffb300" });
+    notify(level ? t("All lights are on") : t("All lights are off"), { ic: level ? "bulb" : "bulbOff", color: "#ffb300" });
   },
   "all-shades": (el) => {
     const position = Number(el.dataset.position);
@@ -569,7 +579,7 @@ const actions = {
     if (k?.kind !== "keypad" || !k.code) return;
     send({ type: "setSecurity", id: k.id, mode: k.mode, code: k.code });
     closeSheet();
-    notify(k.mode === "disarmed" ? "Alarm disarmed" : k.mode === "armedAway" ? "Armed away" : "Armed home", { ic: "shieldCheck", color: "#5e5ce6" });
+    notify(t(k.mode === "disarmed" ? "Alarm disarmed" : k.mode === "armedAway" ? "Armed away" : "Armed home"), { ic: "shieldCheck", color: "#5e5ce6" });
   },
   look: (el) => {
     app.device.look = el.dataset.v;
@@ -582,6 +592,16 @@ const actions = {
     prefs.set("wall", app.device.wall);
     applyWall();
     renderSheet();
+  },
+  lang: (el) => {
+    if (!LANGS[el.dataset.v]) return;
+    prefs.set("lang", el.dataset.v);
+    setLang(el.dataset.v);
+    translateStatic();
+    // Everything on screen is rebuilt in the new language: page, open card, Ask Home, overlays.
+    render();
+    ask.refresh();
+    features.renderOverlay();
   },
   "saver-min": (el) => {
     app.device.saverMin = Number(el.dataset.v);
@@ -644,7 +664,7 @@ document.addEventListener("keydown", (e) => {
   if (el.dataset?.slide && (e.key === "Enter" || e.key === " ")) {
     e.preventDefault();
     const g = app.home.gates.find((x) => x.id === el.dataset.id);
-    openSheet({ kind: "confirm", title: `Open ${g?.name ?? "the gate"}?`, text: "Make sure the way is clear.", label: "Open", icon: "gate",
+    openSheet({ kind: "confirm", title: t("Open {name}?", { name: g?.name ?? t("the gate") }), text: t("Make sure the way is clear."), label: t("action::Open"), icon: "gate",
       onConfirm: () => gateAction(el.dataset.id, el.dataset.action) });
     return;
   }
@@ -667,7 +687,7 @@ function setSliderVisual(el, kind, v) {
   el.classList.toggle("lit", v > 0.04);
   const id = el.dataset.id;
   const live = (k, text) => document.querySelectorAll(`[data-live="${k}:${CSS.escape(id)}"]`).forEach((n) => { n.textContent = text; });
-  if (kind === "light") live("light", v > 0.005 ? pct(v) : "Off");
+  if (kind === "light") live("light", v > 0.005 ? pct(v) : t("Off"));
   if (kind === "shade") live("shade", shadeState({ position: v }));
   if (kind === "volume") live("volume", pct(v));
 }
@@ -770,7 +790,7 @@ function startHold(el) {
       hold = null;
       el.classList.remove("holding");
       send({ type: "setLock", id, locked: false });
-      notify(`${escText(l?.name ?? "Door")} unlocked`, { ic: "unlock", color: "#ff9f0a" });
+      notify(t("{name} unlocked", { name: escText(l?.name ?? t("Door")) }), { ic: "unlock", color: "#ff9f0a" });
       closeSheet();
       features.closeOverlay();
     }, 1000),
@@ -830,7 +850,7 @@ function startTimers() {
   }, 10000);
   // Camera pictures: refresh the real ones every second, tick the clock on all of them.
   setInterval(() => {
-    const now = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const now = new Date().toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit", second: "2-digit" });
     document.querySelectorAll("[data-cam-time]").forEach((n) => { n.textContent = now; });
     if (document.visibilityState !== "visible" || !$("#standby").hidden) return;
     document.querySelectorAll("img[data-cam]").forEach((img) => {

@@ -2,6 +2,7 @@
 // browser demo (the artifact's `sample` capability): the instructions, the one tool,
 // and the safety rules for which commands a person must confirm.
 import { describeAction, describeWhen, validateSchedule } from "./automation.js";
+import { t } from "./i18n.js";
 import { GATE_TITLES, SECURITY_TITLES, validateCommand } from "./model.js";
 
 export const ASSISTANT_RULES = `You are the voice-and-chat assistant for a Crestron-controlled home, shown on wall iPads and phones.
@@ -19,7 +20,7 @@ How to act:
 - "Here", "this room" and "in here" mean the room the person is looking at, given as viewingRoom in the state.
 - Heating: each room thermostat has a current and a target temperature in °C; setClimate sets the target (steps of 0.5). "Warmer"/"colder" means ±1 °C. The whole-house heating mode is a mode (setMode with one of its option ids). The sauna and similar things are switches (setSwitch on/off).
 - Rooms are grouped by floor (for example 1.NP, 2.NP, Suterén, Venek); "upstairs"/"nahoře" means the floors above 1.NP.
-- Names in this house are Czech. If the person writes Czech, answer in Czech.
+- Names in this house are Czech. Answer in appLanguage from the state (the language the app is set to), unless the person clearly writes in another language.
 
 How to answer:
 - One or two short, friendly sentences in the person's language. No lists, no markdown, no ids.
@@ -156,32 +157,32 @@ export function homeForModel(home, extra = {}) {
   };
 }
 
-/** Short human description of a command, for the chat ("Pendants → 30%"). */
+/** Short human description of a command, for the chat ("Pendants → 30%"), in the app language. */
 export function describeCommand(cmd, home) {
   const find = (list) => list.find((x) => x.id === cmd.id);
   const name = (item) => item?.name ?? cmd.id;
   const pct = (v) => `${Math.round(v * 100)}%`;
   switch (cmd.type) {
-    case "setLight": return `${name(find(home.lights))} → ${cmd.level > 0 ? pct(cmd.level) : "off"}`;
-    case "setShade": return `${name(find(home.shades))} → ${cmd.position >= 0.99 ? "open" : cmd.position <= 0.01 ? "closed" : pct(cmd.position)}`;
-    case "stopShade": return `${name(find(home.shades))} → stop`;
-    case "recallScene": return `Scene: ${name(find(home.scenes))}`;
-    case "mediaPower": return `${name(find(home.media))} → ${cmd.on ? "on" : "off"}`;
-    case "mediaVolume": return `${name(find(home.media))} volume → ${pct(cmd.level)}`;
-    case "mediaMute": return `${name(find(home.media))} → ${cmd.muted ? "muted" : "unmuted"}`;
+    case "setLight": return `${name(find(home.lights))} → ${cmd.level > 0 ? pct(cmd.level) : t("cmd::off")}`;
+    case "setShade": return `${name(find(home.shades))} → ${cmd.position >= 0.99 ? t("cmd::open") : cmd.position <= 0.01 ? t("cmd::closed") : pct(cmd.position)}`;
+    case "stopShade": return `${name(find(home.shades))} → ${t("cmd::stop")}`;
+    case "recallScene": return t("Scene: {name}", { name: name(find(home.scenes)) });
+    case "mediaPower": return `${name(find(home.media))} → ${cmd.on ? t("cmd::on") : t("cmd::off")}`;
+    case "mediaVolume": return t("{name} volume → {pct}", { name: name(find(home.media)), pct: pct(cmd.level) });
+    case "mediaMute": return `${name(find(home.media))} → ${cmd.muted ? t("cmd::muted") : t("cmd::unmuted")}`;
     case "mediaSource": {
       const zone = find(home.media);
       return `${name(zone)} → ${zone?.sources.find((s) => s.id === cmd.sourceId)?.name ?? cmd.sourceId}`;
     }
-    case "setLock": return `${cmd.locked ? "Lock" : "Unlock"} ${name(find(home.locks))}`;
-    case "setSecurity": return `${name(find(home.security))} → ${SECURITY_TITLES[cmd.mode]}`;
-    case "gate": return `${name(find(home.gates))} → ${cmd.action}`;
+    case "setLock": return t(cmd.locked ? "Lock {name}" : "Unlock {name}", { name: name(find(home.locks)) });
+    case "setSecurity": return `${name(find(home.security))} → ${t(SECURITY_TITLES[cmd.mode] ?? "Unknown")}`;
+    case "gate": return `${name(find(home.gates))} → ${t(`gate::${cmd.action}`)}`;
     case "setClimate": return `${name(find(home.climate ?? []))} → ${String(cmd.target).replace(".", ",")} °C`;
     case "setMode": {
       const m = find(home.modes ?? []);
       return `${name(m)} → ${m?.options.find((o) => o.id === cmd.value)?.name ?? cmd.value}`;
     }
-    case "setSwitch": return `${name(find(home.switches ?? []))} → ${cmd.on ? "on" : "off"}`;
+    case "setSwitch": return `${name(find(home.switches ?? []))} → ${cmd.on ? t("cmd::on") : t("cmd::off")}`;
     default: return String(cmd.type);
   }
 }
@@ -249,8 +250,9 @@ export async function applyControlCall(input, { getHome, perform }) {
 }
 
 /** What the person is looking at, the time, the weather and what is already scheduled. */
-function contextForModel(home, { viewingRoom, now, weather, automations } = {}) {
+function contextForModel(home, { viewingRoom, now, weather, automations, lang } = {}) {
   const out = {};
+  if (lang) out.appLanguage = lang === "en" ? "English" : "Czech";
   if (viewingRoom) out.viewingRoom = viewingRoom;
   if (now) out.localTime = now;
   if (weather) out.weather = `${weather.temp}°${weather.unit}, high ${weather.high}°, low ${weather.low}°`;
@@ -279,7 +281,7 @@ export async function applyTimerCall(input, { addTimer }) {
   if (!commands.length) return { text: "Refused: no commands.", isError: true, done: [], confirm: [], failed: [] };
   await addTimer({ minutes, label, commands });
   const when = minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60} h` : `${minutes} min`;
-  return { text: `Timer set: ${label} in ${when}.`, isError: false, done: [`Timer: ${label} in ${when}`], confirm: [], failed: [] };
+  return { text: `Timer set: ${label} in ${when}.`, isError: false, done: [t("Timer: {label} in {time}", { label, time: when })], confirm: [], failed: [] };
 }
 
 /** create_schedule: checks the schedule and hands it to addSchedule. Schedule actions can't open anything. */
@@ -302,5 +304,5 @@ export async function applyScheduleCall(input, { getHome, addSchedule }) {
   if (problem) return { text: `Refused: ${problem}`, isError: true, done: [], confirm: [], failed: [] };
   await addSchedule(schedule);
   const what = schedule.actions.map((a) => describeAction(a, getHome())).join(", ");
-  return { text: `Schedule created: ${schedule.name}, ${describeWhen(schedule)}: ${what}.`, isError: false, done: [`Schedule: ${schedule.name} · ${describeWhen(schedule)}`], confirm: [], failed: [] };
+  return { text: `Schedule created: ${schedule.name}, ${describeWhen(schedule)}: ${what}.`, isError: false, done: [t("Schedule: {name} · {when}", { name: schedule.name, when: describeWhen(schedule) })], confirm: [], failed: [] };
 }

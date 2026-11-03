@@ -215,6 +215,9 @@ a { color: inherit; }
 .si-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .si-count { font-size: 13px; color: var(--label2); font-variant-numeric: tabular-nums; }
 .si-count.attn { color: var(--orange); font-weight: 600; }
+/* Czech labels and counts run longer ("Zabezpečení" · "Odemčeno: 1"): a little tighter so both fit. */
+html:lang(cs) .side-item { gap: 10px; }
+html:lang(cs) .si-count { font-size: 12px; }
 .side-item[aria-current="page"] { background: var(--tile-on); color: var(--on-label); box-shadow: var(--shadow-sm); }
 .side-item[aria-current="page"] .si-icon { background: var(--c, var(--blue)); color: #fff; }
 .side-item[aria-current="page"] .si-count { color: var(--on-label2); }
