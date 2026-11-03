@@ -193,3 +193,56 @@ export async function show(r: Reminder): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Inside the Claude app the hub runs in a frame, and browsers don't let a page
+ * in a frame ask for alerts: reminders go through Google Calendar there.
+ */
+export function framed(): boolean {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
+const SEEN_HW = "psh.notify.seenHw";
+/** More than this many "new" at once is a re-import, not news: remembered quietly. */
+const TOO_MANY_NEW = 8;
+
+/**
+ * Homework this device hasn't seen before, such as tasks the hourly Classroom
+ * check added while the app was closed. The first look on a device only
+ * remembers what is there, so nobody gets their whole list as "new".
+ */
+export function newSinceLastLook(list: Homework[]): Homework[] {
+  if (list.length === 0) {
+    // An empty answer (signed out, nothing loaded): forget nothing.
+    return [];
+  }
+  const seen = read<unknown>(SEEN_HW, null);
+  write(
+    SEEN_HW,
+    list.map((h) => h.id),
+  );
+  if (!Array.isArray(seen)) {
+    return [];
+  }
+  const known = new Set(seen);
+  const fresh = list.filter((h) => !h.done && !known.has(h.id));
+  return fresh.length > TOO_MANY_NEW ? [] : fresh;
+}
+
+/** Tasks this device added itself (Classroom emails, starter homework): not news next time. */
+export function markSeen(added: Homework[]) {
+  const seen = read<unknown>(SEEN_HW, null);
+  if (Array.isArray(seen) && added.length > 0) {
+    write(SEEN_HW, [...new Set([...seen, ...added.map((h) => h.id)])]);
+  }
+}
+
+/** "Essay, Worksheet and 2 more" */
+export function titlesLine(list: Homework[], max = 3): string {
+  const names = list.slice(0, max).map((h) => h.title);
+  return list.length > max ? `${names.join(", ")} and ${list.length - max} more` : names.join(", ");
+}

@@ -142,6 +142,26 @@ export function lessonLabel(start: Date, now = new Date()): string {
   return `${start.toLocaleDateString("en-GB", { weekday: "short" })} ${time}`;
 }
 
+/** "Today 17:00", "Tomorrow 17:00" or "Thu 5 Nov, 17:00": the lesson itself, not the rule. */
+export function lessonDay(start: Date, now = new Date()): string {
+  const time = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+  const days = Math.round(
+    (new Date(start).setHours(12, 0, 0, 0) - new Date(now).setHours(12, 0, 0, 0)) / 86_400_000,
+  );
+  if (days === 0) {
+    return `Today ${time}`;
+  }
+  if (days === 1) {
+    return `Tomorrow ${time}`;
+  }
+  const day = start.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return `${day.replace(",", "")}, ${time}`;
+}
+
 /** All tutors' next lessons, soonest first. */
 export function upcomingTutoring(
   tutors: Tutor[],

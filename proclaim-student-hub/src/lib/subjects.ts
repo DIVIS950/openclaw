@@ -154,7 +154,8 @@ export function sameCourse(a: string, b: string): boolean {
 
 /**
  * A class name as a student says it: "Y9 SPANISH-ACU" → "Spanish",
- * "9I Computer Science 26-27" → "Computer Science", "Y9 Math 26/27" → "Maths".
+ * "9I Computer Science 26-27" → "Computer Science", "Y9 Math 26/27" → "Maths",
+ * "Y9 Math 26/27 Mr Fitz" → "Maths", "9I Computer Science 26" → "Computer Science".
  * School codes (year group, class letter, school year, teacher code) are dropped.
  */
 export function courseName(raw: string): string {
@@ -167,8 +168,13 @@ export function courseName(raw: string): string {
     /^(?:y\s?\d{1,2}[a-z]?|\d{1,2}[a-z])\b(?:\s*[a-z]\s*-\s*|\s*_\s*|\s*-\s*|\s+)/i,
     "",
   );
-  // Trailing school year: "26-27", "26/27", "2026/2027".
+  // Trailing teacher: "Y9 Math 26/27 Mr Fitz".
+  s = s.replace(/\s+(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+[\p{L}'-]+$/iu, "");
+  // Trailing school year: "26-27", "26/27", "2026/2027", or just "26" / "2026".
   s = s.replace(/\s+(?:20)?\d{2}\s*[-/]\s*(?:20)?\d{2}$/, "");
+  s = s.replace(/\s+(?:20)?[23]\d$/, "");
+  // Trailing class: "Y9 Learning Centre 9I".
+  s = s.replace(/\s+\d{1,2}[a-z]$/i, "");
   // Trailing code: a subject part ("-BIO", "-LIT") becomes a word, a teacher/set code ("-ACU") goes.
   let part = "";
   const code = s.match(/^(.+?)-([A-Za-z]{2,4})$/);

@@ -4,7 +4,8 @@ import { driveSync } from "./driveSync.ts";
 import { PAGES } from "./runtime.ts";
 
 // Sync my devices: syncs when the app opens, when it comes back to the front,
-// and when it's put away. On the website it goes through Google Drive, whose
+// when it's put away, and every few minutes while it stays open (only when
+// nobody is tapping or typing, because new data means a reload). On the website it goes through Google Drive, whose
 // sign-in lasts an hour; after that the returned flag turns on so Today can
 // ask for one tap. In the Claude app it goes through the student's account and
 // needs no taps at all.
@@ -28,6 +29,20 @@ function syncOnce(onNeedTap: () => void): Promise<number | null> {
     }
     return null;
   });
+}
+
+/** While the app stays open, a sync this often picks up the other devices' changes. */
+export const EVERY_MS = 4 * 60_000;
+/** A tap or key press this recently: the open-app sync waits for the next round. */
+export const BUSY_MS = 45_000;
+
+/** True when an open-app sync may reload the page now. */
+export function idleNow(lastTouch: number, now = Date.now()): boolean {
+  const el = document.activeElement;
+  const typing =
+    el instanceof HTMLElement &&
+    (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+  return document.visibilityState === "visible" && !typing && now - lastTouch >= BUSY_MS;
 }
 
 export function useAutoSync(toast: (message: string) => void): [boolean, (value: boolean) => void] {
@@ -59,7 +74,24 @@ export function useAutoSync(toast: (message: string) => void): [boolean, (value:
       }
     };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    let lastTouch = Date.now();
+    const touched = () => {
+      lastTouch = Date.now();
+    };
+    window.addEventListener("pointerdown", touched, { passive: true });
+    window.addEventListener("keydown", touched);
+    // Both devices open at once: changes arrive within a few minutes.
+    const every = window.setInterval(() => {
+      if (idleNow(lastTouch)) {
+        run(false);
+      }
+    }, EVERY_MS);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pointerdown", touched);
+      window.removeEventListener("keydown", touched);
+      window.clearInterval(every);
+    };
   }, [toast]);
   return [syncTap, setSyncTap];
 }

@@ -68,3 +68,27 @@
 header.between:has(> .share-box) {
   flex-wrap: wrap;
 }
+
+/* 1.6.0: the subject, mastery and test chips sit in one row on a phone
+   (the "From Sam's link" chip moves under them instead of squeezing them). */
+.tutor-hub .tutor-head {
+  flex-wrap: wrap;
+}
+.tutor-hub .tutor-head > .stack {
+  flex: 1 1 240px;
+}
+/* The four sections fit in one row. */
+.tutor-hub .pills {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.tutor-hub .pills .pill {
+  min-width: 0;
+  padding-inline: 4px;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}

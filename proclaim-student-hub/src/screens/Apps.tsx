@@ -4,7 +4,7 @@ import { LookCard } from "../components/LookCard.tsx";
 import { BackupCard, Tools } from "../components/Tools.tsx";
 import { WeeklyReport } from "../components/WeeklyReport.tsx";
 import { useApp, type Screen } from "../context.ts";
-import { notifyPrefs, permission } from "../lib/notify.ts";
+import { framed, notifyPrefs, permission } from "../lib/notify.ts";
 import { level, progress } from "../lib/store.ts";
 import { KEY_EVENT, keyHandoff } from "../pages/keyHandoff.ts";
 import { PAGES } from "../pages/runtime.ts";
@@ -114,7 +114,7 @@ export function Apps() {
   const { profile, data, signOut, go, startTour, openSearch } = useApp();
   const [moreApps, setMoreApps] = useState(false);
   const [stats] = useState(progress.get);
-  const [alerts] = useState(() => alertsLabel(notifyPrefs.get(), permission()));
+  const [alerts] = useState(() => alertsLabel(notifyPrefs.get(), permission(), framed()));
   const name = profile?.name?.trim() || "Student";
   return (
     <main className="screen">

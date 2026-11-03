@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ImageInput } from "../../shared/api.ts";
+import { CalendarButton } from "../components/GoogleCalendar.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
 import { Overlay } from "../components/Overlay.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { mastery } from "../lab/model.ts";
 import { labPacks } from "../lab/store.ts";
+import { tutorItem } from "../lib/calendarPlan.ts";
 import { imageSrc, photoToImageInput, smallCopy } from "../lib/image.ts";
 import {
   dayOf,
@@ -729,6 +731,8 @@ function TutorPage({
   const [adding, setAdding] = useState<"material" | "session" | null>(autoLog ? "session" : null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const start = nextLesson(tutor, now);
+  // Weekly lessons in Google Calendar, with a reminder 15 minutes before (Claude app only).
+  const calItem = useMemo(() => tutorItem(tutor), [tutor]);
   useAiContext(
     `Tutor ${tutor.name} (${tutor.subject}). Lessons: ` +
       sessions.map((s) => `${s.date}: ${s.topic}`).join("; ") +
@@ -781,6 +785,7 @@ function TutorPage({
           <JoinButtons tutor={tutor} />
           <ShareWithTutor tutor={tutor} />
         </div>
+        {calItem && <CalendarButton small item={calItem} />}
       </header>
 
       <PrepCard tutor={tutor} sessions={sessions} materials={materials} auto={autoPrep} />

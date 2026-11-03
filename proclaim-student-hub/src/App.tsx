@@ -3,6 +3,7 @@ import type { AppConfig, ImageInput, TutorMode } from "../shared/api.ts";
 import { AddAnything, type AddStart } from "./components/AddAnything.tsx";
 import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
 import { AskAi } from "./components/AskAi.tsx";
+import { useCalendarAuto } from "./components/CalendarReminders.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { Icon } from "./components/Icon.tsx";
 import { LinkConfirm } from "./components/LinkConfirm.tsx";
@@ -29,8 +30,17 @@ import { errorReports, isBug } from "./lib/errorReports.ts";
 import { lateHomework } from "./lib/format.ts";
 import { GoogleAuth, SignInNeededError } from "./lib/googleAuth.ts";
 import { GoogleData } from "./lib/googleData.ts";
+import { oneOfEach } from "./lib/homeworkFilter.ts";
 import { damagedLink, linkInbox } from "./lib/linkInbox.ts";
-import { dueReminders, newHomeworkReminder, notifyPrefs, show } from "./lib/notify.ts";
+import {
+  dueReminders,
+  markSeen,
+  newHomeworkReminder,
+  newSinceLastLook,
+  notifyPrefs,
+  show,
+  titlesLine,
+} from "./lib/notify.ts";
 import { applyHomeworkSeed } from "./lib/seed.ts";
 import { localDay, PROGRESS_CHANGED, timetable } from "./lib/store.ts";
 import { tutoring } from "./lib/study.ts";
@@ -384,8 +394,9 @@ function Shell({
       syncClassroomEmails(data, known).then(
         (added) => {
           if (added.length > 0) {
+            markSeen(added);
             setHomework((list) => [...(list ?? []), ...added]);
-            toast(`${added.length} new from Classroom: ${added.map((h) => h.title).join(", ")}`);
+            toast(`${added.length} new from Classroom: ${titlesLine(added)}`);
             const note = newHomeworkReminder(added);
             if (note && notifyPrefs.get().hw) {
               void show(note);
@@ -403,6 +414,15 @@ function Shell({
       data.homework().then(
         (list) => {
           setHomework(list);
+          // Work the hourly Classroom check added while the app was closed.
+          const fresh = data.demo ? [] : newSinceLastLook(list);
+          if (fresh.length > 0) {
+            toast(`${fresh.length} new from Classroom: ${titlesLine(fresh)}`);
+            const note = newHomeworkReminder(fresh);
+            if (note && notifyPrefs.get().hw) {
+              void show(note);
+            }
+          }
           // Starter homework first, so the email sync sees it and doesn't add it twice.
           applyHomeworkSeed(data, list)
             .catch((err: unknown) => {
@@ -411,6 +431,7 @@ function Shell({
             })
             .then((added) => {
               if (added.length > 0) {
+                markSeen(added);
                 setHomework((l) => [...(l ?? []), ...added]);
               }
               syncClassroom([...list, ...added], force);
@@ -422,7 +443,7 @@ function Shell({
         },
       );
     },
-    [data, handleError, syncClassroom],
+    [data, handleError, syncClassroom, toast],
   );
 
   useEffect(() => {
@@ -624,9 +645,12 @@ function Shell({
     }
   }, [homework === null, screen]);
 
+  // The same task saved twice (short title, and title with a summary) shows once.
+  const shownHomework = useMemo(() => (homework ? oneOfEach(homework) : null), [homework]);
+
   // Reminders (More › Notifications): checked every minute while the app runs.
   const hwRef = useRef<Homework[]>([]);
-  hwRef.current = homework ?? [];
+  hwRef.current = shownHomework ?? [];
   useEffect(() => {
     const tick = () => {
       const now = new Date();
@@ -648,6 +672,9 @@ function Shell({
     return () => window.clearInterval(id);
   }, []);
 
+  // "Keep adding new work" (More › Notifications): new work goes into Google Calendar.
+  useCalendarAuto(shownHomework, data.demo, toast);
+
   // Sync my devices (website); a banner on Today asks for a tap when Google needs one.
   const [syncTap, setSyncTap] = useAutoSync(toast);
 
@@ -656,7 +683,7 @@ function Shell({
       data,
       ai,
       profile,
-      homework,
+      homework: shownHomework,
       reloadHomework,
       replaceHomework: (hw) => {
         setHomework((list) => list?.map((h) => (h.id === hw.id ? hw : h)) ?? null);
@@ -709,7 +736,7 @@ function Shell({
       data,
       ai,
       profile,
-      homework,
+      shownHomework,
       reloadHomework,
       screen,
       go,
@@ -726,7 +753,7 @@ function Shell({
   const current = screen === "assignment" && !assignment ? "homework" : screen;
   const wide = useWide();
   const rail = useWide(RAIL_MQ);
-  const late = lateHomework(homework ?? []).length;
+  const late = lateHomework(shownHomework ?? []).length;
   const split = wide && (current === "homework" || current === "assignment");
   // Shown at the top of Today in demo mode; it scrolls away with the screen.
   const demoBanner = data.demo ? (

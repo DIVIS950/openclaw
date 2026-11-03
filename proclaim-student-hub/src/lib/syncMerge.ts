@@ -54,7 +54,14 @@ export function mergeBoth(key: string, local: unknown, remote: unknown): unknown
   if (key === "psh.progress" && isRecord(local) && isRecord(remote)) {
     return Number(local.xp ?? 0) >= Number(remote.xp ?? 0) ? local : remote;
   }
-  if (key === "psh.timetable" || key === "psh.courses" || key === "psh.schedule") {
+  if (
+    key === "psh.timetable" ||
+    key === "psh.courses" ||
+    key === "psh.schedule" ||
+    // Bag items and calendar marks: entries from both devices are kept.
+    key === "psh.bag.mine" ||
+    key === "psh.gcal.added"
+  ) {
     return mergeImported(key, local, remote);
   }
   if (Array.isArray(local) && Array.isArray(remote)) {

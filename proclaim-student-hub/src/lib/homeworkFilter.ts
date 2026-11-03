@@ -34,3 +34,95 @@ export function subjectChips(
   }
   return { chips, active };
 }
+
+// ---------- The same task twice ----------
+// Classroom work sometimes arrives twice: once with the email's short title
+// ("Slam Poetry") and once with a summary after it ("Slam Poetry: write a
+// poem…"), or under "Classroom" instead of its class. The list shows it once;
+// the saved copies are left as they are.
+
+/** A title as compared: lower case, without trailing "…", "!!" or dots. */
+export function titleStem(title: string): string {
+  return String(title ?? "")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/(?:…|\.\.\.)$/, "")
+    .replace(/[!?.\s]+$/, "");
+}
+
+// Older saved tasks may have no class or title at all.
+const courseKey = (raw: string | undefined) => courseName(String(raw ?? "")).toLocaleLowerCase();
+
+/** Same class, or one of them only says "Classroom" (or nothing). */
+function sameClass(a: string, b: string): boolean {
+  const ca = courseKey(a);
+  const cb = courseKey(b);
+  return (
+    !ca || !cb || ca === "classroom" || cb === "classroom" || ca.startsWith(cb) || cb.startsWith(ca)
+  );
+}
+
+/** True when one is the other, or the other with ": details" after its title. */
+export function sameTask(
+  a: Pick<Homework, "title" | "course">,
+  b: Pick<Homework, "title" | "course">,
+) {
+  const ta = String(a.title ?? "");
+  const tb = String(b.title ?? "");
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  const s = titleStem(short);
+  const l = long.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  if (!s || !sameClass(a.course, b.course)) {
+    return false;
+  }
+  // "Catch Up Assignments" and "Catch Up Assignments Continued" stay two tasks.
+  return titleStem(long) === s || (l.startsWith(s) && /^[!?.…\s]*:/.test(l.slice(s.length)));
+}
+
+/** A real class name beats "Classroom". */
+const realCourse = (h: Homework) => (courseKey(h.course) === "classroom" ? "" : h.course);
+
+/**
+ * One row per task. The copy shown is a ticked one if any is ticked (so
+ * unticking works), else the one with the most detail; what it lacks (a due
+ * date, a class, a link) comes from the other copies.
+ */
+export function oneOfEach(list: Homework[]): Homework[] {
+  const groups: Homework[][] = [];
+  for (const h of list) {
+    const group = groups.find((g) => g.some((x) => sameTask(x, h)));
+    if (group) {
+      group.push(h);
+    } else {
+      groups.push([h]);
+    }
+  }
+  const shown = new Map<string, Homework>();
+  for (const group of groups) {
+    if (group.length === 1) {
+      shown.set(group[0].id, group[0]);
+      continue;
+    }
+    const pick = group.toSorted(
+      (a, b) =>
+        Number(b.done) - Number(a.done) ||
+        String(b.title ?? "").length - String(a.title ?? "").length ||
+        Number(Boolean(b.due)) - Number(Boolean(a.due)),
+    )[0];
+    const other = (f: (h: Homework) => string | undefined) =>
+      group.map(f).find((v) => Boolean(v)) ?? "";
+    shown.set(pick.id, {
+      ...pick,
+      course: realCourse(pick) || other(realCourse) || pick.course,
+      due: pick.due || other((h) => h.due) || undefined,
+      link: pick.link || other((h) => h.link),
+      description: pick.description || other((h) => h.description),
+    });
+  }
+  // The list keeps its order; hidden copies just drop out.
+  return list.flatMap((h) => {
+    const s = shown.get(h.id);
+    return s ? [s] : [];
+  });
+}

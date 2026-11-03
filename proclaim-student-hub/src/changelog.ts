@@ -11,6 +11,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "1.6.0",
+    date: "2026-11-03",
+    title: "Reminders on your phone, and each task once",
+    items: [
+      "More › Notifications: one tap puts your homework, tests and weekly tutoring in Google Calendar, so your phone reminds you even when the hub is closed (inside the Claude app the hub can't pop up alerts by itself)",
+      'Turn on "Keep adding new work" and new homework and tests go into the calendar by themselves',
+      "Tutoring: Add to Google Calendar on a tutor's page adds every lesson, with a reminder 15 minutes before",
+      "New homework from the hourly Classroom check now gets a New homework message when you open the app",
+      "Homework saved twice (a short title and the same title with a summary) shows once, and class names like Y9 Math 26/27 Mr Fitz now read Maths",
+      "Sync: your own bag items and what's in Google Calendar travel between your devices, and sync runs every few minutes while the app is open",
+      "Tutor Hub: the lesson shows its day (Today 17:00), the top tags sit in one row, and the four tabs fit on one line",
+    ],
+  },
+  {
     version: "1.5.1",
     date: "2026-11-03",
     title: "Gmail connects again",

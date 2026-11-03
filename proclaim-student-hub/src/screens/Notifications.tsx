@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { CalendarReminders } from "../components/CalendarReminders.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import { useApp } from "../context.ts";
 import {
   askPermission,
+  framed,
   notifyPrefs,
   permission,
   show,
@@ -64,7 +66,11 @@ const KINDS: { id: NotifyKind; title: string; when: string; tone: string; icon: 
  * What the More row says: the number of reminders on only once the browser
  * allows them; otherwise why nothing will arrive.
  */
-export function alertsLabel(prefs: NotifyPrefs, perm: Permission): string {
+export function alertsLabel(prefs: NotifyPrefs, perm: Permission, inFrame = false): string {
+  if (inFrame && perm !== "granted") {
+    // Inside the Claude app: reminders come through Google Calendar.
+    return "Calendar";
+  }
   if (perm === "denied") {
     return "Blocked";
   }
@@ -91,6 +97,8 @@ export function Notifications() {
   const [perm, setPerm] = useState<Permission>(permission);
   // Switches only look on once the browser lets reminders through.
   const granted = perm === "granted";
+  // Inside the Claude app the page can't ask for alerts: Google Calendar does it.
+  const [inClaude] = useState(() => framed() && perm !== "granted");
   const next = (homework ?? [])
     .filter((h) => !h.done && h.due)
     .toSorted((a, b) => (a.due ?? "").localeCompare(b.due ?? ""))[0];
@@ -143,7 +151,7 @@ export function Notifications() {
           <Icon name="chevronLeft" size={20} />
         </button>
         <span className="muted s13" style={{ fontWeight: 700 }}>
-          {alertsLabel(prefs, perm)}
+          {alertsLabel(prefs, perm, inClaude)}
         </span>
       </header>
       <h1 className="h1 rise d1" style={{ fontSize: 34 }}>
@@ -166,28 +174,45 @@ export function Notifications() {
         </div>
       </div>
 
-      <section className="card rows rise d2">
-        {KINDS.map((k) => (
-          <div key={k.id} className="nrow">
-            <span className={`ic tone-${k.tone}`} aria-hidden="true">
-              <Icon name={k.icon} size={18} />
-            </span>
-            <span className="stack" style={{ flex: 1, minWidth: 0, gap: 0 }}>
-              <span style={{ fontWeight: 700 }}>{k.title}</span>
-              <span className="muted s13">{k.when}</span>
-            </span>
-            <button
-              className={granted && prefs[k.id] ? "sw on" : "sw"}
-              role="switch"
-              aria-checked={granted && prefs[k.id]}
-              aria-label={k.title}
-              onClick={() => toggle(k.id)}
-            />
-          </div>
-        ))}
-      </section>
+      {inClaude && (
+        <p className="card s13 rise d1" style={{ margin: 0, color: "var(--ink2)" }}>
+          <b>Inside the Claude app, the hub can't pop up alerts by itself,</b> so your reminders
+          come through Google Calendar.
+        </p>
+      )}
 
-      {needsHomeScreen() ? (
+      <CalendarReminders
+        fallback={
+          inClaude
+            ? "To get reminders on your phone, connect Google Calendar in Claude (Settings › Connectors), then open this page again."
+            : undefined
+        }
+      />
+
+      {!inClaude && (
+        <section className="card rows rise d2">
+          {KINDS.map((k) => (
+            <div key={k.id} className="nrow">
+              <span className={`ic tone-${k.tone}`} aria-hidden="true">
+                <Icon name={k.icon} size={18} />
+              </span>
+              <span className="stack" style={{ flex: 1, minWidth: 0, gap: 0 }}>
+                <span style={{ fontWeight: 700 }}>{k.title}</span>
+                <span className="muted s13">{k.when}</span>
+              </span>
+              <button
+                className={granted && prefs[k.id] ? "sw on" : "sw"}
+                role="switch"
+                aria-checked={granted && prefs[k.id]}
+                aria-label={k.title}
+                onClick={() => toggle(k.id)}
+              />
+            </div>
+          ))}
+        </section>
+      )}
+
+      {inClaude ? null : needsHomeScreen() ? (
         <section className="card home-steps rise d3">
           <span className="h2" style={{ color: "var(--blue-t)" }}>
             On iPhone, add it to your Home Screen

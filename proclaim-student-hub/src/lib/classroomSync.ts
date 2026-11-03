@@ -1,3 +1,4 @@
+import { sameTask } from "./homeworkFilter.ts";
 import { dateInTitle, dayOf, newId, prepTests, sameTopic } from "./study.ts";
 import type { DataSource, Email, Homework } from "./types.ts";
 
@@ -186,7 +187,8 @@ export function newClassroomTasks(
   seen: Set<string>,
   now: Date,
 ): { tasks: ClassroomTask[]; ids: string[] } {
-  const titles = new Set(known.map((h) => h.title.trim().toLowerCase()));
+  // Known already: the same title, or the same task saved with a summary after it.
+  const have: Pick<Homework, "title" | "course">[] = [...known];
   const today = day(now);
   const tasks: ClassroomTask[] = [];
   const ids: string[] = [];
@@ -199,11 +201,15 @@ export function newClassroomTasks(
     // "Due tomorrow" means the day after the email was sent, not after the sync.
     const sent = email.date ? new Date(email.date) : now;
     const task = parseClassroomEmail(email, Number.isNaN(sent.getTime()) ? now : sent);
-    const key = task?.title.toLowerCase();
-    if (!task || !key || titles.has(key) || (task.due && task.due < today)) {
+    if (
+      !task ||
+      !task.title.trim() ||
+      have.some((h) => sameTask(h, task)) ||
+      (task.due && task.due < today)
+    ) {
       continue;
     }
-    titles.add(key);
+    have.push(task);
     tasks.push(task);
   }
   return { tasks, ids };

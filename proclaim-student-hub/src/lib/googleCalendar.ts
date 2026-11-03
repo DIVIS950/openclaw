@@ -13,14 +13,22 @@ const ADDED_KEY = "psh.gcal.added";
 export const MADE_HERE = "Added by Student Hub.";
 
 export interface CalendarItem {
-  /** Remembers it was added: "test:<id>" or "hw:<id>". */
+  /** Remembers it was added: "test:<id>", "hw:<id>" or "tutor:<id>:<time>". */
   key: string;
   title: string;
-  /** YYYY-MM-DD */
+  /** YYYY-MM-DD (the first one, for a weekly event) */
   date: string;
   details?: string;
-  /** Minutes before the start of the day for each phone reminder. */
+  /** Minutes before the start (of the day, for all-day items) for each phone reminder. */
   reminders: number[];
+  /** "HH:MM" for a timed event; all-day without it. */
+  time?: string;
+  /** How long a timed event lasts (default 60). */
+  minutes?: number;
+  /** Repeats every week on these days (0 = Sunday … 6 = Saturday). */
+  weekly?: number[];
+  /** Where it happens, e.g. the Meet link. */
+  location?: string;
 }
 
 export interface CalEvent {
@@ -54,15 +62,36 @@ function nextDay(date: string): string {
   return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
 }
 
-/** The connector's create_event input for one all-day item. */
+const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+
+/** The connector's create_event input: all-day, or timed (and weekly) when it has a time. */
 export function eventInput(item: CalendarItem) {
-  return {
+  const common = {
     summary: item.title.slice(0, 200),
-    allDay: true,
-    startTime: `${item.date}T00:00:00`,
-    endTime: `${nextDay(item.date)}T00:00:00`,
     description: [item.details?.trim(), MADE_HERE].filter(Boolean).join("\n\n"),
     overrideReminders: item.reminders.map((minutes) => ({ method: "popup", minutes })),
+    ...(item.location ? { location: item.location.slice(0, 500) } : {}),
+  };
+  const [hh, mm] = (item.time ?? "").split(":").map(Number);
+  if (!item.time || !Number.isInteger(hh) || !Number.isInteger(mm)) {
+    return {
+      ...common,
+      allDay: true,
+      startTime: `${item.date}T00:00:00`,
+      endTime: `${nextDay(item.date)}T00:00:00`,
+    };
+  }
+  const [y, m, d] = item.date.split("-").map(Number);
+  const start = new Date(y, m - 1, d, hh, mm);
+  const end = new Date(start.getTime() + (item.minutes ?? 60) * 60_000);
+  const days = (item.weekly ?? []).filter((n) => n >= 0 && n <= 6);
+  return {
+    ...common,
+    startTime: localStamp(start),
+    endTime: localStamp(end),
+    ...(days.length > 0
+      ? { recurrenceData: [`RRULE:FREQ=WEEKLY;BYDAY=${days.map((n) => BYDAY[n]).join(",")}`] }
+      : {}),
   };
 }
 
@@ -82,7 +111,9 @@ export const calendarAdded = {
     return key in readAdded();
   },
   link(key: string): string {
-    return readAdded()[key]?.link ?? "";
+    // Only Google's own https links are opened (the list also comes from other devices).
+    const link = readAdded()[key]?.link;
+    return typeof link === "string" && link.startsWith("https://") ? link : "";
   },
   mark(key: string, link: string) {
     try {
@@ -101,7 +132,7 @@ export async function calendarAvailable(): Promise<boolean> {
   return (await useCapability("mcp")) !== null;
 }
 
-function calendarError(err: unknown): Error {
+export function calendarError(err: unknown): Error {
   return new Error(
     "Couldn't reach Google Calendar. Check the Google Calendar connector is connected on claude.ai.",
     { cause: err },

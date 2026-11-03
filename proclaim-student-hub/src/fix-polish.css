@@ -645,3 +645,38 @@ body:not(.tutor-page),
 .modes .mode.on {
   box-shadow: none;
 }
+
+/* 1.6.0: More › Notifications › Reminders through Google Calendar. */
+.cal-rem {
+  gap: 12px;
+}
+.cal-rem > .row > .ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.cal-rem .nrow {
+  padding: 12px 0 0;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+.cal-rem-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--green-t, var(--ink2));
+}
+
+/* 1.6.0: plus.css made the timeline a plain list of cards; its dot and line
+   were left hanging at the edge of the card. */
+.timeline {
+  border-left: 0;
+}
+.timeline-item::before {
+  content: none;
+}

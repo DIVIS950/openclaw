@@ -46,6 +46,8 @@ const IMPORT_KEYS = new Set([
   "psh.tour",
   "psh.theme",
   "psh.accent",
+  "psh.bag.mine",
+  "psh.gcal.added",
 ]);
 const IMPORT_PREFIXES = ["psh.lab.", "psh.tutor.", "psh.done.", "psh.task."];
 
@@ -161,10 +163,37 @@ export function mergeValue(key: string, local: unknown, incoming: unknown): unkn
   if (key === "psh.progress" && local && incoming) {
     return (local as { xp?: number }).xp! >= (incoming as { xp?: number }).xp! ? local : incoming;
   }
+  if (UNION_RECORDS.has(key) && isRecord(local) && isRecord(incoming)) {
+    return unionRecord(key, local, incoming);
+  }
   if (local === null || local === undefined || REPLACE.has(key)) {
     return incoming;
   }
   return local;
+}
+
+/** Records where entries from both sides count: calendar marks and the bag's own items. */
+const UNION_RECORDS = new Set(["psh.bag.mine", "psh.gcal.added"]);
+
+function unionRecord(
+  key: string,
+  local: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+) {
+  const out: Record<string, unknown> = { ...incoming, ...local };
+  if (key !== "psh.bag.mine") {
+    return out;
+  }
+  // The bag: each subject keeps its own items from both sides (at most 20).
+  for (const [subject, items] of Object.entries(incoming)) {
+    const mine = Array.isArray(local[subject]) ? (local[subject] as unknown[]) : [];
+    const have = new Set(mine.map((x) => String(x).toLowerCase()));
+    const extra = Array.isArray(items)
+      ? items.filter((x): x is string => typeof x === "string" && !have.has(x.toLowerCase()))
+      : [];
+    out[subject] = [...mine, ...extra].slice(-20);
+  }
+  return out;
 }
 
 const isEmpty = (v: unknown): boolean =>
@@ -283,6 +312,19 @@ const SHAPES: Record<string, (v: unknown) => boolean> = {
   "psh.tour": (v) => typeof v === "string",
   "psh.theme": (v) => typeof v === "string",
   "psh.accent": (v) => typeof v === "string",
+  "psh.bag.mine": (v) =>
+    isRecord(v) &&
+    Object.values(v).every((a) => Array.isArray(a) && a.every((x) => typeof x === "string")),
+  // Only Google's https links (or none) come in with a calendar mark.
+  "psh.gcal.added": (v) =>
+    isRecord(v) &&
+    Object.values(v).every(
+      (e) =>
+        isRecord(e) &&
+        typeof e.at === "string" &&
+        typeof e.link === "string" &&
+        (e.link === "" || e.link.startsWith("https://")),
+    ),
 };
 /** The text fields each list's records must have (missing or odd ones become ""). */
 const TEXT_FIELDS: Record<string, string[]> = {

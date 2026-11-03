@@ -14,7 +14,7 @@ import { Icon } from "./Icon.tsx";
 // "From your calendar" list. Both only show in the Claude app, where the
 // Google Calendar connector can be reached.
 
-function useCalendar(): boolean {
+export function useCalendar(): boolean {
   const { data } = useApp();
   const [ok, setOk] = useState(false);
   useEffect(() => {
@@ -56,7 +56,11 @@ export function CalendarButton({ item, small }: { item: CalendarItem; small?: bo
     try {
       await addToCalendar(item);
       setAdded(true);
-      toast("Added to Google Calendar, with a reminder the evening before.");
+      toast(
+        item.weekly?.length
+          ? "Added to Google Calendar for every lesson, with a reminder 15 minutes before."
+          : "Added to Google Calendar, with a reminder the evening before.",
+      );
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't add it to Google Calendar.");
     } finally {

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
-import { callName, joinLabel, newId, type TutorMessage, type TutorSession } from "../lib/study.ts";
+import {
+  callName,
+  dayOf,
+  joinLabel,
+  newId,
+  type TutorMessage,
+  type TutorSession,
+} from "../lib/study.ts";
 import { subjectTone } from "../lib/subjects.ts";
 import {
   allowedMeet,
@@ -16,7 +23,7 @@ import {
   type TutorPacket,
   type TutorReply,
 } from "../lib/tutorLink.ts";
-import { lessonLabel, nextLesson } from "../lib/tutorSchedule.ts";
+import { lessonDay, lessonLabel, nextLesson } from "../lib/tutorSchedule.ts";
 
 // Tutor Hub: the tutor's own page. Opens from the link the student sends,
 // shows that student's lessons, homework and materials, lets the tutor add
@@ -350,7 +357,7 @@ export function TutorApp() {
 
         {damaged && <DamagedNote onClose={() => setDamaged(false)} />}
 
-        <header className="between rise" style={{ alignItems: "flex-end", gap: 12 }}>
+        <header className="between rise tutor-head" style={{ alignItems: "flex-end", gap: 12 }}>
           <div className="stack" style={{ gap: 8, minWidth: 0 }}>
             <span className="eyebrow">Tutor Hub{tutor.name ? ` · ${tutor.name}` : ""}</span>
             <h1 className="h1" style={{ fontSize: 36 }}>
@@ -678,7 +685,8 @@ function NextLessonCard({
   onSay: (text: string) => void;
 }) {
   const [edit, setEdit] = useState(false);
-  const [date, setDate] = useState(() => (start ? start.toISOString().slice(0, 10) : today()));
+  // The lesson's own day on this device (toISOString would give the UTC day).
+  const [date, setDate] = useState(() => (start ? dayOf(start) : today()));
   const [time, setTime] = useState(() => (start ? start.toTimeString().slice(0, 5) : "17:00"));
   const [minutes, setMinutes] = useState(60);
   const now = new Date();
@@ -712,13 +720,18 @@ function NextLessonCard({
       <div className="between" style={{ alignItems: "center", gap: 12 }}>
         <div className="stack" style={{ gap: 5, minWidth: 0 }}>
           <span className="now-eyebrow">
-            {start ? `Next lesson · ${lessonLabel(start, now)}` : "Next lesson"}
+            {start && lessonLabel(start, now) === "on now" ? "Lesson · on now" : "Next lesson"}
           </span>
           <strong className="now-title" style={{ fontSize: 30 }}>
-            {when || "No regular time yet"}
+            {start ? lessonDay(start, now) : when || "No regular time yet"}
           </strong>
           <span className="now-sub">
-            {link ? callName(link).replace(/^the call$/, "Video call") : "No lesson link yet"}
+            {[
+              start ? when : "",
+              link ? callName(link).replace(/^the call$/, "Video call") : "No lesson link yet",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </div>
         {start && (

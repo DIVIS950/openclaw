@@ -7,10 +7,10 @@ import { PresentButton } from "../components/Present.tsx";
 import { StartTask } from "../components/StartTask.tsx";
 import { useAiContext, useApp } from "../context.ts";
 import { writingFeedback, type Feedback } from "../lib/aiFeatures.ts";
+import { homeworkItem } from "../lib/calendarPlan.ts";
 import { makeCanvaDesign } from "../lib/canva.ts";
 import { draftCopy, pickDraft } from "../lib/draftCopy.ts";
 import { dueLabel } from "../lib/format.ts";
-import { EVENING_BEFORE } from "../lib/googleCalendar.ts";
 import { photoToImageInput } from "../lib/image.ts";
 import {
   applyEdits,
@@ -40,6 +40,7 @@ export function Assignment({ hw }: { hw: Homework }) {
       ? `Was due ${new Date(hw.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
       : dueLabel(hw.due);
   const [text, setText] = useState("");
+  const calItem = homeworkItem(hw);
   const [state, setState] = useState<SaveState>("loading");
   const [link, setLink] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
@@ -223,18 +224,9 @@ export function Assignment({ hw }: { hw: Homework }) {
         <h1 className="h1" style={{ fontSize: 30 }}>
           {hw.title}
         </h1>
-        {hw.due && !hw.done && (
+        {calItem && !hw.done && (
           <div className="row" style={{ gap: 8 }}>
-            <CalendarButton
-              small
-              item={{
-                key: `hw:${hw.id}`,
-                title: `Due: ${hw.title}`,
-                date: dayOf(new Date(hw.due)),
-                details: [courseName(hw.course), hw.link].filter(Boolean).join("\n"),
-                reminders: [EVENING_BEFORE],
-              }}
-            />
+            <CalendarButton small item={calItem} />
           </div>
         )}
         <div className="do-steps" aria-label="Progress">
