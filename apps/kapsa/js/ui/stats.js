@@ -7,7 +7,7 @@ import { byShop, monthOf, monthSummary, niceMax, trend } from "../stats.js";
 import { deletePurchase, getCard, state } from "../state.js";
 import { money, moneyShort, monthName } from "../util.js";
 import { receiptToLog } from "./logsheet.js";
-import { Icon, Section, html, tint, toast } from "./kit.js";
+import { Icon, Section, cardTint, html, toast } from "./kit.js";
 import { useRef, useState } from "../../vendor/preact.js";
 
 
@@ -114,7 +114,7 @@ function ShopBars({ rows, total, currency }) {
     ${rows.slice(0, 8).map(
       (r) => html`<div class="hbar" key=${r.key}>
         <div class="hbar-top">
-          <span class="hbar-dot" style=${{ "--c": r.color ?? "var(--surface-2)" }}></span>
+          <span class="hbar-dot" style=${r.cardId ? cardTint(getCard(r.cardId)) : undefined}></span>
           <span class="hbar-name">${r.name}</span>
           <span class="hbar-v">${money(r.amount, currency)}</span>
           <span class="hbar-share">${t("st.share", { p: total ? Math.round((r.amount / total) * 100) : 0 })}</span>
@@ -184,10 +184,9 @@ function Trend({ series, currency }) {
 function PurchaseRow({ p, currency }) {
   const [open, setOpen] = useState(false);
   const card = p.cardId ? getCard(p.cardId) : null;
-  const color = card?.color;
   const d = new Date(p.at);
   return html`<div class="li" onClick=${() => setOpen(!open)} role="button" tabindex="0">
-    <span class="li-icon" style=${color ? tint(color) : undefined}><${Icon} name=${p.source === "receipt" ? "receipt" : "wallet"} /></span>
+    <span class="li-icon" style=${cardTint(card)}><${Icon} name=${p.source === "receipt" ? "receipt" : "wallet"} /></span>
     <span class="li-text">
       <span class="li-title">${card?.name ?? p.shop ?? "—"}</span>
       <span class="li-sub">${d.toLocaleDateString(locale(), { day: "numeric", month: "short" })}${p.saved ? ` · ${t("st.saved").toLowerCase()} ${money(p.saved, currency)}` : ""}</span>

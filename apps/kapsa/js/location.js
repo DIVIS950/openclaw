@@ -11,6 +11,13 @@ const CACHE_TTL_MS = 14 * 24 * 3600 * 1000;
 const MAX_NAMES_PER_QUERY = 12;
 
 let watchId = null;
+let keepUntil = 0;
+let stopTimer = 0;
+
+/** Keep watching for `ms` after the app goes to the background (best effort: phones may still pause it). */
+export function keepLocationFor(ms) {
+  keepUntil = ms > 0 ? Date.now() + ms : 0;
+}
 let fetching = false;
 let nextFetchAllowed = 0;
 
@@ -78,8 +85,14 @@ export function stopLocation() {
 /** Resume or pause GPS with the page's visibility to save battery. */
 export function bindVisibility() {
   document.addEventListener("visibilitychange", () => {
+    clearTimeout(stopTimer);
     if (document.hidden) {
-      stopLocation();
+      const wait = keepUntil - Date.now();
+      if (wait > 0) {
+        stopTimer = window.setTimeout(() => document.hidden && stopLocation(), wait);
+      } else {
+        stopLocation();
+      }
     } else if (state.settings.locationWanted) {
       startLocation();
     }

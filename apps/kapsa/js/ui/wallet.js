@@ -1,18 +1,21 @@
 // Wallet tab: the shop you're in takes over the top of the screen with its card ready
-// to scan; below are all your cards as big coloured tiles.
+// to scan (plus its promo codes and gift card money); below, all your cards stacked
+// like in a real wallet, each in its own bright colour with its logo.
 
-import { categoryIcon, normalizeName } from "../brands.js";
+import { normalizeName } from "../brands.js";
 import { addDemo } from "../demo.js";
 import { formatDistance } from "../geo.js";
 import { dayPart, suggestNow, usualDayPart } from "../habits.js";
 import { locale, t } from "../i18n.js";
 import { startLocation } from "../location.js";
+import { lookVars } from "../look.js";
 import { expiryStatus } from "../model.js";
 import { go } from "../nav.js";
 import { addStamp, couponsForCard, markUsed, state } from "../state.js";
 import { buzz, formatNumber, greetingPart } from "../util.js";
 import { confetti } from "../confetti.js";
-import { BigCode, Icon, Section, Ticket, html, tint, toast } from "./kit.js";
+import { PinRow, PromoList, giftLine } from "./gift.js";
+import { BigCode, Icon, Logo, Section, Ticket, html, toast } from "./kit.js";
 import { useMemo, useState } from "../../vendor/preact.js";
 
 /**
@@ -49,6 +52,9 @@ export function Wallet({ rows, reminders }) {
     if (filter === "stamps") {
       return Boolean(r.card.stamps);
     }
+    if (filter === "gift") {
+      return r.card.kind === "gift";
+    }
     return true;
   });
 
@@ -73,7 +79,7 @@ export function Wallet({ rows, reminders }) {
       ? html`<${Section}
           title=${t("w.myCards")}
           count=${state.cards.length}
-          action=${html`<button type="button" class="btn sm" onClick=${() => go("#scan")}><${Icon} name="plus" />${t("tab.add")}</button>`}
+          action=${html`<button type="button" class="link-btn" onClick=${() => go("#add")}><${Icon} name="plus" />${t("tab.add")}</button>`}
         >
           ${state.cards.length >= 6
             ? html`<input
@@ -93,6 +99,7 @@ export function Wallet({ rows, reminders }) {
               ["near", t("w.filter.near")],
               ["coupons", t("w.filter.coupons")],
               ["stamps", t("w.filter.stamps")],
+              ...(state.cards.some((c) => c.kind === "gift") ? [["gift", t("w.filter.gift")]] : []),
             ].map(
               ([v, label]) =>
                 html`<button
@@ -106,11 +113,11 @@ export function Wallet({ rows, reminders }) {
                 </button>`,
             )}
           </div>
-          <div class="tiles">
-            ${visible.length
-              ? visible.map((r, i) => html`<${CardTile} key=${r.card.id} row=${r} i=${i} coupons=${couponsBy[r.card.id] ?? 0} />`)
-              : html`<p class="hint">${t("w.noResults")}</p>`}
-          </div>
+          ${visible.length
+            ? html`<div class="wstack">
+                ${visible.map((r, i) => html`<${WalletCard} key=${r.card.id} row=${r} i=${i} coupons=${couponsBy[r.card.id] ?? 0} />`)}
+              </div>`
+            : html`<p class="hint">${t("w.noResults")}</p>`}
         <//>`
       : null}
     ${big ? html`<${BigCode} ...${big} onClose=${() => setBig(null)} />` : null}
@@ -130,7 +137,7 @@ function TopBar({ reminders }) {
   </div>`;
 }
 
-/** You're in a shop: its name, its code ready to scan, quick actions. */
+/** You're in a shop: its card, big and ready to scan, with quick actions below. */
 function HereHero({ row, coupons, onBig }) {
   const card = row.card;
   const stampAction = async () => {
@@ -143,29 +150,37 @@ function HereHero({ row, coupons, onBig }) {
       toast(`${t("stamps.added")} · ${saved.stamps.count}/${saved.stamps.goal}`);
     }
   };
+  const sub = [
+    giftLine(card),
+    card.stamps ? t("w.stampsLine", { n: card.stamps.count, g: card.stamps.goal }) : "",
+    coupons ? t("w.coupons", { n: coupons }) : "",
+  ].filter(Boolean);
   return html`<div class="hero-stack">
-    <div class="row" style="flex-wrap:wrap;gap:8px">
-      <span class="chip accent"><span class="pulse"></span>${t("w.here")}</span>
-      <span class="chip">${t("w.hereAway", { d: formatDistance(row.distance ?? 0, locale()) })}</span>
+    <div class="wcard big" style=${lookVars(card)}>
+      <div class="wcard-top">
+        <span class="wcard-title">
+          <span class="wchip"><span class="pulse"></span>${t("w.here")} · ${formatDistance(row.distance ?? 0, locale())}</span>
+          <button type="button" class="wcard-name" onClick=${() => go(`#card-${card.id}`)}>${card.name}</button>
+          ${sub.length ? html`<span class="wcard-sub">${sub.join(" · ")}</span>` : null}
+        </span>
+        <${Logo} card=${card} cls="lg" />
+      </div>
+      <${Ticket} code=${card.code} format=${card.format} name=${card.name} onBig=${onBig} />
+      ${card.kind === "gift" && card.pin ? html`<${PinRow} pin=${card.pin} onCard=${true} />` : null}
+      <div class="wcard-actions">
+        ${card.kind === "gift"
+          ? html`<button type="button" class="wbtn strong" onClick=${() => go(`#pay-${card.id}`)}><${Icon} name="wallet" />${t("gift.payButton")}</button>`
+          : null}
+        ${card.stamps
+          ? html`<button type="button" class="wbtn strong" onClick=${stampAction}><${Icon} name="stamp" />${t("stamps.add")}</button>`
+          : null}
+        <button type="button" class="wbtn" onClick=${onBig}><${Icon} name="maximize-2" />${t("w.fullscreen")}</button>
+        ${card.kind !== "gift"
+          ? html`<button type="button" class="wbtn" onClick=${() => go(`#log-${card.id}`)}><${Icon} name="receipt" />${t("card.logSpend")}</button>`
+          : null}
+      </div>
     </div>
-    <button type="button" class="display" style="text-align:left;color:inherit" onClick=${() => go(`#card-${card.id}`)}>
-      ${card.name}
-    </button>
-    <${Ticket} code=${card.code} format=${card.format} name=${card.name} onBig=${onBig} />
-    <div class="hero-chips">
-      <button type="button" class="chip solid" onClick=${onBig}><${Icon} name="maximize-2" />${t("w.fullscreen")}</button>
-      ${card.stamps
-        ? html`<button type="button" class="chip accent" onClick=${stampAction}>
-            <${Icon} name="stamp" />${t("stamps.add")} · ${card.stamps.count}/${card.stamps.goal}
-          </button>`
-        : null}
-      ${coupons
-        ? html`<button type="button" class="chip accent" onClick=${() => go(`#card-${card.id}`)}>
-            <${Icon} name="ticket-percent" />${t("w.coupons", { n: coupons })}
-          </button>`
-        : null}
-      <button type="button" class="chip solid" onClick=${() => go(`#log-${card.id}`)}><${Icon} name="receipt" />${t("card.logSpend")}</button>
-    </div>
+    <${PromoList} card=${card} empty=${true} />
   </div>`;
 }
 
@@ -192,7 +207,7 @@ function HomeHero({ rows, coupons }) {
 
 function Mini({ card, label, meta }) {
   return html`<button type="button" class="mini" onClick=${() => go(`#card-${card.id}`)}>
-    <span class="mini-swatch" style=${tint(card.color)}><${Icon} name=${categoryIcon(card.category)} /></span>
+    <span class="mini-logo" style=${lookVars(card)}><${Logo} card=${card} /></span>
     <span style="min-width:0">
       <span class="mini-label">${label}</span>
       <span class="mini-name">${card.name}</span>
@@ -250,16 +265,19 @@ function EmptyHero() {
   </div>`;
 }
 
-function CardTile({ row, i, coupons }) {
+/** One card in the wallet stack: everything important sits in its top strip. */
+function WalletCard({ row, i, coupons }) {
   const card = row.card;
   const now = Date.now();
   const exp = expiryStatus(card.expiry, now);
   const part = state.settings.habits ? usualDayPart(card.usage) : null;
   let sub = "";
-  if (row.here) {
-    sub = t("w.here");
+  if (card.kind === "gift") {
+    sub = giftLine(card);
   } else if (card.points !== null && card.points !== undefined) {
     sub = t("w.points", { n: formatNumber(card.points) });
+  } else if (card.stamps) {
+    sub = t("w.stampsLine", { n: card.stamps.count, g: card.stamps.goal });
   } else if (part) {
     sub = t("card.usually", { p: t(`habit.${part}`) });
   } else if (card.sample) {
@@ -267,25 +285,31 @@ function CardTile({ row, i, coupons }) {
   } else {
     sub = t(`cat.${card.category}`);
   }
-  return html`<button type="button" class="tile" style=${{ ...tint(card.color), "--i": Math.min(i, 10) }} onClick=${() => go(`#card-${card.id}`)}>
-    <span class="tile-icon"><${Icon} name=${categoryIcon(card.category)} /></span>
-    <span class="tile-text">
-      <span class="tile-name">${card.name}</span>
-      <span class="tile-sub">${sub}</span>
-    </span>
-    <span class="tile-end">
-      ${row.distance !== null
-        ? html`<span class=${`badge${row.here ? " accent" : ""}`}>${row.here ? html`<span class="pulse"></span>` : null}${formatDistance(row.distance, locale())}</span>`
-        : null}
-      <span class="row" style="gap:4px">
-        ${coupons ? html`<span class="badge accent"><${Icon} name="ticket" />${coupons}</span>` : null}
-        ${card.stamps ? html`<span class="badge accent"><${Icon} name="stamp" />${card.stamps.count}/${card.stamps.goal}</span>` : null}
-        ${exp && exp.state !== "ok"
-          ? html`<span class=${`badge ${exp.state === "expired" ? "bad" : "warn"}`}>
-              ${exp.state === "expired" ? t("card.expired") : exp.days === 0 ? t("card.expiresToday") : `${exp.days} d`}
-            </span>`
-          : null}
+  return html`<button
+    type="button"
+    class=${`wcard${row.here ? " is-here" : ""}`}
+    style=${{ ...lookVars(card), "--i": Math.min(i, 12) }}
+    onClick=${() => go(`#card-${card.id}`)}
+  >
+    <span class="wcard-top">
+      <span class="wcard-title">
+        <span class="wcard-name">${card.name}</span>
+        <span class="wcard-sub">${sub}</span>
       </span>
+      <${Logo} card=${card} />
+    </span>
+    <span class="wpills">
+      ${card.kind === "gift" ? html`<span class="wpill"><${Icon} name="gift" />${t("gift.kind")}</span>` : null}
+      ${row.distance !== null
+        ? html`<span class="wpill">${row.here ? html`<span class="pulse"></span>` : null}${formatDistance(row.distance, locale())}</span>`
+        : null}
+      ${coupons ? html`<span class="wpill"><${Icon} name="ticket" />${coupons}</span>` : null}
+      ${card.stamps && card.kind !== "gift" && (card.points !== null && card.points !== undefined)
+        ? html`<span class="wpill"><${Icon} name="stamp" />${card.stamps.count}/${card.stamps.goal}</span>`
+        : null}
+      ${exp && exp.state !== "ok"
+        ? html`<span class="wpill warn">${exp.state === "expired" ? t("card.expired") : exp.days === 0 ? t("card.expiresToday") : t("w.daysLeft", { n: exp.days })}</span>`
+        : null}
     </span>
   </button>`;
 }

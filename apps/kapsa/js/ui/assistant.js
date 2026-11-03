@@ -5,8 +5,7 @@ import { runTool, turnContext } from "../assistant-tools.js";
 import { t } from "../i18n.js";
 import { go } from "../nav.js";
 import { getCard, getCoupon, state } from "../state.js";
-import { Icon, html, tint, toast } from "./kit.js";
-import { couponColor } from "./coupons.js";
+import { Icon, cardTint, html, toast } from "./kit.js";
 import { useEffect, useRef, useState } from "../../vendor/preact.js";
 
 
@@ -176,12 +175,12 @@ function Message({ m }) {
     ${cards.length || coupons.length
       ? html`<div class="msg-links">
           ${cards.map(
-            (c) => html`<button type="button" class="msg-link" style=${tint(c.color)} onClick=${() => go(`#card-${c.id}`)}>
+            (c) => html`<button type="button" class="msg-link" style=${cardTint(c)} onClick=${() => go(`#card-${c.id}`)}>
               <span>${c.name}</span><${Icon} name="scan-barcode" />
             </button>`,
           )}
           ${coupons.map(
-            (c) => html`<button type="button" class="msg-link" style=${tint(couponColor(c))} onClick=${() => go(`#coupon-${c.id}`)}>
+            (c) => html`<button type="button" class="msg-link" style=${cardTint(c.cardId ? getCard(c.cardId) : null)} onClick=${() => go(`#coupon-${c.id}`)}>
               <span>${[c.discount, c.title].filter(Boolean).join(" · ")}</span><${Icon} name="ticket-percent" />
             </button>`,
           )}

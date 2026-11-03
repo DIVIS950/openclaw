@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "../../vendor/preact.js";
 
 /**
  * @param {{
- *   kind: "card" | "coupon",
+ *   kind: "card" | "gift" | "coupon",
  *   onCode: (raw: { rawValue: string, format: string }) => void,
  *   onAi: (reading: any) => void,
  *   onManual: () => void,
@@ -111,7 +111,7 @@ export function Scanner({ kind, onCode, onAi, onManual, onClose }) {
     <div class="scan-frame" aria-hidden="true"><span class="scan-laser"></span></div>
     <div class="scan-top">
       <button type="button" class="ibtn" aria-label=${t("common.close")} onClick=${onClose ?? (() => back())}><${Icon} name="x" /></button>
-      <h2 class="scan-title">${kind === "coupon" ? t("scan.couponTitle") : t("scan.title")}</h2>
+      <h2 class="scan-title">${kind === "coupon" ? t("scan.couponTitle") : kind === "gift" ? t("scan.giftTitle") : t("scan.title")}</h2>
       ${hasTorch
         ? html`<button
             type="button"

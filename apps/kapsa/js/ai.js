@@ -3,7 +3,7 @@
 // user's own API key, which is stored only on this device.
 
 import { FORMATS, fromDetectorFormat } from "./barcode.js";
-import { CATEGORIES } from "./brands.js";
+import { CATEGORIES, cleanDomain } from "./brands.js";
 import { t } from "./i18n.js";
 import { cleanDate, cleanMoney, cleanPoints } from "./model.js";
 import { kv } from "./store.js";
@@ -138,8 +138,26 @@ const CARD_SCHEMA = {
     expiry: { type: "string", description: "Expiry date as YYYY-MM-DD if printed, else empty." },
     points: { type: "string", description: "Points or balance if printed, digits only, else empty." },
     note: { type: "string", description: "One short useful line printed on the card (e.g. discount level, member tier), in the user's language. Empty if none." },
+    is_gift_card: { type: "boolean", description: "True if this is a gift card or voucher that holds money (dárková karta, poukaz)." },
+    gift_value: { type: "string", description: "For a gift card: the amount of money on it if printed, digits only (e.g. '1000'), else empty." },
+    pin: { type: "string", description: "For a gift card: the PIN or security code if printed or scratched off, exactly as shown, else empty." },
+    website: { type: "string", description: "The shop's website domain if printed on the card, or the well-known domain of a big chain (e.g. 'albert.cz'). Empty if unsure." },
   },
-  required: ["is_card", "shop_name", "card_number", "barcode_type", "brand_color", "category", "expiry", "points", "note"],
+  required: [
+    "is_card",
+    "shop_name",
+    "card_number",
+    "barcode_type",
+    "brand_color",
+    "category",
+    "expiry",
+    "points",
+    "note",
+    "is_gift_card",
+    "gift_value",
+    "pin",
+    "website",
+  ],
   additionalProperties: false,
 };
 
@@ -177,7 +195,11 @@ export function mergeCardReading(ai, detected) {
     expiry: cleanDate(ai.expiry),
     points: cleanPoints(ai.points === "" ? null : ai.points),
     note: String(ai.note ?? "").trim().slice(0, 200),
-    isCard: ai.is_card !== false,
+    isCard: ai.is_card !== false || ai.is_gift_card === true,
+    kind: ai.is_gift_card === true ? "gift" : "loyalty",
+    balance: ai.is_gift_card === true ? cleanMoney(ai.gift_value === "" ? null : ai.gift_value) : null,
+    pin: String(ai.pin ?? "").replace(/\s+/g, "").slice(0, 32),
+    website: cleanDomain(ai.website),
   };
 }
 
@@ -336,7 +358,7 @@ export async function readCardPhoto(file, detected, opts) {
   const parsed = await readPhoto(
     file,
     CARD_SCHEMA,
-    `This is a photo of a loyalty or membership card the user wants to save in a card wallet app. Fill in the fields from what is visible. Copy numbers exactly; never guess digits you cannot read. Write the note in ${opts.lang === "cs" ? "Czech" : "English"}. ${hint}`,
+    `This is a photo of a loyalty card, membership card or gift card the user wants to save in a card wallet app. Fill in the fields from what is visible. Copy numbers exactly; never guess digits you cannot read. Write the note in ${opts.lang === "cs" ? "Czech" : "English"}. ${hint}`,
     opts.model,
   );
   const reading = mergeCardReading(parsed, detected);
@@ -349,7 +371,7 @@ export async function readCardPhoto(file, detected, opts) {
 // ---------- Chat assistant ----------
 
 const SYSTEM_PROMPT = `You are the assistant inside Kapsa, a loyalty-card wallet app on the user's phone.
-Help with their loyalty and membership cards, coupons, stamp cards and spending: which card or coupon to use where, what they have, points, rewards, expiry dates and how much they spend or save.
+Help with their loyalty and membership cards, gift cards (money left on them), coupons and promo codes, stamp cards and spending: which card or coupon to use where, what they have, points, rewards, expiry dates and how much they spend or save.
 Use the tools to look things up; never invent cards, coupons, shops or amounts. Card numbers and coupon codes are not available to you.
 When you point the user to a card or coupon, call show_card or show_coupon so a button to open it appears under your answer.
 If the user tells you a points balance, an expiry date or a note for a card, save it with update_card. If they tell you what they spent ("I spent 230 at Albert"), record it with log_purchase. Confirm saved changes in one short sentence.
@@ -585,6 +607,8 @@ export function cardsForAssistant(cards, ctx) {
     sample_card: Boolean(c.sample),
     points_goal: c.pointsGoal ?? null,
     stamps: c.stamps ? { collected: c.stamps.count, goal: c.stamps.goal, reward: c.stamps.reward || null } : null,
+    gift_card: c.kind === "gift",
+    gift_balance: c.kind === "gift" ? (c.balance ?? null) : null,
   }));
 }
 

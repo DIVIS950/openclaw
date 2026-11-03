@@ -1,6 +1,7 @@
 // #settings: AI key, reminders, location, look, backup.
 
 import { AI_MODELS, describeError, getApiKey, setApiKey, testKey } from "../ai.js";
+import { askNotificationPermission, notificationsSupported } from "../reminders.js";
 import { t } from "../i18n.js";
 import { invalidateBranches } from "../location.js";
 import { buildBackup, parseBackup } from "../model.js";
@@ -13,7 +14,7 @@ import { formatDistance } from "../geo.js";
 import { locale } from "../i18n.js";
 import { useEffect, useRef, useState } from "../../vendor/preact.js";
 
-export const APP_VERSION = "2.1.0";
+export const APP_VERSION = "3.0.0";
 
 /** @type {any} */
 let installPrompt = null;
@@ -81,6 +82,21 @@ export function SettingsPage() {
         <p class="hint">${t("set.radiusHint")}</p>
         <${Seg} value=${s.radius} options=${[50, 120, 250, 500].map((m) => [m, formatDistance(m, locale())])} onChange=${(v) => updateSettings({ radius: v })} />
         <${Toggle} id="set-autoopen" label=${t("set.autoOpen")} checked=${s.autoOpen} onChange=${(v) => updateSettings({ autoOpen: v })} />
+        <${Toggle}
+          id="set-dwell"
+          label=${t("set.dwell", { n: s.dwellMin })}
+          meta=${t("set.dwellHint")}
+          checked=${s.dwell}
+          onChange=${async (v) => {
+            await updateSettings({ dwell: v });
+            if (v && notificationsSupported() && Notification.permission === "default") {
+              await askNotificationPermission();
+            }
+          }}
+        />
+        ${s.dwell
+          ? html`<${Seg} value=${s.dwellMin} label=${t("set.dwellAfter")} options=${[1, 2, 5].map((n) => [n, t("set.minutes", { n })])} onChange=${(v) => updateSettings({ dwellMin: v })} />`
+          : null}
         <${Toggle} id="set-habits" label=${t("set.habits")} meta=${t("set.habitsHint")} checked=${s.habits} onChange=${(v) => updateSettings({ habits: v })} />
         <${Toggle}
           id="set-osm"
@@ -104,6 +120,7 @@ export function SettingsPage() {
           options=${[["light", t("set.themeLight")], ["dark", t("set.themeDark")], ["system", t("set.themeSystem")]]}
           onChange=${(v) => updateSettings({ theme: v })}
         />
+        <${Toggle} id="set-logos" label=${t("set.logos")} meta=${t("set.logosHint")} checked=${s.logos} onChange=${(v) => updateSettings({ logos: v })} />
         <span class="label">${t("set.currency")}</span>
         <${Seg} value=${s.currency} options=${["CZK", "EUR", "USD", "GBP", "PLN"].map((c) => [c, c])} onChange=${(v) => updateSettings({ currency: v })} />
       </div>

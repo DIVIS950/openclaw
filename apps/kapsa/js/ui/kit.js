@@ -1,10 +1,12 @@
 // Shared UI pieces: icons, buttons, sheets, pages, the barcode ticket, toasts.
 
 import { FORMATS, groupCode, renderBarcodeSvg } from "../barcode.js";
-import { inkFor } from "../brands.js";
+import { categoryIcon, inkFor, logoUrl } from "../brands.js";
 import { t } from "../i18n.js";
 import { iconSvg } from "../icons.js";
 import { back } from "../nav.js";
+import { cardLook } from "../look.js";
+import { state } from "../state.js";
 import { buzz, copyText } from "../util.js";
 import { html, useEffect, useRef, useState } from "../../vendor/preact.js";
 
@@ -18,6 +20,54 @@ export function Icon({ name, cls = "icon" }) {
 /** CSS variables for something coloured like a card: background and readable ink. */
 export function tint(color) {
   return { "--c": color, "--on": inkFor(color) };
+}
+
+/** Like `tint`, but in the card's bright wallet colour (dark shop colours are lifted). */
+export function cardTint(card) {
+  if (!card) {
+    return undefined;
+  }
+  const l = cardLook(card);
+  return { "--c": l.to, "--on": l.ink, "--c1": l.from, "--c2": l.to, "--ci": l.ink };
+}
+
+/** Logos that failed to load (or were only a tiny placeholder), so they aren't retried. */
+const badLogos = new Set();
+
+/**
+ * Round logo of a card: the person's own picture, the shop website's icon, or the
+ * category icon when there is none (or it can't load, e.g. offline).
+ * @param {{ card: any, cls?: string }} props
+ */
+export function Logo({ card, cls = "" }) {
+  const url = logoUrl(card, state.settings.logos);
+  const [bad, setBad] = useState(() => !url || badLogos.has(url));
+  useEffect(() => setBad(!url || badLogos.has(url)), [url]);
+  const fail = () => {
+    if (url) {
+      badLogos.add(url);
+    }
+    setBad(true);
+  };
+  const icon = card.kind === "gift" ? "gift" : categoryIcon(card.category);
+  return html`<span class=${`logo${bad ? " is-icon" : ""} ${cls}`} aria-hidden="true">
+    ${bad
+      ? html`<${Icon} name=${icon} />`
+      : html`<img
+          src=${url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerpolicy="no-referrer"
+          onError=${fail}
+          onLoad=${(e) => {
+            // The icon service answers unknown sites with a tiny globe: treat it as no logo.
+            if (!card.logo && e.currentTarget.naturalWidth < 32) {
+              fail();
+            }
+          }}
+        />`}
+  </span>`;
 }
 
 // ---------- Toasts ----------

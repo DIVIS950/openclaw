@@ -1,31 +1,34 @@
-/* Kapsa — light and calm.
-   White cards on a soft grey page, thin lines, soft shadows and one colour: blue.
-   A shop's own colour appears only as its small round icon. */
+/* Kapsa — like a wallet.
+   Every card is a bright gradient in its shop's colour with its logo, stacked like in a
+   real wallet, on a warm cream page. One accent (orange to coral) for buttons and tabs.
+   No black anywhere: text is a deep plum, dark shop colours are lifted (js/look.js). */
 
 :root {
-  --bg: #f5f6f8;
+  --bg: #fbf7f1;
   --surface: #ffffff;
-  --surface-2: #eef0f3;
-  --ink: #15171c;
-  --ink-2: #4b515c;
-  --ink-3: #868c97;
-  --line: #e3e6eb;
-  --line-2: #cfd4dc;
-  --hair: #eceef2;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 10px rgba(16, 24, 40, 0.05);
-  --shadow-lg: 0 6px 24px rgba(16, 24, 40, 0.1);
+  --surface-2: #f5eee5;
+  --ink: #2a2440;
+  --ink-2: #5d5672;
+  --ink-3: #958ea8;
+  --line: #eee5da;
+  --line-2: #dfd4c6;
+  --hair: #f3ece3;
+  --shadow: 0 1px 2px rgba(42, 36, 64, 0.04), 0 4px 14px rgba(42, 36, 64, 0.06);
+  --shadow-lg: 0 10px 30px rgba(42, 36, 64, 0.12);
 
-  --blue: #2563eb;
-  --blue-ink: #1d4ed8;
-  --blue-soft: #eaf0fe;
-  --on-blue: #ffffff;
-  --warn: #b45309;
-  --warn-soft: #fff4e2;
-  --green: #15803d;
-  --red: #dc2626;
-  --red-soft: #fdecec;
+  --accent: #ff6b5e;
+  --accent-ink: #e0483f;
+  --accent-soft: #ffece6;
+  --on-accent: #ffffff;
+  --grad: linear-gradient(135deg, #ffb347 0%, #ff6b6b 100%);
+  --grad-shadow: 0 6px 18px rgba(255, 107, 107, 0.35);
+  --warn: #b86200;
+  --warn-soft: #fff1da;
+  --green: #1f9d6b;
+  --red: #e5484d;
+  --red-soft: #fdeaea;
   --paper: #ffffff;
-  --paper-ink: #15171c;
+  --paper-ink: #2a2440;
 
   --font: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "Martian Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -39,21 +42,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #16171b;
-    --surface: #1f2126;
-    --surface-2: #2a2d33;
-    --ink: #eceef2;
-    --ink-2: #b4b9c2;
-    --ink-3: #868c97;
-    --line: #30333a;
-    --line-2: #40444c;
-    --hair: #2a2d33;
+    --bg: #1d1a26;
+    --surface: #282434;
+    --surface-2: #332e41;
+    --ink: #f4effa;
+    --ink-2: #c3bbd3;
+    --ink-3: #8f87a3;
+    --line: #3a3449;
+    --line-2: #4a4359;
+    --hair: #332e41;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 6px 24px rgba(0, 0, 0, 0.4);
-    --blue: #5b8cff;
-    --blue-ink: #8fb0ff;
-    --blue-soft: #1e2a45;
-    --on-blue: #0d1424;
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
+    --accent: #ff8a7a;
+    --accent-ink: #ffab9f;
+    --accent-soft: #46303a;
+    --on-accent: #ffffff;
     --warn: #f0b45a;
     --warn-soft: #3a2c16;
     --green: #4ade80;
@@ -63,21 +66,21 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #16171b;
-  --surface: #1f2126;
-  --surface-2: #2a2d33;
-  --ink: #eceef2;
-  --ink-2: #b4b9c2;
-  --ink-3: #868c97;
-  --line: #30333a;
-  --line-2: #40444c;
-  --hair: #2a2d33;
+  --bg: #1d1a26;
+  --surface: #282434;
+  --surface-2: #332e41;
+  --ink: #f4effa;
+  --ink-2: #c3bbd3;
+  --ink-3: #8f87a3;
+  --line: #3a3449;
+  --line-2: #4a4359;
+  --hair: #332e41;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 6px 24px rgba(0, 0, 0, 0.4);
-  --blue: #5b8cff;
-  --blue-ink: #8fb0ff;
-  --blue-soft: #1e2a45;
-  --on-blue: #0d1424;
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --accent: #ff8a7a;
+  --accent-ink: #ffab9f;
+  --accent-soft: #46303a;
+  --on-accent: #ffffff;
   --warn: #f0b45a;
   --warn-soft: #3a2c16;
   --green: #4ade80;
@@ -133,7 +136,7 @@ img {
   display: none !important;
 }
 :focus-visible {
-  outline: 3px solid var(--blue);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 .icon {
@@ -239,8 +242,8 @@ img {
   padding: 0 5px;
   border-radius: 999px;
   border: 2px solid var(--bg);
-  background: var(--blue);
-  color: var(--on-blue);
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
@@ -304,8 +307,8 @@ img {
 }
 .chip.accent {
   border-color: transparent;
-  background: var(--blue-soft);
-  color: var(--blue-ink);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 .chip.warn {
   border-color: transparent;
@@ -321,9 +324,9 @@ button.chip:active {
   transform: scale(0.96);
 }
 .chip.is-on {
-  background: var(--blue);
-  color: var(--on-blue);
-  border-color: var(--blue);
+  border-color: transparent;
+  background: var(--grad);
+  color: var(--on-accent);
 }
 .chips {
   display: flex;
@@ -357,8 +360,8 @@ button.chip:active {
   height: 13px;
 }
 .badge.accent {
-  background: var(--blue-soft);
-  color: var(--blue-ink);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 .badge.warn {
   background: var(--warn-soft);
@@ -438,9 +441,10 @@ button.chip:active {
   border-radius: 16px;
 }
 .btn.primary {
-  border-color: var(--blue);
-  background: var(--blue);
-  color: var(--on-blue);
+  border-color: transparent;
+  background: var(--grad);
+  color: var(--on-accent);
+  box-shadow: var(--grad-shadow);
 }
 .btn.danger {
   border-color: var(--red);
@@ -542,87 +546,12 @@ button.chip:active {
   color: var(--ink-2);
 }
 
-/* ---------- Card tiles (wallet list) ---------- */
 
-.tiles {
-  display: grid;
-  gap: 12px;
-}
-.tile {
-  --c: var(--blue);
-  --on: #ffffff;
-  display: grid;
-  grid-template-columns: 46px 1fr auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 72px;
-  padding: 12px 14px 12px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-  text-align: left;
-  animation: pop 0.3s ease-out both;
-  animation-delay: calc(var(--i, 0) * 30ms);
-  transition: transform 0.08s ease;
-}
-.tile:active {
-  transform: scale(0.98);
-}
 @keyframes pop {
   from {
     opacity: 0;
     transform: translateY(8px);
   }
-}
-.tile-icon {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: var(--c);
-  color: var(--on);
-}
-.tile-icon .icon {
-  width: 22px;
-  height: 22px;
-}
-.tile-text {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.tile-name {
-  font-weight: 650;
-  font-size: 17px;
-  line-height: 1.2;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow-wrap: anywhere;
-}
-.tile-sub {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--ink-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tile-end {
-  display: grid;
-  justify-items: end;
-  gap: 5px;
-}
-.tile-dist {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-3);
 }
 
 /* Small "usually now / nearest" tiles in the hero */
@@ -649,8 +578,8 @@ button.chip:active {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: var(--c, var(--blue-soft));
-  color: var(--on, var(--blue));
+  background: var(--c, var(--accent-soft));
+  color: var(--on, var(--accent));
 }
 .mini-swatch .icon {
   width: 20px;
@@ -717,7 +646,7 @@ button.chip:active {
   width: 100%;
   min-height: 120px;
   padding: 0;
-  color: #111114;
+  color: #2a2440;
   cursor: zoom-in;
 }
 .ticket-art.is-linear svg {
@@ -761,7 +690,7 @@ button.chip:active {
   border: 1px solid #dfe3e9;
   border-radius: 10px;
   background: #ffffff;
-  color: #15171c;
+  color: #2a2440;
   font-size: 13px;
   font-weight: 650;
 }
@@ -811,11 +740,11 @@ button.chip:active {
   transition: background-color 0.2s ease;
 }
 .tab.is-on {
-  color: var(--blue-ink);
+  color: var(--accent-ink);
 }
 .tab.is-on .tab-bubble {
-  background: var(--blue-soft);
-  color: var(--blue);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .tab-label {
   overflow: hidden;
@@ -827,14 +756,14 @@ button.chip:active {
   display: grid;
   place-items: center;
   flex: none;
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   margin: 0 6px;
   border-radius: 50%;
-  background: var(--blue);
-  color: var(--on-blue);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
-  transition: transform 0.15s ease;
+  background: var(--grad);
+  color: var(--on-accent);
+  box-shadow: var(--grad-shadow);
+  transition: transform 0.15s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 .tab-add .icon {
   width: 26px;
@@ -997,9 +926,10 @@ button.chip:active {
   place-items: center;
   width: 52px;
   height: 52px;
-  border-radius: 50%;
-  background: var(--blue-soft);
-  color: var(--blue);
+  border-radius: 16px;
+  background: linear-gradient(140deg, var(--c1, #ffb347), var(--c2, #ff6b6b));
+  color: var(--ci, #ffffff);
+  box-shadow: 0 4px 12px var(--cs, rgba(255, 107, 107, 0.3));
 }
 .choice-icon .icon {
   width: 26px;
@@ -1045,8 +975,8 @@ button.chip:active {
   appearance: none;
 }
 .input:focus {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px var(--blue-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .input.mono {
   font-family: var(--mono);
@@ -1171,13 +1101,13 @@ input[type="date"].input {
   transition: transform 0.2s ease;
 }
 .switch-input:checked + .switch {
-  background: var(--blue);
+  background: var(--accent);
 }
 .switch-input:checked + .switch::after {
   transform: translateX(20px);
 }
 .switch-input:focus-visible + .switch {
-  outline: 3px solid var(--blue);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 .swatches {
@@ -1196,14 +1126,14 @@ input[type="date"].input {
 .swatch.is-on {
   box-shadow:
     0 0 0 3px var(--bg),
-    0 0 0 5px var(--blue);
+    0 0 0 5px var(--accent);
 }
 .swatch-pick {
   display: grid;
   place-items: center;
   overflow: hidden;
   background: conic-gradient(#ff4f9a, #ffd23f, #c8f542, #13c27a, #2f5bff, #7a5cff, #ff4f9a);
-  color: #111114;
+  color: #2a2440;
   cursor: pointer;
 }
 .swatch-pick input {
@@ -1235,9 +1165,9 @@ input[type="date"].input {
   text-align: center;
 }
 .cat.is-on {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-  color: var(--blue-ink);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 details.more {
   border: 1px solid var(--line);
@@ -1284,17 +1214,14 @@ details.more[open] > summary .icon {
   margin: 0;
   padding: 12px 14px;
   border-radius: 14px;
-  background: var(--blue-soft);
-  color: var(--blue-ink);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   font-size: 14px;
   font-weight: 600;
 }
 .ai-note .icon {
   width: 18px;
   height: 18px;
-}
-.preview-tile {
-  pointer-events: none;
 }
 
 /* ---------- Stamps, points, progress ---------- */
@@ -1319,8 +1246,8 @@ details.more[open] > summary .icon {
 }
 .stamp.on {
   border: 0;
-  background: var(--blue);
-  color: var(--on-blue);
+  background: var(--grad);
+  color: var(--on-accent);
 }
 .stamp.new {
   animation: stamp 0.45s cubic-bezier(0.3, 1.6, 0.4, 1);
@@ -1332,9 +1259,9 @@ details.more[open] > summary .icon {
   }
 }
 .stamp.goal {
-  border: 1.5px solid var(--blue);
-  background: var(--blue-soft);
-  color: var(--blue);
+  border: 1.5px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .bar {
   height: 10px;
@@ -1346,7 +1273,7 @@ details.more[open] > summary .icon {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--blue);
+  background: var(--grad);
   transition: width 0.5s ease;
 }
 .bignum {
@@ -1412,10 +1339,9 @@ details.more[open] > summary .icon {
   display: grid;
   place-items: center;
   padding: 10px 6px;
-  border-right: 1px dashed var(--line-2);
-  background: var(--blue-soft);
-  color: var(--blue-ink);
-  font-weight: 700;
+  background: linear-gradient(140deg, var(--c1, #ffb347), var(--c2, #ff6b6b));
+  color: var(--ci, #ffffff);
+  font-weight: 750;
   font-size: 22px;
   line-height: 1.05;
   text-align: center;
@@ -1458,7 +1384,13 @@ details.more[open] > summary .icon {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--c, var(--blue));
+  background: var(--c2, var(--accent));
+}
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
 }
 .coupon-meta {
   display: flex;
@@ -1481,11 +1413,14 @@ details.more[open] > summary .icon {
   width: 270px;
 }
 .big-discount {
-  font-weight: 700;
+  font-weight: 750;
   font-size: clamp(44px, 14vw, 64px);
   line-height: 1;
   letter-spacing: -0.03em;
-  color: var(--blue);
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   overflow-wrap: anywhere;
 }
 
@@ -1577,7 +1512,7 @@ details.more[open] > summary .icon {
   height: 100%;
   min-width: 4px;
   border-radius: 0 4px 4px 0;
-  background: var(--blue);
+  background: var(--accent);
   transform-origin: left center;
   animation: grow 0.6s cubic-bezier(0.2, 1, 0.3, 1) both;
 }
@@ -1606,11 +1541,11 @@ details.more[open] > summary .icon {
   font-weight: 700;
 }
 .trend .col {
-  fill: var(--blue);
+  fill: var(--accent);
   opacity: 0.25;
 }
 .trend .col.is-now {
-  fill: var(--blue);
+  fill: var(--accent);
   opacity: 1;
 }
 .trend .col.is-sel {
@@ -1627,8 +1562,8 @@ details.more[open] > summary .icon {
   max-width: 70%;
   padding: 4px 10px;
   border-radius: 10px;
-  background: var(--ink);
-  color: var(--bg);
+  background: #3b3350;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -1685,8 +1620,8 @@ details.more[open] > summary .icon {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--c, var(--blue-soft));
-  color: var(--on, var(--blue));
+  background: var(--c, var(--accent-soft));
+  color: var(--on, var(--accent));
 }
 .li-icon .icon {
   width: 19px;
@@ -1735,8 +1670,8 @@ details.more[open] > summary .icon {
   height: 30px;
   flex: none;
   border-radius: 50%;
-  background: var(--blue-soft);
-  color: var(--blue);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 700;
 }
 .art-cards {
@@ -1755,17 +1690,17 @@ details.more[open] > summary .icon {
 }
 .art-cards span:nth-child(1) {
   top: 22px;
-  background: var(--blue-soft);
+  background: linear-gradient(135deg, #9fa8ff, #6c63ff);
   transform: translateX(-96%) rotate(-12deg);
 }
 .art-cards span:nth-child(2) {
   top: 6px;
-  background: var(--surface);
+  background: linear-gradient(135deg, #3dd68c, #0e9f6e);
   transform: translateX(-50%) rotate(3deg);
 }
 .art-cards span:nth-child(3) {
   top: 26px;
-  background: var(--blue);
+  background: linear-gradient(135deg, #ffb347, #ff6b6b);
   transform: translateX(-4%) rotate(14deg);
 }
 
@@ -1825,8 +1760,8 @@ details.more[open] > summary .icon {
 }
 .msg.me {
   justify-self: end;
-  background: var(--blue);
-  color: var(--on-blue);
+  background: var(--grad);
+  color: var(--on-accent);
   border-bottom-right-radius: 6px;
 }
 .msg.ai {
@@ -1892,7 +1827,7 @@ details.more[open] > summary .icon {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--c, var(--blue));
+  background: var(--c, var(--accent));
 }
 .saved-chip {
   display: inline-flex;
@@ -1901,8 +1836,8 @@ details.more[open] > summary .icon {
   margin-top: 8px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--blue-soft);
-  color: var(--blue-ink);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1943,15 +1878,16 @@ details.more[open] > summary .icon {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: var(--blue);
-  color: var(--on-blue);
+  background: var(--grad);
+  color: var(--on-accent);
+  box-shadow: var(--grad-shadow);
 }
 .orb {
   display: inline-block;
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #8fb0ff, var(--blue) 70%);
+  background: radial-gradient(circle at 35% 35%, #ffd08a, #ff6b6b 75%);
   flex: none;
 }
 .orb.big {
@@ -1991,8 +1927,8 @@ details.more[open] > summary .icon {
   top: 50%;
   height: 3px;
   border-radius: 3px;
-  background: #5b8cff;
-  box-shadow: 0 0 14px 3px rgba(91, 140, 255, 0.6);
+  background: #ffb347;
+  box-shadow: 0 0 14px 3px rgba(255, 179, 71, 0.6);
   animation: sweep 2s ease-in-out infinite;
 }
 @keyframes sweep {
@@ -2020,7 +1956,7 @@ details.more[open] > summary .icon {
 }
 .scan-top .ibtn.is-on {
   background: #ffffff;
-  color: #111114;
+  color: #2a2440;
 }
 .scan-title {
   margin: 0;
@@ -2146,7 +2082,7 @@ details.more[open] > summary .icon {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -100%);
-  color: var(--blue);
+  color: var(--accent);
   pointer-events: none;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
 }
@@ -2171,7 +2107,7 @@ details.more[open] > summary .icon {
 }
 .mk.branch {
   background: #ffffff;
-  color: #15171c;
+  color: #2a2440;
   box-shadow:
     inset 0 0 0 4px var(--c),
     0 1px 4px rgba(0, 0, 0, 0.3);
@@ -2182,15 +2118,15 @@ details.more[open] > summary .icon {
   height: 20px;
   border: 3px solid #ffffff;
   border-radius: 50%;
-  background: #2563eb;
+  background: #ff6b5e;
   box-shadow:
-    0 0 0 6px rgba(37, 99, 235, 0.22),
+    0 0 0 6px rgba(255, 107, 94, 0.22),
     0 2px 6px rgba(0, 0, 0, 0.3);
 }
 .me-acc {
-  fill: #2563eb;
+  fill: #ff6b5e;
   fill-opacity: 0.1;
-  stroke: #2563eb;
+  stroke: #ff6b5e;
   stroke-opacity: 0.4;
   stroke-width: 1;
 }
@@ -2230,7 +2166,7 @@ details.more[open] > summary .icon {
   justify-items: center;
   padding: calc(var(--safe-t) + 16px) 16px calc(var(--safe-b) + 16px);
   background: #ffffff;
-  color: #111114;
+  color: #2a2440;
   cursor: zoom-out;
   animation: fade 0.15s ease;
 }
@@ -2288,7 +2224,7 @@ details.more[open] > summary .icon {
   max-width: calc(100vw - 28px);
   padding: 10px 10px 10px 18px;
   border-radius: 14px;
-  background: #2a2d34;
+  background: #3b3350;
   color: #ffffff;
   font-weight: 600;
   box-shadow: var(--shadow-lg);
@@ -2308,8 +2244,8 @@ details.more[open] > summary .icon {
   min-height: 36px;
   padding: 0 12px;
   border-radius: 10px;
-  background: transparent;
-  color: #8fb0ff;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffd2a6;
   font-weight: 700;
 }
 
@@ -2346,6 +2282,431 @@ details.more[open] > summary .icon {
   padding: 40px 24px;
   color: var(--red);
   font-weight: 600;
+}
+
+/* ---------- Wallet cards ---------- */
+
+/* Cards stack like in a real wallet: each one shows its top strip (name, what's on it,
+   logo, small pills); the last one is shown whole. Colours come from js/look.js. */
+.wstack {
+  display: grid;
+  padding: 4px 0 10px;
+}
+.wcard {
+  --c1: #ffb347;
+  --c2: #ff6b6b;
+  --ci: #ffffff;
+  --cs: rgba(255, 107, 107, 0.35);
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  width: 100%;
+  min-height: 150px;
+  padding: 14px 16px 14px 18px;
+  border: 0;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  color: var(--ci);
+  box-shadow:
+    0 -4px 16px rgba(42, 36, 64, 0.08),
+    0 10px 24px var(--cs);
+  text-align: left;
+  overflow: hidden;
+  isolation: isolate;
+}
+.wcard::after {
+  /* A soft shine, like a printed plastic card. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 92% -20%, rgba(255, 255, 255, 0.38), transparent 46%),
+    radial-gradient(circle at -10% 120%, rgba(255, 255, 255, 0.16), transparent 40%);
+  pointer-events: none;
+}
+.wstack .wcard {
+  animation: deal 0.42s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+  transition: transform 0.18s ease;
+}
+.wstack .wcard + .wcard {
+  margin-top: -54px;
+}
+.wstack .wcard:active {
+  transform: translateY(-6px);
+}
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+}
+.wcard-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wcard-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.wcard-name {
+  margin: 0;
+  color: inherit;
+  font-weight: 750;
+  font-size: 20px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wcard-sub {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.92;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wpills {
+  display: flex;
+  gap: 6px;
+  overflow: hidden;
+}
+.wpill,
+.wchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.26);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.wpill .icon {
+  width: 13px;
+  height: 13px;
+}
+.wpill.warn {
+  background: #ffffff;
+  color: var(--warn);
+}
+.wpill .pulse,
+.wchip .pulse {
+  width: 7px;
+  height: 7px;
+}
+.wchip {
+  justify-self: start;
+  height: 26px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+}
+.wcard.big {
+  min-height: 0;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 26px;
+}
+.wcard.big .wcard-name {
+  font-size: clamp(24px, 7vw, 30px);
+  line-height: 1.08;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.wcard.preview,
+.wcard.mini-card {
+  min-height: 96px;
+  pointer-events: none;
+}
+.wcard .ticket {
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 6px 16px rgba(42, 36, 64, 0.12);
+}
+.wcard .ticket::before,
+.wcard .ticket::after {
+  display: none;
+}
+.wcard .seg {
+  background: rgba(255, 255, 255, 0.24);
+}
+.wcard .seg button {
+  color: inherit;
+}
+.wcard .seg button.is-on {
+  background: #ffffff;
+  color: #2a2440;
+}
+.wcard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform 0.1s ease;
+}
+.wbtn .icon {
+  width: 17px;
+  height: 17px;
+}
+.wbtn.strong {
+  background: #ffffff;
+  color: #2a2440;
+  box-shadow: 0 4px 10px rgba(42, 36, 64, 0.12);
+}
+.wbtn:active {
+  transform: scale(0.95);
+}
+.wcard-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+.wcard-tip .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.wcard .ticket-num {
+  font-size: 15px;
+}
+.wcard .ticket-copy {
+  min-height: 34px;
+  padding: 0 10px;
+  flex: none;
+}
+.wpill .pulse::after,
+.wchip .pulse::after {
+  inset: -3px;
+  border-width: 1.5px;
+}
+
+/* Logos: white round badge with the shop's icon, or the category icon on glass. */
+.logo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2a2440;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(42, 36, 64, 0.16);
+}
+.logo img {
+  display: block;
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+.logo img[src^="data:"] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.logo.is-icon {
+  background: rgba(255, 255, 255, 0.26);
+  color: inherit;
+  box-shadow: none;
+}
+.logo .icon {
+  width: 22px;
+  height: 22px;
+}
+.logo.lg {
+  width: 54px;
+  height: 54px;
+}
+.logo.lg .icon {
+  width: 27px;
+  height: 27px;
+}
+.mini-logo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--c1, #ffb347), var(--c2, #ff6b6b));
+  color: var(--ci, #ffffff);
+}
+.mini-logo .logo {
+  width: 34px;
+  height: 34px;
+  box-shadow: none;
+}
+.mini-logo .logo .icon {
+  width: 19px;
+  height: 19px;
+}
+.logo-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------- Promo codes and gift card bits ---------- */
+
+.promos {
+  display: grid;
+  gap: 8px;
+}
+.promo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.promo-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: left;
+}
+.promo-badge {
+  display: grid;
+  place-items: center;
+  min-width: 56px;
+  height: 42px;
+  padding: 0 9px;
+  border-radius: 12px;
+  background: linear-gradient(140deg, var(--c1, #ffb347), var(--c2, #ff6b6b));
+  color: var(--ci, #ffffff);
+  font-weight: 750;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.promo-badge .icon {
+  width: 20px;
+  height: 20px;
+}
+.promo-text {
+  display: grid;
+  min-width: 0;
+}
+.promo-title {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.promo-code {
+  color: var(--ink-2);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.promo-copy {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  border-left: 1px dashed var(--line-2);
+  color: var(--accent-ink);
+}
+.promo-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 16px;
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 2px;
+  color: var(--accent-ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.link-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+.pin-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.pin-row.on-card {
+  background: rgba(255, 255, 255, 0.24);
+  color: inherit;
+}
+.pin-label {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.pin-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+}
+.pin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #2a2440;
+  font-size: 13px;
+  font-weight: 700;
+}
+.pin-btn .icon {
+  width: 16px;
+  height: 16px;
+}
+.hist {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hair);
 }
 
 @media (prefers-reduced-motion: reduce) {

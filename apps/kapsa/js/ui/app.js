@@ -5,14 +5,17 @@
 import { rankCards } from "../geo.js";
 import { detectLang, getLang, setLang, t } from "../i18n.js";
 import { currentRoute, onRoute, replace } from "../nav.js";
-import { collectReminders, notifyNew } from "../reminders.js";
-import { extraPlaces, habitScores, state, subscribe } from "../state.js";
+import { dwellPending, dwellStep, emptyDwell } from "../dwell.js";
+import { keepLocationFor } from "../location.js";
+import { collectReminders, notifyNew, showNotice } from "../reminders.js";
+import { extraPlaces, getCard, habitScores, state, subscribe } from "../state.js";
 import { kv } from "../store.js";
 import { buzz } from "../util.js";
 import { AssistantTab } from "./assistant.js";
 import { CardPage } from "./cardpage.js";
 import { EditCardPage, NewCardSheet } from "./cardform.js";
 import { EditCouponPage, NewCouponSheet } from "./couponform.js";
+import { PaySheet, PromoSheet, activeCouponsFor, giftLine } from "./gift.js";
 import { CouponPage, CouponsTab } from "./coupons.js";
 import { Icon, Toasts, html, toast } from "./kit.js";
 import { LogSheet } from "./logsheet.js";
@@ -45,6 +48,8 @@ export function App() {
   const visited = useRef(new Set(["wallet"]));
   const lastHere = useRef(/** @type {string | null} */ (null));
   const notified = useRef(/** @type {Set<string> | null} */ (null));
+  const dwell = useRef(emptyDwell());
+  const hereIds = useRef(/** @type {string[]} */ ([]));
 
   useEffect(() => subscribe(bump), []);
   useEffect(() => onRoute(setRoute), []);
@@ -85,6 +90,26 @@ export function App() {
     lastHere.current = id;
   }, [here?.card.id]);
 
+  // In a shop with a card for a couple of minutes: remind to use it (once per visit).
+  hereIds.current = rows.filter((r) => r.here).map((r) => r.card.id);
+  const dwellTick = useRef(() => {});
+  dwellTick.current = () => {
+    if (!state.settings.dwell) {
+      return;
+    }
+    const thresholdMs = (state.settings.dwellMin || 2) * 60_000;
+    const now = Date.now();
+    const { next, due } = dwellStep(dwell.current, { hereIds: hereIds.current, now, thresholdMs });
+    dwell.current = next;
+    keepLocationFor(dwellPending(next, now, thresholdMs) ? thresholdMs + 30_000 : 0);
+    due.forEach(remindToUse);
+  };
+  useEffect(() => {
+    const timer = window.setInterval(() => dwellTick.current(), 10_000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => dwellTick.current(), [hereIds.current.join("|")]);
+
   // Phone notifications for new reminders (each one once), when turned on.
   useEffect(() => {
     if (!state.settings.notifications || !reminders.length) {
@@ -124,6 +149,24 @@ export function App() {
     ${sheet ? html`<${SheetView} key=${`${sheet.name}-${sheet.id ?? ""}`} sheet=${sheet} />` : null}
     <${Toasts} />
   </div>`;
+}
+
+/** "You've been at Bageterie for 2 minutes: show your card." */
+function remindToUse(cardId) {
+  const card = getCard(cardId);
+  if (!card) {
+    return;
+  }
+  const coupons = activeCouponsFor(card).length;
+  const extras = [giftLine(card), coupons ? t("w.coupons", { n: coupons }) : "", card.stamps ? t("w.stampsLine", { n: card.stamps.count, g: card.stamps.goal }) : ""].filter(Boolean);
+  const title = t("dwell.title", { name: card.name });
+  const body = extras.length ? `${t("dwell.body")} ${extras.join(" · ")}` : t("dwell.body");
+  buzz([40, 80, 40]);
+  if (document.visibilityState === "visible") {
+    toast(title, { action: t("dwell.show"), ms: 12_000, onAction: () => go(`#card-${card.id}`) });
+  } else {
+    showNotice({ title, body, url: `#card-${card.id}`, tag: `dwell:${card.id}` });
+  }
 }
 
 function Tab({ d, on }) {
@@ -176,6 +219,12 @@ function SheetView({ sheet }) {
       return html`<${AddSheet} />`;
     case "scan":
       return html`<${NewCardSheet} />`;
+    case "gift":
+      return html`<${NewCardSheet} kind="gift" />`;
+    case "pay":
+      return html`<${PaySheet} id=${sheet.id} />`;
+    case "promo":
+      return html`<${PromoSheet} id=${sheet.id} />`;
     case "newc":
       return html`<${NewCouponSheet} />`;
     case "log":

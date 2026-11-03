@@ -1,5 +1,5 @@
-// Reminders: what needs attention (expiring coupons and cards, rewards ready,
-// coupons for the shop you're in). `collectReminders` is pure and unit tested;
+// Reminders: what needs attention (expiring coupons, cards and gift cards, rewards
+// ready, coupons and gift cards for the shop you're in). `collectReminders` is pure and unit tested;
 // the rest shows system notifications where the phone allows it.
 
 import { expiryStatus } from "./model.js";
@@ -11,7 +11,7 @@ const DAY = 86_400_000;
  *   cards: Array<any>, coupons: Array<any>, now: number, days: number,
  *   hereCardIds?: string[]
  * }} input
- * @returns {Array<{ id: string, kind: "coupon-expiring" | "coupon-expired" | "card-expiring" | "card-expired" | "reward" | "coupon-here" | "points-goal", ref: string, days?: number, title: string, color?: string }>}
+ * @returns {Array<{ id: string, kind: "coupon-expiring" | "coupon-expired" | "card-expiring" | "card-expired" | "reward" | "coupon-here" | "points-goal" | "gift-here" | "gift-expiring" | "gift-expired", ref: string, days?: number, title: string, color?: string, amount?: number }>}
  */
 export function collectReminders({ cards, coupons, now, days, hereCardIds = [] }) {
   const out = [];
@@ -37,6 +37,25 @@ export function collectReminders({ cards, coupons, now, days, hereCardIds = [] }
   }
   for (const card of cards) {
     const exp = expiryStatus(card.expiry, now);
+    if (card.kind === "gift") {
+      // Money on a gift card: remind earlier (two weeks), and only while some is left.
+      const amount = card.balance ?? 0;
+      if (amount <= 0) {
+        continue;
+      }
+      const base = { ref: card.id, title: card.name, color: card.color, amount };
+      if (exp?.state === "expired") {
+        if (now - new Date(`${card.expiry}T23:59:59`).getTime() < 7 * DAY) {
+          out.push({ id: `gx:${card.id}`, kind: "gift-expired", ...base });
+        }
+      } else if (exp && exp.days <= Math.max(days, 14)) {
+        out.push({ id: `ge:${card.id}:${card.expiry}`, kind: "gift-expiring", days: exp.days, ...base });
+      }
+      if (here.has(card.id) && exp?.state !== "expired") {
+        out.push({ id: `gh:${card.id}`, kind: "gift-here", ...base });
+      }
+      continue;
+    }
     if (exp?.state === "expired") {
       out.push({ id: `kx:${card.id}`, kind: "card-expired", ref: card.id, title: card.name, color: card.color });
     } else if (exp && exp.days <= Math.max(days, 7)) {
@@ -49,7 +68,18 @@ export function collectReminders({ cards, coupons, now, days, hereCardIds = [] }
       out.push({ id: `pg:${card.id}:${card.pointsGoal}`, kind: "points-goal", ref: card.id, title: card.name, color: card.color });
     }
   }
-  const order = { "coupon-here": 0, reward: 1, "points-goal": 2, "coupon-expiring": 3, "card-expiring": 4, "coupon-expired": 5, "card-expired": 6 };
+  const order = {
+    "coupon-here": 0,
+    "gift-here": 1,
+    reward: 2,
+    "points-goal": 3,
+    "gift-expiring": 4,
+    "coupon-expiring": 5,
+    "card-expiring": 6,
+    "gift-expired": 7,
+    "coupon-expired": 8,
+    "card-expired": 9,
+  };
   out.sort((a, b) => order[a.kind] - order[b.kind] || (a.days ?? 99) - (b.days ?? 99));
   return out;
 }
@@ -110,6 +140,34 @@ export async function notifyNew(reminders, seen, format) {
     }
   }
   return shown;
+}
+
+/**
+ * One phone notification right now. Returns false when not allowed.
+ * @param {{ title: string, body: string, url: string, tag: string }} n
+ */
+export async function showNotice(n) {
+  if (!notificationsSupported() || Notification.permission !== "granted") {
+    return false;
+  }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      return false;
+    }
+    await reg.showNotification(n.title, {
+      body: n.body,
+      tag: n.tag,
+      icon: "icons/icon-192.png",
+      badge: "icons/icon-192.png",
+      data: { url: n.url },
+      // @ts-ignore: vibration pattern is supported on Android.
+      vibrate: [40, 80, 40],
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Ask Chrome (Android, installed app) to wake the app daily to check for expiring coupons. */

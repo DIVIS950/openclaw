@@ -10,7 +10,8 @@ import { go, replace } from "../nav.js";
 import { scanImageFile } from "../scanner.js";
 import { getCoupon, saveCoupon, state } from "../state.js";
 import { buzz } from "../util.js";
-import { Icon, Page, Sheet, html, tint, toast } from "./kit.js";
+import { cardLook } from "../look.js";
+import { Icon, Page, Sheet, html, toast } from "./kit.js";
 import { Scanner } from "./scanner.js";
 import { useRef, useState } from "../../vendor/preact.js";
 
@@ -197,7 +198,7 @@ function CouponForm({ mode, prefill }) {
                   setShop("");
                 }}
               >
-                <span style=${{ ...tint(c.color), width: "12px", height: "12px", borderRadius: "4px", border: "2px solid var(--line)", background: c.color }}></span>${c.name}
+                <span class="dot" style=${{ background: cardLook(c).to }}></span>${c.name}
               </button>`,
             )}
           </div>`

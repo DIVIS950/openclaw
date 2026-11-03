@@ -1,5 +1,5 @@
-// Shop categories and well-known chains (names and colours only, no logos).
-// Colours are close to each chain's own colour so the card is easy to spot.
+// Shop categories and well-known chains: name, colour and website (the logo is the
+// website's icon, loaded only when the person allows it in Settings).
 
 export const CATEGORIES = [
   { id: "bakery", icon: "croissant" },
@@ -23,76 +23,76 @@ export function categoryIcon(id) {
 
 /** Colour swatches offered for cards without a known brand. */
 export const SWATCHES = [
-  "#1F2430",
-  "#7A4A2B",
-  "#C8102E",
-  "#E8590C",
-  "#F2C200",
-  "#2F9E44",
-  "#0B7A75",
-  "#1C7ED6",
-  "#2B44D6",
-  "#6741D9",
-  "#C2255C",
+  "#FF6B6B",
+  "#FF9F43",
+  "#FFC93C",
+  "#2FCB86",
+  "#14B8A6",
+  "#3D9BFF",
+  "#3D6BFF",
+  "#7B5CFF",
+  "#C04DE0",
+  "#E0457B",
+  "#C9875A",
   "#E6E1D6",
 ];
 
 /**
- * @typedef {{ name: string, color: string, category: string, aliases?: string[] }} Brand
+ * @typedef {{ name: string, domain: string, color: string, category: string, aliases?: string[] }} Brand
  * @type {Brand[]}
  */
 export const BRANDS = [
-  { name: "Bageterie Boulevard", color: "#1E1E1E", category: "bakery" },
-  { name: "Paul", color: "#2B2A29", category: "bakery" },
-  { name: "Ugo", color: "#E4007C", category: "food", aliases: ["Ugo Fresh"] },
-  { name: "Albert", color: "#003C8F", category: "grocery", aliases: ["Albert Supermarket", "Albert Hypermarket"] },
-  { name: "Billa", color: "#FFE500", category: "grocery" },
-  { name: "Lidl", color: "#0050AA", category: "grocery" },
-  { name: "Kaufland", color: "#E10915", category: "grocery" },
-  { name: "Tesco", color: "#00539F", category: "grocery", aliases: ["Tesco Express", "Tesco Extra"] },
-  { name: "Penny", color: "#CD1414", category: "grocery", aliases: ["Penny Market"] },
-  { name: "Globus", color: "#007A3D", category: "grocery" },
-  { name: "Coop", color: "#00843D", category: "grocery", aliases: ["COOP Tuty", "COOP Jednota"] },
-  { name: "Žabka", color: "#2C8B39", category: "grocery" },
-  { name: "Rohlik", color: "#5BA829", category: "grocery", aliases: ["Rohlík"] },
-  { name: "Starbucks", color: "#00704A", category: "coffee" },
-  { name: "Costa Coffee", color: "#6D1F37", category: "coffee" },
-  { name: "Café Café", color: "#3B2418", category: "coffee", aliases: ["Cafe Cafe"] },
-  { name: "McDonald's", color: "#DA291C", category: "food" },
-  { name: "KFC", color: "#A3080C", category: "food" },
-  { name: "Burger King", color: "#D62300", category: "food" },
-  { name: "dm", color: "#1D3A8A", category: "beauty", aliases: ["dm drogerie markt"] },
-  { name: "Rossmann", color: "#C3002F", category: "beauty" },
-  { name: "Teta", color: "#E2007A", category: "beauty", aliases: ["Teta drogerie"] },
-  { name: "Notino", color: "#111111", category: "beauty" },
-  { name: "Sephora", color: "#101010", category: "beauty" },
-  { name: "Douglas", color: "#9BDCD2", category: "beauty" },
-  { name: "Dr.Max", color: "#00315F", category: "pharmacy", aliases: ["Dr. Max", "Lékárna Dr.Max"] },
-  { name: "Benu", color: "#00A651", category: "pharmacy", aliases: ["BENU Lékárna", "Lékárna BENU"] },
-  { name: "Pilulka", color: "#E5007D", category: "pharmacy" },
-  { name: "H&M", color: "#E50010", category: "fashion" },
-  { name: "Reserved", color: "#1A1A1A", category: "fashion" },
-  { name: "Pepco", color: "#0047BB", category: "fashion" },
-  { name: "Deichmann", color: "#00843D", category: "fashion" },
-  { name: "CCC", color: "#B4121B", category: "fashion" },
-  { name: "Tchibo", color: "#1D2C4C", category: "home" },
-  { name: "Decathlon", color: "#0082C3", category: "sport" },
-  { name: "Sportisimo", color: "#E30613", category: "sport" },
-  { name: "Hervis", color: "#D4001A", category: "sport" },
-  { name: "IKEA", color: "#0058A3", category: "home" },
-  { name: "Hornbach", color: "#F7931E", category: "home" },
-  { name: "OBI", color: "#FF7E21", category: "home" },
-  { name: "Bauhaus", color: "#DA2128", category: "home" },
-  { name: "JYSK", color: "#143C8A", category: "home" },
-  { name: "Action", color: "#004B93", category: "home" },
-  { name: "Datart", color: "#E2001A", category: "electronics" },
-  { name: "Alza", color: "#21A9E1", category: "electronics", aliases: ["AlzaBox", "Alza.cz"] },
-  { name: "Electro World", color: "#00A0E3", category: "electronics" },
-  { name: "Shell", color: "#FFD500", category: "fuel" },
-  { name: "OMV", color: "#0A3C78", category: "fuel" },
-  { name: "MOL", color: "#E30613", category: "fuel" },
-  { name: "Orlen", color: "#E3000F", category: "fuel", aliases: ["Benzina", "Benzina Orlen"] },
-  { name: "Lukoil", color: "#D7001E", category: "fuel" },
+  { name: "Bageterie Boulevard", domain: "bb.cz", color: "#1E1E1E", category: "bakery" },
+  { name: "Paul", domain: "paul.fr", color: "#2B2A29", category: "bakery" },
+  { name: "Ugo", domain: "ugo.cz", color: "#E4007C", category: "food", aliases: ["Ugo Fresh"] },
+  { name: "Albert", domain: "albert.cz", color: "#003C8F", category: "grocery", aliases: ["Albert Supermarket", "Albert Hypermarket"] },
+  { name: "Billa", domain: "billa.cz", color: "#FFE500", category: "grocery" },
+  { name: "Lidl", domain: "lidl.cz", color: "#0050AA", category: "grocery" },
+  { name: "Kaufland", domain: "kaufland.cz", color: "#E10915", category: "grocery" },
+  { name: "Tesco", domain: "itesco.cz", color: "#00539F", category: "grocery", aliases: ["Tesco Express", "Tesco Extra"] },
+  { name: "Penny", domain: "penny.cz", color: "#CD1414", category: "grocery", aliases: ["Penny Market"] },
+  { name: "Globus", domain: "globus.cz", color: "#007A3D", category: "grocery" },
+  { name: "Coop", domain: "coop.cz", color: "#00843D", category: "grocery", aliases: ["COOP Tuty", "COOP Jednota"] },
+  { name: "Žabka", domain: "zabka.cz", color: "#2C8B39", category: "grocery" },
+  { name: "Rohlik", domain: "rohlik.cz", color: "#5BA829", category: "grocery", aliases: ["Rohlík"] },
+  { name: "Starbucks", domain: "starbucks.com", color: "#00704A", category: "coffee" },
+  { name: "Costa Coffee", domain: "costa.co.uk", color: "#6D1F37", category: "coffee" },
+  { name: "Café Café", domain: "cafecafe.cz", color: "#3B2418", category: "coffee", aliases: ["Cafe Cafe"] },
+  { name: "McDonald's", domain: "mcdonalds.cz", color: "#DA291C", category: "food" },
+  { name: "KFC", domain: "kfc.cz", color: "#A3080C", category: "food" },
+  { name: "Burger King", domain: "burgerking.cz", color: "#D62300", category: "food" },
+  { name: "dm", domain: "dm.cz", color: "#1D3A8A", category: "beauty", aliases: ["dm drogerie markt"] },
+  { name: "Rossmann", domain: "rossmann.cz", color: "#C3002F", category: "beauty" },
+  { name: "Teta", domain: "tetadrogerie.cz", color: "#E2007A", category: "beauty", aliases: ["Teta drogerie"] },
+  { name: "Notino", domain: "notino.cz", color: "#111111", category: "beauty" },
+  { name: "Sephora", domain: "sephora.cz", color: "#101010", category: "beauty" },
+  { name: "Douglas", domain: "douglas.cz", color: "#9BDCD2", category: "beauty" },
+  { name: "Dr.Max", domain: "drmax.cz", color: "#00315F", category: "pharmacy", aliases: ["Dr. Max", "Lékárna Dr.Max"] },
+  { name: "Benu", domain: "benu.cz", color: "#00A651", category: "pharmacy", aliases: ["BENU Lékárna", "Lékárna BENU"] },
+  { name: "Pilulka", domain: "pilulka.cz", color: "#E5007D", category: "pharmacy" },
+  { name: "H&M", domain: "hm.com", color: "#E50010", category: "fashion" },
+  { name: "Reserved", domain: "reserved.com", color: "#1A1A1A", category: "fashion" },
+  { name: "Pepco", domain: "pepco.cz", color: "#0047BB", category: "fashion" },
+  { name: "Deichmann", domain: "deichmann.com", color: "#00843D", category: "fashion" },
+  { name: "CCC", domain: "ccc.eu", color: "#B4121B", category: "fashion" },
+  { name: "Tchibo", domain: "tchibo.cz", color: "#1D2C4C", category: "home" },
+  { name: "Decathlon", domain: "decathlon.cz", color: "#0082C3", category: "sport" },
+  { name: "Sportisimo", domain: "sportisimo.cz", color: "#E30613", category: "sport" },
+  { name: "Hervis", domain: "hervis.cz", color: "#D4001A", category: "sport" },
+  { name: "IKEA", domain: "ikea.com", color: "#0058A3", category: "home" },
+  { name: "Hornbach", domain: "hornbach.cz", color: "#F7931E", category: "home" },
+  { name: "OBI", domain: "obi.cz", color: "#FF7E21", category: "home" },
+  { name: "Bauhaus", domain: "bauhaus.cz", color: "#DA2128", category: "home" },
+  { name: "JYSK", domain: "jysk.cz", color: "#143C8A", category: "home" },
+  { name: "Action", domain: "action.com", color: "#004B93", category: "home" },
+  { name: "Datart", domain: "datart.cz", color: "#E2001A", category: "electronics" },
+  { name: "Alza", domain: "alza.cz", color: "#21A9E1", category: "electronics", aliases: ["AlzaBox", "Alza.cz"] },
+  { name: "Electro World", domain: "electroworld.cz", color: "#00A0E3", category: "electronics" },
+  { name: "Shell", domain: "shell.cz", color: "#FFD500", category: "fuel" },
+  { name: "OMV", domain: "omv.cz", color: "#0A3C78", category: "fuel" },
+  { name: "MOL", domain: "molcesko.cz", color: "#E30613", category: "fuel" },
+  { name: "Orlen", domain: "orlen.cz", color: "#E3000F", category: "fuel", aliases: ["Benzina", "Benzina Orlen"] },
+  { name: "Lukoil", domain: "lukoil.com", color: "#D7001E", category: "fuel" },
 ];
 
 /**
@@ -204,4 +204,41 @@ export function inkFor(hex) {
   const vsWhite = 1.05 / (lum + 0.05);
   const vsBlack = (lum + 0.05) / (0.012 + 0.05);
   return vsWhite >= vsBlack ? "#FFFFFF" : "#14161A";
+}
+
+/**
+ * A website typed by a person or read from a card ("https://www.Albert.cz/akce") as a
+ * bare domain ("albert.cz"), or "" when it doesn't look like one.
+ * @param {unknown} value
+ */
+export function cleanDomain(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const host = value
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z]+:\/\//, "")
+    .replace(/[/?#:].*$/, "")
+    .replace(/^www\./, "");
+  return host.length <= 100 && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : "";
+}
+
+/** Website of a card: the one saved on it, else the known chain's. */
+export function cardDomain(card) {
+  return cleanDomain(card.website) || findBrand(card.name)?.domain || "";
+}
+
+/**
+ * Logo picture for a card: the person's own picture, else the shop website's icon
+ * (only when `remote` is allowed). Null means "show the category icon".
+ * @param {{ logo?: string | null, website?: string, name: string }} card
+ * @param {boolean} remote
+ */
+export function logoUrl(card, remote) {
+  if (card.logo) {
+    return card.logo;
+  }
+  const domain = remote ? cardDomain(card) : "";
+  return domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128` : null;
 }

@@ -1,32 +1,41 @@
-// Adding (#scan) and editing (#edit-<id>) a card. New cards start with the camera;
-// the form keeps the essentials up front and the rest under "More options".
+// Adding (#scan, #gift) and editing (#edit-<id>) a card or gift card. New cards start
+// with the camera; the form keeps the essentials up front and the rest under "More".
 
 import { FORMAT_ORDER, FORMATS, fromDetectorFormat, guessFormat } from "../barcode.js";
-import { CATEGORIES, SWATCHES, categoryIcon, findBrand, suggestBrands } from "../brands.js";
+import { CATEGORIES, SWATCHES, cleanDomain, findBrand, suggestBrands } from "../brands.js";
 import { confetti } from "../confetti.js";
 import { formatDistance } from "../geo.js";
 import { locale, t } from "../i18n.js";
 import { invalidateBranches, startLocation } from "../location.js";
-import { cleanDate, cleanPoints } from "../model.js";
+import { cardLook, lookVars } from "../look.js";
+import { cleanDate, cleanMoney, cleanPoints } from "../model.js";
 import { replace } from "../nav.js";
 import { fetchHere } from "../osm.js";
 import { getCard, saveCard, state } from "../state.js";
 import { newId } from "../store.js";
 import { buzz } from "../util.js";
-import { Icon, Page, Seg, Sheet, Toggle, html, tint, toast } from "./kit.js";
+import { Icon, Logo, Page, Seg, Sheet, Toggle, html, toast } from "./kit.js";
 import { Scanner } from "./scanner.js";
-import { useEffect, useMemo, useState } from "../../vendor/preact.js";
+import { useEffect, useMemo, useRef, useState } from "../../vendor/preact.js";
 
-/** #scan: camera first, then the form. */
-export function NewCardSheet() {
+/**
+ * #scan and #gift: camera first, then the form.
+ * @param {{ kind?: "loyalty" | "gift" }} props
+ */
+export function NewCardSheet({ kind = "loyalty" }) {
   const [prefill, setPrefill] = useState(/** @type {any} */ (null));
   if (!prefill) {
-    return html`<${Sheet} black title=${t("scan.title")}>
+    return html`<${Sheet} black title=${kind === "gift" ? t("scan.giftTitle") : t("scan.title")}>
       <${Scanner}
-        kind="card"
-        onCode=${(raw) => setPrefill({ code: raw.rawValue.trim(), format: fromDetectorFormat(raw.format) })}
+        kind=${kind === "gift" ? "gift" : "card"}
+        onCode=${(raw) => setPrefill({ kind, code: raw.rawValue.trim(), format: fromDetectorFormat(raw.format) })}
         onAi=${(r) =>
           setPrefill({
+            kind: kind === "gift" ? "gift" : r.kind,
+            balance: r.balance,
+            initialBalance: r.balance,
+            pin: r.pin,
+            website: r.website,
             name: r.name,
             code: r.code,
             format: r.format,
@@ -37,11 +46,11 @@ export function NewCardSheet() {
             note: r.note,
             fromAi: true,
           })}
-        onManual=${() => setPrefill({ code: "", format: "auto" })}
+        onManual=${() => setPrefill({ kind, code: "", format: "auto" })}
       />
     <//>`;
   }
-  return html`<${Sheet} tall title=${t("form.titleAdd")}>
+  return html`<${Sheet} tall title=${prefill.kind === "gift" ? t("gift.addTitle") : t("form.titleAdd")}>
     <${CardForm} mode="add" prefill=${prefill} onRescan=${() => setPrefill(null)} />
   <//>`;
 }
@@ -80,6 +89,14 @@ function CardForm({ mode, prefill, onRescan }) {
   const [expiry, setExpiry] = useState(prefill.expiry ?? "");
   const [code2, setCode2] = useState(prefill.code2 ?? "");
   const [note, setNote] = useState(prefill.note ?? "");
+  const [kind, setKind] = useState(prefill.kind === "gift" ? "gift" : "loyalty");
+  const money0 = (v) => (v === null || v === undefined ? "" : String(v));
+  const [initial, setInitial] = useState(money0(prefill.initialBalance ?? prefill.balance));
+  const [balance, setBalance] = useState(money0(prefill.balance));
+  const [pin, setPin] = useState(prefill.pin ?? "");
+  const [website, setWebsite] = useState(prefill.website ?? "");
+  const [logo, setLogo] = useState(/** @type {string | null} */ (prefill.logo ?? null));
+  const logoFile = useRef(null);
   const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [shops, setShops] = useState(/** @type {any[] | null} */ (null));
   const [picked, setPicked] = useState(/** @type {any} */ (null));
@@ -121,7 +138,7 @@ function CardForm({ mode, prefill, onRescan }) {
     if (!name.trim()) {
       errs.name = t("form.needName");
     }
-    if (!code.trim() && format !== "none") {
+    if (!code.trim() && format !== "none" && kind !== "gift") {
       errs.code = t("form.needCode");
     }
     setErrors(errs);
@@ -146,8 +163,15 @@ function CardForm({ mode, prefill, onRescan }) {
       ...(existing ? { id: existing.id } : {}),
       name: name.trim(),
       code: code.trim(),
-      format: realFormat,
+      format: code.trim() ? realFormat : "none",
       color,
+      kind,
+      // A new gift card starts with its full value unless the balance was given.
+      initialBalance: kind === "gift" ? cleanMoney(initial) : null,
+      balance: kind === "gift" ? (cleanMoney(balance) ?? cleanMoney(initial)) : null,
+      pin: kind === "gift" ? pin.trim().slice(0, 32) : "",
+      website: cleanDomain(website),
+      logo,
       category,
       autoBranches,
       places,
@@ -157,7 +181,7 @@ function CardForm({ mode, prefill, onRescan }) {
       expiry: cleanDate(expiry),
       code2: code2.trim(),
       format2: code2.trim() ? guessFormat(code2.trim()) : "none",
-      stamps: stampsOn ? { goal, count: Math.min(goal, keepCount), reward: reward.trim(), redeemed: existing?.stamps?.redeemed ?? 0 } : null,
+      stamps: stampsOn && kind !== "gift" ? { goal, count: Math.min(goal, keepCount), reward: reward.trim(), redeemed: existing?.stamps?.redeemed ?? 0 } : null,
       sample: existing?.sample && existing.name === name.trim() ? true : undefined,
     });
     buzz([20, 40, 20]);
@@ -172,10 +196,24 @@ function CardForm({ mode, prefill, onRescan }) {
   return html`<form class="form" novalidate onSubmit=${submit}>
     ${prefill.fromAi ? html`<p class="ai-note"><${Icon} name="sparkles" />${t("ai.filled")}</p>` : null}
 
-    <div class="tile preview-tile" style=${tint(color)} aria-hidden="true">
-      <span class="tile-icon"><${Icon} name=${categoryIcon(category)} /></span>
-      <span class="tile-text"><span class="tile-name">${name || t("form.namePlaceholder")}</span><span class="tile-sub">${code || "—"}</span></span>
-      <span></span>
+    <${Seg}
+      value=${kind}
+      label=${t("gift.kindLabel")}
+      options=${[
+        ["loyalty", t("gift.kindLoyalty")],
+        ["gift", t("gift.kind")],
+      ]}
+      onChange=${setKind}
+    />
+
+    <div class="wcard preview" style=${lookVars({ color, category, kind })} aria-hidden="true">
+      <span class="wcard-top">
+        <span class="wcard-title">
+          <span class="wcard-name">${name || t("form.namePlaceholder")}</span>
+          <span class="wcard-sub mono">${kind === "gift" && (balance || initial) ? `${balance || initial} ${state.settings.currency}` : code || "—"}</span>
+        </span>
+        <${Logo} card=${{ name, category, kind, website, logo }} />
+      </span>
     </div>
 
     <div class="field">
@@ -227,7 +265,7 @@ function CardForm({ mode, prefill, onRescan }) {
                   applyBrand(b);
                 }}
               >
-                <span style=${{ width: "12px", height: "12px", borderRadius: "4px", border: "2px solid var(--line)", background: b.color }}></span>${b.name}
+                <span class="dot" style=${{ background: cardLook(b).to }}></span>${b.name}
               </button>`,
             )}
           </div>`
@@ -257,6 +295,25 @@ function CardForm({ mode, prefill, onRescan }) {
       ${errors.code ? html`<p class="err" role="alert">${errors.code}</p>` : null}
       ${onRescan ? html`<button type="button" class="btn sm" style="justify-self:start" onClick=${onRescan}><${Icon} name="scan-barcode" />${t("form.rescan")}</button>` : null}
     </div>
+
+    ${kind === "gift"
+      ? html`<div class="two">
+            <label class="field"><span class="label">${t("gift.value")}</span>
+              <input id="gift-initial" class="input mono" inputmode="decimal" placeholder="1000" value=${initial} onInput=${(e) => setInitial(e.currentTarget.value)} />
+            </label>
+            <label class="field"><span class="label">${t("gift.balance")}</span>
+              <input id="gift-balance" class="input mono" inputmode="decimal" placeholder=${initial || "1000"} value=${balance} onInput=${(e) => setBalance(e.currentTarget.value)} />
+            </label>
+          </div>
+          <div class="two">
+            <label class="field"><span class="label">PIN</span>
+              <input id="gift-pin" class="input mono" autocomplete="off" spellcheck="false" maxlength="32" placeholder=${t("common.optional")} value=${pin} onInput=${(e) => setPin(e.currentTarget.value)} />
+            </label>
+            <label class="field"><span class="label">${t("form.expiry")}</span>
+              <input id="gift-expiry" class="input" type="date" value=${expiry} onInput=${(e) => setExpiry(e.currentTarget.value)} />
+            </label>
+          </div>`
+      : null}
 
     <div class="field">
       <span class="label">${t("form.color")}</span>
@@ -288,6 +345,47 @@ function CardForm({ mode, prefill, onRescan }) {
           />
         </label>
       </div>
+    </div>
+
+    <div class="field">
+      <span class="label">${t("logo.title")}</span>
+      <div class="logo-row">
+        <span class="mini-logo" style=${lookVars({ color, category, kind })}><${Logo} card=${{ name, category, kind, website, logo }} /></span>
+        <input
+          id="card-website"
+          class="input"
+          inputmode="url"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          placeholder=${findBrand(name)?.domain ?? t("logo.websitePlaceholder")}
+          aria-label=${t("logo.website")}
+          value=${website}
+          onInput=${(e) => setWebsite(e.currentTarget.value)}
+        />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn sm" onClick=${() => logoFile.current?.click()}><${Icon} name="image" />${t("logo.own")}</button>
+        ${logo ? html`<button type="button" class="btn sm ghost danger-text" onClick=${() => setLogo(null)}>${t("logo.remove")}</button>` : null}
+      </div>
+      <input
+        ref=${logoFile}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange=${async (e) => {
+          const f = e.currentTarget.files?.[0];
+          e.currentTarget.value = "";
+          if (f) {
+            try {
+              setLogo(await logoFromFile(f));
+            } catch {
+              toast(t("logo.failed"));
+            }
+          }
+        }}
+      />
+      <span class="hint">${t("logo.hint")}</span>
     </div>
 
     <div class="field">
@@ -332,15 +430,16 @@ function CardForm({ mode, prefill, onRescan }) {
             )}
           </div>
         </div>
-        <${Toggle} id="stamps-on" label=${t("form.stamps")} meta=${t("stamps.setupHint")} checked=${stampsOn} onChange=${setStampsOn} />
-        ${stampsOn
+        ${kind !== "gift" ? html`<${Toggle} id="stamps-on" label=${t("form.stamps")} meta=${t("stamps.setupHint")} checked=${stampsOn} onChange=${setStampsOn} />` : null}
+        ${stampsOn && kind !== "gift"
           ? html`<div class="field">
               <span class="label">${t("stamps.goal")}</span>
               <${Seg} value=${goal} options=${[5, 6, 8, 10, 12].map((n) => [n, String(n)])} onChange=${setGoal} />
               <input id="stamps-reward" class="input" placeholder=${t("stamps.rewardPlaceholder")} aria-label=${t("stamps.reward")} value=${reward} onInput=${(e) => setReward(e.currentTarget.value)} />
             </div>`
           : null}
-        <div class="two">
+        ${kind !== "gift"
+          ? html`<div class="two">
           <label class="field"><span class="label">${t("form.points")}</span>
             <input id="card-points" class="input mono" inputmode="numeric" placeholder="0" value=${points} onInput=${(e) => setPoints(e.currentTarget.value)} />
           </label>
@@ -350,7 +449,8 @@ function CardForm({ mode, prefill, onRescan }) {
         </div>
         <label class="field"><span class="label">${t("form.expiry")}</span>
           <input id="card-expiry" class="input" type="date" value=${expiry} onInput=${(e) => setExpiry(e.currentTarget.value)} />
-        </label>
+        </label>`
+          : null}
         <label class="field"><span class="label">${t("form.code2")}</span>
           <input id="card-code2" class="input mono" placeholder=${t("form.code2Placeholder")} value=${code2} onInput=${(e) => setCode2(e.currentTarget.value)} />
           <span class="hint">${t("form.code2Hint")}</span>
@@ -365,4 +465,23 @@ function CardForm({ mode, prefill, onRescan }) {
       <button type="submit" class="btn xl primary block"><${Icon} name="check" />${mode === "add" ? t("form.save") : t("form.saveChanges")}</button>
     </div>
   </form>`;
+}
+
+/**
+ * A picked picture as a small square logo (128 px PNG data URL), centred and cropped.
+ * @param {Blob} file
+ */
+async function logoFromFile(file) {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  canvas
+    .getContext("2d")
+    .drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 128, 128);
+  bitmap.close?.();
+  const png = canvas.toDataURL("image/png");
+  // Photos compress far better as JPEG; keep PNG only when it's already small (flat logos).
+  return png.length <= 60_000 ? png : canvas.toDataURL("image/jpeg", 0.85);
 }

@@ -1,10 +1,12 @@
 // Card validation for data that comes from outside the app (backups, shared links).
 
 import { FORMATS } from "./barcode.js";
-import { CATEGORIES } from "./brands.js";
+import { CATEGORIES, cleanDomain } from "./brands.js";
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const PHOTO = /^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=]+$/i;
+/** A small logo picture the person added (resized in the app, so it stays small). */
+const isLogo = (v) => typeof v === "string" && v.length <= 120_000 && PHOTO.test(v);
 
 const clampText = (value, max) => (typeof value === "string" ? value.slice(0, max) : "");
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
@@ -103,8 +105,17 @@ export function sanitizeCard(raw) {
       : [],
     stamps: cleanStamps(raw.stamps),
     pointsGoal: cleanPoints(raw.pointsGoal),
+    // Gift cards: money on the card that goes down as it is spent.
+    kind: raw.kind === "gift" ? "gift" : "loyalty",
+    balance: raw.kind === "gift" ? nonNegative(cleanMoney(raw.balance)) : null,
+    initialBalance: raw.kind === "gift" ? nonNegative(cleanMoney(raw.initialBalance)) : null,
+    pin: clampText(raw.pin, 32).trim(),
+    website: cleanDomain(raw.website),
+    logo: isLogo(raw.logo) ? raw.logo : null,
   };
 }
+
+const nonNegative = (n) => (n === null ? null : Math.max(0, n));
 
 /**
  * Stamp card: `goal` stamps earn `reward`. `count` is stamps collected now,
@@ -220,7 +231,7 @@ export function sanitizePurchase(raw) {
     saved: Math.max(0, cleanMoney(raw.saved) ?? 0),
     at: isNum(raw.at) ? raw.at : Date.now(),
     note: clampText(raw.note, 200),
-    source: raw.source === "receipt" ? "receipt" : "manual",
+    source: raw.source === "receipt" || raw.source === "gift" ? raw.source : "manual",
     sample: raw.sample === true ? true : undefined,
   };
 }
@@ -257,8 +268,11 @@ export function buildBackup(cards, coupons = [], purchases = []) {
 
 /** URL-safe base64 of UTF-8 text. */
 export function encodeShare(card) {
-  const { name, code, format, color, category, places, note, autoBranches, expiry, code2, format2, stamps } = card;
+  // A PIN and a gift card's balance stay on this phone: a link can be forwarded anywhere.
+  const { name, code, format, color, category, places, note, autoBranches, expiry, code2, format2, stamps, kind, website } = card;
   const json = JSON.stringify({
+    kind,
+    website,
     name,
     code,
     format,

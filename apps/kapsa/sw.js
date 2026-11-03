@@ -1,9 +1,12 @@
-// Service worker: the whole app works offline; map tiles are cached as you browse.
+// Service worker: the whole app works offline; map tiles and shop logos are cached as
+// they are first shown.
 // Also: daily reminder checks (Chrome on Android, installed app) and notification taps.
 
-const VERSION = "kapsa-v2.1.0";
+const VERSION = "kapsa-v3.0.0";
 const TILE_CACHE = "kapsa-tiles-v1";
 const MAX_TILES = 600;
+const LOGO_CACHE = "kapsa-logos-v1";
+const MAX_LOGOS = 300;
 
 // Paths are listed explicitly (no "./"): some static hosts don't serve a folder's index.html.
 const APP_FILES = [
@@ -25,11 +28,13 @@ const APP_FILES = [
   "js/brands.js",
   "js/confetti.js",
   "js/demo.js",
+  "js/dwell.js",
   "js/geo.js",
   "js/habits.js",
   "js/i18n.js",
   "js/icons.js",
   "js/location.js",
+  "js/look.js",
   "js/main.js",
   "js/model.js",
   "js/nav.js",
@@ -47,6 +52,7 @@ const APP_FILES = [
   "js/ui/cardpage.js",
   "js/ui/couponform.js",
   "js/ui/coupons.js",
+  "js/ui/gift.js",
   "js/ui/kit.js",
   "js/ui/logsheet.js",
   "js/ui/map.js",
@@ -73,7 +79,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== VERSION && k !== TILE_CACHE).map((k) => caches.delete(k)));
+      await Promise.all(keys.filter((k) => k !== VERSION && k !== TILE_CACHE && k !== LOGO_CACHE).map((k) => caches.delete(k)));
       await self.clients.claim();
     })(),
   );
@@ -85,11 +91,30 @@ self.addEventListener("message", (event) => {
   }
 });
 
-async function trimTiles(cache) {
+async function trimCache(cache, max) {
   const keys = await cache.keys();
-  if (keys.length > MAX_TILES) {
-    await Promise.all(keys.slice(0, keys.length - MAX_TILES).map((k) => cache.delete(k)));
+  if (keys.length > max) {
+    await Promise.all(keys.slice(0, keys.length - max).map((k) => cache.delete(k)));
   }
+}
+
+/** Cache-first for things that never change at the same URL (tiles, logos). */
+function cacheFirst(event, name, max) {
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(name);
+      const hit = await cache.match(event.request);
+      if (hit) {
+        return hit;
+      }
+      const res = await fetch(event.request);
+      if (res.ok || res.type === "opaque") {
+        await cache.put(event.request, res.clone());
+        trimCache(cache, max);
+      }
+      return res;
+    })(),
+  );
 }
 
 self.addEventListener("fetch", (event) => {
@@ -101,21 +126,12 @@ self.addEventListener("fetch", (event) => {
 
   // Map tiles: cache-first so places you've seen work offline.
   if (url.hostname.endsWith("basemaps.cartocdn.com")) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(TILE_CACHE);
-        const hit = await cache.match(req);
-        if (hit) {
-          return hit;
-        }
-        const res = await fetch(req);
-        if (res.ok || res.type === "opaque") {
-          await cache.put(req, res.clone());
-          trimTiles(cache);
-        }
-        return res;
-      })(),
-    );
+    cacheFirst(event, TILE_CACHE, MAX_TILES);
+    return;
+  }
+  // Shop logos (website icons): cached so cards keep their logo offline.
+  if (url.hostname === "www.google.com" && url.pathname === "/s2/favicons") {
+    cacheFirst(event, LOGO_CACHE, MAX_LOGOS);
     return;
   }
 

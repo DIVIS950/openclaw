@@ -1,19 +1,18 @@
-// #card-<id>: everything about one card. The code first (ready for the till), then
-// stamps, points, coupons, this month's spending and the places it pops up at.
+// #card-<id>: everything about one card. The card itself first (code ready for the
+// till), then gift card money, promo codes, stamps, points, spending and its places.
 
-import { categoryIcon } from "../brands.js";
 import { confetti } from "../confetti.js";
 import { distanceMeters, formatDistance } from "../geo.js";
 import { usualDayPart } from "../habits.js";
 import { locale, t } from "../i18n.js";
 import { startLocation } from "../location.js";
+import { lookVars } from "../look.js";
 import { cleanPoints, encodeShare, expiryStatus } from "../model.js";
 import { back, go } from "../nav.js";
 import { cardMonth } from "../stats.js";
 import {
   addPlace,
   addStamp,
-  couponsForCard,
   deleteCard,
   forgetLearned,
   getCard,
@@ -26,9 +25,9 @@ import {
   state,
 } from "../state.js";
 import { buildIcs, buzz, copyText, formatDate, formatNumber, money, offerFile } from "../util.js";
-import { CouponTile } from "./coupons.js";
 import { newCouponFor } from "./couponform.js";
-import { BigCode, ConfirmButton, Icon, Page, Section, Seg, Ticket, html, toast, useWakeLock } from "./kit.js";
+import { GiftPanel, PromoList, activeCouponsFor, giftLine } from "./gift.js";
+import { BigCode, ConfirmButton, Icon, Logo, Page, Section, Seg, Ticket, html, toast, useWakeLock } from "./kit.js";
 import { useEffect, useState } from "../../vendor/preact.js";
 
 export function CardPage({ id, row }) {
@@ -47,7 +46,7 @@ export function CardPage({ id, row }) {
     codes.push({ code: card.code2, format: card.format2 || "code128" });
   }
   const shown = codes[Math.min(which, codes.length - 1)];
-  const coupons = couponsForCard(card).filter((c) => !c.used && expiryStatus(c.expiry, Date.now())?.state !== "expired");
+  const coupons = activeCouponsFor(card);
   const exp = expiryStatus(card.expiry, Date.now());
 
   const share = async () => {
@@ -71,35 +70,42 @@ export function CardPage({ id, row }) {
     title=${card.name}
     actions=${html`<button type="button" class="hbtn" aria-label=${t("card.edit")} onClick=${() => go(`#edit-${card.id}`)}><${Icon} name="pencil" /></button>`}
     hero=${html`<div class="hero-stack">
-      <div class="row" style="flex-wrap:wrap;gap:8px">
-        <span class="chip"><${Icon} name=${categoryIcon(card.category)} />${t(`cat.${card.category}`)}</span>
-        ${row?.here ? html`<span class="chip accent"><span class="pulse"></span>${t("w.here")}</span>` : null}
-        ${row && !row.here && row.distance !== null ? html`<span class="chip">${formatDistance(row.distance, locale())}</span>` : null}
+      <div class="wcard big" style=${lookVars(card)}>
+        <div class="wcard-top">
+          <span class="wcard-title">
+            ${row?.here
+              ? html`<span class="wchip"><span class="pulse"></span>${t("w.here")}</span>`
+              : row && row.distance !== null
+                ? html`<span class="wchip">${formatDistance(row.distance, locale())}</span>`
+                : html`<span class="wchip">${card.kind === "gift" ? t("gift.kind") : t(`cat.${card.category}`)}</span>`}
+            <h1 class="wcard-name">${card.name}</h1>
+            ${card.kind === "gift" ? html`<span class="wcard-sub">${giftLine(card)}</span>` : null}
+          </span>
+          <${Logo} card=${card} cls="lg" />
+        </div>
+        ${codes.length > 1
+          ? html`<${Seg} value=${which} options=${[
+              [0, t("card.code1")],
+              [1, t("card.code2")],
+            ]} onChange=${setWhich} />`
+          : null}
+        <${Ticket} code=${shown.code} format=${shown.format} name=${card.name} onBig=${() => setBig({ ...shown, name: card.name })} />
+        <span class="wcard-tip"><${Icon} name="maximize-2" />${t("card.tapBig")}</span>
       </div>
-      <h1 class="display">${card.name}</h1>
-      ${codes.length > 1
-        ? html`<${Seg} value=${which} options=${[
-            [0, t("card.code1")],
-            [1, t("card.code2")],
-          ]} onChange=${setWhich} />`
-        : null}
-      <${Ticket} code=${shown.code} format=${shown.format} name=${card.name} onBig=${() => setBig({ ...shown, name: card.name })} />
-      <span class="eyebrow" style="opacity:.85"><${Icon} name="maximize-2" />${t("card.tapBig")}</span>
     </div>`}
   >
+    ${card.kind === "gift" ? html`<${GiftPanel} card=${card} />` : null}
+    <${Section}
+      title=${t("card.coupons")}
+      count=${coupons.length || undefined}
+      action=${html`<button type="button" class="link-btn" onClick=${() => newCouponFor(card.id)}><${Icon} name="ticket-percent" />${t("card.addCoupon")}</button>`}
+    >
+      <${PromoList} card=${card} empty=${true} />
+    <//>
     ${card.stamps ? html`<${Stamps} card=${card} />` : null}
-    <${Points} card=${card} />
-    ${coupons.length
-      ? html`<${Section}
-          title=${t("card.coupons")}
-          count=${coupons.length}
-          action=${html`<button type="button" class="btn sm" aria-label=${t("card.addCoupon")} onClick=${() => newCouponFor(card.id)}><${Icon} name="plus" /></button>`}
-        >
-          <div class="coupon-strip">${coupons.map((c, i) => html`<${CouponTile} key=${c.id} coupon=${c} i=${i} />`)}</div>
-        <//>`
-      : null}
+    ${card.kind !== "gift" ? html`<${Points} card=${card} />` : null}
     <${Spending} card=${card} />
-    ${!card.stamps ? html`<${StampSetup} card=${card} />` : null}
+    ${!card.stamps && card.kind !== "gift" ? html`<${StampSetup} card=${card} />` : null}
     <${Places} card=${card} />
     <${Section} title=${t("common.more")}>
       <div class="stack">

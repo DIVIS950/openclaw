@@ -1,5 +1,6 @@
 // Smaller screens: reminders, the "Add" menu, address search, shared-card import.
 
+import { lookVars } from "../look.js";
 import { decodeShare } from "../model.js";
 import { invalidateBranches } from "../location.js";
 import { distanceMeters, formatDistance } from "../geo.js";
@@ -7,10 +8,10 @@ import { getLang, locale, t } from "../i18n.js";
 import { askNotificationPermission, notificationsSupported, reminderRoute } from "../reminders.js";
 import { back, go, replace } from "../nav.js";
 import { searchAddress } from "../osm.js";
-import { addPlace, getCard, saveCard, state, updateSettings } from "../state.js";
-import { buzz } from "../util.js";
+import { addPlace, getCard, getCoupon, saveCard, state, updateSettings } from "../state.js";
+import { buzz, money } from "../util.js";
 import { isIos, isStandalone } from "./settings.js";
-import { Icon, Page, Sheet, html, tint, toast } from "./kit.js";
+import { Icon, Logo, Page, Sheet, cardTint, html, toast } from "./kit.js";
 import { useState } from "../../vendor/preact.js";
 
 const KIND = {
@@ -21,13 +22,22 @@ const KIND = {
   "card-expiring": { icon: "credit-card", key: "rm.cardExpiring" },
   "coupon-expired": { icon: "ticket", key: "rm.couponExpired" },
   "card-expired": { icon: "credit-card", key: "rm.cardExpired" },
+  "gift-here": { icon: "gift", key: "rm.giftHere" },
+  "gift-expiring": { icon: "gift", key: "rm.giftExpiring" },
+  "gift-expired": { icon: "gift", key: "rm.giftExpired" },
 };
 
 /** Words for one reminder (also used for phone notifications). */
 export function reminderText(r) {
   const k = KIND[r.kind];
   const when = r.days === undefined ? "" : r.days === 0 ? t("rm.today") : t("rm.inDays", { n: r.days });
-  return { title: t(k.key), body: [r.title, when].filter(Boolean).join(" · "), url: reminderRoute(r) };
+  const amount = r.amount ? money(r.amount, state.settings.currency) : "";
+  return { title: t(k.key), body: [r.title, amount, when].filter(Boolean).join(" · "), url: reminderRoute(r) };
+}
+
+/** The card a reminder is about (for coupons: the coupon's card). */
+function reminderCard(r) {
+  return r.kind.startsWith("coupon") ? getCard(getCoupon(r.ref)?.cardId ?? "") : getCard(r.ref);
 }
 
 export function RemindersPage({ reminders }) {
@@ -49,7 +59,7 @@ export function RemindersPage({ reminders }) {
               const k = KIND[r.kind];
               const txt = reminderText(r);
               return html`<button type="button" class="li" key=${r.id} onClick=${() => go(reminderRoute(r))}>
-                <span class="li-icon" style=${r.color ? tint(r.color) : undefined}><${Icon} name=${k.icon} /></span>
+                <span class="li-icon" style=${cardTint(reminderCard(r))}><${Icon} name=${k.icon} /></span>
                 <span class="li-text"><span class="li-title">${txt.title}</span><span class="li-sub">${txt.body}</span></span>
                 <${Icon} name="chevron-right" />
                 <span></span>
@@ -77,14 +87,15 @@ export function RemindersPage({ reminders }) {
 
 export function AddSheet() {
   const items = [
-    { route: "#scan", icon: "credit-card", title: t("add.card"), sub: t("add.cardHint") },
-    { route: "#newc", icon: "ticket-percent", title: t("add.coupon"), sub: t("add.couponHint") },
-    { route: "#log", icon: "receipt", title: t("add.spend"), sub: t("add.spendHint") },
+    { route: "#scan", icon: "credit-card", title: t("add.card"), sub: t("add.cardHint"), look: { color: "#3D6BFF" } },
+    { route: "#gift", icon: "gift", title: t("add.gift"), sub: t("add.giftHint"), look: { kind: "gift", color: "" } },
+    { route: "#newc", icon: "ticket-percent", title: t("add.coupon"), sub: t("add.couponHint"), look: { color: "#FFB020" } },
+    { route: "#log", icon: "receipt", title: t("add.spend"), sub: t("add.spendHint"), look: { color: "#2FCB86" } },
   ];
   return html`<${Sheet} title=${t("add.title")}>
     <div class="choices">
       ${items.map(
-        (it, i) => html`<button type="button" class="choice" style=${{ "--i": i }} onClick=${() => replace(it.route)}>
+        (it, i) => html`<button type="button" class="choice" style=${{ ...lookVars(it.look), "--i": i }} onClick=${() => replace(it.route)}>
           <span class="choice-icon"><${Icon} name=${it.icon} /></span>
           <span><span class="choice-title">${it.title}</span><span class="choice-sub">${it.sub}</span></span>
           <${Icon} name="chevron-right" />
@@ -163,10 +174,11 @@ export function ImportSheet({ data }) {
   }
   return html`<${Sheet} title=${t("import.title")} onClose=${() => replace("")}>
     <div class="stack">
-      <div class="tile preview-tile" style=${tint(card.color)}>
-        <span class="tile-icon"><${Icon} name="credit-card" /></span>
-        <span class="tile-text"><span class="tile-name">${card.name}</span><span class="tile-sub">${card.code}</span></span>
-        <span></span>
+      <div class="wcard preview" style=${lookVars(card)}>
+        <span class="wcard-top">
+          <span class="wcard-title"><span class="wcard-name">${card.name}</span><span class="wcard-sub mono">${card.code}</span></span>
+          <${Logo} card=${card} />
+        </span>
       </div>
       <button
         type="button"

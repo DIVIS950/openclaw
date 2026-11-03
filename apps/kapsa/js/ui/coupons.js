@@ -6,14 +6,21 @@ import { back, go } from "../nav.js";
 import { deleteCoupon, getCard, getCoupon, saveCoupon, state, useCoupon } from "../state.js";
 import { buildIcs, buzz, formatDate, money, offerFile } from "../util.js";
 import { confetti } from "../confetti.js";
-import { BigCode, ConfirmButton, Icon, Page, Section, Ticket, html, tint, toast, useWakeLock } from "./kit.js";
+import { lookVars } from "../look.js";
+import { BigCode, ConfirmButton, Icon, Logo, Page, Section, Ticket, html, toast, useWakeLock } from "./kit.js";
 import { useState } from "../../vendor/preact.js";
 
-const NEUTRAL = "#2563EB";
+const NEUTRAL = "#FF6B6B";
 
-/** Colour of a coupon's little shop dot: its card's colour, or blue. */
+/** Colour of a coupon: its card's colour, or coral. */
 export function couponColor(c) {
   return (c.cardId && getCard(c.cardId)?.color) || NEUTRAL;
+}
+
+/** Gradient variables for a coupon, matching its card in the wallet. */
+export function couponLook(c) {
+  const card = c.cardId ? getCard(c.cardId) : null;
+  return lookVars(card ?? { color: NEUTRAL, category: "other" });
 }
 
 /** Short status line: "3 days left", "ends today", "expired", "used 2 Nov". */
@@ -40,7 +47,7 @@ export function CouponTile({ coupon, i = 0 }) {
   return html`<button
     type="button"
     class=${`coupon${coupon.used ? " is-used" : ""}`}
-    style=${{ ...tint(couponColor(coupon)), "--i": Math.min(i, 10) }}
+    style=${{ ...couponLook(coupon), "--i": Math.min(i, 10) }}
     onClick=${() => go(`#coupon-${coupon.id}`)}
   >
     <span class="coupon-left">${coupon.discount || html`<${Icon} name="ticket-percent" />`}</span>
@@ -172,7 +179,7 @@ export function CouponPage({ id }) {
         ${coupon.saved ? html`<p class="hint">${t("st.saved")}: <strong>${money(coupon.saved, state.settings.currency)}</strong></p>` : null}
         ${coupon.note ? html`<div class="panel"><div class="label">${t("cp.conditions")}</div><p style="margin:6px 0 0">${coupon.note}</p></div>` : null}
         ${card ? html`<button type="button" class="mini" onClick=${() => go(`#card-${card.id}`)}>
-              <span class="mini-swatch" style=${tint(card.color)}><${Icon} name="credit-card" /></span>
+              <span class="mini-logo" style=${lookVars(card)}><${Logo} card=${card} /></span>
               <span style="min-width:0"><span class="mini-label">${t("tab.wallet")}</span><span class="mini-name">${card.name}</span></span>
               <${Icon} name="chevron-right" />
             </button>` : null}

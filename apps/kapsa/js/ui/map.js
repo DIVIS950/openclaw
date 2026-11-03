@@ -1,7 +1,7 @@
 // #map: saved places, branches found on the map and you. #pick-<id>: move the map under
 // a fixed pin to save a place for a card.
 
-import { inkFor } from "../brands.js";
+import { cardLook } from "../look.js";
 import { distanceMeters } from "../geo.js";
 import { t } from "../i18n.js";
 import { invalidateBranches, startLocation } from "../location.js";
@@ -60,7 +60,7 @@ export function MapPage({ pickId, tick }) {
       const m = L.marker([p.lat, p.lon], {
         icon: L.divIcon({
           className: "",
-          html: `<span class="mk ${kind}" style="--c:${esc(card.color)};--on:${inkFor(card.color)}">${letter}</span>`,
+          html: `<span class="mk ${kind}" style="--c:${esc(cardLook(card).to)};--on:${esc(cardLook(card).ink)}">${letter}</span>`,
           iconSize: [32, 32],
           iconAnchor: [16, 16],
         }),

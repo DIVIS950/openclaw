@@ -4,9 +4,11 @@ import { describeError, hasApiKey, readReceiptPhoto } from "../ai.js";
 import { t } from "../i18n.js";
 import { cleanMoney } from "../model.js";
 import { back, go } from "../nav.js";
-import { getCard, savePurchase, state } from "../state.js";
-import { buzz, isoDay } from "../util.js";
-import { Icon, Seg, Sheet, html, toast } from "./kit.js";
+import { getCard, payWithGift, savePurchase, state } from "../state.js";
+import { buzz, isoDay, money } from "../util.js";
+import { giftLine } from "./gift.js";
+import { cardLook } from "../look.js";
+import { Icon, Seg, Sheet, Toggle, html, toast } from "./kit.js";
 import { useRef, useState } from "../../vendor/preact.js";
 
 let preset = null;
@@ -38,6 +40,7 @@ export function LogSheet({ cardId }) {
   const [saved, setSaved] = useState(init.saved ? String(init.saved) : "");
   const [date, setDate] = useState(init.date || today);
   const [error, setError] = useState("");
+  const [fromGift, setFromGift] = useState(true);
   const [busy, setBusy] = useState(false);
   const [fromReceipt, setFromReceipt] = useState(Boolean(init.fromReceipt));
   const file = useRef(null);
@@ -84,6 +87,18 @@ export function LogSheet({ cardId }) {
     const [y, m, d] = date.split("-").map(Number);
     const at = date === today ? Date.now() : new Date(y, m - 1, d, 12).getTime();
     const card = selCard ? getCard(selCard) : null;
+    // Paid with a gift card: take it off its balance too (today's payments only).
+    if (card?.kind === "gift" && fromGift && date === today) {
+      if (value > (card.balance ?? 0) + 0.001) {
+        setError(t("gift.tooMuch", { v: money(card.balance ?? 0, currency) }));
+        return;
+      }
+      await payWithGift(card.id, value);
+      buzz([20, 40, 20]);
+      toast(t("gift.paid", { v: money(value, currency), left: money(Math.max(0, (card.balance ?? 0) - value), currency) }));
+      back();
+      return;
+    }
     await savePurchase({
       amount: value,
       cardId: card?.id ?? null,
@@ -147,12 +162,15 @@ export function LogSheet({ cardId }) {
                     setShop("");
                   }}
                 >
-                  <span style=${{ width: "12px", height: "12px", borderRadius: "4px", border: "2px solid var(--line)", background: c.color }}></span>${c.name}
+                  <span class="dot" style=${{ background: cardLook(c).to }}></span>${c.name}
                 </button>`,
               )}
             </div>`
           : null}
         ${selCard ? null : html`<input id="log-shop" class="input" placeholder=${t("lg.shopPlaceholder")} value=${shop} onInput=${(e) => setShop(e.currentTarget.value)} />`}
+        ${selCard && getCard(selCard)?.kind === "gift" && date === today
+          ? html`<${Toggle} id="log-gift" label=${t("gift.fromBalance")} meta=${giftLine(getCard(selCard))} checked=${fromGift} onChange=${setFromGift} />`
+          : null}
       </div>
 
       <div class="field">

@@ -2,8 +2,8 @@
 //   tabs:   ""  #coupons  #stats  #ai
 //   pages:  #card-<id>  #coupon-<id>  #edit-<id>  #ecoupon-<id>  #settings  #map  #pick-<id>
 //           #find-<id>  #reminders
-//   sheets: #add (what to add)  #scan (new card)  #newc (new coupon)  #log  #log-<cardId>
-//           #import=<shared card>
+//   sheets: #add (what to add)  #scan (new card)  #gift (new gift card)  #newc (new coupon)
+//           #log  #log-<cardId>  #pay-<giftCardId>  #promo-<cardId>  #import=<shared card>
 
 const listeners = new Set();
 
@@ -77,13 +77,13 @@ export function parseHash(raw) {
   if (["settings", "map", "reminders"].includes(hash)) {
     return { kind: "page", name: hash, id: null, data: null };
   }
-  if (["add", "scan", "newc", "log"].includes(hash)) {
+  if (["add", "scan", "gift", "newc", "log"].includes(hash)) {
     return { kind: "sheet", name: hash, id: null, data: null };
   }
-  const m = /^(card|coupon|edit|ecoupon|pick|find|log)-([a-z0-9]+)$/i.exec(hash);
+  const m = /^(card|coupon|edit|ecoupon|pick|find|log|pay|promo)-([a-z0-9]+)$/i.exec(hash);
   if (m) {
     const name = m[1].toLowerCase();
-    return { kind: name === "log" ? "sheet" : "page", name, id: m[2], data: null };
+    return { kind: ["log", "pay", "promo"].includes(name) ? "sheet" : "page", name, id: m[2], data: null };
   }
   return { kind: "tab", name: "wallet", id: null, data: null };
 }

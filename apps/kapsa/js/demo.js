@@ -76,6 +76,24 @@ export async function addDemo(now = Date.now()) {
     sample: true,
   });
 
+  const ikea = await saveCard({
+    name: "IKEA",
+    kind: "gift",
+    code: "6033004512348812",
+    format: "code128",
+    color: "#0058A3",
+    category: "home",
+    places: place(-1400, 900),
+    autoBranches: false,
+    initialBalance: 2000,
+    balance: 1500,
+    pin: "4821",
+    expiry: isoDay(now + 120 * DAY),
+    sample: true,
+  });
+  await savePurchase({ cardId: ikea.id, shop: "IKEA", amount: 500, source: "gift", at: now - 20 * DAY, sample: true });
+
+  await saveCoupon({ title: "Promo kód", discount: "−15 %", cardId: albert.id, shop: "Albert", code: "ALBERT15", format: "code128", expiry: isoDay(now + 20 * DAY), sample: true });
   await saveCoupon({ title: "Celý nákup", discount: "−20 %", cardId: dm.id, shop: "dm", code: "DM20NOV", format: "qr", expiry: isoDay(now + 2 * DAY), note: "Nad 300 Kč", sample: true });
   await saveCoupon({ title: "Ovoce a zelenina", discount: "−50 Kč", cardId: albert.id, shop: "Albert", code: ean("299000000456"), format: "ean13", expiry: isoDay(now + 9 * DAY), sample: true });
   await saveCoupon({ title: "Druhá bageta", discount: "1+1", cardId: bb.id, shop: "Bageterie Boulevard", code: "", format: "none", expiry: "", sample: true });

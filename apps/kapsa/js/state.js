@@ -17,6 +17,11 @@ export const DEFAULT_SETTINGS = {
   currency: "CZK",
   notifications: false,
   remindDays: 3,
+  // Shop logos from the shop's website (Google's icon service).
+  logos: true,
+  // "You've been here 2 minutes: use your card."
+  dwell: true,
+  dwellMin: 2,
 };
 
 /**
@@ -27,7 +32,9 @@ export const DEFAULT_SETTINGS = {
  *   createdAt: number, updatedAt: number, lastUsedAt: number, uses: number, sample?: boolean,
  *   points?: number | null, expiry?: string, code2?: string, format2?: string,
  *   usage?: import("./habits.js").UseEvent[], ignoredLearned?: Array<{ lat: number, lon: number }>,
- *   stamps?: { goal: number, count: number, reward: string, redeemed: number } | null, pointsGoal?: number | null
+ *   stamps?: { goal: number, count: number, reward: string, redeemed: number } | null, pointsGoal?: number | null,
+ *   kind?: "loyalty" | "gift", balance?: number | null, initialBalance?: number | null, pin?: string,
+ *   website?: string, logo?: string | null
  * }} Card
  * @typedef {import("./model.js").Coupon} Coupon
  * @typedef {import("./model.js").Purchase} Purchase
@@ -177,6 +184,48 @@ export async function redeemStamps(cardId) {
     return card;
   }
   return saveCard({ ...card, stamps: { ...card.stamps, count: 0, redeemed: card.stamps.redeemed + 1 } });
+}
+
+// ---------- Gift cards ----------
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+/**
+ * Pay with a gift card: its balance goes down and the payment counts as spending.
+ * @param {string} cardId
+ * @param {number} amount
+ * @returns {Promise<{ card: Card, purchase: Purchase } | null>}
+ */
+export async function payWithGift(cardId, amount) {
+  const card = getCard(cardId);
+  if (!card || card.kind !== "gift" || !(amount > 0)) {
+    return null;
+  }
+  const saved = await saveCard({ ...card, balance: Math.max(0, round2((card.balance ?? 0) - amount)) });
+  const purchase = await savePurchase({ cardId, amount: round2(amount), source: "gift" });
+  return { card: saved, purchase };
+}
+
+/** Take a gift card payment back (the "Undo" after paying). */
+export async function undoGiftPayment(purchaseId) {
+  const purchase = state.purchases.find((p) => p.id === purchaseId);
+  const card = purchase?.cardId ? getCard(purchase.cardId) : null;
+  if (!purchase) {
+    return;
+  }
+  if (card?.kind === "gift") {
+    await saveCard({ ...card, balance: round2((card.balance ?? 0) + purchase.amount) });
+  }
+  await deletePurchase(purchaseId);
+}
+
+/** Set what is left on a gift card (checked at the till, or topped up). */
+export async function setGiftBalance(cardId, balance) {
+  const card = getCard(cardId);
+  if (!card || card.kind !== "gift" || !(balance >= 0)) {
+    return null;
+  }
+  return saveCard({ ...card, balance: round2(balance), initialBalance: Math.max(card.initialBalance ?? 0, round2(balance)) });
 }
 
 // ---------- Coupons ----------
