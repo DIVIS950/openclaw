@@ -1,1 +1,0 @@
-import{kt as e}from"./main-CnksbMfd.js";import{n as t,t as n}from"./Icon-DTH_sabq.js";var r=t();function i({to:t=`apps`,label:i=`Back to More`}){let{back:a}=e();return(0,r.jsx)(`button`,{className:`round back-btn rise`,"aria-label":i,onClick:()=>a(t),children:(0,r.jsx)(n,{name:`chevronLeft`,size:20})})}export{i as t};
