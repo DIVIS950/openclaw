@@ -1204,3 +1204,20 @@ textarea.text-input { height: auto; min-height: 150px; padding: 12px 14px; font:
 }
 /* A sheet opened from the guide (the installer message) sits above it. */
 body.setup-open .sheet-backdrop { z-index: 89; }
+
+/* ---------- start screen of the demo ---------- */
+.start-hero { width: 72px; height: 72px; border-radius: 22px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #1d4594, #081838); box-shadow: 0 10px 26px rgba(8, 24, 56, 0.35); }
+.start-hero .icon { width: 36px; height: 36px; }
+.start-choices { display: grid; gap: 10px; }
+.start-choice {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 18px; border: 0.5px solid var(--glass-line); border-radius: 22px;
+  background: var(--glass); color: var(--label); text-align: left; transition: transform 0.15s, background-color 0.25s;
+}
+.start-choice:active { transform: scale(0.98); }
+.start-choice b { font: 700 17px var(--font-display); }
+.start-choice .note { font-size: 14px; color: var(--label2); margin-top: 2px; }
+.start-choice .row-icon { width: 44px; height: 44px; border-radius: 14px; }
+.start-choice > .icon:last-child { width: 18px; height: 18px; color: var(--label3); flex: none; }
+.start-done { border-radius: 16px; background: var(--fill); }
+.start-done[aria-pressed="true"] { background: color-mix(in srgb, var(--green) 16%, var(--fill)); }
+.setup-actions a.w-btn { text-decoration: none; }

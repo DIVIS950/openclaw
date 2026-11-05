@@ -210,7 +210,8 @@ function systemRows(app) {
   const help = row("setup-help", "info", "var(--teal)", t("Help"), t("Checklist and what to do when it doesn't connect"));
   if (app.transport === "local") {
     return `<div class="row"><span class="row-icon" style="--c:var(--orange)">${icon("alert")}</span><span class="grow">${t("This is a demo house")}<div class="note">${t("Run the home server at home to connect your Crestron system")}</div></span></div>
-      ${row("setup-demo", "sliders", "var(--blue)", t("Guide demo"), t("A walk through the setup guide with pretend steps"))}`;
+      ${row("start-open", "sparkle", "var(--blue)", t("Connect my house"), t("The installer, the file and the iPad, step by step"))}
+      ${row("setup-demo", "sliders", "var(--indigo)", t("Guide demo"), t("A walk through the setup guide with pretend steps"))}`;
   }
   if (app.transport === "xpanel") {
     const trouble = s.connection === "failed" && s.message

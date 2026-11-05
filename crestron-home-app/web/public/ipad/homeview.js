@@ -8,6 +8,7 @@ import { applyCommand, clamp01, clampTarget, emptyHome, normalizeHome, pct, stat
 import { createAsk } from "./ask.js";
 import { createFeatures } from "./features.js";
 import { createSetup } from "./setup.js";
+import { createStart } from "./start.js";
 import { dots, isWideSheet, sheetHTML } from "./sheets.js";
 import { createTvControls } from "./tv.js";
 import { homePages, isLocal, isOn, isOpen, setFlash, shadeState, sidebarHTML, standbyHTML, timeHTML, viewHTML, wallpaperHues } from "./views.js";
@@ -88,6 +89,7 @@ const setup = createSetup({
   showDemoHouse,
   toggleWall,
 });
+const startScreen = createStart({ app, prefs, notify, openSheet, closeSheet, openGuideDemo: () => setup.open(0) });
 
 // ---------- connection ----------
 
@@ -120,6 +122,7 @@ async function start() {
   startTimers();
   ask.init();
   setup.init();
+  startScreen.init();
 }
 
 function startLocal() {
@@ -775,7 +778,7 @@ const actions = {
   "ask-mic": () => ask.toggleListening(),
 };
 
-Object.assign(actions, features.actions, tv.actions, setup.actions);
+Object.assign(actions, features.actions, tv.actions, setup.actions, startScreen.actions);
 
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
@@ -786,6 +789,7 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    if (startScreen.isOpen) startScreen.close();
     if (setup.isOpen) setup.close(); // the same as "Continue later"
     else if (features.overlayOpen) features.closeOverlay();
     else if (app.sheet) closeSheet();
