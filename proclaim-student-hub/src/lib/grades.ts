@@ -1,0 +1,134 @@
+// Grades tracker: marks from real tests, kept on this device. Shows how each
+// subject is going and which one needs the most work next.
+
+export interface Grade {
+  id: string;
+  subject: string;
+  topic: string;
+  /** YYYY-MM-DD of the test. */
+  date: string;
+  score: number;
+  outOf: number;
+  /** The prep test this grade belongs to, if any. */
+  testId: string;
+}
+
+function read(): Grade[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem("psh.grades") ?? "[]");
+    // Damaged entries (not a grade with numbers) are left out.
+    return Array.isArray(value)
+      ? (
+          value.filter(
+            (g) =>
+              !!g &&
+              typeof g === "object" &&
+              typeof g.score === "number" &&
+              typeof g.outOf === "number" &&
+              g.outOf > 0,
+          ) as Grade[]
+        ).map((g) => ({
+          ...g,
+          id: String(g.id ?? ""),
+          subject: String(g.subject ?? ""),
+          topic: String(g.topic ?? ""),
+          date: String(g.date ?? ""),
+          testId: String(g.testId ?? ""),
+        }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export const grades = {
+  all: read,
+  save(list: Grade[]) {
+    try {
+      localStorage.setItem("psh.grades", JSON.stringify(list));
+    } catch {
+      // Not remembered.
+    }
+  },
+  add(fields: Omit<Grade, "id">): Grade[] {
+    // "maths" joins an existing "Maths" instead of starting a second subject.
+    const same = read().find(
+      (g) => g.subject.trim().toLowerCase() === fields.subject.trim().toLowerCase(),
+    );
+    const subject = same ? same.subject : fields.subject;
+    const next = [
+      { ...fields, subject, id: `g${Date.now().toString(36)}` },
+      ...read().filter((g) => !fields.testId || g.testId !== fields.testId),
+    ];
+    grades.save(next);
+    // The list as it reads back, so what shows now is what shows after a reload.
+    return read();
+  },
+};
+
+export const percent = (g: Pick<Grade, "score" | "outOf">): number =>
+  g.outOf > 0 ? Math.min(100, Math.max(0, Math.round((g.score / g.outOf) * 100))) : 0;
+
+/** A letter for a percentage, the way the school reports it. */
+export function letter(p: number): string {
+  return p >= 90 ? "A*" : p >= 80 ? "A" : p >= 70 ? "B" : p >= 60 ? "C" : p >= 50 ? "D" : "E";
+}
+
+export interface SubjectGrades {
+  subject: string;
+  average: number;
+  count: number;
+  /** Latest grade compared with the one before. */
+  trend: "up" | "down" | "flat";
+  latest: Grade;
+}
+
+/** Per-subject averages, weakest first, so the one to work on is at the top. */
+export function bySubject(list: Grade[]): SubjectGrades[] {
+  // Grouped ignoring case; shown with the first spelling met.
+  const groups = new Map<string, Grade[]>();
+  const names = new Map<string, string>();
+  for (const g of list) {
+    const name = g.subject.trim() || "Other";
+    const key = name.toLowerCase();
+    groups.set(key, [...(groups.get(key) ?? []), g]);
+    names.set(key, names.get(key) ?? name);
+  }
+  return [...groups.entries()]
+    .map(([key, gs]) => {
+      const subject = names.get(key) ?? key;
+      const sorted = gs.toSorted((a, b) => b.date.localeCompare(a.date));
+      const average = Math.round(gs.reduce((n, g) => n + percent(g), 0) / gs.length);
+      const [latest, before] = sorted;
+      const diff = before ? percent(latest) - percent(before) : 0;
+      return {
+        subject,
+        average,
+        count: gs.length,
+        trend: diff > 3 ? "up" : diff < -3 ? "down" : "flat",
+        latest,
+      } as SubjectGrades;
+    })
+    .toSorted((a, b) => a.average - b.average);
+}
+
+/** "18/20" or "85%" or "18 out of 20" → score and outOf. */
+export function parseScore(text: string): { score: number; outOf: number } | null {
+  const t = text.trim();
+  // A number: "18", "18.5", "18,5", "18." or ".5".
+  const n = String.raw`(\d+(?:[.,]\d*)?|[.,]\d+)`;
+  const num = (v: string) => Number(v.replace(",", "."));
+  const frac = t.match(new RegExp(String.raw`^${n}\s*(?:\/|out of|of|z)\s*${n}$`, "i"));
+  if (frac) {
+    const score = num(frac[1]);
+    const outOf = num(frac[2]);
+    // "18/0" isn't a mark; bonus marks up to double are fine.
+    return outOf > 0 && outOf <= 1000 && score <= outOf * 2 ? { score, outOf } : null;
+  }
+  const pct = t.match(new RegExp(String.raw`^${n}\s*%$`));
+  if (pct) {
+    const score = num(pct[1]);
+    return score <= 200 ? { score, outOf: 100 } : null;
+  }
+  return null;
+}

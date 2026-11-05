@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Classic, made better (1.5). Loads after looks.css. Classic is the style
+   with no data-style on <html>, so every rule here starts with
+   :root:not([data-style]) and Calm, Dark and Playful never see it.
+   Same sticker look, tidier: icons on the two number tiles, a subject dot on
+   each Due next row, homework chips on one line, ticks in the subject colour,
+   each Tonight tile in its own colour and lighter AI suggestions.
+   ========================================================================== */
+
+/* The tile icons and subject dots are Classic-only markup: hidden elsewhere. */
+.tile-ic,
+.li-dot {
+  display: none;
+}
+
+/* ---------- Today: the two number tiles ---------- */
+:root:not([data-style]) .bento-tile {
+  position: relative;
+  gap: 4px;
+  padding: 16px;
+}
+:root:not([data-style]) .bento-tile .eyebrow {
+  /* Room for the icon in the corner. */
+  padding-right: 40px;
+}
+:root:not([data-style]) .bento-tile .big {
+  font-size: 42px;
+  margin: 6px 0 2px;
+}
+:root:not([data-style]) .tile-ic {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+}
+:root:not([data-style]) .bento-tile:nth-child(1) .tile-ic {
+  color: var(--orange-t);
+}
+:root:not([data-style]) .bento-tile:nth-child(2) .tile-ic {
+  color: var(--pink-t);
+}
+:root:not([data-style])[data-theme="dark"] .tile-ic {
+  background: rgba(255, 255, 255, 0.1);
+}
+:root:not([data-style])[data-theme="dark"] .bento-tile:nth-child(1) .tile-ic {
+  color: var(--orange);
+}
+:root:not([data-style])[data-theme="dark"] .bento-tile:nth-child(2) .tile-ic {
+  color: var(--pink);
+}
+
+/* ---------- Today: Tonight tiles, each in its own colour ---------- */
+:root:not([data-style]) .tonight-tile.t-plan {
+  background: var(--blue-s);
+}
+:root:not([data-style]) .tonight-tile.t-bag {
+  background: var(--yellow-s);
+}
+:root:not([data-style]) .tonight-tile .ic {
+  background: rgba(255, 255, 255, 0.8);
+}
+:root:not([data-style])[data-theme="dark"] .tonight-tile .ic {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- Today: Due next rows with a subject dot ---------- */
+:root:not([data-style]) .today-due .li-dot {
+  display: block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+:root:not([data-style]) .li-dot.tone-blue {
+  background: var(--blue);
+}
+:root:not([data-style]) .li-dot.tone-orange {
+  background: var(--orange);
+}
+:root:not([data-style]) .li-dot.tone-green {
+  background: var(--green);
+}
+:root:not([data-style]) .li-dot.tone-pink {
+  background: var(--pink);
+}
+:root:not([data-style]) .li-dot.tone-violet {
+  background: var(--violet);
+}
+:root:not([data-style]) .li-dot.tone-yellow {
+  background: var(--yellow);
+}
+/* "Tomorrow" and "Today" become a small orange pill; later days stay quiet. */
+:root:not([data-style]) .today-due .due-when.urgent {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--orange-s);
+  font-size: 12px;
+}
+
+/* ---------- Homework: chips on one line, ticks in the subject colour ---------- */
+:root:not([data-style]) .hw-chips {
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+:root:not([data-style]) .hw-chips .chip {
+  flex: none;
+  padding: 0 10px;
+  font-size: 12px;
+}
+/* Phones keep a 52px gutter on list rows for the floating Ask button (bold.css).
+   The title stays clear of it; the short chip line may use most of it. */
+@media (max-width: 767px) {
+  :root:not([data-style]) .app.has-ask .card.rows .hw-chips {
+    margin-right: -44px;
+  }
+}
+/* The last chip (a site like Dr Frost) gives way first on a narrow phone and
+   ends in "…". Block, not flex, or the ellipsis never shows. */
+:root:not([data-style]) .hw-chips .chip:last-child:not(:first-child) {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  line-height: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root:not([data-style]) .hw[data-tone="blue"] .tick:not(.done) {
+  border-color: var(--blue);
+}
+:root:not([data-style]) .hw[data-tone="orange"] .tick:not(.done) {
+  border-color: var(--orange);
+}
+:root:not([data-style]) .hw[data-tone="green"] .tick:not(.done) {
+  border-color: var(--green);
+}
+:root:not([data-style]) .hw[data-tone="pink"] .tick:not(.done) {
+  border-color: var(--pink);
+}
+:root:not([data-style]) .hw[data-tone="violet"] .tick:not(.done) {
+  border-color: var(--violet);
+}
+:root:not([data-style]) .hw[data-tone="yellow"] .tick:not(.done) {
+  border-color: var(--yellow);
+}
+
+/* ---------- AI help: lighter suggestions ---------- */
+/* The header shows the same colour wash as the rest of the screen, so there's
+   no flat band with an edge under the mode chips. */
+:root:not([data-style]) .buddy-head {
+  background: transparent;
+}
+:root:not([data-style]) .qrb {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 0 0 1.5px var(--edge);
+}
+:root:not([data-style]) .qrb::after {
+  content: " →";
+  color: var(--violet-t);
+}
+:root:not([data-style])[data-theme="dark"] .qrb::after {
+  color: var(--violet);
+}

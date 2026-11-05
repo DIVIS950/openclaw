@@ -1,0 +1,122 @@
+import { Component, type ReactNode } from "react";
+import { backups } from "../lib/backup.ts";
+import { errorReports } from "../lib/errorReports.ts";
+
+// One damaged list (a bad link, a broken saved copy) must never leave the
+// student with a blank app: they get a way back without clearing anything.
+// Two ways back: undo just the last link, or go back to today's first save.
+
+const savedAt = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "earlier"
+    : d.toLocaleString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+};
+
+interface State {
+  failed: boolean;
+  restored: boolean;
+  /** A bug report went to Claude (the Claude app), or is waiting to. */
+  reported: boolean;
+}
+
+export class AppErrorBoundary extends Component<{ children: ReactNode; inline?: boolean }, State> {
+  state: State = { failed: false, restored: false, reported: false };
+
+  static getDerivedStateFromError(): Partial<State> {
+    return { failed: true };
+  }
+
+  componentDidCatch(err: unknown) {
+    console.error("Student Hub crashed", err);
+    const screen = window.location.hash.slice(1).split(/[?/]/)[0] || "today";
+    this.setState({ reported: errorReports.capture(err, `${screen} · crash`) });
+  }
+
+  private done = () => {
+    this.setState({ restored: true });
+    window.setTimeout(() => window.location.reload(), 600);
+  };
+
+  private undoLink = () => {
+    const link = backups.lastLink();
+    if (
+      link &&
+      window.confirm(
+        `Undo the last link you brought in (${savedAt(link.at)})? Anything added after it is removed.`,
+      ) &&
+      backups.undoLink()
+    ) {
+      this.done();
+    }
+  };
+
+  private restoreDay = (day: { day: string; at: string } | null) => {
+    if (
+      day &&
+      window.confirm(
+        `Go back to how everything was at ${savedAt(day.at)}? Anything added after that is removed.`,
+      ) &&
+      backups.restore(day.day)
+    ) {
+      this.done();
+    }
+  };
+
+  render() {
+    if (!this.state.failed) {
+      return this.props.children;
+    }
+    const link = backups.lastLink();
+    // Today's save, unless it was taken after the link (a link brought in just
+    // before midnight): then the day before's. The same moment twice shows once.
+    const day = backups.safeSave();
+    const sameMoment =
+      !!link &&
+      !!day &&
+      Math.abs(new Date(day.at).getTime() - new Date(link.at).getTime()) < 60_000;
+    const body = (
+      <main className="screen" style={{ gap: 16 }}>
+        <h1 className="h1">Something went wrong</h1>
+        <div className="card stack" role="alert" style={{ gap: 12, padding: 16 }}>
+          <p style={{ margin: 0 }}>
+            This screen hit a problem, often from a damaged link. Nothing has been deleted. Reload
+            to try again, or go back to an automatic save.
+          </p>
+          {this.state.reported && errorReports.canReach && (
+            <p className="s13 muted" style={{ margin: 0 }}>
+              Claude got a report about this and will fix it in the next version.
+            </p>
+          )}
+          {this.state.restored ? (
+            <p style={{ margin: 0, fontWeight: 700 }}>Restored. Reloading…</p>
+          ) : (
+            <>
+              <button className="btn primary" onClick={() => window.location.reload()}>
+                Reload
+              </button>
+              {link && (
+                <button className="btn" onClick={this.undoLink}>
+                  Undo the last link ({savedAt(link.at)})
+                </button>
+              )}
+              {day && !sameMoment && (
+                <button className="btn" onClick={() => this.restoreDay(day)}>
+                  Back to the save from {savedAt(day.at)}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+    );
+    // Inside the app (one screen) the tab bar stays usable; at the top it needs its own frame.
+    return this.props.inline ? body : <div className="app">{body}</div>;
+  }
+}

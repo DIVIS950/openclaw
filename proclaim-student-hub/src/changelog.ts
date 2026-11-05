@@ -1,0 +1,113 @@
+// What changed in each version, newest first. Shown in More › Change the app.
+// Every version Claude builds from a request adds an entry here.
+
+export interface Release {
+  version: string;
+  /** YYYY-MM-DD */
+  date: string;
+  title: string;
+  items: string[];
+}
+
+export const RELEASES: Release[] = [
+  {
+    version: "1.6.0",
+    date: "2026-11-03",
+    title: "Reminders on your phone, and each task once",
+    items: [
+      "More › Notifications: one tap puts your homework, tests and weekly tutoring in Google Calendar, so your phone reminds you even when the hub is closed (inside the Claude app the hub can't pop up alerts by itself)",
+      'Turn on "Keep adding new work" and new homework and tests go into the calendar by themselves',
+      "Tutoring: Add to Google Calendar on a tutor's page adds every lesson, with a reminder 15 minutes before",
+      "New homework from the hourly Classroom check now gets a New homework message when you open the app",
+      "Homework saved twice (a short title and the same title with a summary) shows once, and class names like Y9 Math 26/27 Mr Fitz now read Maths",
+      "Sync: your own bag items and what's in Google Calendar travel between your devices, and sync runs every few minutes while the app is open",
+      "Tutor Hub: the lesson shows its day (Today 17:00), the top tags sit in one row, and the four tabs fit on one line",
+    ],
+  },
+  {
+    version: "1.5.1",
+    date: "2026-11-03",
+    title: "Gmail connects again",
+    items: [
+      'Fixed: Gmail and Google Calendar asked to connect at the same moment, so Gmail often stayed "not connected"; now they ask one after the other',
+      "Fixed: Classroom emails came in without a course or due date, because Gmail stopped sending those in its quick list; the app now reads each email for them",
+      "Fixed: if Gmail was turned off for the app, Connect Gmail now says where to turn it back on",
+    ],
+  },
+  {
+    version: "1.5.0",
+    date: "2026-11-02",
+    title: "Classic, made better",
+    items: [
+      "Today: icons on the two number tiles, a colour dot for each subject in Due next, and each Tonight tile in its own colour",
+      "Homework: the tags fit on one line and each tick circle has its subject's colour",
+      "AI help: lighter suggestions; fixed a box around the chosen mode and curved lines between homework rows",
+    ],
+  },
+  {
+    version: "1.4.0",
+    date: "2026-10-20",
+    title: "Google Calendar, Docs and Slides, and bugs fixed by themselves",
+    items: [
+      "Tests and homework: Add to Google Calendar, with a phone reminder the evening before",
+      "Revise › Scan: paste a Google Docs or Slides link and it becomes a revision pack",
+      "When something breaks, the app tells Claude by itself; see it in Change the app › Problems Claude is fixing",
+    ],
+  },
+  {
+    version: "1.3.0",
+    date: "2026-10-20",
+    title: "Pick your style, see Gmail and sync, smoother on iPhone",
+    items: [
+      "Four styles in More › Look: Classic (as before), Calm, Dark and Playful",
+      "Today shows if Gmail is on and when your devices last synced; tap it to connect or sync now",
+      "iPhone: typing no longer zooms the page in, and buttons react to the first tap",
+    ],
+  },
+  {
+    version: "1.2.1",
+    date: "2026-10-19",
+    title: "Everything syncs in the Claude app",
+    items: [
+      "Notes, to-dos, tests, timetable, levels and revision packs now sync between your phone, iPad and computer in the Claude app",
+      "No setup: it goes through your Claude account and syncs by itself when you open the app",
+      "More › Sync my devices shows when it last synced, with a Sync now button",
+    ],
+  },
+  {
+    version: "1.2.0",
+    date: "2026-10-18",
+    title: "Fuller iPad side bar, search, sync and late warnings",
+    items: [
+      "iPad side bar: Search, Timetable, Tests, Revise, Tutoring, Notes, Inbox, Evening, Bag and Reminders, one tap away",
+      "Search everything: homework, tests, notes, revision cards, to-dos and lessons (Ctrl/⌘K on a keyboard)",
+      "Drag a photo, screenshot or text onto the app and the AI files it",
+      "Weekend mode: on Saturday and Sunday, Today shows what's due Monday",
+      "Late homework shows in red at the top of Today and Homework, with a number on the Homework button",
+      "Sync my devices (website): the same data on phone and iPad, through your own Google Drive",
+    ],
+  },
+  {
+    version: "1.1.0",
+    date: "2026-10-14",
+    title: "Level-up redesign and four new features",
+    items: [
+      "Change the app: write what you want, it goes straight to Claude, and the new version arrives by itself",
+      "Plan my evening: tonight in time blocks around tutoring and dinner, with breaks",
+      "Pack my bag: tomorrow's checklist from your timetable, homework, tests and teachers' notes",
+      "Levels & badges: XP from homework, revision, focus and planning, with 15 badges to earn",
+      "A smoother, glassier look: bigger Today hero, glass tab bar, softer cards, livelier motion",
+      "The Revision Lab and the Tutor Hub got the new look too",
+    ],
+  },
+  {
+    version: "1.0.0",
+    date: "2026-10-12",
+    title: "Version 1.0",
+    items: [
+      "Today, Homework, Tests, Revision Lab, Tutoring, Notes, Timetable and Inbox",
+      "Classroom homework arrives every hour",
+      "Bold colourful design",
+    ],
+  },
+];
