@@ -1,0 +1,141 @@
+# Builds the Home Control iPad app (crestron-home-app) on a Mac in the cloud.
+# - Every push that touches the app: a compile check, no Apple account needed.
+# - "Run workflow" by hand: also signs the app and sends it to TestFlight, using
+#   the App Store Connect key in this repository's secrets (see crestron-home-app/TESTFLIGHT.md).
+name: Home Control iPad app
+
+on:
+  push:
+    branches: [main, claude/happy-gauss-heaew1]
+    paths:
+      - "crestron-home-app/HomeControl/**"
+      - "crestron-home-app/project.yml"
+      - ".github/workflows/home-control-ios.yml"
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: "Also send the app to TestFlight (needs the Apple secrets)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: home-control-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: crestron-home-app
+
+jobs:
+  build:
+    name: Compile check
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild -version
+
+      - name: Build for the iPad simulator
+        run: |
+          if xcodebuild build \
+              -project HomeControl.xcodeproj -scheme HomeControl \
+              -destination "generic/platform=iOS Simulator" -configuration Debug \
+              CODE_SIGNING_ALLOWED=NO > build.log 2>&1; then
+            echo "Build succeeded."
+            grep -E "warning:" build.log | sort -u | head -50 || true
+          else
+            echo "::group::Errors"
+            grep -E "error:" build.log | sort -u | head -150
+            echo "::endgroup::"
+            tail -40 build.log
+            exit 1
+          fi
+
+      - name: Keep the build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: crestron-home-app/build.log
+          if-no-files-found: ignore
+
+  testflight:
+    name: Send to TestFlight
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.testflight
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+    steps:
+      - name: Check the Apple secrets
+        run: |
+          missing=""
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID BUNDLE_ID; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::These repository secrets are missing:$missing. See crestron-home-app/TESTFLIGHT.md."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Make the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Archive and sign
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s' "$ASC_KEY_P8" > "$KEY"
+          xcodebuild archive \
+            -project HomeControl.xcodeproj -scheme HomeControl \
+            -destination "generic/platform=iOS" -configuration Release \
+            -archivePath "$RUNNER_TEMP/HomeControl.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            > archive.log 2>&1 || { grep -E "error:" archive.log | sort -u | head -80; tail -40 archive.log; exit 1; }
+
+      - name: Upload to TestFlight
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HomeControl.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Uploaded build ${{ github.run_number }}. It shows up in TestFlight after Apple finishes processing (usually 5–30 minutes)."
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8

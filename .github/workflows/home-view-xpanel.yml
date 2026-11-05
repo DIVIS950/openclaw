@@ -1,0 +1,41 @@
+# Builds Home View as a Crestron HTML5 Web XPanel package (HomeView.ch5z) on every change,
+# so the file can be downloaded from the run's Artifacts and loaded onto the processor.
+name: Home View Web XPanel
+
+on:
+  push:
+    branches: [main, claude/happy-gauss-heaew1]
+    paths:
+      - "crestron-home-app/web/public/**"
+      - "crestron-home-app/web/xpanel/**"
+      - ".github/workflows/home-view-xpanel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Package HomeView.ch5z
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: crestron-home-app/web/xpanel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Crestron's CH5 libraries
+        run: npm install --no-audit --no-fund
+      - name: Build the package
+        run: node build.mjs
+      - name: Check the page loads
+        run: |
+          node -e "const fs=require('fs');const h=fs.readFileSync('dist/site/index.html','utf8');if(!h.includes('vendor/cr-com-lib.js')||!h.includes('homeview-mode'))process.exit(1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HomeView-ch5z
+          path: crestron-home-app/web/xpanel/dist/HomeView.ch5z
+          if-no-files-found: error

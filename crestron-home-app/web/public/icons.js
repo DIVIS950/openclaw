@@ -1,0 +1,132 @@
+// Line icons drawn on a 24px grid, stroke-only so they take the text color.
+const P = {
+  home: '<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11.5h13V9"/><path d="M10 20.5V15h4v5.5"/>',
+  bulb: '<path d="M9.2 17.5h5.6"/><path d="M10 20.5h4"/><path d="M12 3a6 6 0 0 0-3.7 10.7c.7.6 1 1.3 1 2.1v.2h5.4v-.2c0-.8.3-1.5 1-2.1A6 6 0 0 0 12 3z"/>',
+  bulbOff: '<path d="M9.2 17.5h5.6"/><path d="M10 20.5h4"/><path d="M12 3a6 6 0 0 0-3.7 10.7c.7.6 1 1.3 1 2.1v.2h5.4v-.2c0-.8.3-1.5 1-2.1A6 6 0 0 0 12 3z"/><path d="M4 4l16 16"/>',
+  blinds: '<path d="M3.5 4h17"/><path d="M5 4v9.5h14V4"/><path d="M5 7.2h14M5 10.4h14"/><path d="M12 13.5V18"/><circle cx="12" cy="19.6" r="1.4"/>',
+  speaker: '<rect x="6" y="3" width="12" height="18" rx="2.6"/><circle cx="12" cy="14.2" r="3"/><circle cx="12" cy="7.6" r=".9"/>',
+  shield: '<path d="M12 3 4.8 5.8v5.6c0 4.5 3 8.2 7.2 9.6 4.2-1.4 7.2-5.1 7.2-9.6V5.8z"/>',
+  shieldCheck: '<path d="M12 3 4.8 5.8v5.6c0 4.5 3 8.2 7.2 9.6 4.2-1.4 7.2-5.1 7.2-9.6V5.8z"/><path d="m9 12.2 2.1 2.1 4-4.2"/>',
+  shieldAlert: '<path d="M12 3 4.8 5.8v5.6c0 4.5 3 8.2 7.2 9.6 4.2-1.4 7.2-5.1 7.2-9.6V5.8z"/><path d="M12 8.2v4.6"/><path d="M12 16.2h.01"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.6"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.6 0v2.5"/><path d="M12 14.5v2"/>',
+  unlock: '<rect x="5" y="10.5" width="14" height="10" rx="2.6"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.3-1.5"/><path d="M12 14.5v2"/>',
+  gate: '<path d="M3 20.5V5M21 20.5V5"/><path d="M3 8h18M3 16.5h18"/><path d="M7.5 8v8.5M12 8v8.5M16.5 8v8.5"/>',
+  camera: '<rect x="2.8" y="6.5" width="13.2" height="11" rx="2.6"/><path d="m16 10.6 5.2-3v8.8l-5.2-3"/>',
+  sliders: '<path d="M4 7h9.5M18.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="16" cy="7" r="2.4"/><circle cx="10" cy="17" r="2.4"/>',
+  power: '<path d="M12 3.5V11"/><path d="M6.8 6.6a7.6 7.6 0 1 0 10.4 0"/>',
+  music: '<path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  moon: '<path d="M20 14.6A8.2 8.2 0 0 1 9.4 4 8.2 8.2 0 1 0 20 14.6z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M2.5 12h2M19.5 12h2M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+  sunrise: '<path d="M3 18.5h18"/><path d="M6.8 18.5a5.2 5.2 0 0 1 10.4 0"/><path d="M12 3.5v5M9.6 6 12 3.5 14.4 6"/><path d="M4.4 11.4l1.4 1.4M19.6 11.4l-1.4 1.4"/>',
+  away: '<path d="M14 3.5h4.5a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H14"/><path d="M9.5 8 5.5 12l4 4"/><path d="M5.5 12H15"/>',
+  film: '<rect x="3" y="4" width="18" height="16" rx="2.6"/><path d="M7.5 4v16M16.5 4v16M3 9h4.5M3 15h4.5M16.5 9H21M16.5 15H21"/>',
+  fork: '<path d="M7 3v7.5a2 2 0 0 0 2 2V21"/><path d="M11 3v7.5a2 2 0 0 1-2 2"/><path d="M9 3v5"/><path d="M17.5 21V3c-2.2 1.5-3.2 4-3.2 7.2 0 2.5.9 3.8 3.2 3.8"/>',
+  book: '<path d="M5 4.6A1.6 1.6 0 0 1 6.6 3H19v14.5H6.6A1.6 1.6 0 0 0 5 19.1z"/><path d="M5 19.1a1.6 1.6 0 0 0 1.6 1.6H19v-3.2"/>',
+  sparkle: '<path d="M11 3.5l1.7 4.8L17.5 10l-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7z"/><path d="M18 15.5l.7 1.8 1.8.7-1.8.7L18 20.5l-.7-1.8-1.8-.7 1.8-.7z"/>',
+  sofa: '<path d="M4.5 11V8.2a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3V11"/><path d="M2.5 13.2a2 2 0 0 1 4 0v2.3h11v-2.3a2 2 0 0 1 4 0v5.3h-19z"/><path d="M5 18.5v2M19 18.5v2"/>',
+  bed: '<path d="M3 19.5V6"/><path d="M3 13h18v6.5"/><path d="M3 16.2h18"/><path d="M7 13v-2.3A1.7 1.7 0 0 1 8.7 9h2.6A1.7 1.7 0 0 1 13 10.7V13"/>',
+  desk: '<rect x="3" y="4" width="18" height="12" rx="2.2"/><path d="M8.5 20.5h7M12 16v4.5"/>',
+  door: '<path d="M4.5 21h15"/><path d="M7 21V4.2a1.2 1.2 0 0 1 1.2-1.2h7.6A1.2 1.2 0 0 1 17 4.2V21"/><path d="M14 12.2h.01"/>',
+  tree: '<path d="M12 21v-4.5"/><path d="M12 3 6.2 11.5h3.1l-3.1 5h11.6l-3.1-5h3.1z"/>',
+  car: '<path d="M4.5 17h15v-4l-2-5.2h-11L4.5 13z"/><path d="M5 17v2.5M19 17v2.5"/><path d="M4.5 13h15"/><path d="M8 15h.01M16 15h.01"/>',
+  bath: '<path d="M3.5 12h17v2.8a5.2 5.2 0 0 1-5.2 5.2H8.7a5.2 5.2 0 0 1-5.2-5.2z"/><path d="M6 12V5.8a2.3 2.3 0 0 1 4.3-1.2"/>',
+  grid: '<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/>',
+  up: '<path d="M12 19V5.5M6.5 11 12 5.5l5.5 5.5"/>',
+  down: '<path d="M12 5v13.5M6.5 13l5.5 5.5 5.5-5.5"/>',
+  stop: '<rect x="7" y="7" width="10" height="10" rx="1.8"/>',
+  volume: '<path d="M4 9.5h3.5L12 5.2v13.6l-4.5-4.3H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18 6.7a7.5 7.5 0 0 1 0 10.6"/>',
+  mute: '<path d="M4 9.5h3.5L12 5.2v13.6l-4.5-4.3H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>',
+  back: '<path d="m14.5 5.5-6.5 6.5 6.5 6.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  alert: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.2h.01"/>',
+  deleteKey: '<path d="M9 5.5h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-6-6.5z"/><path d="m12.5 9.5 5 5M17.5 9.5l-5 5"/>',
+  open: '<path d="M12 4.5v15"/><path d="M9 12H3.5M6 9l-3 3 3 3"/><path d="M15 12h5.5M18 9l3 3-3 3"/>',
+  closeIn: '<path d="M12 4.5v15"/><path d="M3 12h6M6 9l3 3-3 3"/><path d="M21 12h-6M18 9l-3 3 3 3"/>',
+  bolt: '<path d="M13 3 5.5 13h6l-1 8L18 11h-6z"/>',
+  arrowRight: '<path d="M5 12h13M13 6l6 6-6 6"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
+  send: '<path d="M12 19V5.5M6.5 11 12 5.5l5.5 5.5"/>',
+  chevron: '<path d="m9.5 5.5 6.5 6.5-6.5 6.5"/>',
+  more: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
+  gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
+  tv: '<rect x="2.8" y="4.5" width="18.4" height="12.5" rx="2.4"/><path d="M8.5 20.5h7"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  hand: '<path d="M8 12.5V6a1.5 1.5 0 0 1 3 0v5.5V4.5a1.5 1.5 0 0 1 3 0v7V6a1.5 1.5 0 0 1 3 0v8.5a6.5 6.5 0 0 1-6.5 6.5h-.3a6 6 0 0 1-5-2.7L3.6 14.6a1.5 1.5 0 0 1 2.4-1.8L8 15"/>',
+  cloud: '<path d="M7 18.5h10.2a4.3 4.3 0 0 0 .5-8.6 6 6 0 0 0-11.4 1.6A3.6 3.6 0 0 0 7 18.5z"/>',
+  cloudSun: '<path d="M12.5 6.4A4 4 0 0 1 19.4 9"/><path d="M15.5 3v1.2M20.6 5.4l-.9.8M22 10.5h-1.2"/><path d="M6.5 20h8.6a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.4A3 3 0 0 0 6.5 20z"/>',
+  rain: '<path d="M7 15.5h10.2a4.3 4.3 0 0 0 .5-8.6 6 6 0 0 0-11.4 1.6A3.6 3.6 0 0 0 7 15.5z"/><path d="M8.5 18.5l-1 2.5M12.5 18.5l-1 2.5M16.5 18.5l-1 2.5"/>',
+  snow: '<path d="M7 15h10.2a4.3 4.3 0 0 0 .5-8.6 6 6 0 0 0-11.4 1.6A3.6 3.6 0 0 0 7 15z"/><path d="M8.5 19h.01M12 20.5h.01M15.5 19h.01"/>',
+  storm: '<path d="M7 15h10.2a4.3 4.3 0 0 0 .5-8.6 6 6 0 0 0-11.4 1.6A3.6 3.6 0 0 0 7 15z"/><path d="m12.5 15.5-2 3.5h3l-2 3.5"/>',
+  fog: '<path d="M4 10h16M6 14h12M4 18h16"/><path d="M7.5 6.5h9"/>',
+  star: '<path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>',
+  starFill: '<path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="currentColor"/>',
+  pause: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/>',
+  playFill: '<path d="M8 5.2v13.6l11-6.8z" fill="currentColor"/>',
+  next: '<path d="M5 6v12l8-6z" fill="currentColor"/><path d="M12 6v12l8-6z" fill="currentColor"/>',
+  prev: '<path d="M19 6v12l-8-6z" fill="currentColor"/><path d="M12 6v12l-8-6z" fill="currentColor"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5"/><path d="M9.5 2.5h5M12 2.5V6"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  edit: '<path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  minus: '<path d="M5 12h14"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  suitcase: '<rect x="3" y="7.5" width="18" height="12.5" rx="2.4"/><path d="M8.5 7.5V5.6A1.6 1.6 0 0 1 10.1 4h3.8a1.6 1.6 0 0 1 1.6 1.6v1.9"/><path d="M3 12.5h18"/>',
+  wall: '<rect x="3" y="4" width="8" height="7" rx="1.6"/><rect x="13" y="4" width="8" height="7" rx="1.6"/><rect x="3" y="13" width="8" height="7" rx="1.6"/><rect x="13" y="13" width="8" height="7" rx="1.6"/>',
+  speakers: '<rect x="2.5" y="5" width="8" height="14" rx="2"/><circle cx="6.5" cy="13.5" r="2"/><rect x="13.5" y="5" width="8" height="14" rx="2"/><circle cx="17.5" cy="13.5" r="2"/>',
+  thermo: '<path d="M10 13.6V5a2 2 0 0 1 4 0v8.6a4 4 0 1 1-4 0z"/><path d="M12 9v7.2"/><circle cx="12" cy="17" r="1.2"/>',
+  flame: '<path d="M12 21a6 6 0 0 0 6-6c0-3.6-2.6-5.6-3.6-8.9-.4 1.7-1.3 2.9-2.4 3.6C11.6 6.9 10.4 4.6 8.6 3c.3 3.4-2.6 6.4-2.6 10.4A6 6 0 0 0 12 21z"/><path d="M12 21a2.6 2.6 0 0 1-2.6-2.6c0-1.6 1.3-2.5 2.6-4 1.3 1.5 2.6 2.4 2.6 4A2.6 2.6 0 0 1 12 21z"/>',
+  steam: '<path d="M8 3.5c-1.2 1.4 1.2 2.6 0 4M12 3.5c-1.2 1.4 1.2 2.6 0 4M16 3.5c-1.2 1.4 1.2 2.6 0 4"/><path d="M3.5 12.5c1.4-1.2 2.8-1.2 4.2 0s2.8 1.2 4.3 0 2.8-1.2 4.3 0 2.8 1.2 4.2 0"/><path d="M3.5 17c1.4-1.2 2.8-1.2 4.2 0s2.8 1.2 4.3 0 2.8-1.2 4.3 0 2.8 1.2 4.2 0"/>',
+  motion: '<circle cx="13" cy="4.6" r="1.6"/><path d="m8 21 3-6.5 3 2.5v4.5"/><path d="M6.5 11.5 9 8.5l3.5-.5 2.5 3.5 3 1"/><path d="m11 14.5 1.5-6"/>',
+  wifi: '<path d="M4.5 10a11 11 0 0 1 15 0"/><path d="M7.5 13.3a6.6 6.6 0 0 1 9 0"/><path d="M12 17.2h.01"/>',
+  // TV remote
+  remote: '<rect x="7.5" y="2.5" width="9" height="19" rx="2.6"/><circle cx="12" cy="9.5" r="2.4"/><path d="M10 15h4M10 18h4"/><path d="M12 5.2h.01"/>',
+  appsGrid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><path d="M16.75 13.5v6.5M13.5 16.75H20"/>',
+  chevronUp: '<path d="m6 14.5 6-6 6 6"/>',
+  chevronDown: '<path d="m6 9.5 6 6 6-6"/>',
+  chevronLeft: '<path d="m14.5 6-6 6 6 6"/>',
+  chevronRight: '<path d="m9.5 6 6 6-6 6"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.8h.01"/>',
+};
+
+export function icon(name, extraClass = "") {
+  return `<svg class="icon ${extraClass}" viewBox="0 0 24 24" aria-hidden="true">${P[name] ?? P.sparkle}</svg>`;
+}
+
+const ROOM_ICONS = [
+  ["kitchen", "fork"], ["dining", "fork"], ["living", "sofa"], ["family", "sofa"], ["lounge", "sofa"],
+  ["bed", "bed"], ["master", "bed"], ["guest", "bed"], ["kid", "bed"], ["nursery", "bed"],
+  ["office", "desk"], ["study", "book"], ["library", "book"], ["bath", "bath"], ["patio", "sun"],
+  ["garden", "tree"], ["yard", "tree"], ["outdoor", "tree"], ["pool", "sun"], ["garage", "car"],
+  ["entry", "door"], ["foyer", "door"], ["hall", "door"], ["theater", "film"], ["cinema", "film"],
+  ["media", "film"], ["tv", "film"], ["gym", "bolt"], ["wine", "fork"],
+  // Czech room names
+  ["kuchyň", "fork"], ["kuchyn", "fork"], ["jídeln", "fork"], ["obýv", "sofa"], ["obyv", "sofa"], ["salon", "sofa"],
+  ["ložnic", "bed"], ["loznic", "bed"], ["pokoj", "bed"], ["pracovn", "desk"], ["knihovn", "book"],
+  ["koupeln", "bath"], ["wc", "bath"], ["sauna", "steam"], ["fitk", "bolt"], ["posilovn", "bolt"],
+  ["zahrad", "tree"], ["venek", "tree"], ["dvůr", "tree"], ["terasa", "sun"], ["balkon", "sun"], ["bazén", "sun"],
+  ["garáž", "car"], ["garaz", "car"], ["zádveří", "door"], ["chodb", "door"], ["vstup", "door"], ["schod", "door"],
+  ["klub", "film"], ["kino", "film"], ["sklep", "fork"], ["vinný", "fork"],
+];
+
+export function roomIcon(name) {
+  const n = String(name).toLowerCase();
+  return ROOM_ICONS.find(([k]) => n.includes(k))?.[1] ?? "grid";
+}
+
+export function sceneIcon(scene) {
+  const n = scene.name.toLowerCase();
+  if (/night|sleep|bed|noc|spánek|spat/.test(n)) return "moon";
+  if (/morning|wake|sunrise|ráno|rano|budíček/.test(n)) return "sunrise";
+  if (/away|leave|vacation|odchod|pryč|dovolen/.test(n)) return "away";
+  if (/welcome|home|arrive|vítej|příchod|příjezd/.test(n)) return "home";
+  if (/movie|tv|cinema|film|televiz|kino/.test(n)) return "film";
+  if (/dinner|cook|kitchen|meal|večeře|vaření|oběd/.test(n)) return "fork";
+  if (/read|book|čtení|cteni/.test(n)) return "book";
+  if (/party|párty/.test(n)) return "sparkle";
+  if (/off|vypnout|vypnuto/.test(n)) return "power";
+  if (/bright|on$|all on|zapnout vše/.test(n)) return "sun";
+  return { lighting: "bulb", shades: "blinds", media: "music", climate: "sun" }[scene.kind] ?? "sparkle";
+}
