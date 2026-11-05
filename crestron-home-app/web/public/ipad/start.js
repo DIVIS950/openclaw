@@ -53,9 +53,13 @@ export function createStart(ctx) {
     try {
       const dl = canDownload() ? await window.claude.use("downloads") : null;
       if (!dl) throw new Error("no-downloads");
-      const res = await fetch(PACKAGE, { cache: "no-store" });
+      // The package travels as base64 text (the demo host serves no zip files); decode it here.
+      const res = await fetch(`${PACKAGE}.b64.txt`, { cache: "no-store" });
       if (!res.ok) throw new Error("no-file");
-      await dl.save({ filename: PACKAGE, data: await res.blob() });
+      const bin = atob((await res.text()).replace(/\s+/g, ""));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      await dl.save({ filename: PACKAGE, data: bytes });
       st.download = "ok";
       st.done.file = true;
       notify(t("Downloaded"), { ic: "check" });
