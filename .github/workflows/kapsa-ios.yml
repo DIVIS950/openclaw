@@ -1,0 +1,54 @@
+name: Kapsa iOS typecheck
+
+# Compiles the Kapsa iPhone app sources against the iOS SDK on a Mac runner, so the
+# Swift code is known to build before anyone pastes it into Xcode or Swift Playgrounds.
+on:
+  push:
+    branches: [claude/membership-card-location-app-q8wd9l]
+    paths:
+      - "apps/kapsa-ios/**"
+      - ".github/workflows/kapsa-ios.yml"
+  workflow_dispatch:
+
+jobs:
+  typecheck:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use the newest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+          xcrun swiftc --version
+
+      - name: Typecheck (Swift 5 language mode)
+        working-directory: apps/kapsa-ios
+        run: |
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          xcrun swiftc -typecheck -parse-as-library -sdk "$SDK" -target arm64-apple-ios17.0-simulator \
+            -swift-version 5 Kapsa/*.swift
+
+      - name: Typecheck the all-in-one file (Swift 6 language mode)
+        working-directory: apps/kapsa-ios
+        run: |
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          if [ -f Kapsa-AllInOne.swift ]; then
+            xcrun swiftc -typecheck -parse-as-library -sdk "$SDK" -target arm64-apple-ios17.0-simulator \
+              -swift-version 6 Kapsa-AllInOne.swift
+          fi
+
+      - name: Typecheck with main-actor default isolation (new Xcode project template)
+        working-directory: apps/kapsa-ios
+        run: |
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          if xcrun swiftc -help-hidden 2>/dev/null | grep -q -- "-default-isolation"; then
+            xcrun swiftc -typecheck -parse-as-library -sdk "$SDK" -target arm64-apple-ios17.0-simulator \
+              -swift-version 6 -default-isolation MainActor Kapsa/*.swift
+          else
+            echo "This Swift has no -default-isolation flag; skipped."
+          fi
