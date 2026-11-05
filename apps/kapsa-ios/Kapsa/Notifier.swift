@@ -5,15 +5,15 @@ import UserNotifications
 /// reminders before coupons, cards and gift cards expire.
 @MainActor
 enum Notifier {
-    private static let dwellKey = "kapsa.dwellScheduledAt"
+    private nonisolated static let dwellKey = "kapsa.dwellScheduledAt"
     /// Don't remind about the same card again within this time.
-    private static let repeatAfter: TimeInterval = 3 * 3600
+    private nonisolated static let repeatAfter: TimeInterval = 3 * 3600
 
-    static func requestPermission() async -> Bool {
+    nonisolated static func requestPermission() async -> Bool {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
-    static func isAllowed() async -> Bool {
+    nonisolated static func isAllowed() async -> Bool {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
     }
@@ -22,7 +22,7 @@ enum Notifier {
 
     /// Walked into a shop with a card: remind to use it after `minutes`, unless the person
     /// leaves first (`leftShop` cancels it). Once per visit, at most every 3 hours.
-    static func enteredShop(cardID: UUID, title: String, body: String, minutes: Int) async {
+    nonisolated static func enteredShop(cardID: UUID, title: String, body: String, minutes: Int) async {
         let id = "dwell-\(cardID.uuidString)"
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
@@ -72,7 +72,7 @@ enum Notifier {
     }
 
     /// Replace all expiry reminders (at 9:00, a few days before).
-    static func scheduleExpiry(_ reminders: [Reminder]) async {
+    nonisolated static func scheduleExpiry(_ reminders: [Reminder]) async {
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
         let old = pending.map(\.identifier).filter { $0.hasPrefix("exp-") }

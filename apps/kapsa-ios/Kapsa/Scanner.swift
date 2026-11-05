@@ -9,6 +9,7 @@ struct ScannedCode: Equatable, Sendable {
     let format: BarcodeFormat
 }
 
+@MainActor
 enum CodeReader {
     /// Our format for what Vision found (UPC-A arrives as EAN-13 with a leading 0).
     static func format(for symbology: VNBarcodeSymbology) -> BarcodeFormat {
