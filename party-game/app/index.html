@@ -71,7 +71,7 @@ input::placeholder{color:rgba(255,255,255,.6)}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tile{position:relative;aspect-ratio:1.15;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;cursor:pointer;overflow:hidden;text-align:left;font-family:var(--font);color:var(--fg)}
-.tile .ic{position:absolute;right:12px;top:12px;width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 1px rgba(255,255,255,.6);font-size:22px;font-weight:900;color:#fff}
+.tile .ico{position:absolute;left:14px;top:14px}
 .tile b{font-weight:800;font-size:16px;letter-spacing:-.02em}
 .tile small{font-weight:600;font-size:12px;color:var(--muted)}
 .tile[disabled]{opacity:.45;pointer-events:none}
@@ -120,6 +120,25 @@ input::placeholder{color:rgba(255,255,255,.6)}
 .dot{width:12px;height:12px;border-radius:50%;flex:none}
 .lives{display:flex;gap:4px}.lives i{width:12px;height:12px;border-radius:50%;background:#fff;opacity:.35}.lives i.on{opacity:1;box-shadow:0 0 8px #fff}
 .tiny{font-weight:600;font-size:12px;color:var(--dim)}
+.pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pgrid.c5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.ptile{position:relative;aspect-ratio:1;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;cursor:pointer;font-family:var(--font);color:var(--fg);box-sizing:border-box;width:100%}
+.ptile b{font-weight:800;font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+.ptile.on{background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff}
+.ptile[disabled]{opacity:.45;pointer-events:none}
+.ptile .badge{position:absolute;top:8px;right:8px;min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:rgba(255,255,255,.92);color:var(--ink);font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(20,10,80,.25);box-sizing:border-box}
+.ptile.on .badge{background:var(--ink);color:#fff}
+.ptile .lives{position:absolute;bottom:10px}
+.ptile .tiny{position:absolute;bottom:8px}
+.ptile.on .tiny{color:#6b6a8a}
+.ptile .lives i{background:currentColor}
+.ico{width:48px;height:48px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 8px 18px rgba(20,10,80,.25);color:#fff}
+.ico svg{width:26px;height:26px}
+.ico.lg{width:64px;height:64px;border-radius:22px}.ico.lg svg{width:34px;height:34px}
+.ptile .ico{width:52px;height:52px;border-radius:18px}
+.ptile.on .ico{box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 8px 18px rgba(20,10,80,.35)}
+.seg button svg{width:18px;height:18px;vertical-align:-4px;margin-right:4px}
 </style>
 
 <div class="app" id="app"></div>
@@ -130,8 +149,34 @@ input::placeholder{color:rgba(255,255,255,.6)}
 (function(){
 'use strict';
 /* ---------- content ---------- */
+const SVG={
+ bolt:'<path d="M13 3L4 14h6l-1 7 9-11h-6z"/>',
+ mask:'<path d="M3 10c3-5 15-5 18 0-3 5-15 5-18 0z"/><circle cx="12" cy="10" r="2.5"/><path d="M8 18h8"/>',
+ star:'<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.6 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/>',
+ q:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7v.5"/><circle cx="12" cy="17" r=".6"/>',
+ flame:'<path d="M12 3c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 1-3 0 2 1 3 2 3 0-3-1-5 1-8z"/>',
+ hand:'<path d="M8 13V5a2 2 0 1 1 4 0v6"/><path d="M12 11V9a2 2 0 1 1 4 0v3"/><path d="M16 12a2 2 0 1 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.5L4 14a2 2 0 1 1 3.5-2L8 13"/>',
+ swap:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+ bomb:'<circle cx="11" cy="14" r="7"/><path d="M15 9l3-3M18 6l1-1M17 3v1M21 7h-1"/>',
+ plate:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>',
+ disco:'<path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2.5"/><circle cx="17" cy="16" r="2.5"/>',
+ moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+ heart:'<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
+ balloon:'<path d="M12 3a6 6 0 0 0-6 6c0 4 3 7 6 7s6-3 6-7a6 6 0 0 0-6-6z"/><path d="M12 16v2l-1 3M12 18l1 3"/>',
+ home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+ spark:'<path d="M12 3l1.5 5 5 1.5-5 1.5L12 16l-1.5-5-5-1.5 5-1.5z"/><path d="M5 18l.7 2 2 .7-2 .7L5 23l-.7-1.6-2-.7 2-.7z"/>',
+ crown:'<path d="M3 18h18l-2-9-4 4-3-7-3 7-4-4z"/>',
+ share:'<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M7 8l5-5 5 5"/>',
+ play:'<path d="M7 5l12 7-12 7z"/>',
+ trophy:'<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/>',
+ flag:'<path d="M5 21V4h12l-2 4 2 4H5"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>'
+};
+function ic(name,extra){return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" ${extra||''}>${SVG[name]||''}</svg>`;}
+function icon(name,grad,cls){return `<span class="ico ${cls||''}" style="background:${grad}">${ic(name)}</span>`;}
 const COLORS=['#ffb03b','#5ee7ff','#7cf79a','#ff7ab8','#c9a2ff','#ffe566','#8af0ff','#ff9b6b','#b4ff7a','#ffd0db'];
-const MODES=[['Dinner','party'],['Party','party'],['Late Night','spicy'],['Couples','party'],['Kids','family']];
+const MODES=[['Dinner','party','plate','linear-gradient(160deg,#ffd60a,#ff8a1f)'],['Party','party','disco','linear-gradient(160deg,#ff2d7a,#ff8a1f)'],['Late Night','spicy','moon','linear-gradient(160deg,#6a3bff,#15113a)'],['Couples','party','heart','linear-gradient(160deg,#ff2d7a,#b44bff)'],['Kids','family','balloon','linear-gradient(160deg,#30d158,#19c4e8)']];
+const LEVELS=[['family','Family','home'],['party','Party','spark'],['spicy','Spicy 18+','flame']];
 const IMPOSTER=[['Beach','Pool','Places'],['Pizza','Burger','Food'],['Cat','Tiger','Animals'],['Coffee','Tea','Drinks'],['Guitar','Violin','Music'],['Airport','Train station','Places'],['Netflix','Cinema','Fun'],['Snow','Rain','Weather'],['Doctor','Dentist','Jobs'],['Wedding','Birthday','Events'],['Instagram','TikTok','Apps'],['Lion','Wolf','Animals'],['Sushi','Ramen','Food'],['Hotel','Hostel','Travel'],['Football','Basketball','Sports'],['Moon','Sun','Sky'],['Piano','Drums','Music'],['Bus','Tram','Transport'],['Harry Potter','Lord of the Rings','Movies'],['Gym','Yoga','Fitness'],['Beer','Wine','Drinks'],['Spider','Snake','Animals'],['Christmas','New Year','Holidays'],['Teacher','Professor','Jobs'],['Paris','Rome','Cities'],['Ice cream','Cake','Sweets'],['Bath','Shower','Home'],['Camping','Hiking','Outdoors'],['Chess','Poker','Games'],['Bitcoin','Gold','Money']];
 const LIKELY={family:['fall asleep first tonight','forget where they parked','talk to animals','become a famous chef','cry at a movie','win a dance battle','get lost in their own city','laugh at the wrong moment','eat the last slice without asking','sing in the shower','adopt five dogs','start a business tomorrow','lose their phone this week','become a YouTuber','say "one more episode" and watch five','survive a zombie apocalypse','be late to their own wedding','win the lottery and lose the ticket','text the wrong person','become a politician'],
 party:['sleep through an earthquake','drunk text an ex','get kicked out of a bar','marry a stranger in Vegas','end up on the news','ghost someone after a great date','forget a friend\'s name mid-sentence','join a cult by accident','cry in a club bathroom','start a fight over pizza toppings','have a secret second phone','fake an illness to skip work','befriend the bouncer','dance on a table tonight','steal a street sign','post something they regret','lose a bet and shave their head','get a tattoo tonight','call their mom from the party','be the last one standing'],
@@ -176,15 +221,17 @@ function ranked(){return S.players.slice().sort((a,b)=>(b.score||0)-(a.score||0)
 
 /* ---------- games registry ---------- */
 const GAMES={
- duel:{t:'Duel',sub:'Quick Draw · exactly 2',min:2,ic:'⚡',bg:'duel',g:'linear-gradient(160deg,#ff2d7a,#ff8a1f)'},
- imposter:{t:'Imposter',sub:'Secret word · 3 to 12',min:3,ic:'?',bg:'secret',g:'linear-gradient(160deg,#6a3bff,#19c4e8)'},
- likely:{t:'Most Likely To',sub:'Vote · 3 to 20',min:3,ic:'★',bg:'vote',g:'linear-gradient(160deg,#30d158,#19c4e8)'},
- trivia:{t:'Buzzer Trivia',sub:'Turns · 2 to 30',min:2,ic:'A',bg:'trivia',g:'linear-gradient(160deg,#ffd60a,#ff8a1f)'},
- tod:{t:'Truth or Dare',sub:'Spinner · 2 to 12',min:2,ic:'!',bg:'setup',g:'linear-gradient(160deg,#b44bff,#ff2d7a)'},
- never:{t:'Never Have I Ever',sub:'Confess · 2 to 20',min:2,ic:'✋',bg:'secret',g:'linear-gradient(160deg,#19c4e8,#2f7bff)'},
- wyr:{t:'Would You Rather',sub:'Pick a side · 2 to 30',min:2,ic:'⇄',bg:'vote',g:'linear-gradient(160deg,#ff8a1f,#ffd60a)'},
- bomb:{t:'Bomb Pass',sub:'Hot potato · 2 to 12',min:2,ic:'●',bg:'bomb',g:'linear-gradient(160deg,#15113a,#ff2d7a)'}
+ duel:{t:'Duel',sub:'Quick Draw · 2',min:2,ic:'bolt',bg:'duel',g:'linear-gradient(160deg,#ff2d7a,#ff8a1f)'},
+ imposter:{t:'Imposter',sub:'Secret word · 3+',min:3,ic:'mask',bg:'secret',g:'linear-gradient(160deg,#6a3bff,#19c4e8)'},
+ likely:{t:'Most Likely To',sub:'Vote · 3+',min:3,ic:'star',bg:'vote',g:'linear-gradient(160deg,#30d158,#19c4e8)'},
+ trivia:{t:'Buzzer Trivia',sub:'Turns · 2+',min:2,ic:'q',bg:'trivia',g:'linear-gradient(160deg,#ffd60a,#ff8a1f)'},
+ tod:{t:'Truth or Dare',sub:'Spinner · 2+',min:2,ic:'flame',bg:'setup',g:'linear-gradient(160deg,#b44bff,#ff2d7a)'},
+ never:{t:'Never Have I Ever',sub:'Confess · 2+',min:2,ic:'hand',bg:'secret',g:'linear-gradient(160deg,#19c4e8,#2f7bff)'},
+ wyr:{t:'Would You Rather',sub:'Pick a side · 2+',min:2,ic:'swap',bg:'vote',g:'linear-gradient(160deg,#ff8a1f,#ffd60a)'},
+ bomb:{t:'Bomb Pass',sub:'Hot potato · 2+',min:2,ic:'bomb',bg:'bomb',g:'linear-gradient(160deg,#15113a,#ff2d7a)'}
 };
+/* avatar tile grid: the one way players are shown and picked */
+function avGrid(list,act,o){o=o||{};const tag=act?'button':'div';return `<div class="pgrid ${o.cls||''}">${list.map((p,i)=>{const sel=o.sel?o.sel(p,i):false;const b=o.badge?o.badge(p,i):'';const dis=o.dis?o.dis(p,i):false;return `<${tag} class="ptile glass ${sel?'on':''}" ${act?`data-a="${act}" data-v="${p.id}"`:'style="cursor:default"'} ${dis?'disabled':''} ${act?`aria-label="${esc(p.name)}"`:''}>${av(p,'md')}<b>${esc(p.name)}</b>${b?`<span class="badge">${b}</span>`:''}${o.foot?o.foot(p,i):''}</${tag}>`;}).join('')}</div>`;}
 const PLAYLISTS={Dinner:['wyr','likely','trivia','imposter','never'],Party:['likely','imposter','duel','trivia','bomb','tod'],'Late Night':['never','tod','likely','imposter','tod'],Couples:['wyr','duel','trivia','tod','duel'],Kids:['trivia','bomb','wyr','imposter']};
 
 function startGame(id){stopTimer();const g=GAMES[id];S.game={id,phase:'intro'};S.bg=g.bg;INIT[id]();S.screen='game';render();save();}
@@ -224,7 +271,7 @@ function vHome(){
  const saved=S.players.length>0;
  return `${hdr()}
  <div class="col" style="gap:6px;margin-top:8px"><h1>What is<br>tonight?</h1><p class="muted">One phone, pass it around. No accounts, no TV needed.</p></div>
- <button class="btn pri" style="height:84px;justify-content:flex-start;padding:0 16px;border-radius:34px" data-a="new"><span style="width:56px;height:56px;border-radius:20px;background:linear-gradient(160deg,#ff2d7a,#ff8a1f);display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 8px 18px rgba(255,61,122,.4)"><svg aria-hidden="true" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18l-2-9-4 4-3-7-3 7-4-4z"/></svg></span><span class="col grow" style="gap:1px;align-items:flex-start"><span style="font-size:19px">Start a party</span><span style="font-weight:600;font-size:13px;color:#6b6a8a">Add names, pick a mode, play.</span></span><span style="color:#6b6a8a;font-size:22px">›</span></button>
+ <button class="btn pri" style="height:84px;justify-content:flex-start;padding:0 16px;border-radius:34px" data-a="new">${icon('crown','linear-gradient(160deg,#ff2d7a,#ff8a1f)','lg')}<span class="col grow" style="gap:1px;align-items:flex-start"><span style="font-size:19px">Start a party</span><span style="font-weight:600;font-size:13px;color:#6b6a8a">Add names, pick a mode, play.</span></span><span style="color:#6b6a8a;font-size:22px">›</span></button>
  ${saved?`<button class="btn" style="height:84px;justify-content:flex-start;padding:0 16px;border-radius:34px" data-a="continue"><span class="row" style="flex:none">${S.players.slice(0,3).map(p=>av(p,'sm')).join('')}</span><span class="col grow" style="gap:1px;align-items:flex-start"><span style="font-size:17px">Continue the night</span><span class="tiny">${S.players.length} players · ${S.played.length} games played · ${esc(S.mode)}</span></span><span style="opacity:.8;font-size:22px">›</span></button>`:''}
  <div class="col"><div class="lbl">How it works</div>
  <div class="grid3">
@@ -232,18 +279,18 @@ function vHome(){
   <div class="glass card center col" style="gap:4px;padding:14px 8px"><span class="dot" style="background:#ff2d7a"></span><b style="font-size:13px">Pass the phone</b><span class="tiny">secrets stay secret</span></div>
   <div class="glass card center col" style="gap:4px;padding:14px 8px"><span class="dot" style="background:#30d158"></span><b style="font-size:13px">Win the night</b><span class="tiny">points, awards, MVP</span></div>
  </div></div>
- <div class="col"><div class="lbl">8 games</div><div class="chips">${Object.values(GAMES).map(g=>`<span class="chip">${esc(g.t)}</span>`).join('')}</div></div>
+ <div class="col"><div class="lbl">8 games</div><div class="pgrid c4">${Object.values(GAMES).map(g=>`<div class="ptile glass" style="cursor:default;gap:6px">${icon(g.ic,g.g)}<b style="font-size:11px">${esc(g.t)}</b></div>`).join('')}</div></div>
  <div class="foot"><p class="tiny center">Add to your home screen for the full-screen app feel.</p></div>`;
 }
 
 function vSetup(){
  const n=S.players.length;
  return `${hdr('home','Set up the night')}
- <div class="col"><div class="lbl">Party mode</div><div class="chips">${MODES.map(m=>`<button class="chip ${S.mode===m[0]?'on':''}" data-a="mode" data-v="${m[0]}">${m[0]}</button>`).join('')}</div></div>
- <div class="col"><div class="lbl">Content level</div><div class="seg glass">${[['family','Family'],['party','Party'],['spicy','Spicy 18+']].map(l=>`<button class="${S.level===l[0]?'on':''}" data-a="level" data-v="${l[0]}">${l[1]}</button>`).join('')}</div></div>
+ <div class="col"><div class="lbl">Party mode</div><div class="pgrid c5">${MODES.map(m=>`<button class="ptile glass ${S.mode===m[0]?'on':''}" style="gap:6px;padding:6px 2px;border-radius:20px" data-a="mode" data-v="${m[0]}">${icon(m[2],m[3])}<b style="font-size:10px">${m[0]}</b></button>`).join('')}</div></div>
+ <div class="col"><div class="lbl">Content level</div><div class="seg glass">${LEVELS.map(l=>`<button class="${S.level===l[0]?'on':''}" data-a="level" data-v="${l[0]}">${ic(l[2])}${l[1]}</button>`).join('')}</div></div>
  <div class="col"><div class="lbl">Players · ${n}</div>
   <form class="row" data-a="addform" autocomplete="off"><input type="text" id="nameIn" placeholder="Name" maxlength="14" enterkeyhint="done"><button class="btn pri sm" type="submit" style="height:56px;border-radius:28px;flex:none">Add</button></form>
-  <div class="chips">${S.players.map(p=>`<button class="chip" data-a="rm" data-v="${p.id}" aria-label="Remove ${esc(p.name)}">${av(p,'sm')}${esc(p.name)} <span style="opacity:.7">✕</span></button>`).join('')}${n===0?'<span class="tiny">Add at least 2 names. Tap a name to remove it.</span>':''}</div>
+  ${n?avGrid(S.players,'rm',{cls:'c4',badge:()=>'✕'}):'<span class="tiny">Add at least 2 names. Tap a tile to remove it.</span>'}
  </div>
  <div class="foot"><button class="btn pri" data-a="start" ${n<2?'disabled':''}>Start the night</button><p class="tiny center">${n<2?'Add '+(2-n)+' more to start':'Scores carry across every game tonight.'}</p></div>`;
 }
@@ -252,8 +299,8 @@ function vShelf(){
  const n=S.players.length;
  return `${hdr('setup','Pick a game',`<button class="btn sm" data-a="recap" style="height:44px;border-radius:22px;padding:0 14px;font-size:13px">Recap</button>`)}
  ${scoreStrip()}
- <button class="btn pri" style="height:84px;justify-content:flex-start;padding:0 16px;border-radius:34px" data-a="auto"><span style="width:56px;height:56px;border-radius:20px;background:linear-gradient(160deg,#ff2d7a,#ff8a1f);display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 1px 1px rgba(255,255,255,.6)"><svg aria-hidden="true" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><span class="col grow" style="gap:1px;align-items:flex-start"><span style="font-size:12px;color:#ff2d7a;letter-spacing:.04em">AUTO PLAYLIST · ${esc(S.mode.toUpperCase())}</span><span style="font-size:17px">Let Roomful run the night</span><span style="font-weight:600;font-size:12px;color:#6b6a8a">${PLAYLISTS[S.mode].filter(id=>GAMES[id].min<=n).map(id=>GAMES[id].t).join(' → ')}</span></span></button>
- <div class="grid2">${Object.entries(GAMES).map(([id,g])=>`<button class="tile glass" data-a="play" data-v="${id}" ${g.min>n?'disabled':''}><span class="ic" style="background:${g.g}">${g.ic}</span><b>${g.t}</b><small>${g.sub}${g.min>n?' · needs '+g.min:''}</small></button>`).join('')}</div>
+ <button class="btn pri" style="height:84px;justify-content:flex-start;padding:0 16px;border-radius:34px" data-a="auto">${icon('play','linear-gradient(160deg,#ff2d7a,#ff8a1f)','lg')}<span class="col grow" style="gap:1px;align-items:flex-start"><span style="font-size:12px;color:#ff2d7a;letter-spacing:.04em">AUTO PLAYLIST · ${esc(S.mode.toUpperCase())}</span><span style="font-size:17px">Let Roomful run the night</span><span style="font-weight:600;font-size:12px;color:#6b6a8a">${PLAYLISTS[S.mode].filter(id=>GAMES[id].min<=n).map(id=>GAMES[id].t).join(' → ')}</span></span></button>
+ <div class="grid2">${Object.entries(GAMES).map(([id,g])=>`<button class="tile glass" data-a="play" data-v="${id}" ${g.min>n?'disabled':''}>${icon(g.ic,g.g,'lg')}<span style="height:6px"></span><b>${g.t}</b><small>${g.sub}${g.min>n?' · needs '+g.min:''}</small></button>`).join('')}</div>
  <div class="foot"><button class="btn" data-a="recap">End the night, show the recap</button></div>`;
 }
 
@@ -261,14 +308,14 @@ function passScreen(p,what,next){return `<div class="col center" style="margin-t
 
 function vGame(){
  const g=S.game;const G=GAMES[g.id];
- if(g.phase==='done')return `${hdr(null,null,`<span class="pill glass">${esc(G.t)} done</span>`)}<div class="col center" style="margin-top:20px;gap:14px">${g.summary}</div>${scoreStrip()}<div class="foot"><button class="btn pri big" data-a="next">${S.auto&&S.queue.length?'Next: '+GAMES[S.queue[0]].t:'Back to games'}</button><button class="btn" data-a="recap">Show the recap</button></div>`;
+ if(g.phase==='done')return `${hdr(null,null,`<span class="pill glass" style="padding-left:6px">${icon(G.ic,G.g,'')}${esc(G.t)}</span>`)}<div class="col center" style="margin-top:20px;gap:14px">${g.summary}</div>${scoreStrip()}<div class="foot"><button class="btn pri big" data-a="next">${S.auto&&S.queue.length?'Next: '+GAMES[S.queue[0]].t:'Back to games'}</button><button class="btn" data-a="recap">Show the recap</button></div>`;
  return VIEW[g.id](g,G);
 }
-const top=(G,extra)=>`<div class="hdr"><button class="btn back" data-a="quit" aria-label="Quit game">✕</button><div style="font-weight:800;font-size:15px">${esc(G.t)}</div>${extra||'<span style="width:44px"></span>'}</div>`;
+const top=(G,extra)=>`<div class="hdr"><button class="btn back" data-a="quit" aria-label="Quit game">${ic('x','width="20" height="20"')}</button><div class="row" style="gap:8px"><span class="ico" style="width:32px;height:32px;border-radius:11px;background:${G.g}">${ic(G.ic,'width="18" height="18"')}</span><span style="font-weight:800;font-size:15px">${esc(G.t)}</span></div>${extra||'<span style="width:44px"></span>'}</div>`;
 const VIEW={
  duel(g,G){
   const A=P(g.a),B=P(g.b);
-  if(g.phase==='pick')return `${top(G)}<div class="col"><div class="lbl">Who duels? Pick two</div><div class="list">${S.players.map(p=>`<button class="item glass ${(g.a===p.id||g.b===p.id)?'on':''}" data-a="dpick" data-v="${p.id}">${av(p)}<span class="nm">${esc(p.name)}</span><span class="grow"></span>${g.a===p.id?'<span class="tiny">Player 1</span>':g.b===p.id?'<span class="tiny">Player 2</span>':''}</button>`).join('')}</div></div><div class="foot"><button class="btn pri big" data-a="dready">Ready</button></div>`;
+  if(g.phase==='pick')return `${top(G)}<div class="col"><div class="lbl">Who duels? Tap two</div>${avGrid(S.players,'dpick',{sel:p=>g.a===p.id||g.b===p.id,badge:p=>g.a===p.id?'P1':g.b===p.id?'P2':''})}</div><div class="foot"><button class="btn pri big" data-a="dready">Ready</button></div>`;
   if(g.phase==='ready')return `${top(G)}<div class="col center" style="margin-top:20px;gap:14px"><div class="row" style="gap:20px"><div class="col center" style="gap:6px">${av(A,'md')}<b>${esc(A.name)}</b></div><div style="font-weight:900;font-size:40px;letter-spacing:-.05em">VS</div><div class="col center" style="gap:6px">${av(B,'md')}<b>${esc(B.name)}</b></div></div><h2>Best of 5</h2><p class="muted" style="max-width:300px">Hold the phone between you. ${esc(A.name)} takes the top half, ${esc(B.name)} the bottom. When the screen turns green, tap your half first. Tap early and you lose the round.</p><div class="glass card row" style="gap:20px"><span class="big-num" style="font-size:56px;color:#ffd0db">${g.sa}</span><span class="tiny">rounds</span><span class="big-num" style="font-size:56px;color:#a6f4ff">${g.sb}</span></div></div><div class="foot"><button class="btn pri big" data-a="dgo">Round ${g.round}, go</button></div>`;
   if(g.phase==='arena')return `<div class="duel ${g.green?'go':''}" id="duel"><button class="half top" data-a="dtap" data-v="a" aria-label="${esc(A.name)} taps here"><span class="nm">${esc(A.name)}</span><span class="hint">${g.green?'TAP!':'wait for green…'}</span></button><button class="half bot" data-a="dtap" data-v="b" aria-label="${esc(B.name)} taps here"><span class="nm">${esc(B.name)}</span><span class="hint">${g.green?'TAP!':'wait for green…'}</span></button><div class="mid">${g.sa}:${g.sb}</div></div>`;
   if(g.phase==='round'){const w=P(g.winner);return `${top(G)}<div class="col center" style="margin-top:40px;gap:14px">${av(w,'lg pop')}<div class="lbl">${g.early?'Other side tapped too early':'Fastest thumb'}</div><h1>${esc(w.name)}</h1>${g.ms?`<p class="muted">${g.ms} ms</p>`:''}<div class="glass card row" style="gap:20px"><span class="big-num" style="font-size:56px">${g.sa}</span><span class="tiny">${esc(A.name)} · ${esc(B.name)}</span><span class="big-num" style="font-size:56px">${g.sb}</span></div></div><div class="foot"><button class="btn pri big" data-a="dgo">Round ${g.round}, go</button></div>`;}
@@ -278,25 +325,25 @@ const VIEW={
   const p=P(g.order[g.idx]);
   if(g.phase==='pass')return `${top(G,`<span class="pill glass">${g.idx+1} / ${g.order.length}</span>`)}${passScreen(p,'Only you see your word. Keep the phone close.','icard')}`;
   if(g.phase==='card'){const me=g.order[g.idx];const w=me===g.impId?g.imp:g.civ;return `${top(G)}<div class="col" style="gap:10px"><div class="row">${av(p)}<b style="font-size:17px">${esc(p.name)}, your secret word</b></div><div class="secret" data-hold="1"><span class="w">${esc(w)}</span><span class="tiny" style="color:#fff">Hold to see. Lift to hide. Category: ${esc(g.cat)}</span></div><p class="muted">Everyone has the same word except one imposter, who has a similar one. You will each say one hint word out loud. Do not say the word itself.</p></div><div class="foot"><button class="btn pri big" data-a="inext">Got it, pass on</button></div>`;}
-  if(g.phase==='discuss')return `${top(G,`<div class="timer" id="tm">${g.t}</div>`)}<div class="col"><h2>Say one hint each, in this order</h2><div class="list">${g.order.map((id,i)=>`<div class="item glass" style="cursor:default"><span class="tiny" style="width:18px">${i+1}</span>${av(P(id))}<span class="nm">${esc(P(id).name)}</span></div>`).join('')}</div><p class="muted">Then argue. Category: <b>${esc(g.cat)}</b>. When you are ready, vote.</p></div><div class="foot"><button class="btn pri big" data-a="ivote">Go to the vote</button></div>`;
+  if(g.phase==='discuss')return `${top(G,`<div class="timer" id="tm">${g.t}</div>`)}<div class="col"><h2>One hint each, in this order</h2>${avGrid(g.order.map(P),null,{badge:(p,i)=>String(i+1)})}<p class="muted">Then argue. Category: <b>${esc(g.cat)}</b>. When you are ready, vote.</p></div><div class="foot"><button class="btn pri big" data-a="ivote">Go to the vote</button></div>`;
   if(g.phase==='vpass')return `${top(G,`<span class="pill glass">vote ${g.idx+1} / ${g.order.length}</span>`)}${passScreen(p,'Vote in secret. Who is the imposter?','ivcard')}`;
-  if(g.phase==='vcard')return `${top(G)}<div class="col"><div class="row">${av(p)}<b style="font-size:17px">${esc(p.name)}, who has the other word?</b></div><div class="list">${g.order.filter(id=>id!==p.id).map(id=>`<button class="item glass" data-a="iv" data-v="${id}">${av(P(id))}<span class="nm">${esc(P(id).name)}</span></button>`).join('')}</div></div>`;
-  if(g.phase==='result'){const counts={};Object.values(g.votes).forEach(v=>counts[v]=(counts[v]||0)+1);const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);const topId=sorted[0]&&sorted[0][0];const caught=topId===g.impId&&!(sorted[1]&&sorted[1][1]===sorted[0][1]);const imp=P(g.impId);return `${top(G)}<div class="col center" style="gap:12px;margin-top:10px">${av(imp,'lg pop')}<div class="lbl">The imposter was</div><h1>${esc(imp.name)}</h1><div class="pill glass" style="height:48px">${caught?'Caught! The room wins':'Not caught. Imposter wins'}</div><div class="glass card col" style="width:100%;box-sizing:border-box;gap:8px"><div class="row between"><span class="tiny">Everyone\'s word</span><b>${esc(g.civ)}</b></div><div class="row between"><span class="tiny">Imposter\'s word</span><b>${esc(g.imp)}</b></div></div><div class="list" style="width:100%">${sorted.map(([id,n])=>`<div class="row glass" style="height:48px;padding:0 14px 0 6px;border-radius:24px">${av(P(id),'sm')}<span style="font-weight:700">${esc(P(id).name)}</span><div class="bar"><i style="width:${Math.round(n/g.order.length*100)}%"></i></div><b>${n}</b></div>`).join('')}</div></div><div class="foot"><button class="btn pri big" data-a="iend" data-v="${caught?1:0}">Score it</button></div>`;}
+  if(g.phase==='vcard')return `${top(G)}<div class="col"><div class="row">${av(p)}<b style="font-size:17px">${esc(p.name)}, who has the other word?</b></div>${avGrid(g.order.filter(id=>id!==p.id).map(P),'iv')}</div>`;
+  if(g.phase==='result'){const counts={};Object.values(g.votes).forEach(v=>counts[v]=(counts[v]||0)+1);const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);const topId=sorted[0]&&sorted[0][0];const caught=topId===g.impId&&!(sorted[1]&&sorted[1][1]===sorted[0][1]);const imp=P(g.impId);return `${top(G)}<div class="col center" style="gap:12px;margin-top:10px">${av(imp,'lg pop')}<div class="lbl">The imposter was</div><h1>${esc(imp.name)}</h1><div class="pill glass" style="height:48px">${caught?'Caught! The room wins':'Not caught. Imposter wins'}</div><div class="grid2" style="width:100%"><div class="glass card col center" style="gap:2px"><span class="tiny">Everyone\'s word</span><b>${esc(g.civ)}</b></div><div class="glass card col center" style="gap:2px"><span class="tiny">Imposter\'s word</span><b>${esc(g.imp)}</b></div></div><div class="lbl">Votes</div>${avGrid(sorted.map(([id])=>P(id)),null,{sel:p=>p.id===g.impId,badge:(p,i)=>sorted[i][1]+' ✓'})}</div><div class="foot"><button class="btn pri big" data-a="iend" data-v="${caught?1:0}">Score it</button></div>`;}
   return '';
  },
  likely(g,G){
   const order=S.players;const p=order[g.idx];
   if(g.phase==='pass')return `${top(G,`<span class="pill glass">${g.round+1} / ${g.maxR}</span>`)}<div class="glass card col" style="gap:4px"><span class="tiny">Most likely to…</span><h2>${esc(g.q)}</h2></div>${passScreen(p,'Vote in secret, then pass on.','lcard')}`;
-  if(g.phase==='card')return `${top(G)}<div class="glass card col" style="gap:4px"><span class="tiny">Most likely to…</span><h2>${esc(g.q)}</h2></div><div class="row">${av(p)}<b>${esc(p.name)}, your pick</b></div><div class="list">${order.map(o=>`<button class="item glass" data-a="lv" data-v="${o.id}">${av(o)}<span class="nm">${esc(o.name)}</span></button>`).join('')}</div>`;
-  if(g.phase==='result'){const counts={};Object.values(g.votes).forEach(v=>counts[v]=(counts[v]||0)+1);const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);const w=P(sorted[0][0]);return `${top(G)}<div class="glass card col" style="gap:4px"><span class="tiny">Most likely to…</span><h2>${esc(g.q)}</h2></div><div class="col center" style="gap:10px"><div class="lens pop">${av(w,'lg')}<span class="pill" style="position:absolute;right:-6px;bottom:4px;background:rgba(255,255,255,.92);color:var(--ink);height:40px">${sorted[0][1]} votes</span></div><h1>${esc(w.name)}</h1><p class="muted">+200 for owning it</p></div><div class="list">${sorted.slice(1).map(([id,n])=>`<div class="row glass" style="height:48px;padding:0 14px 0 6px;border-radius:24px">${av(P(id),'sm')}<span style="font-weight:700">${esc(P(id).name)}</span><div class="bar"><i style="width:${Math.round(n/order.length*100)}%"></i></div><b>${n}</b></div>`).join('')}</div><div class="foot"><button class="btn pri big" data-a="lnext">${g.round+1>=g.maxR?'Finish':'Next prompt'}</button></div>`;}
+  if(g.phase==='card')return `${top(G)}<div class="glass card col" style="gap:4px"><span class="tiny">Most likely to…</span><h2>${esc(g.q)}</h2></div><div class="row">${av(p)}<b>${esc(p.name)}, tap your pick</b></div>${avGrid(order,'lv')}`;
+  if(g.phase==='result'){const counts={};Object.values(g.votes).forEach(v=>counts[v]=(counts[v]||0)+1);const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);const w=P(sorted[0][0]);return `${top(G)}<div class="glass card col" style="gap:4px"><span class="tiny">Most likely to…</span><h2>${esc(g.q)}</h2></div><div class="col center" style="gap:10px"><div class="lens pop">${av(w,'lg')}<span class="pill" style="position:absolute;right:-6px;bottom:4px;background:rgba(255,255,255,.92);color:var(--ink);height:40px">${sorted[0][1]} votes</span></div><h1>${esc(w.name)}</h1><p class="muted">+200 for owning it</p></div>${sorted.length>1?avGrid(sorted.slice(1).map(([id])=>P(id)),null,{cls:'c4',badge:(p,i)=>String(sorted[i+1][1])}):''}<div class="foot"><button class="btn pri big" data-a="lnext">${g.round+1>=g.maxR?'Finish':'Next prompt'}</button></div>`;}
   return '';
  },
  trivia(g,G){
   const q=g.qs[g.i];const p=S.players[g.turn%S.players.length];const K=['#ff2d7a','#2f7bff','#6a3bff','#30d158'];
-  return `${top(G,`<div class="timer ${g.t<=5?'hot':''}" id="tm">${g.t==null?'':g.t}</div>`)}<div class="row">${av(p)}<div class="col" style="gap:0"><b style="font-size:16px">${esc(p.name)}'s question</b><span class="tiny">${g.i+1} of ${g.qs.length} · faster is more points</span></div></div><div class="glass card" style="background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff"><h2 style="font-size:22px">${esc(q[0])}</h2></div><div class="col">${q[1].map((o,i)=>`<button class="opt glass ${g.picked==null?'':(i===q[2]?'ok':(i===g.picked?'bad':''))}" data-a="ta" data-v="${i}" ${g.picked!=null?'disabled':''}><span class="k" style="background:${K[i]}">${'ABCD'[i]}</span>${esc(o)}</button>`).join('')}</div>${g.picked!=null?`<div class="foot"><div class="pill glass" style="align-self:center">${g.picked===q[2]?'Correct, +'+g.gain:'Wrong. It was '+esc(q[1][q[2]])}</div><button class="btn pri big" data-a="tnext">${g.i+1>=g.qs.length?'Finish':'Next question'}</button></div>`:''}`;
+  return `${top(G,`<div class="timer ${g.t<=5?'hot':''}" id="tm">${g.t==null?'':g.t}</div>`)}<div class="row">${av(p)}<div class="col" style="gap:0"><b style="font-size:16px">${esc(p.name)}'s question</b><span class="tiny">${g.i+1} of ${g.qs.length} · faster is more points</span></div></div><div class="glass card" style="background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff"><h2 style="font-size:22px">${esc(q[0])}</h2></div><div class="grid2">${q[1].map((o,i)=>`<button class="opt glass ${g.picked==null?'':(i===q[2]?'ok':(i===g.picked?'bad':''))}" style="height:auto;min-height:110px;flex-direction:column;justify-content:center;gap:10px;padding:14px;text-align:center;border-radius:26px;font-size:17px" data-a="ta" data-v="${i}" ${g.picked!=null?'disabled':''}><span class="k" style="background:${K[i]}">${'ABCD'[i]}</span>${esc(o)}</button>`).join('')}</div>${g.picked!=null?`<div class="foot"><div class="pill glass" style="align-self:center">${g.picked===q[2]?'Correct, +'+g.gain:'Wrong. It was '+esc(q[1][q[2]])}</div><button class="btn pri big" data-a="tnext">${g.i+1>=g.qs.length?'Finish':'Next question'}</button></div>`:''}`;
  },
  tod(g,G){
-  if(g.phase==='spin')return `${top(G,`<span class="pill glass">${g.round+1} / ${g.maxR}</span>`)}<div class="col center" style="margin-top:40px;gap:16px"><div class="lens"><div class="row" style="flex-wrap:wrap;justify-content:center;gap:4px;max-width:150px">${S.players.slice(0,8).map(p=>av(p,'sm')).join('')}</div></div><h2>Who is next?</h2><p class="muted">The spinner picks. No take-backs.</p></div><div class="foot"><button class="btn pri big" data-a="tospin">Spin</button></div>`;
+  if(g.phase==='spin')return `${top(G,`<span class="pill glass">${g.round+1} / ${g.maxR}</span>`)}<div class="col center" style="margin-top:10px;gap:16px"><h2>Who is next?</h2><p class="muted">The spinner picks. No take-backs.</p></div>${avGrid(S.players,null,{cls:'c4'})}<div class="foot"><button class="btn pri big" data-a="tospin">${ic('play','width="22" height="22"')}Spin</button></div>`;
   const p=P(g.who);
   if(g.phase==='choose')return `${top(G)}<div class="col center" style="margin-top:30px;gap:14px"><span class="spin">${av(p,'lg')}</span><h1>${esc(p.name)}</h1><p class="muted">Truth or dare?</p></div><div class="foot"><div class="grid2"><button class="btn big" data-a="tot">Truth</button><button class="btn pri big" data-a="tod">Dare</button></div></div>`;
   if(g.phase==='card')return `${top(G)}<div class="row">${av(p)}<b style="font-size:17px">${esc(p.name)} · ${g.kind==='t'?'Truth':'Dare'}</b></div><div class="glass card" style="background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff;min-height:160px;display:flex;align-items:center"><h2 style="font-size:24px">${esc(g.card)}</h2></div><p class="muted center">The room decides if it counts.</p><div class="foot"><div class="grid2"><button class="btn big" data-a="toskip">Chicken</button><button class="btn pri big" data-a="todone">Done, +${g.kind==='t'?100:150}</button></div></div>`;
@@ -304,7 +351,7 @@ const VIEW={
  },
  never(g,G){
   const q=g.deck[g.i%g.deck.length];const n=Object.values(g.sel).filter(Boolean).length;
-  return `${top(G,`<span class="pill glass">${g.i+1} / ${g.maxR}</span>`)}<div class="glass card col" style="gap:4px;background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff"><span class="tiny" style="color:#6b6a8a">Never have I ever…</span><h2>${esc(q)}</h2></div><div class="lbl">Tap everyone who HAS</div><div class="grid3">${S.players.map(p=>`<button class="tile glass ${g.sel[p.id]?'on':''}" style="aspect-ratio:1;align-items:center;justify-content:center;gap:6px;${g.sel[p.id]?'background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff':''}" data-a="nsel" data-v="${p.id}">${av(p)}<b style="font-size:13px">${esc(p.name)}</b></button>`).join('')}</div><div class="foot"><button class="btn pri big" data-a="nnext">${n?n+' confess, +50 each':'Nobody? Next'}</button></div>`;
+  return `${top(G,`<span class="pill glass">${g.i+1} / ${g.maxR}</span>`)}<div class="glass card col" style="gap:4px;background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff"><span class="tiny" style="color:#6b6a8a">Never have I ever…</span><h2>${esc(q)}</h2></div><div class="lbl">Tap everyone who HAS</div>${avGrid(S.players,'nsel',{sel:p=>!!g.sel[p.id],badge:p=>g.sel[p.id]?'✓':''})}<div class="foot"><button class="btn pri big" data-a="nnext">${n?n+' confess, +50 each':'Nobody? Next'}</button></div>`;
  },
  wyr(g,G){
   const order=S.players;const p=order[g.idx];
@@ -316,23 +363,23 @@ const VIEW={
  bomb(g,G){
   const p=S.players[g.turn%S.players.length];
   const lives=id=>`<span class="lives">${[0,1,2].map(i=>`<i class="${i<g.lives[id]?'on':''}"></i>`).join('')}</span>`;
-  if(g.phase==='ready')return `${top(G)}<div class="col center" style="margin-top:20px;gap:14px"><div class="lens"><span style="font-size:72px">💣</span></div><h2>Hot potato with words</h2><p class="muted" style="max-width:300px">Say one thing from the category, then pass the phone and tap Pass. The fuse is secret. Whoever holds it when it goes off loses a life.</p></div><div class="list">${S.players.map(o=>`<div class="item glass" style="cursor:default">${av(o)}<span class="nm">${esc(o.name)}</span><span class="grow"></span>${lives(o.id)}</div>`).join('')}</div><div class="foot"><button class="btn pri big" data-a="blight">Light the fuse. ${esc(p.name)} starts</button></div>`;
+  if(g.phase==='ready')return `${top(G)}<div class="col center" style="margin-top:10px;gap:14px"><div class="lens">${icon('bomb','linear-gradient(160deg,#15113a,#ff2d7a)','lg')}</div><h2>Hot potato with words</h2><p class="muted" style="max-width:300px">Say one thing from the category, then pass the phone and tap Pass. The fuse is secret. Whoever holds it when it goes off loses a life.</p></div>${avGrid(S.players,null,{cls:'c4',foot:o=>lives(o.id)})}<div class="foot"><button class="btn pri big" data-a="blight">Light the fuse. ${esc(p.name)} starts</button></div>`;
   if(g.phase==='live')return `${top(G,`<span class="pill glass">${esc(g.cat)}</span>`)}<div class="col center" style="margin-top:10px;gap:10px"><div class="lbl">Holding the bomb</div>${av(p,'lg')}<h1>${esc(p.name)}</h1>${lives(p.id)}<p class="muted">Say one: <b>${esc(g.cat)}</b></p></div><div class="foot"><button class="btn pri" style="height:120px;border-radius:60px;font-size:28px" data-a="bpass">Pass ›</button><p class="tiny center">Hesitate and you will hear it.</p></div>`;
-  if(g.phase==='boom'){return `${top(G)}<div class="col center shake" style="margin-top:30px;gap:12px"><div class="lens" style="background:rgba(255,45,122,.6)"><span style="font-size:80px">💥</span></div><h1>${esc(p.name)}</h1><p class="muted">lost a life</p>${lives(p.id)}</div><div class="list">${S.players.map(o=>`<div class="item glass" style="cursor:default">${av(o,'sm')}<span class="nm" style="font-size:15px">${esc(o.name)}</span><span class="grow"></span>${lives(o.id)}</div>`).join('')}</div><div class="foot"><button class="btn pri big" data-a="${g.over?'bend':'blight'}">${g.over?'Finish':'New category, keep going'}</button></div>`;}
+  if(g.phase==='boom'){return `${top(G)}<div class="col center shake" style="margin-top:10px;gap:12px"><div class="lens" style="background:rgba(255,45,122,.6)">${av(p,'lg')}</div><h1>${esc(p.name)}</h1><p class="muted">lost a life</p></div>${avGrid(S.players,null,{cls:'c4',sel:o=>o.id===p.id,foot:o=>lives(o.id)})}<div class="foot"><button class="btn pri big" data-a="${g.over?'bend':'blight'}">${g.over?'Finish':'New category, keep going'}</button></div>`;}
   return '';
  }
 };
 
 function vRecap(){
  const r=ranked();const mvp=r[0];const st=k=>r.slice().sort((a,b)=>((b.stats||{})[k]||0)-((a.stats||{})[k]||0))[0];
- const awards=[['Best Liar','liar'],['Fastest Thumb','duel'],['Crowd Favorite','likely'],['Daredevil','dare'],['Most Experienced','never'],['Brainiac','trivia']].map(([t,k])=>{const w=st(k);const n=(w&&w.stats&&w.stats[k])||0;return n?`<div class="glass card col" style="gap:1px;padding:12px 14px"><span class="tiny">${t}</span><b>${esc(w.name)}</b></div>`:'';}).join('');
+ const awards=[['Best Liar','liar','mask','linear-gradient(160deg,#6a3bff,#19c4e8)'],['Fastest Thumb','duel','bolt','linear-gradient(160deg,#ff2d7a,#ff8a1f)'],['Crowd Favorite','likely','star','linear-gradient(160deg,#30d158,#19c4e8)'],['Daredevil','dare','flame','linear-gradient(160deg,#b44bff,#ff2d7a)'],['Most Experienced','never','hand','linear-gradient(160deg,#19c4e8,#2f7bff)'],['Brainiac','trivia','q','linear-gradient(160deg,#ffd60a,#ff8a1f)']].map(([t,k,i,g])=>{const w=st(k);const n=(w&&w.stats&&w.stats[k])||0;return n?`<div class="glass card row" style="gap:12px;padding:10px 12px">${icon(i,g)}<div class="col" style="gap:0;min-width:0"><span class="tiny">${t}</span><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(w.name)}</b></div></div>`:'';}).join('');
  const mins=Math.max(1,Math.round((Date.now()-(S.started||Date.now()))/60000));
  return `${hdr('shelf',null,`<span class="pill glass">${S.played.length} games · ${mins} min</span>`)}
  <div class="col center" style="gap:10px"><span class="pill" style="background:rgba(21,17,58,.45);height:32px;font-size:11px;letter-spacing:.08em;text-transform:uppercase">Party MVP</span><div class="lens pop">${mvp?av(mvp,'lg'):''}</div><h1>${mvp?esc(mvp.name)+' · '+(mvp.score||0):'No one yet'}</h1></div>
  <div class="podium">${[r[1],r[0],r[2]].map((p,i)=>p?`<div class="p ${i===1?'':'glass'}" style="height:${[92,112,80][i]}px;${i===1?'background:rgba(255,255,255,.92);color:var(--ink);border:1px solid #fff;box-shadow:var(--shadow)':''}"><b>${[2,1,3][i]}</b>${esc(p.name)} · ${p.score||0}</div>`:'<div></div>').join('')}</div>
  ${awards?`<div class="grid2">${awards}</div>`:''}
- <div class="list">${r.slice(3).map((p,i)=>`<div class="item glass" style="cursor:default;min-height:48px"><span class="tiny" style="width:18px">${i+4}</span>${av(p,'sm')}<span class="nm" style="font-size:15px">${esc(p.name)}</span><span class="grow"></span><b>${p.score||0}</b></div>`).join('')}</div>
- <div class="foot"><div class="grid2"><button class="btn pri" data-a="share">Share recap</button><button class="btn" data-a="shelf">One more game</button></div><button class="btn ghost" data-a="reset">End the night, new players</button></div>`;
+ ${r.length>3?avGrid(r.slice(3),null,{cls:'c4',badge:(p,i)=>'#'+(i+4),foot:p=>`<span class="tiny">${p.score||0}</span>`}):''}
+ <div class="foot"><div class="grid2"><button class="btn pri" data-a="share">${ic('share','width="20" height="20"')}Share recap</button><button class="btn" data-a="shelf">${ic('play','width="20" height="20"')}One more game</button></div><button class="btn ghost" data-a="reset">${ic('flag','width="18" height="18"')}End the night, new players</button></div>`;
 }
 
 /* ---------- actions ---------- */
