@@ -89,6 +89,14 @@ Design canvas (Claude Design, 4 TV boards + 5 phone boards, versus-card directio
 
 Earlier clickable mockup of the TV and phone screens in both moods: https://claude.ai/artifact/AuP3ny4LSg7n1Wv5HUL986
 
+## Playable web app (v6)
+
+Live link (one-phone party app, pass the phone, 8 games, scoring, awards, recap): https://claude.ai/artifact/381xkFxhQYe3t6g4wyC4Hs
+
+Source: `party-game/app/index.html` (single file, no build step, no server). Games: Duel (Quick Draw on one phone, split screen), Imposter, Most Likely To, Buzzer Trivia, Truth or Dare, Never Have I Ever, Would You Rather, Bomb Pass. Night state is saved in the browser so a reload continues the night.
+
+Multi-phone rooms need a server (see DESIGN.md, Cloudflare Durable Objects); the artifact host cannot run one, so that is the next build step in this repo.
+
 ## Final: mobile-first flow (v5)
 
 The phone is the product. The TV is an optional console. Every screen works with no TV: prompts, timers and reveals show on the phones with a synchronized "3, 2, 1, look up".
