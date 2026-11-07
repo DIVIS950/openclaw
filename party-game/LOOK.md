@@ -85,4 +85,16 @@ Rule: Night is bright indigo, never near-black; no pure black, no mid-grey. Neut
 }
 ```
 
-Clickable mockup of the TV and phone screens in both moods: https://claude.ai/artifact/AuP3ny4LSg7n1Wv5HUL986
+Design canvas (Claude Design, 4 TV boards + 5 phone boards, versus-card direction): https://claude.ai/artifact/BgGc3CKEYdaqHRLkXM3kkj
+
+Earlier clickable mockup of the TV and phone screens in both moods: https://claude.ai/artifact/AuP3ny4LSg7n1Wv5HUL986
+
+## Versus direction (2-player inspiration)
+
+Every two-player moment borrows from fighting game "VS" cards and couch split-screen:
+
+- **Diagonal split**: Player 1 is coral on the left, Player 2 is cyan on the right, a white slash between them, a huge tilted VS in the middle. The same split is reused for team games (team A vs team B).
+- **Fight-card typography**: player names in display caps at 120 px on the TV, round dots under each name, "best of 5" in a pill.
+- **Phone takes the player's color**: in a duel the whole phone turns coral or cyan so you always know which side you are on, with one giant round button for the action.
+- **Rivalry memory**: the result screen shows the lifetime score between the two players and offers a rematch first.
+- **Pong field** as the model for all "arena" games: dark field inset on the bright ground, glowing paddles in player colors, yellow ball, score in huge tabular digits above.
