@@ -89,6 +89,28 @@ Design canvas (Claude Design, 4 TV boards + 5 phone boards, versus-card directio
 
 Earlier clickable mockup of the TV and phone screens in both moods: https://claude.ai/artifact/AuP3ny4LSg7n1Wv5HUL986
 
+## Final: mobile-first flow (v5)
+
+The phone is the product. The TV is an optional console. Every screen works with no TV: prompts, timers and reveals show on the phones with a synchronized "3, 2, 1, look up".
+
+Mobile screens on the canvas (390×844, linked so Play walks the flow):
+
+| # | Screen | Job |
+|---|--------|-----|
+| 1 | Home | Start a party, Join with a code, quick modes, last night's recap |
+| 2 | Set up the night | Party mode, content level, TV on/off, length, Create the room |
+| 2b | Join with a code | 4 code boxes, name, QR scan, no account |
+| 3 | Draw your face | 20-second canvas, 4 colors, emoji fallback |
+| 4 | Lobby (host) | Big code, Share link, Show QR, player grid, Start the night |
+| 5 | Pick a game | Auto playlist banner, filters, game tiles |
+| 6 | Duel controller | Phone takes the player color, giant TAP button, stats |
+| 7 | Imposter | Hold-to-reveal secret word, vote list, Lock my vote |
+| 8 | Trivia answer | Timer ring, question, four answer capsules |
+| 9 | Reveal (no TV) | Winner in a glass lens, vote bars, Next prompt |
+| 10 | Host controls | Live on the TV card, Pause / Skip / Reveal, playlist |
+| 11 | Duel result | Score, night points, rivalry, Rematch |
+| 12 | Night recap | MVP, podium, awards, Share recap, One more game |
+
 ## Current direction: Liquid Glass (v4)
 
 Every control is glass: translucent, refractive, with a bright specular rim on top, a soft rim at the bottom, a saturated blur behind it and a deep soft shadow. Prominent actions are near-white glass with ink text. Backgrounds are wallpaper-grade gradients with soft color blooms, so the glass always has something to refract.
