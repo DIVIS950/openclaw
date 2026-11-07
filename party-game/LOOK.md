@@ -6,12 +6,12 @@ The app has to look like a night out, not like a form. Two moods ship at launch 
 
 | Mood | When | Background | Accents | Feel |
 |------|------|------------|---------|------|
-| **Night** (default) | Party, Pregame, Late Night | deep indigo-plum (#14102A) with a soft radial glow | hot coral (#FF5C7A), electric cyan (#3EE6FF), butter yellow (#FFD166) | arcade, club, confetti |
+| **Night** (default) | Party, Pregame, Late Night | bright indigo (#34267A) with coral, cyan and yellow glows | hot coral (#FF6B8A), electric cyan (#5CF0FF), sun yellow (#FFD93D) | arcade, club, confetti |
 | **Daylight** | Lunch, Dinner, Kids, Office | warm linen (#FBF6EE) | deep teal (#0F766E), coral (#F0603F), mustard (#E0A51C) | board game on a wooden table |
 | **Retro Arcade** (unlock) | any | black with scanlines | magenta, green, pixel font for numbers | 80s |
 | **Elegant** (unlock) | weddings, dinners | charcoal | gold | invitation card |
 
-Rule: no pure black, no pure white, no mid-grey. Neutrals always carry a hint of the accent hue.
+Rule: Night is bright indigo, never near-black; no pure black, no mid-grey. Neutrals always carry a hint of the accent hue.
 
 ## Typography
 
@@ -73,8 +73,8 @@ Rule: no pure black, no pure white, no mid-grey. Neutrals always carry a hint of
 
 ```css
 :root {
-  --bg: #14102a; --bg-2: #1e1740; --surface: #272050; --fg: #f6f2ff; --muted: #b7adda;
-  --coral: #ff5c7a; --cyan: #3ee6ff; --yellow: #ffd166; --lime: #a3ff6b;
+  --bg: #34267a; --bg-2: #41309a; --surface: #4e3db4; --fg: #ffffff; --muted: #dcd4ff;
+  --coral: #ff6b8a; --cyan: #5cf0ff; --yellow: #ffd93d; --lime: #b4ff7a;
   --radius: 24px; --radius-tv: 32px;
   --font-display: "Unbounded", "Arial Black", sans-serif;
   --font-body: "Nunito Sans", system-ui, sans-serif;
