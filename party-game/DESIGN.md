@@ -4,7 +4,7 @@ Working title: **Roomful** (alternatives: Partyroom, Crowdplay, Jolt). Pick one 
 
 One sentence: one phone starts a room, everyone else joins by code or QR in seconds, any TV or browser can become the big screen, and the app runs the night for you with games that fit the moment (lunch, dinner, pregame, full party, late night, couples).
 
-See `GAMES.md` for the full game catalog (60+ games, 2 players up to 30+).
+See `GAMES.md` for the game catalog (80+ games), `UNLIMITED.md` for how the app generates endless new games and mega modes, and `LOOK.md` for the visual design system and the clickable mockup.
 
 ---
 

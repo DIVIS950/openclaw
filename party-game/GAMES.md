@@ -141,3 +141,41 @@ Every drinking cue shows a non-alcohol alternative ("sip or do 5 squats").
 | Never Have I Ever | 250 per level | |
 | Would You Rather | 400 | |
 | Table Topics | 300 | |
+
+---
+
+## I. Game show night (host as presenter)
+
+| # | Game | How it plays |
+|---|------|--------------|
+| 71 | **Survey Says** | "We asked 100 people…": teams guess the top answers on the board; three strikes and the other team can steal. The survey data comes from the app's own players (every answer you give in other games feeds the surveys). |
+| 72 | **The Big Board** | Jeopardy-style grid of categories and values; buzz on the phone; answer out loud, host judges with one tap. Daily Double hidden. |
+| 73 | **The Wheel** | Spin for a prize or penalty before a word puzzle; guess letters on the phone. |
+| 74 | **Deal or Cases** | Pick cases on the TV; the "banker" (the app) makes offers; the room votes deal or no deal. |
+| 75 | **Weakest Link** | Chain of quick questions, bank or continue, vote off the weakest player each round. |
+| 76 | **Pointless** | Find the correct answer the fewest people would give. Scores come from the community's earlier answers. |
+| 77 | **Lie Detector** | A player answers a question; the room votes true or lie; phone sensors "measure" nervousness for comedy. |
+
+## J. Kids and family (no reading needed on phones)
+
+| # | Game | How it plays |
+|---|------|--------------|
+| 78 | **Animal Sounds** | Phone shows an animal picture; make the sound; others tap the animal on the TV. |
+| 79 | **Color Hunt** | TV says a color; run and tap something of that color with the phone camera; first photo wins. |
+| 80 | **Freeze Dance Jr.** | Music and the phone's motion sensor; icons only. |
+| 81 | **Monster Builder** | Each kid draws one body part on their phone; the TV assembles the monster and names it. |
+| 82 | **Memory Parade** | Sequence of icons on the TV grows each round; tap the sequence on the phone. |
+| 83 | **Story Dice** | Picture dice roll on the TV; the kids tell a story in turns; the app records it and plays it back. |
+
+## K. Seasonal and event packs
+
+| Pack | Example games and content |
+|------|---------------------------|
+| **New Year** | Predictions for next year (sealed until next NYE), Year in Review trivia, Countdown with the room's photos. |
+| **Halloween** | Werewolf with spooky narration, Scary Story Builder, Costume Awards voting. |
+| **Christmas** | Secret Santa draw with hints game, Carol Lyric finish, Family trivia. |
+| **Birthday** | "How well do you know the birthday person" built from a 2-minute questionnaire the birthday person fills in the morning. |
+| **Bachelor / Bachelorette** | Dares deck, Mr & Mrs quiz (the partner records answers beforehand), Roast prompts. |
+| **Wedding** | Table quiz about the couple, Guest bingo, Advice booth with the couple's photo, Speech timer. |
+| **Sports night** | Live prediction game during a match (next goal, next card), halftime trivia. |
+| **Eurovision / Awards shows** | Score each entry live on phones; the room's own leaderboard on the TV next to the show. |
