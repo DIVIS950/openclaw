@@ -89,7 +89,26 @@ Design canvas (Claude Design, 4 TV boards + 5 phone boards, versus-card directio
 
 Earlier clickable mockup of the TV and phone screens in both moods: https://claude.ai/artifact/AuP3ny4LSg7n1Wv5HUL986
 
-## Current direction: Apple-style colorful game (v3)
+## Current direction: Liquid Glass (v4)
+
+Every control is glass: translucent, refractive, with a bright specular rim on top, a soft rim at the bottom, a saturated blur behind it and a deep soft shadow. Prominent actions are near-white glass with ink text. Backgrounds are wallpaper-grade gradients with soft color blooms, so the glass always has something to refract.
+
+Glass recipe (CSS):
+
+```css
+.glass {
+  background: rgba(255,255,255,0.14);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.75), inset 0 -1px 1px rgba(255,255,255,0.2), 0 12px 32px rgba(20,10,80,0.25);
+  border-radius: 999px; /* capsules; cards use 28 to 56 px, concentric with their children */
+}
+.glass-prominent { background: rgba(255,255,255,0.9); color: #15113a; border-color: #fff; }
+```
+
+Type: Inter (system-style sans) with tight tracking, 900 weight for codes and scores. Same grid as before: TV margin 120 px, phone margin 20 px.
+
+## Previous direction: Apple-style colorful game (v3)
 
 The canvas now follows the look of Apple's own colorful games: vivid, glossy, perfectly aligned.
 
