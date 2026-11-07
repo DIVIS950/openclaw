@@ -98,7 +98,7 @@ Two editions of the same file:
 
 The Big Screen subscribes to the host phone's room document (`rooms/<code>`) and mirrors it live: lobby code, prompts, timers, Duel green flash, reveals and scores. Secret words and votes are stripped from the mirror until the reveal.
 
-Source: `party-game/app/index.html` (single file, no build step, no server). Games: Duel (Quick Draw on one phone, split screen), Imposter, Most Likely To, Buzzer Trivia, Truth or Dare, Never Have I Ever, Would You Rather, Bomb Pass. Night state is saved in the browser so a reload continues the night.
+Source: `party-game/app/index.html` (single file, no build step, no server). 15 games in four groups: Party games (Imposter, Most Likely To, Two Truths and a Lie, Never Have I Ever, Would You Rather, Truth or Dare, Bomb Pass), Head to head (Duel, Tap Race), Brain (Buzzer Trivia, Emoji Riddles, Fact or Fiction), Act and draw (Who Am I, Charades, Pictionary with finger drawing). Content levels are Family and Party only; there is no adult level. Every game has its own illustrated artwork. Night state is saved in the browser so a reload continues the night.
 
 Multi-phone rooms need a server (see DESIGN.md, Cloudflare Durable Objects); the artifact host cannot run one, so that is the next build step in this repo.
 
