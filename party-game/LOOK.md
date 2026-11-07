@@ -89,6 +89,17 @@ Design canvas (Claude Design, 4 TV boards + 5 phone boards, versus-card directio
 
 Earlier clickable mockup of the TV and phone screens in both moods: https://claude.ai/artifact/AuP3ny4LSg7n1Wv5HUL986
 
+## Current direction: Apple-style colorful game (v3)
+
+The canvas now follows the look of Apple's own colorful games: vivid, glossy, perfectly aligned.
+
+- **Ground**: full-bleed vivid gradients per screen. Lobby violet to blue to cyan, Duel pink to orange versus blue to cyan, Pong deep blue to cyan, Awards pink to orange to gold, Win green to cyan.
+- **Controls**: glossy white pills and circles with a soft inner bottom shade and a deep soft shadow. Secondary controls are frosted glass (white at 20 percent, 1 px white border, 20 px blur).
+- **Type**: Fredoka (rounded display, like a rounded system font) for titles, codes and scores; Nunito for everything else. Tight leading, generous size.
+- **Grid**: TV margin 120 px on all sides, 72 px header row, 24 px column gaps. Phone margin 20 px, 10 px gaps, 60 px pill buttons, 44 px minimum touch target.
+- **Avatars**: glossy gradient balls with a white rim and a top highlight, dropped shadow, no tilt.
+- **Palette**: violet #6C3BFF, blue #2F7BFF, cyan #22D3EE, pink #FF3D8E, orange #FF8A1F, yellow #FFD60A, green #30D158, ink #1B1540.
+
 ## Versus direction (2-player inspiration)
 
 Every two-player moment borrows from fighting game "VS" cards and couch split-screen:
