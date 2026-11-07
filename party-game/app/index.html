@@ -139,6 +139,34 @@ input::placeholder{color:rgba(255,255,255,.6)}
 .ptile .ico{width:52px;height:52px;border-radius:18px}
 .ptile.on .ico{box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 8px 18px rgba(20,10,80,.35)}
 .seg button svg{width:18px;height:18px;vertical-align:-4px;margin-right:4px}
+/* big screen (TV) mode */
+.tv{max-width:none;min-height:100vh;padding-block:3vh 3vh;padding-left:max(4vw,env(safe-area-inset-left,0px));padding-right:max(4vw,env(safe-area-inset-right,0px));gap:2.4vh;font-size:clamp(16px,1.6vw,28px)}
+.tv h1{font-size:clamp(36px,6vw,120px)}.tv h2{font-size:clamp(24px,3.2vw,56px)}
+.tv .code{font-weight:900;font-size:clamp(90px,16vw,300px);line-height:.9;letter-spacing:-.04em;text-shadow:0 20px 60px rgba(20,10,80,.35)}
+.tv .pill{height:3em;font-size:1em;padding:0 1.2em;border-radius:1.5em}
+.tv .center-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;text-align:center}
+.tv .av.lg{width:clamp(120px,16vw,300px);height:clamp(120px,16vw,300px);font-size:clamp(48px,7vw,130px)}
+.tv .av.md{width:clamp(56px,7vw,130px);height:clamp(56px,7vw,130px);font-size:clamp(22px,3vw,52px)}
+.tv .muted{font-size:1.2em}
+.tv .tiles{display:flex;gap:1.2vw;justify-content:center;flex-wrap:wrap}
+.tv .ptile{width:clamp(110px,11vw,200px);aspect-ratio:1;border-radius:1.6vw;gap:.6vh}
+.tv .ptile b{font-size:clamp(13px,1.2vw,22px)}
+.tv .ptile .badge{font-size:clamp(12px,1.1vw,20px);min-width:2em;height:2em;border-radius:1em;top:.6em;right:.6em}
+.tv .timer{width:clamp(90px,9vw,170px);height:clamp(90px,9vw,170px);font-size:clamp(34px,3.6vw,70px)}
+.tv .opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2vw;width:min(90vw,1100px)}
+.tv .opts .opt{height:auto;min-height:5em;font-size:1.3em;border-radius:1.5em;justify-content:flex-start}
+.tv .opts .opt .k{width:2.4em;height:2.4em;border-radius:1.2em;font-size:1em}
+.tv .scores{display:flex;gap:1vw;justify-content:center;flex-wrap:wrap}
+.tv .scores .s{display:flex;align-items:center;gap:.5em;height:3em;padding:0 1em 0 .4em;border-radius:1.5em;font-weight:800;font-size:1em;font-variant-numeric:tabular-nums}
+.tv .scores .s .av{width:2.2em;height:2.2em;font-size:.9em}
+.tv .qcard{background:rgba(255,255,255,.92);color:var(--ink);border-color:#fff;padding:2.2vh 3vw;border-radius:2vw;max-width:min(90vw,1100px)}
+.tv input[type=text]{height:2.6em;font-size:clamp(28px,4vw,64px);text-align:center;letter-spacing:.2em;text-transform:uppercase;font-weight:900;border-radius:1.3em;max-width:9em}
+.tv .vs{display:flex;align-items:center;justify-content:center;gap:4vw}
+.tv .vs .side{display:flex;flex-direction:column;align-items:center;gap:1vh}
+.tv .vs .nm{font-weight:900;font-size:clamp(32px,5vw,100px);letter-spacing:-.05em}
+.tv .vs .dots{display:flex;gap:.5em}.tv .vs .dots i{width:1.4em;height:1.4em;border-radius:50%;border:3px solid rgba(255,255,255,.8);box-sizing:border-box}.tv .vs .dots i.on{background:#fff}
+.tv .vsmid{width:clamp(80px,9vw,180px);height:clamp(80px,9vw,180px);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(28px,3.6vw,70px);letter-spacing:-.05em}
+body[data-bg="green"] .tv{color:#0b3d1a}
 </style>
 
 <div class="app" id="app"></div>
@@ -170,7 +198,8 @@ const SVG={
  play:'<path d="M7 5l12 7-12 7z"/>',
  trophy:'<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/>',
  flag:'<path d="M5 21V4h12l-2 4 2 4H5"/>',
- x:'<path d="M6 6l12 12M18 6L6 18"/>'
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ tvi:'<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'
 };
 function ic(name,extra){return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" ${extra||''}>${SVG[name]||''}</svg>`;}
 function icon(name,grad,cls){return `<span class="ico ${cls||''}" style="background:${grad}">${ic(name)}</span>`;}
@@ -197,9 +226,28 @@ const BOMB=['Pizza toppings','Car brands','Countries in Europe','Things in a bat
 /* ---------- state ---------- */
 const KEY='roomful.night';
 let S=load()||fresh();
-function fresh(){return {screen:'home',mode:'Party',level:'party',players:[],game:null,played:[],auto:false,queue:[],started:Date.now()};}
+function newCode(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ';let c='';for(let i=0;i<4;i++)c+=A[rnd(A.length)];return c;}
+function fresh(){return {screen:'home',mode:'Party',level:'party',players:[],game:null,played:[],auto:false,queue:[],started:Date.now(),code:newCode()};}
 function load(){try{const j=localStorage.getItem(KEY);if(!j)return null;const s=JSON.parse(j);if(s&&s.players&&s.players.length)return s;}catch(e){}return null;}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}sync();}
+
+/* ---------- live sync to the big screen (Party edition only) ---------- */
+let DB=null,syncH=null,syncBusy=false,syncAgain=false;
+const STRIP=['impId','imp','civ','deck','truths','dares','qs','h','sel','t0','armed'];
+function pub(){
+ const o={v:1,at:Date.now(),screen:S.screen,bg:S.bg,mode:S.mode,level:S.level,code:S.code,played:S.played,auto:S.auto,queue:S.queue,
+  players:S.players.map(p=>({id:p.id,name:p.name,color:p.color,score:p.score||0,stats:p.stats||{}})),game:null};
+ if(S.game){const g=JSON.parse(JSON.stringify(S.game));const src=S.game;
+  if(g.id==='imposter'){if(g.phase==='result'||g.phase==='done'){g.impId=src.impId;g.imp=src.imp;g.civ=src.civ;}if(g.phase!=='result')delete g.votes;}
+  if(g.id==='likely'||g.id==='wyr'){if(g.phase!=='result')delete g.votes;}
+  if(g.id==='trivia'){const q=src.qs[src.i];g.q=q?[q[0],q[1],src.picked!=null?q[2]:-1]:null;g.total=src.qs.length;}
+  if(g.id==='never'){g.q=src.deck[src.i%src.deck.length];g.selIds=Object.keys(src.sel||{}).filter(k=>src.sel[k]);}
+  STRIP.forEach(k=>delete g[k]);o.game=g;}
+ return o;
+}
+function sync(){if(!DB||!S.code||TV.on)return;clearTimeout(syncH);syncH=setTimeout(doSync,120);}
+function doSync(){if(!DB)return;if(syncBusy){syncAgain=true;return;}syncBusy=true;DB.doc('rooms/'+S.code).set(pub()).catch(()=>{}).then(()=>{syncBusy=false;if(syncAgain){syncAgain=false;doSync();}});}
+(function initDb(){try{if(window.claude&&typeof window.claude.use==='function'){window.claude.use('db').then(d=>{DB=d||null;if(DB){if(TV.on)tvSubscribe();else{sync();render();}}}).catch(()=>{});}}catch(e){}})();
 const $=s=>document.querySelector(s);
 const app=$('#app');
 let timerH=null;
@@ -243,16 +291,19 @@ const INIT={
  duel(){const g=S.game;g.a=S.players[0].id;g.b=S.players[1].id;g.phase=S.players.length>2?'pick':'ready';g.sa=0;g.sb=0;g.round=1;},
  imposter(){const g=S.game;const pair=pick(IMPOSTER);g.civ=pair[0];g.imp=pair[1];g.cat=pair[2];g.order=shuffle(S.players.map(p=>p.id));g.impId=pick(g.order);g.idx=0;g.phase='pass';g.votes={};},
  likely(){const g=S.game;g.deck=deck(LIKELY);g.round=0;g.maxR=5;nextLikely();},
- trivia(){const g=S.game;g.qs=shuffle(TRIVIA).slice(0,Math.max(5,Math.min(10,S.players.length*2)));g.i=0;g.turn=0;g.phase='q';g.picked=null;},
+ trivia(){const g=S.game;g.qs=shuffle(TRIVIA).slice(0,Math.max(5,Math.min(10,S.players.length*2)));g.i=0;g.turn=0;g.phase='q';g.picked=null;tStart();},
  tod(){const g=S.game;g.truths=deck(TRUTH);g.dares=deck(DARE);g.phase='spin';g.round=0;g.maxR=Math.max(6,S.players.length*2);},
  never(){const g=S.game;g.deck=deck(NEVER);g.i=0;g.maxR=8;g.sel={};g.phase='q';},
  wyr(){const g=S.game;g.deck=shuffle(WYR);g.round=0;g.maxR=5;g.idx=0;g.votes={};g.phase='pass';g.q=g.deck[0];},
  bomb(){const g=S.game;g.lives={};S.players.forEach(p=>g.lives[p.id]=3);g.turn=rnd(S.players.length);g.phase='ready';g.cat=pick(BOMB);g.booms=0;}
 };
+function tStart(){startTimer(15,()=>{const g=S.game;if(!g||g.id!=='trivia'||g.picked!=null)return;g.picked=-1;g.gain=0;vibrate([60,40,60]);render();save();});}
 function nextLikely(){const g=S.game;g.q=g.deck[g.round%g.deck.length];g.votes={};g.idx=0;g.phase='pass';}
 
 /* ---------- views ---------- */
 function render(){
+ if(TV.on){renderTV();return;}
+ app.classList.remove('tv');
  document.body.dataset.bg=S.bg||'home';
  let h='';
  if(S.screen==='home')h=vHome();
@@ -279,6 +330,7 @@ function vHome(){
   <div class="glass card center col" style="gap:4px;padding:14px 8px"><span class="dot" style="background:#ff2d7a"></span><b style="font-size:13px">Pass the phone</b><span class="tiny">secrets stay secret</span></div>
   <div class="glass card center col" style="gap:4px;padding:14px 8px"><span class="dot" style="background:#30d158"></span><b style="font-size:13px">Win the night</b><span class="tiny">points, awards, MVP</span></div>
  </div></div>
+ <div class="glass card row" style="gap:12px;padding:12px 14px">${icon('tvi','linear-gradient(160deg,#19c4e8,#2f7bff)')}<div class="col grow" style="gap:1px"><b style="font-size:15px">Big screen</b>${DB?`<span class="tiny">Open this link on a TV or laptop, tap Big screen, enter <b style="color:#fff;letter-spacing:.1em">${esc(S.code||'')}</b>. It mirrors this phone live.</span>`:`<span class="tiny">Live mirroring runs in the Party edition link (signed-in viewers only). This public link is phone only.</span>`}</div>${DB?`<a class="btn sm" href="#tv" style="height:40px;border-radius:20px;padding:0 12px;font-size:13px;flex:none">TV</a>`:''}</div>
  <div class="col"><div class="lbl">8 games</div><div class="pgrid c4">${Object.values(GAMES).map(g=>`<div class="ptile glass" style="cursor:default;gap:6px">${icon(g.ic,g.g)}<b style="font-size:11px">${esc(g.t)}</b></div>`).join('')}</div></div>
  <div class="foot"><p class="tiny center">Add to your home screen for the full-screen app feel.</p></div>`;
 }
@@ -403,7 +455,7 @@ const ACT={
  /* duel */
  dpick(v){const g=S.game;if(g.a===v||g.b===v)return;g.b=g.a;g.a=v;},
  dready(){S.game.phase='ready';},
- dgo(){const g=S.game;g.phase='arena';g.green=false;g.armed=true;render();clearTimeout(g.h);const wait=1500+Math.random()*3500;g.h=setTimeout(()=>{if(S.game!==g||g.phase!=='arena')return;g.green=true;g.t0=performance.now();vibrate(60);render();},wait);return true;},
+ dgo(){const g=S.game;g.phase='arena';g.green=false;g.armed=true;render();clearTimeout(g.h);const wait=1500+Math.random()*3500;g.h=setTimeout(()=>{if(S.game!==g||g.phase!=='arena')return;g.green=true;g.t0=performance.now();vibrate(60);render();save();},wait);return true;},
  dtap(v){const g=S.game;if(g.phase!=='arena'||!g.armed)return;g.armed=false;clearTimeout(g.h);let w,early=false,ms=null;if(!g.green){early=true;w=v==='a'?'b':'a';}else{w=v;ms=Math.round(performance.now()-g.t0);}if(w==='a')g.sa++;else g.sb++;g.winner=w==='a'?g.a:g.b;g.early=early;g.ms=ms;g.round++;if(g.sa===3||g.sb===3){const win=P(g.winner);addScore(g.winner,400,'duel');const lose=g.winner===g.a?g.b:g.a;addScore(lose,100);confetti();endGame(`${av(win,'lg pop')}<div class="lbl">won the duel</div><h1>${esc(win.name)}</h1><p class="muted">${g.sa} to ${g.sb} · +400 night points</p>`);return true;}g.phase='round';},
  /* imposter */
  icard(){S.game.phase='card';},
@@ -418,7 +470,7 @@ const ACT={
  lnext(){const g=S.game;g.round++;if(g.round>=g.maxR){const r=ranked();endGame(`<div class="lbl">Most Likely To is over</div><h1>${esc(r[0].name)} leads</h1><p class="muted">Crowd favorite points went to every winner.</p>`);return true;}nextLikely();},
  /* trivia */
  ta(v){const g=S.game;if(g.picked!=null)return;const i=+v;const q=g.qs[g.i];g.picked=i;const left=g.t||0;stopTimer();const p=S.players[g.turn%S.players.length];if(i===q[2]){g.gain=100+left*10;addScore(p.id,g.gain,'trivia');vibrate(40);}else{g.gain=0;vibrate([60,40,60]);}},
- tnext(){const g=S.game;g.i++;g.turn++;g.picked=null;if(g.i>=g.qs.length){const r=ranked();endGame(`<div class="lbl">Trivia is over</div><h1>${esc(r[0].name)} leads</h1><p class="muted">Correct answers paid 100 plus 10 per second left.</p>`);return true;}},
+ tnext(){const g=S.game;g.i++;g.turn++;g.picked=null;if(g.i>=g.qs.length){const r=ranked();endGame(`<div class="lbl">Trivia is over</div><h1>${esc(r[0].name)} leads</h1><p class="muted">Correct answers paid 100 plus 10 per second left.</p>`);return true;}tStart();},
  /* tod */
  tospin(){const g=S.game;const cand=S.players.filter(p=>p.id!==g.last);g.who=pick(cand).id;g.last=g.who;g.phase='choose';vibrate(30);},
  tot(){const g=S.game;g.kind='t';g.card=g.truths[g.round%g.truths.length];g.phase='card';},
@@ -460,6 +512,72 @@ function holdOff(){document.querySelectorAll('[data-hold].show').forEach(el=>el.
 app.addEventListener('pointerdown',holdOn);
 window.addEventListener('pointerup',holdOff);window.addEventListener('pointercancel',holdOff);
 app.addEventListener('contextmenu',e=>{if(e.target.closest('[data-hold]'))e.preventDefault();});
+
+/* ---------- big screen (TV) mode: subscribes to the host phone's room ---------- */
+const TV={on:location.hash==='#tv',code:'',st:null,unsub:null,err:'',tick:null};
+function tvCode(){try{return localStorage.getItem('roomful.tvcode')||'';}catch(e){return '';}}
+function tvSubscribe(){if(!DB||!TV.code)return;if(TV.unsub){TV.unsub();TV.unsub=null;}TV.err='';TV.unsub=DB.doc('rooms/'+TV.code).onSnapshot(snap=>{TV.st=snap.exists?snap.data():null;renderTV();},e=>{TV.err=e&&e.code||'unavailable';renderTV();});}
+function tvAvGrid(list,o){o=o||{};return `<div class="tiles">${list.map((p,i)=>{const sel=o.sel?o.sel(p,i):false;const b=o.badge?o.badge(p,i):'';return `<div class="ptile glass ${sel?'on':''}" style="cursor:default">${av(p,'md')}<b>${esc(p.name)}</b>${b?`<span class="badge">${b}</span>`:''}${o.foot?o.foot(p,i):''}</div>`;}).join('')}</div>`;}
+function tvTimer(g){const left=g.tEnd?Math.max(0,Math.ceil((g.tEnd-Date.now())/1000)):(g.t||0);return `<div class="timer ${left<=5?'hot':''}">${left}</div>`;}
+function renderTV(){
+ app.classList.add('tv');
+ const st=TV.st;const code=TV.code;
+ if(!DB&&!TV.err){document.body.dataset.bg='home';app.innerHTML=`${logo()}<div class="center-stage"><h2>Big screen</h2><p class="muted">Connecting…</p><p class="tiny">If this stays here, this link is the public phone edition. Open the Party edition link on the TV.</p></div>`;return;}
+ if(!code){document.body.dataset.bg='home';app.innerHTML=`${logo()}<div class="center-stage"><h2>Enter the code from the host phone</h2><form class="col center" data-tv="join" style="gap:2vh"><input type="text" id="tvIn" maxlength="4" placeholder="KZ4P" autocomplete="off"><button class="btn pri big" type="submit" style="width:auto;padding:0 2em">Connect</button></form><p class="tiny">The code is on the phone's home screen under Big screen.</p></div>`;setTimeout(()=>{const i=$('#tvIn');if(i)i.focus();},50);return;}
+ const head=(extra)=>`<div class="hdr">${logo()}<div class="row">${extra||''}<span class="pill glass" style="letter-spacing:.12em;font-weight:900">${esc(code)}</span><a class="btn sm" href="#" data-tv="leave" style="height:3em;border-radius:1.5em;padding:0 1em;font-size:1em">Leave</a></div></div>`;
+ if(!st){document.body.dataset.bg='home';app.innerHTML=`${head()}<div class="center-stage"><h2>Waiting for room ${esc(code)}</h2><p class="muted">${TV.err?'Cannot reach the room store right now.':'Start a party on the host phone. The code must match.'}</p></div>`;return;}
+ document.body.dataset.bg=st.bg||'home';
+ const PP=st.players||[];const byId=id=>PP.find(p=>p.id===id)||{id,name:'?',color:'#fff'};
+ const scores=`<div class="scores">${PP.slice().sort((a,b)=>b.score-a.score).map(p=>`<div class="s glass">${av(p)}${esc(p.name)} <span style="opacity:.8">${p.score}</span></div>`).join('')}</div>`;
+ let body='';
+ const g=st.game;const G=g&&GAMES[g.id];
+ if(st.screen==='home'||st.screen==='setup'){body=`<div class="center-stage"><div class="lbl">Room code</div><div class="code">${esc(code)}</div><p class="muted">${PP.length?PP.length+' players ready. Pick a game on the phone.':'Add players on the host phone.'}</p>${PP.length?tvAvGrid(PP):''}</div>`;}
+ else if(st.screen==='shelf'){body=`<div class="center-stage"><h2>Pick a game on the phone</h2><div class="tiles">${Object.values(GAMES).map(x=>`<div class="ptile glass" style="cursor:default">${icon(x.ic,x.g,'lg')}<b>${esc(x.t)}</b></div>`).join('')}</div></div>${scores}`;}
+ else if(st.screen==='recap'){const r=PP.slice().sort((a,b)=>b.score-a.score);body=`<div class="center-stage"><div class="pill" style="background:rgba(21,17,58,.45)">PARTY MVP</div>${r[0]?av(r[0],'lg pop'):''}<h1>${r[0]?esc(r[0].name)+' · '+r[0].score:''}</h1><div class="vs">${[r[1],r[0],r[2]].filter(Boolean).map(p=>`<div class="side">${av(p,'md')}<b>${esc(p.name)} · ${p.score}</b></div>`).join('')}</div></div>${scores}`;}
+ else if(st.screen==='game'&&g&&G){
+  const title=`<span class="pill glass" style="padding-left:.4em">${icon(G.ic,G.g)}${esc(G.t)}</span>`;
+  let inner='';
+  if(g.phase==='done'){inner=`<h2>${esc(G.t)} is done</h2><p class="muted">Next game is on the phone.</p>`;}
+  else if(g.id==='duel'){const A=byId(g.a),B=byId(g.b);const dots=(n,w)=>`<div class="dots">${[0,1,2].map(i=>`<i class="${i<n?'on':''}"></i>`).join('')}</div>`;
+   if(g.phase==='arena'){document.body.dataset.bg=g.green?'green':'duel';inner=`<div class="vs"><div class="side">${av(A,'lg')}<div class="nm">${esc(A.name)}</div>${dots(g.sa)}</div><div class="vsmid glass">${g.green?'GO':'VS'}</div><div class="side">${av(B,'lg')}<div class="nm">${esc(B.name)}</div>${dots(g.sb)}</div></div><h2>${g.green?'TAP!':'Wait for green…'}</h2>`;}
+   else if(g.phase==='round'){const w=byId(g.winner);inner=`${av(w,'lg pop')}<h1>${esc(w.name)}</h1><p class="muted">${g.early?'the other side tapped too early':(g.ms?g.ms+' ms':'took the round')}</p><div class="vsmid glass">${g.sa}:${g.sb}</div>`;}
+   else{inner=`<div class="vs"><div class="side">${av(A,'lg')}<div class="nm">${esc(A.name)}</div>${dots(g.sa)}</div><div class="vsmid glass">VS</div><div class="side">${av(B,'lg')}<div class="nm">${esc(B.name)}</div>${dots(g.sb)}</div></div><p class="muted">Quick Draw, best of 5. ${g.phase==='pick'?'Picking players on the phone.':'Round '+(g.round||1)+' starts on the phone.'}</p>`;}}
+  else if(g.id==='imposter'){const order=(g.order||[]).map(byId);const cur=order[g.idx||0];
+   if(g.phase==='pass'||g.phase==='card')inner=`<h2>Secret words are going around</h2>${cur?av(cur,'lg'):''}<p class="muted">${cur?esc(cur.name)+' is looking':''} · ${(g.idx||0)+1} of ${order.length} · category ${esc(g.cat||'')}</p>`;
+   else if(g.phase==='discuss')inner=`${tvTimer(g)}<h2>One hint each, in this order</h2>${tvAvGrid(order,{badge:(p,i)=>String(i+1)})}<p class="muted">Category: ${esc(g.cat||'')}</p>`;
+   else if(g.phase==='vpass'||g.phase==='vcard')inner=`<h2>Secret vote</h2>${cur?av(cur,'lg'):''}<p class="muted">${cur?esc(cur.name)+' is voting':''} · ${(g.idx||0)+1} of ${order.length}</p>`;
+   else if(g.phase==='result'){const counts={};Object.values(g.votes||{}).forEach(v=>counts[v]=(counts[v]||0)+1);const imp=byId(g.impId);inner=`${av(imp,'lg pop')}<div class="lbl">The imposter was</div><h1>${esc(imp.name)}</h1><div class="row" style="gap:2vw"><span class="pill glass">Everyone: ${esc(g.civ||'')}</span><span class="pill glass">Imposter: ${esc(g.imp||'')}</span></div>${tvAvGrid(Object.keys(counts).map(byId),{sel:p=>p.id===g.impId,badge:p=>counts[p.id]+' ✓'})}`;}}
+  else if(g.id==='likely'){const cur=PP[g.idx||0];
+   if(g.phase!=='result')inner=`<div class="qcard glass"><div class="tiny" style="color:#6b6a8a">Most likely to…</div><h1 style="font-size:clamp(28px,4.4vw,84px)">${esc(g.q||'')}</h1></div><p class="muted">${cur?esc(cur.name)+' is voting':''} · ${(g.idx||0)+1} of ${PP.length}</p>`;
+   else{const counts={};Object.values(g.votes||{}).forEach(v=>counts[v]=(counts[v]||0)+1);const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);const w=byId(sorted[0][0]);inner=`<div class="qcard glass"><div class="tiny" style="color:#6b6a8a">Most likely to…</div><h2>${esc(g.q||'')}</h2></div>${av(w,'lg pop')}<h1>${esc(w.name)}</h1>${tvAvGrid(sorted.map(([id])=>byId(id)),{badge:(p,i)=>String(sorted[i][1])})}`;}}
+  else if(g.id==='trivia'){const cur=PP[(g.turn||0)%Math.max(1,PP.length)];const q=g.q;const K=['#ff2d7a','#2f7bff','#6a3bff','#30d158'];
+   inner=q?`<div class="row" style="gap:1vw">${cur?av(cur,'md'):''}<h2>${cur?esc(cur.name)+"'s question":''}</h2>${g.tEnd?tvTimer(g):''}</div><div class="qcard glass"><h1 style="font-size:clamp(26px,3.6vw,72px)">${esc(q[0])}</h1></div><div class="opts">${q[1].map((o,i)=>`<div class="opt glass ${q[2]>=0?(i===q[2]?'ok':(i===g.picked?'bad':'')):''}"><span class="k" style="background:${K[i]}">${'ABCD'[i]}</span>${esc(o)}</div>`).join('')}</div><p class="tiny">Question ${(g.i||0)+1} of ${g.total||''}</p>`:`<h2>Trivia</h2>`;}
+  else if(g.id==='tod'){const w=g.who?byId(g.who):null;
+   if(g.phase==='spin')inner=`<h2>Who is next?</h2>${tvAvGrid(PP)}`;
+   else if(g.phase==='choose')inner=`${w?av(w,'lg pop'):''}<h1>${w?esc(w.name):''}</h1><h2>Truth or dare?</h2>`;
+   else inner=`<div class="row" style="gap:1vw">${w?av(w,'md'):''}<h2>${w?esc(w.name):''} · ${g.kind==='t'?'Truth':'Dare'}</h2></div><div class="qcard glass"><h1 style="font-size:clamp(28px,4vw,80px)">${esc(g.card||'')}</h1></div>`;}
+  else if(g.id==='never'){const sel=new Set(g.selIds||[]);inner=`<div class="qcard glass"><div class="tiny" style="color:#6b6a8a">Never have I ever…</div><h1 style="font-size:clamp(28px,4.4vw,84px)">${esc(g.q||'')}</h1></div>${tvAvGrid(PP,{sel:p=>sel.has(p.id),badge:p=>sel.has(p.id)?'✓':''})}`;}
+  else if(g.id==='wyr'){const q=g.q||['',''];
+   if(g.phase!=='result'){const cur=PP[g.idx||0];inner=`<h2>Would you rather…</h2><div class="opts"><div class="opt glass" style="justify-content:center;text-align:center"><span class="k" style="background:#ff2d7a">A</span>${esc(q[0])}</div><div class="opt glass" style="justify-content:center;text-align:center"><span class="k" style="background:#2f7bff">B</span>${esc(q[1])}</div></div><p class="muted">${cur?esc(cur.name)+' is picking':''} · ${(g.idx||0)+1} of ${PP.length}</p>`;}
+   else{const a=Object.values(g.votes||{}).filter(v=>v===0).length,b=PP.length-a;inner=`<h2>The room is split</h2><div class="opts"><div class="opt glass ${a>=b?'on':''}" style="justify-content:center;flex-direction:column;${a>=b?'background:rgba(255,255,255,.92);color:var(--ink)':''}"><span class="big-num" style="font-size:3em">${a}</span>${esc(q[0])}</div><div class="opt glass" style="justify-content:center;flex-direction:column;${b>a?'background:rgba(255,255,255,.92);color:var(--ink)':''}"><span class="big-num" style="font-size:3em">${b}</span>${esc(q[1])}</div></div>${tvAvGrid(PP,{badge:p=>(g.votes||{})[p.id]===0?'A':'B'})}`;}}
+  else if(g.id==='bomb'){const cur=PP[(g.turn||0)%Math.max(1,PP.length)];const lives=id=>`<span class="lives">${[0,1,2].map(i=>`<i class="${i<((g.lives||{})[id]||0)?'on':''}"></i>`).join('')}</span>`;
+   if(g.phase==='live')inner=`<div class="pill glass">${esc(g.cat||'')}</div>${cur?av(cur,'lg'):''}<h1>${cur?esc(cur.name):''}</h1><p class="muted">holds the bomb. Say one: ${esc(g.cat||'')}</p>${tvAvGrid(PP,{sel:p=>cur&&p.id===cur.id,foot:p=>lives(p.id)})}`;
+   else if(g.phase==='boom')inner=`<div class="lens" style="background:rgba(255,45,122,.6)">${cur?av(cur,'lg'):''}</div><h1 class="shake">${cur?esc(cur.name):''} lost a life</h1>${tvAvGrid(PP,{foot:p=>lives(p.id)})}`;
+   else inner=`<h2>Bomb Pass</h2><p class="muted">Light the fuse on the phone.</p>${tvAvGrid(PP,{foot:p=>lives(p.id)})}`;}
+  body=`<div class="center-stage">${inner}</div>${scores}`;
+  app.innerHTML=head(title)+body;
+  clearInterval(TV.tick);if(g.tEnd&&(g.phase==='discuss'||g.id==='trivia')){TV.tick=setInterval(()=>{const el=app.querySelector('.timer');if(!el)return;const left=Math.max(0,Math.ceil((g.tEnd-Date.now())/1000));el.textContent=left;el.classList.toggle('hot',left<=5);},250);}
+  return;
+ }
+ else{body=`<div class="center-stage"><div class="code">${esc(code)}</div></div>`;}
+ clearInterval(TV.tick);
+ app.innerHTML=head()+body;
+}
+app.addEventListener('submit',e=>{const f=e.target.closest('[data-tv="join"]');if(!f)return;e.preventDefault();const v=($('#tvIn').value||'').trim().toUpperCase();if(v.length<4)return;TV.code=v;try{localStorage.setItem('roomful.tvcode',v);}catch(x){}renderTV();tvSubscribe();});
+app.addEventListener('click',e=>{const el=e.target.closest('[data-tv="leave"]');if(!el)return;e.preventDefault();if(TV.unsub){TV.unsub();TV.unsub=null;}TV.code='';TV.st=null;try{localStorage.removeItem('roomful.tvcode');}catch(x){}renderTV();});
+window.addEventListener('hashchange',()=>{TV.on=location.hash==='#tv';if(TV.on){TV.code=tvCode();render();if(DB)tvSubscribe();}else{if(TV.unsub){TV.unsub();TV.unsub=null;}clearInterval(TV.tick);render();}});
+if(TV.on){TV.code=tvCode();}
+if(!S.code)S.code=newCode();
 
 /* resume: a game mid-arena or mid-timer cannot resume safely, land on its intro */
 if(S.screen==='game'&&S.game){const g=S.game;if(g.phase==='arena'){g.phase='ready';}if(g.phase==='discuss'){g.t=g.t||120;}if(g.phase==='live'){g.phase='ready';}}

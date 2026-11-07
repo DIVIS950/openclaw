@@ -91,7 +91,12 @@ Earlier clickable mockup of the TV and phone screens in both moods: https://clau
 
 ## Playable web app (v6)
 
-Live link (one-phone party app, pass the phone, 8 games, scoring, awards, recap): https://claude.ai/artifact/381xkFxhQYe3t6g4wyC4Hs
+Two editions of the same file:
+
+- Public edition (share with anyone, phone only): https://claude.ai/artifact/381xkFxhQYe3t6g4wyC4Hs
+- Party edition (adds Big Screen mode; open the link on a TV or laptop, add `#tv`, enter the room code shown on the host phone; viewers must be signed in to the owner's claude.ai account or organization): https://claude.ai/artifact/2pKBv2dgGs8orqAxKe9Kms
+
+The Big Screen subscribes to the host phone's room document (`rooms/<code>`) and mirrors it live: lobby code, prompts, timers, Duel green flash, reveals and scores. Secret words and votes are stripped from the mirror until the reveal.
 
 Source: `party-game/app/index.html` (single file, no build step, no server). Games: Duel (Quick Draw on one phone, split screen), Imposter, Most Likely To, Buzzer Trivia, Truth or Dare, Never Have I Ever, Would You Rather, Bomb Pass. Night state is saved in the browser so a reload continues the night.
 
