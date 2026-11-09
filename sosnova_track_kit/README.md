@@ -56,6 +56,27 @@ The lap is delimited the way a Saturday race day would be set up, without changi
 
 Still approximate: placeholder textures for kerbs, cones, walls and trees, box buildings, billboard trees.
 
+## Elevation study (LiDAR DMR 5G along the lap)
+
+`source/previews/elevation_study.png`, data in `source/elevation_study.json`. Heights sampled on the lap line
+from the 1 m LiDAR grid (2 m Gaussian smoothing; the residual noise after smoothing is 0.10 m standard deviation).
+
+| Quantity | Value |
+|---|---|
+| Height span of the lap | 2.9 m (high point at 118 m after the start, low point at 1284 m, in the handling loops) |
+| Steepest climb / descent | 4.0 % up (around 570 m, Classic hairpin exit), 2.9 % down |
+| Camber (left minus right over 8 m) | between -4.5 % and +3.4 %, mean 1.5 % |
+| Published figures | 1.6 km standard lap, 12 m width, 2 m elevation change (adventure911.cz); the 25 m on 51gt3.com contradicts the LiDAR |
+
+The rear handling section was re-asphalted and extended in 2021 to 2022; the LiDAR is from 2009 to 2013, so
+camber there can differ by a few centimetres from today. Everything else is within the 0.18 m accuracy of the data.
+
+## Start and pit orientation
+
+Assetto Corsa cars and dummies face their local +Z axis (Y up, X to the left of the car). The kn5 writer and the
+Blender script both orient `AC_START_*`, `AC_PIT_*`, `AC_CREW_*` and `AC_HOTLAP_START_0` so that +Z points
+along the direction of travel (checked numerically against the lap tangent in `tools/write_kn5.py`).
+
 ## Weather, rain and puddles (version 1.0)
 
 Weather is not stored in a track in Assetto Corsa; you pick it in Content Manager. For rain you need
@@ -194,8 +215,8 @@ session in Content Manager.
 
 ### 6. If the cars face the wrong way
 
-Select all `AC_START_*`, `AC_PIT_*`, `AC_CREW_*`, `AC_HOTLAP_START_*` empties in Blender, Pivot Point =
-Individual Origins, `R Z 180 Enter`, re-export the FBX and save the kn5 again.
+Should not happen since version 1.2 (dummies face +Z). If it does: in `tools/write_kn5.py` change `rz = (t[0], 0.0, t[2])`
+to `rz = (-t[0], 0.0, -t[2])` and run it again, or in Blender rotate the `AC_*` empties 180 degrees and re-export.
 
 ### 7. Record the AI line
 

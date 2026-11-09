@@ -133,16 +133,18 @@ def mesh_arrays(v, vt, vn, faces):
 
 
 def dummy_matrix(pos_ac, heading_blender_deg: float | None) -> list[float]:
-    """Row-major 4x4 with translation in the last row. Local -Z points along the direction of travel
-    (same orientation the Blender/FBX path produces, see register of AC_START in the kit)."""
+    """Row-major 4x4 with translation in the last row. Local +Z points along the direction of travel:
+    Assetto Corsa cars and dummies face their local +Z (Y up, X to the left of the car), which is what a
+    Blender empty exported with the default FBX settings (-Z forward, Y up) gets when its local -Y points
+    along the track."""
     if heading_blender_deg is None:
         rx, ry, rz = (1, 0, 0), (0, 1, 0), (0, 0, 1)
     else:
         a = math.radians(heading_blender_deg)
         t = (math.cos(a), 0.0, -math.sin(a))  # travel direction in AC space (east, up, -north)
-        rz = (-t[0], 0.0, -t[2])
+        rz = (t[0], 0.0, t[2])
         ry = (0.0, 1.0, 0.0)
-        rx = (-rz[2], 0.0, rz[0])  # Y x Z
+        rx = (ry[1] * rz[2] - ry[2] * rz[1], ry[2] * rz[0] - ry[0] * rz[2], ry[0] * rz[1] - ry[1] * rz[0])  # Y x Z
     x, y, z = pos_ac
     return [*rx, 0.0, *ry, 0.0, *rz, 0.0, x, y, z, 1.0]
 

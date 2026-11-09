@@ -50,14 +50,15 @@ def import_obj(path: str) -> None:
 
 def add_empty(name: str, pos_ac: list[float], heading_deg: float | None, size: float = 1.0) -> bpy.types.Object:
     """heading_deg: direction of travel in the Blender XY plane (0 = +X east, CCW positive).
-    The empty is rotated so its local +Y axis points along the direction of travel.
-    Blender's FBX exporter (-Z forward, Y up) turns local +Y into the FBX/AC local +Z axis."""
+    The empty is rotated so its local -Y axis (Blender's forward) points along the direction of travel.
+    Blender's FBX exporter (-Z forward, Y up) maps local -Y to the FBX/AC local +Z axis, which is the
+    direction Assetto Corsa cars and dummies face."""
     e = bpy.data.objects.new(name, None)
     e.empty_display_type = "ARROWS"
     e.empty_display_size = size
     e.location = ac_to_blender(pos_ac)
     if heading_deg is not None:
-        e.rotation_euler = (0.0, 0.0, math.radians(heading_deg - 90.0))
+        e.rotation_euler = (0.0, 0.0, math.radians(heading_deg + 90.0))
     bpy.context.scene.collection.objects.link(e)
     return e
 
