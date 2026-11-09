@@ -268,13 +268,14 @@ def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7, base_tone: 
     g[speck] = np.clip(g[speck] + 0.25, 0, 1)
     r, gch, b = g * 0.975, g * 0.995, g * 1.03  # cool grey like the photo
     img = (np.stack([r, gch, b], -1) * 255).clip(0, 255).astype(np.uint8)
-    Image.fromarray(img).save(path)
+    out = Image.fromarray(img)
+    out.save(path, quality=92, subsampling=0) if path.lower().endswith(".jpg") else out.save(path)
 
 
 def make_furniture_textures(folder: str) -> None:
     os.makedirs(folder, exist_ok=True)
-    make_asphalt_texture(os.path.join(folder, "road.png"))
-    make_asphalt_texture(os.path.join(folder, "road_low.png"), seed=7, base_tone=0.47)  # hollows: same grain, a touch darker
+    make_asphalt_texture(os.path.join(folder, "road.jpg"))
+    make_asphalt_texture(os.path.join(folder, "road_low.jpg"), seed=7, base_tone=0.47)  # hollows: same grain, a touch darker
     # tape: transparent wall, red/white tape band in the top 15 %
     tape = Image.new("RGBA", (512, 256), (0, 0, 0, 0))
     d = ImageDraw.Draw(tape)

@@ -52,7 +52,7 @@ The lap is delimited the way a Saturday race day would be set up, without changi
   start line with a START / FINISH banner. Timing lines: `AC_TIME_0` at the gantry, sectors at 1/3 and 2/3.
 - The pit side of the start straight (first 110 m after the line, paddock side) stays open so cars can leave the pits.
 - **Asphalt texture**: 2048 px tiling texture (one tile = 8 m) with aggregate grain, mild tone variation, faint
-  worn bands and stone speckles. Replace `source/texture/road.png` with a photo texture if you have one.
+  worn bands and stone speckles. Replace `source/texture/road.jpg` with a photo texture if you have one.
 
 Still approximate: placeholder textures for kerbs, cones, walls and trees, box buildings, billboard trees.
 

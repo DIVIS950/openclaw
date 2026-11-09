@@ -130,8 +130,8 @@ class Obj:
 
 
 MATERIALS = {
-    "road": ("texture/road.png", (0.35, 0.35, 0.36)),
-    "roadlow": ("texture/road_low.png", (0.33, 0.33, 0.34)),
+    "road": ("texture/road.jpg", (0.35, 0.35, 0.36)),
+    "roadlow": ("texture/road_low.jpg", (0.33, 0.33, 0.34)),
     "kerb": ("texture/kerb.png", (0.8, 0.2, 0.2)),
     "grass": ("texture/grass.png", (0.25, 0.45, 0.15)),
     "ground": ("texture/ground.png", (0.3, 0.4, 0.2)),
