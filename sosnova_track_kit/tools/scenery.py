@@ -32,7 +32,8 @@ class Terrain:
         if np.isnan(a).any():  # fill no-data from neighbours
             idx = ndi.distance_transform_edt(np.isnan(a), return_distances=False, return_indices=True)
             a = a[tuple(idx)]
-        self.h = a
+        # LiDAR noise is ~0.18 m; a 2 m Gaussian keeps the real relief and removes the pebbles.
+        self.h = ndi.gaussian_filter(a, 2.0)
         self.rows, self.cols = a.shape
         self.half_e, self.half_n = half_m
         self.gsd = gsd
@@ -210,7 +211,7 @@ class Aerial:
         return np.clip(smooth(wl), min_m, max_m), np.clip(smooth(wr), min_m, max_m)
 
     # --- ground grid --------------------------------------------------------------------
-    def ground(self, obj, cell_m: float = 2.0, surface=None, near_track: np.ndarray | None = None) -> None:
+    def ground(self, obj, cell_m: float = 2.0, surface=None, near_track: np.ndarray | None = None, skip_mask: np.ndarray | None = None) -> None:
         """Ground grid classified from the image. `surface(en)` returns (height, weight) so the ground
         can follow the road surface right next to the track and the terrain further away."""
         cls = self.classes()
@@ -236,9 +237,12 @@ class Aerial:
                 k += 1
         groups: dict[str, list] = {"1ROAD_paddock": [], "1SAND_runoff": [], "1GRASS_ground": []}
         a_cells = asphalt[:ny * cell_px, :nx * cell_px].reshape(ny, cell_px, nx, cell_px).mean(axis=(1, 3))
+        k_cells = skip_mask[:ny * cell_px, :nx * cell_px].reshape(ny, cell_px, nx, cell_px).mean(axis=(1, 3)) if skip_mask is not None else np.zeros((ny, nx))
         s_cells = sand[:ny * cell_px, :nx * cell_px].reshape(ny, cell_px, nx, cell_px).mean(axis=(1, 3))
         for j in range(ny):
             for i in range(nx):
+                if k_cells[j, i] > 0.98:
+                    continue  # fully covered by the triangulated asphalt polygons
                 name = "1ROAD_paddock" if a_cells[j, i] > 0.5 else "1SAND_runoff" if s_cells[j, i] > 0.5 else "1GRASS_ground"
                 groups[name].append((vidx[j + 1, i], vidx[j + 1, i + 1], vidx[j, i + 1], vidx[j, i]))
         for name, faces in groups.items():

@@ -225,21 +225,31 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
         u, v = scenery.uv(scenery.en_to_px(center[i] + left[i] * d))[0]
         return (float(u), float(v))
 
-    # ---- road: 7 vertices across, UV v along length (1 tile per 8 m)
-    rows = []
-    for i in range(n):
-        rows.append([obj.add_vertex(pt(i, d), (k / 6.0, s[i] / 8.0)) for k, d in enumerate(np.linspace(wl[i], -wr[i], 7))])
-    obj.add_ribbon("1ROAD_main", "road", rows, closed=True)
-
-    # ---- white edge lines (visual only)
-    for side, sign in (("L", 1.0), ("R", -1.0)):
+    polygon_road = scenery is not None and not scenery.has_overlays and scenery.terrain is not None
+    info: dict = {}
+    road_mask = None
+    if polygon_road:
+        # ---- road = the real asphalt outline from the orthophoto, triangulated onto the terrain
+        from roadmesh import asphalt_geometry, add_road_polygons, rasterize
+        geom = asphalt_geometry(scenery, center)
+        road_mask = rasterize(scenery, geom)
+        info["asphalt_m2"] = float(geom.area)
+        info["road_triangles"] = add_road_polygons(obj, scenery, geom, scenery.height)
+        print(f"asphalt polygons: {len(geom.geoms)} areas, {geom.area:.0f} m2, {info['road_triangles']} triangles")
+    else:
+        # ---- road ribbon: 7 vertices across, UV v along length (1 tile per 8 m)
         rows = []
         for i in range(n):
-            w_i = wl[i] if sign > 0 else wr[i]
-            a = pt(i, sign * (w_i - 0.05), 0.004)
-            b = pt(i, sign * (w_i - 0.20), 0.004)
-            rows.append([obj.add_vertex(a if sign > 0 else b, (0, s[i] / 8)), obj.add_vertex(b if sign > 0 else a, (1, s[i] / 8))])
-        obj.add_ribbon(f"LINE_{side}", "line", rows, closed=True)
+            rows.append([obj.add_vertex(pt(i, d), (k / 6.0, s[i] / 8.0)) for k, d in enumerate(np.linspace(wl[i], -wr[i], 7))])
+        obj.add_ribbon("1ROAD_main", "road", rows, closed=True)
+        for side, sign in (("L", 1.0), ("R", -1.0)):
+            rows = []
+            for i in range(n):
+                w_i = wl[i] if sign > 0 else wr[i]
+                a = pt(i, sign * (w_i - 0.05), 0.004)
+                b = pt(i, sign * (w_i - 0.20), 0.004)
+                rows.append([obj.add_vertex(a if sign > 0 else b, (0, s[i] / 8)), obj.add_vertex(b if sign > 0 else a, (1, s[i] / 8))])
+            obj.add_ribbon(f"LINE_{side}", "line", rows, closed=True)
 
     # ---- start/finish stripe
     i0, i1 = sf_index, (sf_index + 1) % n
@@ -278,13 +288,13 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
             (kerb_faces if flags[i] else other_faces).append(q)
         if kerb_faces:
             obj.add_faces(kerb_name, "kerb", kerb_faces)
-        if other_faces:
+        if other_faces and not polygon_road:
             obj.add_faces(other_name, "aerial" if scenery is not None else "grass", other_faces)
 
     band(+1.0, wl, kerb_left, "1KERB_L", "1GRASS_edgeL")
     band(-1.0, wr, kerb_right, "1KERB_R", "1GRASS_edgeR")
 
-    info: dict = {"kerb_left": int(kerb_left.sum()), "kerb_right": int(kerb_right.sum())}
+    info.update({"kerb_left": int(kerb_left.sum()), "kerb_right": int(kerb_right.sum())})
     if scenery is not None:
         def band_mask(reach_m: float) -> np.ndarray:
             m = np.zeros((scenery.h, scenery.w), dtype=bool)
@@ -292,7 +302,7 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
             for (px, py) in scenery.en_to_px(center).astype(int):
                 m[max(py - reach, 0):min(py + reach + 1, scenery.h), max(px - reach, 0):min(px + reach + 1, scenery.w)] = True
             return m
-        scenery.ground(obj, cell_m=2.0, surface=surface.blend, near_track=band_mask(30.0))
+        scenery.ground(obj, cell_m=2.0, surface=None if polygon_road else surface.blend, near_track=band_mask(30.0), skip_mask=road_mask)
         scenery.outer_ring(obj, margin_m=120.0)
         info["cones"] = scenery.cones(obj, cones_en, surface=lambda en: (surface.nearest(en)[2], None))
         info["buildings"] = scenery.buildings(obj, exclude_px=band_mask(max(wl.max(), wr.max()) + 10.0))
@@ -488,6 +498,16 @@ def main() -> None:
 
     t_, left_, _ = frames(en)
     if scenery is not None:
+        # snap the drawn line to the middle of the real asphalt (twice); widths capped at 8 m so the
+        # wide paddock areas do not pull the line, then measure the final edges
+        for _ in range(2):
+            wl, wr = scenery.road_edges(en, left_)
+            shift = (np.minimum(wl, 8.0) - np.minimum(wr, 8.0)) / 2.0
+            en = en + left_ * smooth_profile(shift, 4.0 / a.step)[:, None]
+            en = resample_closed(en, a.step)
+            en = smooth_closed(en, max(2.0 / a.step, 1.0))
+            en = resample_closed(en, a.step)
+            t_, left_, _ = frames(en)
         wl, wr = scenery.road_edges(en, left_)
         print(f"road edges from image: left {wl.min():.1f}-{wl.max():.1f} m, right {wr.min():.1f}-{wr.max():.1f} m, mean width {np.mean(wl + wr):.1f} m")
     else:
