@@ -153,3 +153,12 @@ d 1
 illum 2
 map_Kd texture/banner.png
 
+newmtl farground
+Ka 0.2 0.2 0.2
+Kd 0.3 0.4 0.2
+Ks 0.05 0.05 0.05
+Ns 10
+d 1
+illum 2
+map_Kd texture/far.jpg
+

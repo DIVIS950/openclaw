@@ -38,8 +38,10 @@ SHADERS = {  # material -> (shader, alphaTested, extra props)
     "roadlow": ("ksPerPixel", 0, {"ksSpecular": 0.5, "ksSpecularEXP": 40.0}),
     "grass": ("ksPerPixel", 0, {"ksSpecular": 0.02, "ksSpecularEXP": 10.0}),
     "ground": ("ksPerPixel", 0, {"ksSpecular": 0.02, "ksSpecularEXP": 10.0}),
+    "farground": ("ksPerPixel", 0, {"ksSpecular": 0.0, "ksSpecularEXP": 10.0}),
+    "line": ("ksPerPixel", 0, {"ksAmbient": 0.5, "ksDiffuse": 0.55, "ksSpecular": 0.1}),
 }
-DEFAULT_PROPS = {"ksAmbient": 0.45, "ksDiffuse": 0.45, "ksSpecular": 0.2, "ksSpecularEXP": 50.0, "ksAlphaRef": 0.0,
+DEFAULT_PROPS = {"ksAmbient": 0.35, "ksDiffuse": 0.40, "ksSpecular": 0.2, "ksSpecularEXP": 50.0, "ksAlphaRef": 0.0,
                  "diffuseMult": 1.0, "normalMult": 1.0, "useDetail": 0.0, "detailUVMultiplier": 1.0}
 
 

@@ -167,7 +167,7 @@ class Aerial:
             up = np.asarray(Image.fromarray((filled * 255).astype(np.uint8)).resize((self.w, self.h), Image.BILINEAR)) / 255.0
             clean[small_mask] = up[small_mask]
         self.clean = clean
-        img = Image.fromarray((clean * 255).astype(np.uint8))
+        img = Image.fromarray((np.clip(clean * 0.82, 0, 1) * 255).astype(np.uint8))  # tone down for AC's strong sun
         if img.width < max_width // 2:  # low-res source: upscale a little
             img = img.resize((img.width * 2, img.height * 2), Image.LANCZOS).filter(ImageFilter.UnsharpMask(1.5, 60, 2))
         elif img.width > max_width:
@@ -255,9 +255,10 @@ class Aerial:
                 suffix = "" if c == 0 else f"_{c // chunk}"
                 obj.add_faces(name + suffix, "aerial", faces[c:c + chunk])
 
-    def outer_ring(self, obj, margin_m: float, wall_h: float = 2.0) -> None:
-        """Plain grass ring around the aerial image plus perimeter walls, following the terrain edge heights."""
-        half_w, half_h = self.cx * self.scale, self.cy * self.scale
+    def outer_ring(self, obj, margin_m: float, wall_h: float = 2.0, draw_ring: bool = True, half_override: tuple[float, float] | None = None) -> None:
+        """Plain grass ring around the aerial image plus perimeter walls, following the terrain edge heights.
+        With draw_ring=False only the walls are written (used when the wide-area terrain exists)."""
+        half_w, half_h = half_override if half_override else (self.cx * self.scale, self.cy * self.scale)
         ox, oy = half_w + margin_m, half_h + margin_m
         inner = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)]
         outer = [(-ox, -oy), (ox, -oy), (ox, oy), (-ox, oy)]
@@ -276,7 +277,8 @@ class Aerial:
                 if prev is not None:
                     faces.append((prev[0], prev[1], vo, vi))
                 prev = (vi, vo)
-        obj.add_faces("1GRASS_outer", "grass", faces)
+        if draw_ring:
+            obj.add_faces("1GRASS_outer", "grass", faces)
         for k in range(4):
             (xa, ya), (xb, yb) = outer[k], outer[(k + 1) % 4]
             length = math.hypot(xb - xa, yb - ya)
@@ -397,6 +399,78 @@ class Aerial:
         if faces:
             obj.add_faces(f"TREES_{len(en) // 120:02d}", "tree", faces)
         return len(en)
+
+
+def outer_terrain(obj, far_dir: str, inner_half: tuple[float, float], out_tex: str, ref_height: float = 0.0, cell_m: float = 12.0, tree_spacing_m: float = 14.0, max_trees: int = 3500) -> dict:
+    """Terrain ring from the wide-area orthophoto (1 m/px) and heights (4 m): covers 2.5 x 2 km around the
+    site, skips the inner high-resolution area, carries the real hills and a billboard forest."""
+    import json
+    meta = json.load(open(os.path.join(far_dir, "meta.json")))
+    far = Aerial(os.path.join(far_dir, "ortho.png"), meta["gsd"], meta["center"][0], meta["center"][1], has_overlays=False)
+    far.terrain = Terrain(os.path.join(far_dir, "dem.tif"), tuple(meta["half_m"]), meta["dem_gsd"])
+    far.terrain.ref = ref_height  # same zero level as the inner terrain (start line)
+    img = Image.fromarray((np.clip(far.img * 0.82, 0, 1) * 255).astype(np.uint8))
+    img.resize((2048, int(2048 * far.h / far.w)), Image.LANCZOS).convert("RGB").save(out_tex, quality=88)
+    hx, hy = inner_half
+    cell_px = int(round(cell_m / far.scale))
+    nx, ny = far.w // cell_px, far.h // cell_px
+    xs, ys = np.arange(nx + 1) * cell_px, np.arange(ny + 1) * cell_px
+    gx, gy = np.meshgrid(xs, ys)
+    en = far.px_to_en(np.column_stack([gx.ravel(), gy.ravel()]).astype(float))
+    hgt = far.height(en) - 0.05
+    vidx = np.zeros((ny + 1, nx + 1), dtype=int)
+    k = 0
+    for j in range(ny + 1):
+        for i in range(nx + 1):
+            vidx[j, i] = obj.add_vertex((en[k, 0], hgt[k], -en[k, 1]), (xs[i] / far.w, 1.0 - ys[j] / far.h))
+            k += 1
+    faces = []
+    for j in range(ny):
+        for i in range(nx):
+            c = far.px_to_en(np.array([[(xs[i] + xs[i + 1]) / 2.0, (ys[j] + ys[j + 1]) / 2.0]]))[0]
+            if abs(c[0]) < hx + 0.5 and abs(c[1]) < hy + 0.5:
+                continue  # inside the high-resolution area
+            faces.append((vidx[j + 1, i], vidx[j + 1, i + 1], vidx[j, i + 1], vidx[j, i]))
+    for c in range(0, len(faces), 15000):
+        obj.add_faces(f"1GRASS_far_{c // 15000:02d}", "farground", faces[c:c + 15000])
+    # forest: dark green on the wide ortho, outside the inner area
+    cls = far.classes()
+    mask = ndi.binary_opening(cls["tree"], iterations=1)
+    sp = max(int(tree_spacing_m / far.scale), 2)
+    rng = np.random.default_rng(8)
+    pts = []
+    for py in range(sp // 2, far.h, sp):
+        for px in range(sp // 2, far.w, sp):
+            jx, jy = rng.integers(-sp // 3, sp // 3 + 1, 2)
+            x, y = min(max(px + jx, 0), far.w - 1), min(max(py + jy, 0), far.h - 1)
+            if mask[y, x]:
+                e, n_ = far.px_to_en(np.array([[x, y]], float))[0]
+                if abs(e) < hx + 5 and abs(n_) < hy + 5:
+                    continue
+                pts.append((e, n_))
+    if len(pts) > max_trees:
+        pts = [pts[i] for i in rng.choice(len(pts), max_trees, replace=False)]
+    en_t = np.array(pts) if pts else np.zeros((0, 2))
+    base = far.height(en_t) if len(en_t) else np.zeros(0)
+    faces, count = [], 0
+    for (e, n_), b0 in zip(en_t, base):
+        hgt_t = 14.0 * rng.uniform(0.8, 1.2)  # mature pine forest around the site
+        half = hgt_t * 0.32
+        for ang in (0.0, math.pi / 2):
+            dx, dz = math.cos(ang) * half, math.sin(ang) * half
+            nrm = (-math.sin(ang), 0, math.cos(ang))
+            v0 = obj.add_vertex((e - dx, b0 - 0.5, -n_ - dz), (0, 0), nrm)
+            v1 = obj.add_vertex((e + dx, b0 - 0.5, -n_ + dz), (1, 0), nrm)
+            v2 = obj.add_vertex((e + dx, b0 + hgt_t, -n_ + dz), (1, 1), nrm)
+            v3 = obj.add_vertex((e - dx, b0 + hgt_t, -n_ - dz), (0, 1), nrm)
+            faces.append((v0, v1, v2, v3))
+        count += 1
+        if len(faces) >= 2 * 150:
+            obj.add_faces(f"TREESFAR_{count // 150:03d}", "tree", faces)
+            faces = []
+    if faces:
+        obj.add_faces(f"TREESFAR_{count // 150 + 1:03d}", "tree", faces)
+    return {"far_cells": sum(1 for _ in range(0)) , "far_trees": count, "far_extent_m": meta["half_m"]}
 
 
 def make_scenery_textures(folder: str) -> None:

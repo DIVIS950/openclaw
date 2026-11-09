@@ -124,7 +124,7 @@ def main() -> int:
         check(on_asphalt(L["AC_HOTLAP_START"][0]["pos_ac"]), "hotlap start on asphalt")
         inside = np.mean([geom.buffer(0.5).contains(Point(*p)) for p in route_en])
         check(inside > 0.97, f"lap line inside asphalt for {inside * 100:.1f} % of its points")
-        stacks = [n for n in objects if n.startswith("AC_POBJECT_TYRES")]
+        stacks = [n for n in objects if n.startswith("1WALL_tyres")]
         check(len(stacks) == len(rr.get("cones_px") or []), f"{len(stacks)} slalom stacks = {len(rr.get('cones_px') or [])} marked points")
     except Exception as e:  # orthophoto not present (zip without ortho.png) -> skip these checks
         warns.append(f"WARN asphalt containment checks skipped ({type(e).__name__}: {e})")

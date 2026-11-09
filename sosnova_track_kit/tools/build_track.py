@@ -147,6 +147,7 @@ MATERIALS = {
     "tyre": ("texture/tyre.png", (0.12, 0.12, 0.12)),
     "gantry": ("texture/gantry.png", (0.28, 0.28, 0.3)),
     "banner": ("texture/banner.png", (0.8, 0.1, 0.1)),
+    "farground": ("texture/far.jpg", (0.3, 0.4, 0.2)),
 }
 
 
@@ -263,6 +264,29 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
                 rows.append([obj.add_vertex(a if sign > 0 else b, (0, s[i] / 8)), obj.add_vertex(b if sign > 0 else a, (1, s[i] / 8))])
             obj.add_ribbon(f"LINE_{side}", "line", rows, closed=True)
 
+    if polygon_road:
+        # white edge lines of the lap on top of the asphalt polygons, and painted direction arrows every 50 m
+        for side, sign in (("L", 1.0), ("R", -1.0)):
+            rows = []
+            for i in range(n):
+                w_i = wl[i] if sign > 0 else wr[i]
+                a_ = pt(i, sign * (w_i - 0.10), 0.02)
+                b_ = pt(i, sign * (w_i - 0.25), 0.02)
+                rows.append([obj.add_vertex(a_ if sign > 0 else b_, (0, s[i] / 8)), obj.add_vertex(b_ if sign > 0 else a_, (1, s[i] / 8))])
+            obj.add_ribbon(f"LINE_{side}", "line", rows, closed=True)
+        arrow_faces = []
+        for i in range(int(25 / step), n, int(50 / step)):
+            j = (i + int(round(3.0 / step))) % n  # 3 m long chevron
+            mid = (i + int(round(1.5 / step))) % n
+            tail_l, tail_r = pt(i, 0.6, 0.02), pt(i, -0.6, 0.02)
+            notch = pt(mid, 0.0, 0.02)
+            tip = pt(j, 0.0, 0.02)
+            wing_l, wing_r = pt(mid, 1.1, 0.02), pt(mid, -1.1, 0.02)
+            vs = [obj.add_vertex(p, uv) for p, uv in zip((tail_l, notch, tail_r, wing_r, tip, wing_l), ((0, 0), (0.5, 0), (1, 0), (1, 1), (0.5, 1), (0, 1)))]
+            arrow_faces.append((vs[0], vs[1], vs[4], vs[5]))  # left half of the chevron
+            arrow_faces.append((vs[1], vs[2], vs[3], vs[4]))  # right half
+        obj.add_faces("LINE_arrows", "line", arrow_faces)
+
     # ---- start/finish stripe
     i0, i1 = sf_index, (sf_index + 1) % n
     lift = 0.02 if polygon_road else 0.005
@@ -318,7 +342,14 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
                 m[max(py - reach, 0):min(py + reach + 1, scenery.h), max(px - reach, 0):min(px + reach + 1, scenery.w)] = True
             return m
         scenery.ground(obj, cell_m=2.0, surface=None if polygon_road else surface.blend, near_track=band_mask(30.0), skip_mask=road_mask)
-        scenery.outer_ring(obj, margin_m=120.0)
+        far_dir = os.path.join(out_dir, "cuzk_far")
+        if os.path.exists(os.path.join(far_dir, "meta.json")):
+            from scenery import outer_terrain
+            info["far"] = outer_terrain(obj, far_dir, (scenery.cx * scenery.scale, scenery.cy * scenery.scale), os.path.join(out_dir, "texture", "far.jpg"), ref_height=scenery.terrain.ref)
+            scenery.outer_ring(obj, margin_m=0.0, draw_ring=False, half_override=tuple(info["far"]["far_extent_m"]))
+            print(f"outer terrain: {info['far']['far_extent_m']} m half extent, {info['far']['far_trees']} forest trees")
+        else:
+            scenery.outer_ring(obj, margin_m=120.0)
         if polygon_road:
             # chicanes: tyre stacks instead of cones; lap delimited with tape/barriers where asphalt stays open
             from furniture import add_delimiters, add_gantry, add_tyre_stacks, open_edges

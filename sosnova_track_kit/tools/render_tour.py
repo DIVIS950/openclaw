@@ -91,7 +91,7 @@ def centre_of(o):
     bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
     return sum(bb, Vector()) / 8
 
-rows = [centre_of(o) for o in scene.objects if o.name.startswith("AC_POBJECT_TYRES") and o.type == "MESH"]
+rows = [centre_of(o) for o in scene.objects if o.name.startswith("1WALL_tyres") and o.type == "MESH"]
 s0 = centre_of(scene.objects["AC_START_0"]) if scene.objects["AC_START_0"].type == "MESH" else scene.objects["AC_START_0"].matrix_world.translation
 near = sorted([p for p in rows if (p - s0).length < 160], key=lambda p: (p - s0).length)
 if len(near) >= 3:

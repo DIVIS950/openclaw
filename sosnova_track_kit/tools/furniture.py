@@ -109,6 +109,14 @@ def barrier_block(obj, name: str, c: np.ndarray, u: np.ndarray, base: float, red
     obj.add_faces(name, "barrier", faces)
 
 
+def cone_mesh(obj, name: str, x: float, z: float, base: float, h: float = 0.5, r: float = 0.17, sides: int = 8) -> None:
+    top = obj.add_vertex((x, base + h, z), (0.5, 1.0))
+    ring = [obj.add_vertex((x + r * math.cos(2 * math.pi * k / sides), base, z + r * math.sin(2 * math.pi * k / sides)), (k / sides, 0.0)) for k in range(sides)]
+    faces = [(ring[(k + 1) % sides], ring[k], top) for k in range(sides)]
+    faces.append(tuple(reversed(ring)))
+    obj.add_faces(name, "cone", faces)
+
+
 def cylinder(obj, name: str, mat: str, x: float, z: float, base: float, r: float, h: float, sides: int = 10, uv_v_rep: float = 1.0) -> None:
     lo, hi = [], []
     for k in range(sides):
@@ -162,13 +170,26 @@ def add_delimiters(obj, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr
                     cylinder(obj, f"POST_{counts['posts']:04d}", "post", pts[i][0], -pts[i][1], float(hts[i]) - 0.02, 0.035, 1.05, sides=6)
                     counts["posts"] += 1
                 faces = []
-                vs = [(obj.add_vertex((p[0], h + 0.3, -p[1]), (s_ / 4.0, 0.0)), obj.add_vertex((p[0], h + 1.0, -p[1]), (s_ / 4.0, 1.0)))
-                      for s_, (p, h) in enumerate(zip(pts, hts))]
-                for k in range(len(vs) - 1):
-                    (a0, a1), (b0, b1) = vs[k], vs[k + 1]
-                    faces.append((a0, b0, b1, a1))
-                    faces.append((b0, a0, a1, b1))  # back face so it is visible from both sides
+                nrm = np.column_stack([-(pts[1:, 1] - pts[:-1, 1]), pts[1:, 0] - pts[:-1, 0]])
+                nrm = np.vstack([nrm, nrm[-1:]])
+                nrm /= np.maximum(np.linalg.norm(nrm, axis=1)[:, None], 1e-9)
+                sideA = pts + nrm * 0.06
+                sideB = pts - nrm * 0.06
+                def column(p, h, s_):
+                    return (obj.add_vertex((p[0], h - 0.05, -p[1]), (s_ / 4.0, 0.0)), obj.add_vertex((p[0], h + 1.05, -p[1]), (s_ / 4.0, 1.0)))
+                va = [column(p, h, s_) for s_, (p, h) in enumerate(zip(sideA, hts))]
+                vb = [column(p, h, s_) for s_, (p, h) in enumerate(zip(sideB, hts))]
+                for k in range(len(va) - 1):
+                    (a0, a1), (b0, b1) = va[k], va[k + 1]
+                    (c0, c1), (d0, d1) = vb[k], vb[k + 1]
+                    faces.append((a0, b0, b1, a1))   # side A outward
+                    faces.append((d0, c0, c1, d1))   # side B outward
+                    faces.append((a1, b1, d1, c1))   # top
                 obj.add_faces(f"1WALL_tape_{tape_id:03d}", "tape", faces)
+                # small cones every 8 m at the foot of the tape (visual guidance)
+                for d in np.arange(2.0, length, 8.0):
+                    i = min(int(d / step), len(idx) - 1)
+                    cone_mesh(obj, f"CONE_{tape_id:03d}_{int(d):04d}", pts[i][0], -pts[i][1], float(hts[i]))
                 tape_id += 1
                 counts["tape_m"] += length
     return counts
@@ -213,7 +234,7 @@ def add_tyre_stacks(obj, positions_en: np.ndarray, height_fn, rng_seed: int = 4,
     for pts in groups:
         for (e, n_) in pts:
             h = float(height_fn(np.array([[e, n_]]))[0])
-            name = f"AC_POBJECT_TYRES_{stacks:02d}" if movable else f"1WALL_tyres_{stacks:02d}"
+            name = f"1WALL_tyres_{stacks:02d}"  # solid: hitting a stack stops and damages the car
             je, jn = rng.normal(0, 0.02, 2)
             cylinder(obj, name, "tyre", e + je, -(n_ + jn), h, 0.33, 0.78, sides=12, uv_v_rep=3.0)
             stacks += 1
@@ -254,7 +275,7 @@ def _tileable_noise(size: int, sigma: float, rng) -> np.ndarray:
     return (n - n.mean()) / (n.std() + 1e-9)
 
 
-def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7, base_tone: float = 0.50) -> None:
+def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7, base_tone: float = 0.36) -> None:
     """Realistic tiling asphalt (one tile = 8 m), tone matched to the orthophoto (track surface measures
     about 0.56 grey in sunlight, slightly bluish). Aggregate grain, mild tone variation, faint worn bands,
     light stone speckles; low contrast so repeats are not visible at speed."""
@@ -275,7 +296,7 @@ def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7, base_tone: 
 def make_furniture_textures(folder: str) -> None:
     os.makedirs(folder, exist_ok=True)
     make_asphalt_texture(os.path.join(folder, "road.jpg"))
-    make_asphalt_texture(os.path.join(folder, "road_low.jpg"), seed=7, base_tone=0.47)  # hollows: same grain, a touch darker
+    make_asphalt_texture(os.path.join(folder, "road_low.jpg"), seed=7, base_tone=0.33)  # hollows: same grain, a touch darker
     # tape: transparent wall, red/white tape band in the top 15 %
     tape = Image.new("RGBA", (512, 256), (0, 0, 0, 0))
     d = ImageDraw.Draw(tape)
