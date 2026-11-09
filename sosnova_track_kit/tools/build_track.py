@@ -438,7 +438,7 @@ def snap_pits_to_asphalt(layout: dict, center: np.ndarray, left: np.ndarray, wl:
         sign = 1.0 if lat0 >= 0 else -1.0
         w = wl if sign > 0 else wr
         best = None
-        for di in range(0, int(120 / step)):
+        for di in range(0, int(260 / step)):
             i = (i0 + di) % n
             for extra in (5.2, 4.4, 3.6, 2.8, 2.2):
                 lat = sign * (w[i] + extra)
