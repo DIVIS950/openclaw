@@ -696,8 +696,8 @@
   "cones": 0,
   "buildings": 19,
   "trees": 439,
-  "vertices": 145115,
-  "tyre_stacks": 190,
+  "vertices": 141347,
+  "tyre_stacks": 33,
   "delimiters": {
    "tape_m": 420.02324963957085,
    "posts": 109,

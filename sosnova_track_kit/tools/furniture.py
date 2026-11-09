@@ -204,26 +204,18 @@ def _chicane_groups(positions_en: np.ndarray, link_m: float = 12.0) -> list[np.n
     return out
 
 
-def add_tyre_stacks(obj, positions_en: np.ndarray, height_fn, spacing: float = 0.70, rng_seed: int = 4) -> dict:
-    """Tyre walls along each chicane line: three-high stacks (0.66 m, 0.78 m tall) every 0.7 m between the
-    marked points, slightly jittered like a hand-built wall. One static collidable object per chicane."""
+def add_tyre_stacks(obj, positions_en: np.ndarray, height_fn, rng_seed: int = 4, movable: bool = True) -> dict:
+    """Slalom / chicane markers: one three-high tyre stack (0.66 m, 0.78 m tall) on every marked point of the
+    layout. Cars weave between them, so they are separate movable physics objects (AC_POBJECT_), not walls."""
     rng = np.random.default_rng(rng_seed)
     groups = _chicane_groups(positions_en)
     stacks = 0
-    for g, pts in enumerate(groups):
-        name = f"1WALL_tyrewall_{g:02d}"
-        line = [pts[0]]
-        for a, b in zip(pts[:-1], pts[1:]):
-            d = float(np.linalg.norm(b - a))
-            for t in np.arange(spacing, d + 1e-6, spacing):
-                line.append(a + (b - a) * t / d)
-        if len(pts) == 1:
-            line = [pts[0]]
-        line = np.array(line)
-        hts = height_fn(line)
-        for (e, n_), h in zip(line, hts):
-            je, jn = rng.normal(0, 0.03, 2)
-            cylinder(obj, name, "tyre", e + je, -(n_ + jn), float(h), 0.33, 0.78, sides=12, uv_v_rep=3.0)
+    for pts in groups:
+        for (e, n_) in pts:
+            h = float(height_fn(np.array([[e, n_]]))[0])
+            name = f"AC_POBJECT_TYRES_{stacks:02d}" if movable else f"1WALL_tyres_{stacks:02d}"
+            je, jn = rng.normal(0, 0.02, 2)
+            cylinder(obj, name, "tyre", e + je, -(n_ + jn), h, 0.33, 0.78, sides=12, uv_v_rep=3.0)
             stacks += 1
     return {"chicanes": len(groups), "stacks": stacks}
 

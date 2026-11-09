@@ -86,7 +86,21 @@ def closeup(prefix, out_name, dist=9.0, h=1.6):
     print("rendered", out_name)
 
 cam_data.lens = 30
-closeup("1WALL_tyrewall_00", "closeup_chicane")
+# chicane close-up: look along the longest slalom row
+rows = [o for o in scene.objects if o.name.startswith("AC_POBJECT_TYRES")]
+if rows:
+    pts = sorted([o.matrix_world.translation.copy() for o in rows], key=lambda p: p.x)
+    # pick the slalom row on the start straight: the group with the most stacks within 60 m of the first start slot
+    s0 = scene.objects["AC_START_0"].matrix_world.translation
+    near = [p for p in pts if (p - s0).length < 150]
+    if len(near) >= 3:
+        a, b = near[0], near[-1]
+        d = (b - a).normalized()
+        cam.location = a - d * 10 + Vector((-d.y, d.x, 0)) * 3 + Vector((0, 0, 1.5))
+        cam.rotation_euler = ((a + b) / 2 - cam.location + Vector((0, 0, 0.4))).to_track_quat("-Z", "Y").to_euler()
+        scene.render.filepath = os.path.join(OUT, "closeup_chicane.png")
+        bpy.ops.render.render(write_still=True)
+        print("rendered closeup_chicane")
 closeup("1WALL_barrier_1", "closeup_barriers", dist=6.0)
 
 # high overview from the south-west
