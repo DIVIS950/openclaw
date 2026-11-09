@@ -696,12 +696,12 @@
   "cones": 0,
   "buildings": 19,
   "trees": 439,
-  "vertices": 140223,
-  "tyre_stacks": 33,
+  "vertices": 145115,
+  "tyre_stacks": 190,
   "delimiters": {
    "tape_m": 420.02324963957085,
    "posts": 109,
-   "barriers": 221
+   "barriers": 241
   },
   "height_range_m": [
    -2.3698213388847478,

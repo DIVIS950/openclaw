@@ -67,6 +67,28 @@ for name, s_m in shots:
     bpy.ops.render.render(write_still=True)
     print("rendered", name)
 
+# close-ups of a chicane tyre wall and a barrier row
+def closeup(prefix, out_name, dist=9.0, h=1.6):
+    obs = [o for o in scene.objects if o.name.startswith(prefix) and o.type == "MESH"]
+    if not obs:
+        return
+    ob = max(obs, key=lambda o: len(o.data.vertices))
+    bb = [ob.matrix_world @ Vector(c) for c in ob.bound_box]
+    ctr = sum(bb, Vector()) / 8
+    ext = max((max(b.x for b in bb) - min(b.x for b in bb)), (max(b.y for b in bb) - min(b.y for b in bb)))
+    # look along the wall from one end, slightly off to the side
+    direction = (bb[4] - bb[0]).normalized() if (bb[4] - bb[0]).length > 0.1 else Vector((1, 0, 0))
+    side = Vector((-direction.y, direction.x, 0))
+    cam.location = ctr - direction * (ext / 2 + dist) + side * 4 + Vector((0, 0, h))
+    cam.rotation_euler = (ctr + Vector((0, 0, 0.5)) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    scene.render.filepath = os.path.join(OUT, f"{out_name}.png")
+    bpy.ops.render.render(write_still=True)
+    print("rendered", out_name)
+
+cam_data.lens = 30
+closeup("1WALL_tyrewall_00", "closeup_chicane")
+closeup("1WALL_barrier_1", "closeup_barriers", dist=6.0)
+
 # high overview from the south-west
 cam_data.lens = 28
 c = en.mean(axis=0)

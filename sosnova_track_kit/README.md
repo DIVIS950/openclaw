@@ -44,10 +44,11 @@ The lap is delimited the way a Saturday race day would be set up, without changi
 - **Barrier tape on posts** (`1WALL_tape_nnn`, `POST_nnnn`): wherever the asphalt continues past the lap edge for
   more than about 24 m (paddock side, the wide connecting areas). The tape wall is collidable from 0.3 to 1.0 m,
   the texture shows only the red/white tape band, posts every 4 m.
-- **Plastic barriers** (`1WALL_barrier_nnn`): red/white 1.0 x 0.5 x 0.8 m blocks nose to tail across the shorter
-  junction mouths where side roads join the lap.
-- **Tyre stacks** (`AC_POBJECT_TYRES_nn`): three-tyre stacks at the 33 chicane points of the event layout,
-  movable physics objects (replace the cones of earlier versions).
+- **Plastic water barriers** (`1WALL_barrier_nnn`): tapered red/white blocks (1.0 m long, 0.5 m foot, 0.8 m high,
+  molded ribs) interlocked nose to tail across the shorter junction mouths where side roads join the lap.
+- **Tyre walls at the chicanes** (`1WALL_tyrewall_nn`): the 33 marked points form 7 chicane lines; along each line
+  three-high tyre stacks stand every 0.7 m (190 stacks), slightly jittered like a hand-built wall, with one white
+  painted tyre per stack. Static and collidable (change the prefix to `AC_POBJECT_` for movable stacks).
 - **Start/finish gantry** (`1WALL_gantry_postL/R`, `GANTRY_beam`, `GANTRY_banner_A/B`): 6 m high over the
   start line with a START / FINISH banner. Timing lines: `AC_TIME_0` at the gantry, sectors at 1/3 and 2/3.
 - The pit side of the start straight (first 110 m after the line, paddock side) stays open so cars can leave the pits.
@@ -105,7 +106,7 @@ Physical objects start with a digit and the surface key from `surfaces.ini`. Obj
 | `1GRASS_outer` | plain grass ring 120 m around the photo |
 | `1WALL_perimeter_0..3` | 2 m walls around the whole area |
 | `1WALL_building_n`, `ROOF_building_n` | 19 buildings extruded from their roofs (walls collidable) |
-| `AC_POBJECT_TYRES_nn` | 33 movable tyre stacks at the chicanes |
+| `1WALL_tyrewall_nn` | 7 chicane tyre walls, 190 three-high stacks |
 | `1WALL_tape_nnn`, `POST_nnnn`, `1WALL_barrier_nnn` | lap delimiters (see Track furniture) |
 | `1WALL_gantry_*`, `GANTRY_*` | start/finish gantry with banner |
 | `TREES_nn` | tree billboards (two crossed planes, alpha texture) |

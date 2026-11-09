@@ -316,14 +316,16 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
         if polygon_road:
             # chicanes: tyre stacks instead of cones; lap delimited with tape/barriers where asphalt stays open
             from furniture import add_delimiters, add_gantry, add_tyre_stacks, open_edges
-            info["tyre_stacks"] = add_tyre_stacks(obj, cones_en, scenery.height) if cones_en is not None else 0
+            tw = add_tyre_stacks(obj, cones_en, scenery.height) if cones_en is not None else {"chicanes": 0, "stacks": 0}
+            info["tyre_stacks"] = tw["stacks"]
+            info["chicanes"] = tw["chicanes"]
             info["cones"] = []
             pit_len = int(round((10.0 + grid * 6.0 + 8.0) / step))
             skip = {"side": "right" if pit_side_right else "left", "range": ((sf_index - int(4 / step)) % n, (sf_index + pit_len) % n)}
             fl, fr = open_edges(scenery, center, left, wl, wr, skip=skip)
             info["delimiters"] = add_delimiters(obj, center, left, wl, wr, scenery.height, fl, fr, step)
             add_gantry(obj, center, left, wl, wr, scenery.height, sf_index, step)
-            print(f"delimiters: {info['delimiters']['tape_m']:.0f} m of tape, {info['delimiters']['posts']} posts, {info['delimiters']['barriers']} barriers; {info['tyre_stacks']} tyre stacks")
+            print(f"delimiters: {info['delimiters']['tape_m']:.0f} m of tape, {info['delimiters']['posts']} posts, {info['delimiters']['barriers']} barriers; {info['tyre_stacks']} tyre stacks in {info['chicanes']} chicane walls")
         else:
             info["cones"] = scenery.cones(obj, cones_en, surface=lambda en: (surface.nearest(en)[2], None))
         info["buildings"] = scenery.buildings(obj, exclude_px=band_mask(max(wl.max(), wr.max()) + 10.0))

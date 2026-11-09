@@ -89,6 +89,26 @@ def box(obj, name: str, mat: str, c: np.ndarray, u: np.ndarray, length: float, w
     obj.add_faces(name, mat, faces)
 
 
+def barrier_block(obj, name: str, c: np.ndarray, u: np.ndarray, base: float, red: bool, length: float = 1.0) -> None:
+    """Plastic water-filled barrier: 1.0 m long, 0.5 m wide at the foot, 0.24 m at the top, 0.8 m high,
+    with a 0.12 m vertical foot. The texture holds a red block (left half) and a white block (right half)."""
+    v = np.array([-u[1], u[0]])
+    u0, u1 = (0.0, 0.5) if red else (0.5, 1.0)
+    L, wb, wt, hf, h = length / 2, 0.25, 0.12, 0.12, 0.8
+
+    def ring(width: float, height: float):
+        pts = [c + u * L + v * width, c - u * L + v * width, c - u * L - v * width, c + u * L - v * width]
+        return [obj.add_vertex((p[0], base + height, -p[1]), (u0 + (u1 - u0) * (k % 2), height / h)) for k, p in enumerate(pts)]
+
+    r0, r1, r2 = ring(wb, 0.0), ring(wb, hf), ring(wt, h)
+    faces = [tuple(r2)]  # top
+    for ra, rb in ((r0, r1), (r1, r2)):
+        for k in range(4):
+            k2 = (k + 1) % 4
+            faces.append((ra[k2], ra[k], rb[k], rb[k2]))
+    obj.add_faces(name, "barrier", faces)
+
+
 def cylinder(obj, name: str, mat: str, x: float, z: float, base: float, r: float, h: float, sides: int = 10, uv_v_rep: float = 1.0) -> None:
     lo, hi = [], []
     for k in range(sides):
@@ -119,18 +139,21 @@ def add_delimiters(obj, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr
             pts = center[idx] + left[idx] * offs[:, None]
             hts = height_fn(pts)
             if length <= barrier_max_m:
-                # plastic barriers, 1.0 m long, 0.5 wide, 0.8 high, nose to tail
+                # plastic water barriers nose to tail, red/white alternating
                 k = 0
                 d = 0.0
-                while d + 1.0 <= length:
-                    i0 = int(d / step)
+                while d + 1.0 <= length + 0.5:
+                    i0 = min(int(d / step), len(idx) - 1)
                     i1 = min(int((d + 1.0) / step), len(idx) - 1)
                     c = (pts[i0] + pts[i1]) / 2
                     u = pts[i1] - pts[i0]
+                    if np.linalg.norm(u) < 1e-6:
+                        u = pts[i1] - pts[max(i1 - 1, 0)]
                     u = u / (np.linalg.norm(u) + 1e-9)
-                    box(obj, f"1WALL_barrier_{counts['barriers']:03d}", "barrier", c, u, 1.0, 0.5, 0.8, float(min(hts[i0], hts[i1])) - 0.02)
+                    seg = float(np.linalg.norm(pts[i1] - pts[i0])) if i1 > i0 else 1.0
+                    barrier_block(obj, f"1WALL_barrier_{counts['barriers']:03d}", c, u, float(min(hts[i0], hts[i1])) - 0.02, red=(k % 2 == 0), length=max(seg, 1.0) + 0.06)
                     counts["barriers"] += 1
-                    d += 1.05
+                    d += 1.0
                     k += 1
             else:
                 # posts every 4 m + a collidable tape wall (alpha texture: only the tape band is visible)
@@ -151,12 +174,58 @@ def add_delimiters(obj, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr
     return counts
 
 
-def add_tyre_stacks(obj, positions_en: np.ndarray, height_fn, name: str = "AC_POBJECT_TYRES") -> int:
-    """Three-tyre stacks (0.66 m diameter, 0.78 m tall) at the chicane points, movable physics objects."""
-    hts = height_fn(positions_en)
-    for k, ((e, n_), h) in enumerate(zip(positions_en, hts)):
-        cylinder(obj, f"{name}_{k:02d}", "tyre", e, -n_, float(h), 0.33, 0.78, sides=12, uv_v_rep=3.0)
-    return len(positions_en)
+def _chicane_groups(positions_en: np.ndarray, link_m: float = 12.0) -> list[np.ndarray]:
+    """Cluster the chicane points (single linkage) and order each cluster along its main axis."""
+    n = len(positions_en)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if np.linalg.norm(positions_en[i] - positions_en[j]) < link_m:
+                parent[find(i)] = find(j)
+    groups: dict[int, list[int]] = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(i)
+    out = []
+    for idx in groups.values():
+        pts = positions_en[idx]
+        if len(pts) > 2:
+            c = pts.mean(0)
+            _, _, vt = np.linalg.svd(pts - c, full_matrices=False)
+            order = np.argsort((pts - c) @ vt[0])
+            pts = pts[order]
+        out.append(pts)
+    return out
+
+
+def add_tyre_stacks(obj, positions_en: np.ndarray, height_fn, spacing: float = 0.70, rng_seed: int = 4) -> dict:
+    """Tyre walls along each chicane line: three-high stacks (0.66 m, 0.78 m tall) every 0.7 m between the
+    marked points, slightly jittered like a hand-built wall. One static collidable object per chicane."""
+    rng = np.random.default_rng(rng_seed)
+    groups = _chicane_groups(positions_en)
+    stacks = 0
+    for g, pts in enumerate(groups):
+        name = f"1WALL_tyrewall_{g:02d}"
+        line = [pts[0]]
+        for a, b in zip(pts[:-1], pts[1:]):
+            d = float(np.linalg.norm(b - a))
+            for t in np.arange(spacing, d + 1e-6, spacing):
+                line.append(a + (b - a) * t / d)
+        if len(pts) == 1:
+            line = [pts[0]]
+        line = np.array(line)
+        hts = height_fn(line)
+        for (e, n_), h in zip(line, hts):
+            je, jn = rng.normal(0, 0.03, 2)
+            cylinder(obj, name, "tyre", e + je, -(n_ + jn), float(h), 0.33, 0.78, sides=12, uv_v_rep=3.0)
+            stacks += 1
+    return {"chicanes": len(groups), "stacks": stacks}
 
 
 def add_gantry(obj, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr: np.ndarray, height_fn, sf: int, step: float) -> None:
@@ -225,18 +294,32 @@ def make_furniture_textures(folder: str) -> None:
     for y in range(0, 256, 64):
         d.rectangle([0, y, 64, y + 32], fill=(210, 30, 30))
     post.save(os.path.join(folder, "post.png"))
-    barrier = Image.new("RGB", (256, 128), (215, 35, 30))
-    d = ImageDraw.Draw(barrier)
-    d.rectangle([64, 0, 128, 128], fill=(240, 240, 240))
-    d.rectangle([192, 0, 256, 128], fill=(240, 240, 240))
-    d.rectangle([0, 0, 256, 6], fill=(60, 60, 60))
-    barrier.save(os.path.join(folder, "barrier.png"))
-    tyre = Image.new("RGB", (256, 256), (28, 28, 30))
-    d = ImageDraw.Draw(tyre)
-    for y in (0, 85, 170):
-        d.rectangle([0, y, 256, y + 6], fill=(10, 10, 10))
-        d.rectangle([0, y + 30, 256, y + 50], fill=(235, 235, 235))
-    tyre.save(os.path.join(folder, "tyre.png"))
+    # barrier: left half red, right half white; molded ribs, darker foot, worn highlights
+    rng = np.random.default_rng(9)
+    bar = np.zeros((256, 512, 3), float)
+    bar[:, :256] = (0.80, 0.14, 0.12)
+    bar[:, 256:] = (0.92, 0.92, 0.90)
+    yy = np.arange(256)[:, None]
+    ribs = 0.08 * np.sin(yy / 256 * np.pi * 10) ** 8  # horizontal molded ribs
+    bar *= (1 - ribs[..., None])
+    bar[int(256 * 0.85):] *= 0.75  # foot in shadow / dirt
+    bar *= (0.93 + 0.07 * rng.random((256, 512, 1)))
+    Image.fromarray((np.clip(bar, 0, 1) * 255).astype(np.uint8)).save(os.path.join(folder, "barrier.png"))
+    # tyres: three tyres stacked, sidewall rings and treads, one white painted tyre in the middle
+    ty = np.zeros((256, 256, 3), float) + 0.11
+    yy = np.arange(256)[:, None].astype(float)
+    tread = 0.05 * (np.sin(np.arange(256)[None, :] / 256 * np.pi * 48) > 0.3)
+    ty += tread[..., None]
+    for k in range(3):
+        y0 = k * 85
+        band = (yy >= y0) & (yy < y0 + 85)
+        edge = (np.abs(yy - y0 - 42) > 36) & band  # dark gaps between tyres
+        ty[edge[:, 0]] *= 0.45
+        side = (np.abs(yy - y0 - 42) > 26) & ~edge & band  # sidewall lighter
+        ty[side[:, 0]] += 0.06
+    ty[85:170] = np.where((np.abs(yy[85:170] - 127) < 24)[..., None], 0.82, ty[85:170])  # painted white tyre
+    ty *= (0.9 + 0.1 * rng.random((256, 256, 1)))
+    Image.fromarray((np.clip(ty, 0, 1) * 255).astype(np.uint8)).save(os.path.join(folder, "tyre.png"))
     Image.new("RGB", (64, 64), (70, 72, 76)).save(os.path.join(folder, "gantry.png"))
     banner = Image.new("RGB", (1024, 128), (20, 20, 20))
     d = ImageDraw.Draw(banner)
