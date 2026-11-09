@@ -193,21 +193,19 @@ def _tileable_noise(size: int, sigma: float, rng) -> np.ndarray:
     return (n - n.mean()) / (n.std() + 1e-9)
 
 
-def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7) -> None:
-    """Realistic tiling asphalt (one tile = 8 m): aggregate grain, mild tone variation, faint tar seams,
-    light stone speckles. Kept low-contrast so repeats are not visible at speed."""
+def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7, base_tone: float = 0.50) -> None:
+    """Realistic tiling asphalt (one tile = 8 m), tone matched to the orthophoto (track surface measures
+    about 0.56 grey in sunlight, slightly bluish). Aggregate grain, mild tone variation, faint worn bands,
+    light stone speckles; low contrast so repeats are not visible at speed."""
     rng = np.random.default_rng(seed)
-    base = 0.34 + 0.018 * _tileable_noise(size, 110, rng) + 0.012 * _tileable_noise(size, 30, rng)
-    grain = 0.045 * _tileable_noise(size, 1.1, rng) + 0.035 * _tileable_noise(size, 0.55, rng) + 0.02 * _tileable_noise(size, 3.0, rng)
-    # faint darker worn bands and small tar patches
-    bands = 0.015 * np.tanh(_tileable_noise(size, 200, rng))
-    patches = np.clip((_tileable_noise(size, 40, rng) - 1.6) * 0.08, 0, 0.05)
-    g = np.clip(base + grain - bands - patches, 0.05, 0.9)
-    speck = rng.random((size, size)) > 0.9992
-    g[speck] = np.clip(g[speck] + 0.22, 0, 1)
-    r = g * 0.985
-    gch = g
-    b = g * 1.02
+    base = base_tone + 0.025 * _tileable_noise(size, 110, rng) + 0.015 * _tileable_noise(size, 30, rng)
+    grain = 0.06 * _tileable_noise(size, 1.1, rng) + 0.045 * _tileable_noise(size, 0.55, rng) + 0.025 * _tileable_noise(size, 3.0, rng)
+    bands = 0.02 * np.tanh(_tileable_noise(size, 200, rng))  # faint darker worn bands (tyre tracks)
+    patches = np.clip((_tileable_noise(size, 40, rng) - 1.6) * 0.08, 0, 0.05)  # small tar patches
+    g = np.clip(base + grain - bands - patches, 0.08, 0.95)
+    speck = rng.random((size, size)) > 0.999
+    g[speck] = np.clip(g[speck] + 0.25, 0, 1)
+    r, gch, b = g * 0.975, g * 0.995, g * 1.03  # cool grey like the photo
     img = (np.stack([r, gch, b], -1) * 255).clip(0, 255).astype(np.uint8)
     Image.fromarray(img).save(path)
 
