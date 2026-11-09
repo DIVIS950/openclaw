@@ -173,14 +173,16 @@ def make_textures(folder: str) -> None:
 class Surface:
     """Height of the road surface: smoothed centre profile + smoothed cross slope from the terrain."""
 
-    def __init__(self, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr: np.ndarray, height_fn, step: float):
+    def __init__(self, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr: np.ndarray, height_fn, step: float, smooth_m: float = 8.0):
         self.center, self.left, self.wl, self.wr = center, left, wl, wr
         hc = height_fn(center)
         hl = height_fn(center + left * wl[:, None])
         hr = height_fn(center - left * wr[:, None])
-        sig = max(8.0 / step, 1.0)  # ~8 m smoothing: LiDAR noise is 0.18 m, a road is smooth
-        self.hc = smooth_profile(hc, sig)
-        self.slope = smooth_profile((hl - hr) / np.maximum(wl + wr, 1e-3), sig * 1.5)  # m per m, left minus right
+        # smooth_m ~8 m for a ribbon road (LiDAR noise is 0.18 m); ~0 when the road polygons already use
+        # the smoothed terrain field, so stripes/kerbs/empties sit exactly on that surface
+        sig = max(smooth_m / step, 0.5)
+        self.hc = smooth_profile(hc, sig) if smooth_m > 0 else hc
+        self.slope = smooth_profile((hl - hr) / np.maximum(wl + wr, 1e-3), sig * 1.5) if smooth_m > 0 else (hl - hr) / np.maximum(wl + wr, 1e-3)
         self.tree = cKDTree(center)
 
     def at(self, i: int, lateral: float) -> float:
@@ -253,7 +255,8 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
 
     # ---- start/finish stripe
     i0, i1 = sf_index, (sf_index + 1) % n
-    quad = [pt(i0, wl[i0] - 0.2, 0.005), pt(i0, -(wr[i0] - 0.2), 0.005), pt(i1, -(wr[i1] - 0.2), 0.005), pt(i1, wl[i1] - 0.2, 0.005)]
+    lift = 0.02 if polygon_road else 0.005
+    quad = [pt(i0, wl[i0] - 0.2, lift), pt(i0, -(wr[i0] - 0.2), lift), pt(i1, -(wr[i1] - 0.2), lift), pt(i1, wl[i1] - 0.2, lift)]
     sfv = [obj.add_vertex(p, uv) for p, uv in zip(quad, ((0, 0), (1, 0), (1, 1), (0, 1)))]
     obj.add_faces("LINE_startfinish", "line", [tuple(sfv)])
 
@@ -274,8 +277,8 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
         vi_k, vo_k, vi_g, vo_g = [], [], [], []
         for i in range(n):
             d_in, d_out = side_sign * inner[i], side_sign * (inner[i] + kerb_w)
-            p_in = pt(i, d_in)
-            p_out = pt(i, d_out, 0.04 if flags[i] else 0.0)
+            p_in = pt(i, d_in, 0.01 if polygon_road else 0.0)
+            p_out = pt(i, d_out, 0.05 if flags[i] else 0.0)
             vi_k.append(obj.add_vertex(p_in, (0.0, s[i] / 2.0)))
             vo_k.append(obj.add_vertex(p_out, (1.0, s[i] / 2.0)))
             vi_g.append(obj.add_vertex(p_in, ground_uv(i, d_in, (0.0, s[i] / 10.0))))
@@ -522,7 +525,8 @@ def main() -> None:
         print(f"terrain: track height range {hs.min():.1f} .. {hs.max():.1f} m relative to the start line ({scenery.terrain.ref:.1f} m a.s.l.)")
     else:
         height_fn = lambda p: np.zeros(len(np.atleast_2d(p)))
-    surface = Surface(en, left_, wl, wr, height_fn, a.step)
+    polygon_road = scenery is not None and not scenery.has_overlays and scenery.terrain is not None
+    surface = Surface(en, left_, wl, wr, height_fn, a.step, smooth_m=0.0 if polygon_road else 8.0)
 
     layout = build_layout(en, a.grid, not a.pit_left, wl, wr, surface, sf_point)
     info = build_mesh(en, wl, wr, src_dir, a.track, scenery, surface, layout["start_finish_index"], cones_en)
