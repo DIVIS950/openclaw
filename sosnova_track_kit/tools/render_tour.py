@@ -86,21 +86,26 @@ def closeup(prefix, out_name, dist=9.0, h=1.6):
     print("rendered", out_name)
 
 cam_data.lens = 30
-# chicane close-up: look along the longest slalom row
-rows = [o for o in scene.objects if o.name.startswith("AC_POBJECT_TYRES")]
-if rows:
-    pts = sorted([o.matrix_world.translation.copy() for o in rows], key=lambda p: p.x)
-    # pick the slalom row on the start straight: the group with the most stacks within 60 m of the first start slot
-    s0 = scene.objects["AC_START_0"].matrix_world.translation
-    near = [p for p in pts if (p - s0).length < 150]
-    if len(near) >= 3:
-        a, b = near[0], near[-1]
-        d = (b - a).normalized()
-        cam.location = a - d * 10 + Vector((-d.y, d.x, 0)) * 3 + Vector((0, 0, 1.5))
-        cam.rotation_euler = ((a + b) / 2 - cam.location + Vector((0, 0, 0.4))).to_track_quat("-Z", "Y").to_euler()
-        scene.render.filepath = os.path.join(OUT, "closeup_chicane.png")
-        bpy.ops.render.render(write_still=True)
-        print("rendered closeup_chicane")
+# chicane close-up: look along the slalom row nearest the start (object origins are at 0, so use bounding boxes)
+def centre_of(o):
+    bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
+    return sum(bb, Vector()) / 8
+
+rows = [centre_of(o) for o in scene.objects if o.name.startswith("AC_POBJECT_TYRES") and o.type == "MESH"]
+s0 = centre_of(scene.objects["AC_START_0"]) if scene.objects["AC_START_0"].type == "MESH" else scene.objects["AC_START_0"].matrix_world.translation
+near = sorted([p for p in rows if (p - s0).length < 160], key=lambda p: (p - s0).length)
+if len(near) >= 3:
+    pts = sorted(near, key=lambda p: p.x)
+    a, b = pts[0], pts[-1]
+    d = (b - a); d.z = 0; d.normalize()
+    side = Vector((-d.y, d.x, 0))
+    cam.location = a - d * 9 + side * 2.5 + Vector((0, 0, 1.6))
+    look = (a + b) / 2 + Vector((0, 0, 0.4))
+    cam.rotation_euler = (look - cam.location).to_track_quat("-Z", "Y").to_euler()
+    scene.render.filepath = os.path.join(OUT, "closeup_chicane.png")
+    bpy.ops.render.render(write_still=True)
+    print("rendered closeup_chicane")
+
 closeup("1WALL_barrier_1", "closeup_barriers", dist=6.0)
 
 # high overview from the south-west
