@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Build an Assetto Corsa starter track from a GPS centerline.
+"""Build an Assetto Corsa track from a GPS centerline, an aerial image and (optionally) a height grid.
 
-Input : source/centerline.json  ({"points": [[lat, lon], ...], ...} from fetch_osm.py)
+Input : source/centerline.json  ({"points": [[lat, lon], ...], "scale_m_per_px", "image_center"})
+        source/cuzk/ortho.png + dem.tif + meta.json   (ČÚZK orthophoto and LiDAR heights, preferred)
+        or source/trace/aerial.png                    (layout screenshot, fallback)
 Output: source/<track>.obj + .mtl + texture/*.png     (mesh with AC object names)
         source/layout.json                             (start/pit/timing positions, AC coords)
         content/tracks/<track>/map.png, data/map.ini, data/cameras.ini, ui/outline.png, ui/preview.png
@@ -9,7 +11,7 @@ Output: source/<track>.obj + .mtl + texture/*.png     (mesh with AC object names
 Coordinates: everything is written in Assetto Corsa world space (X east, Y up, Z = -north).
 Blender's OBJ importer (default: -Z forward, Y up) turns that into X east, Y north, Z up.
 
-Usage: python build_track.py [--track sosnova] [--width 12] [--grid 16]
+Usage: python build_track.py [--track sosnova] [--grid 16] [--pit-left] [--sf-at-first-point]
 """
 from __future__ import annotations
 
@@ -17,31 +19,31 @@ import argparse
 import json
 import math
 import os
-import random
+import sys
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+from scipy import ndimage as ndi
+from scipy.spatial import cKDTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
-import sys
 if HERE not in sys.path:  # so `import scenery` works however the script is launched
     sys.path.insert(0, HERE)
 KERB_RADIUS = 60.0  # corners tighter than this radius get kerbs (set by --kerb-radius)
 
 
 # ----------------------------------------------------------------------------- geometry helpers
-def project(points: list[list[float]]) -> tuple[np.ndarray, tuple[float, float]]:
-    """Lat/lon -> local metres (east, north) around the centroid."""
+def project(points: list[list[float]], origin: tuple[float, float] | None = None) -> tuple[np.ndarray, tuple[float, float]]:
+    """Lat/lon -> local metres (east, north) around `origin` (default: the centroid)."""
     pts = np.asarray(points, dtype=float)
-    lat0, lon0 = pts[:, 0].mean(), pts[:, 1].mean()
+    lat0, lon0 = origin if origin else (pts[:, 0].mean(), pts[:, 1].mean())
     east = (pts[:, 1] - lon0) * 111_320.0 * math.cos(math.radians(lat0))
     north = (pts[:, 0] - lat0) * 110_540.0
     return np.column_stack([east, north]), (lat0, lon0)
 
 
 def resample_closed(xy: np.ndarray, step: float) -> np.ndarray:
-    """Resample a closed polyline at a fixed spacing (metres)."""
     if np.allclose(xy[0], xy[-1]):
         xy = xy[:-1]
     loop = np.vstack([xy, xy[:1]])
@@ -50,13 +52,11 @@ def resample_closed(xy: np.ndarray, step: float) -> np.ndarray:
     total = dist[-1]
     n = max(int(round(total / step)), 8)
     targets = np.linspace(0.0, total, n, endpoint=False)
-    x = np.interp(targets, dist, loop[:, 0])
-    y = np.interp(targets, dist, loop[:, 1])
-    return np.column_stack([x, y])
+    return np.column_stack([np.interp(targets, dist, loop[:, 0]), np.interp(targets, dist, loop[:, 1])])
 
 
 def smooth_closed(xy: np.ndarray, sigma_pts: float) -> np.ndarray:
-    """Circular Gaussian smoothing; removes the hand-drawn jaggedness of OSM ways."""
+    """Circular Gaussian smoothing; removes the hand-drawn jaggedness of the traced line."""
     k = int(sigma_pts * 4) | 1
     offs = np.arange(k) - k // 2
     w = np.exp(-0.5 * (offs / sigma_pts) ** 2)
@@ -64,15 +64,20 @@ def smooth_closed(xy: np.ndarray, sigma_pts: float) -> np.ndarray:
     out = np.empty_like(xy)
     n = len(xy)
     for i in range(n):
-        idx = (i + offs) % n
-        out[i] = (xy[idx] * w[:, None]).sum(axis=0)
+        out[i] = (xy[(i + offs) % n] * w[:, None]).sum(axis=0)
     return out
+
+
+def smooth_profile(a: np.ndarray, sigma_pts: float) -> np.ndarray:
+    """Circular Gaussian smoothing of a 1-D signal along the lap."""
+    k = int(sigma_pts * 4) | 1
+    pad = np.concatenate([a[-k:], a, a[:k]])
+    return ndi.gaussian_filter1d(pad, sigma_pts)[k:-k]
 
 
 def ensure_ccw(xy: np.ndarray) -> np.ndarray:
     x, y = xy[:, 0], xy[:, 1]
-    area = 0.5 * np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y)
-    return xy if area > 0 else xy[::-1].copy()
+    return xy if 0.5 * np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y) > 0 else xy[::-1].copy()
 
 
 def frames(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -86,19 +91,13 @@ def frames(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return t, left, dang / ds
 
 
-def to_ac(en: np.ndarray, y: float | np.ndarray = 0.0) -> np.ndarray:
-    """(east, north) -> AC (x, y, z) with z = -north."""
-    yy = np.full(len(en), y) if np.isscalar(y) else np.asarray(y)
-    return np.column_stack([en[:, 0], yy, -en[:, 1]])
-
-
 # ----------------------------------------------------------------------------- OBJ writer
 class Obj:
     def __init__(self) -> None:
         self.v: list[tuple[float, float, float]] = []
         self.vt: list[tuple[float, float]] = []
         self.vn: list[tuple[float, float, float]] = []
-        self.objects: list[tuple[str, str, list[tuple[int, ...]]]] = []  # name, material, faces (v/vt/vn idx)
+        self.objects: list[tuple[str, str, list[tuple[int, ...]]]] = []
 
     def add_vertex(self, p, uv, n=(0.0, 1.0, 0.0)) -> int:
         self.v.append(tuple(float(c) for c in p))
@@ -107,16 +106,13 @@ class Obj:
         return len(self.v)  # 1-based
 
     def add_ribbon(self, name: str, material: str, rows: list[list[int]], closed: bool) -> None:
-        """rows[i] = vertex indices across the ribbon at station i. Quads between stations.
-        Row order must be left->right as seen in the travel direction so normals point up."""
+        """rows[i] = vertex indices across the ribbon (left->right) at station i."""
         faces = []
         n = len(rows)
-        last = n if closed else n - 1
-        for i in range(last):
+        for i in range(n if closed else n - 1):
             a, b = rows[i], rows[(i + 1) % n]
             for j in range(len(a) - 1):
-                # CCW seen from above (+Y): left -> right -> forward-right -> forward-left
-                faces.append((a[j], a[j + 1], b[j + 1], b[j]))
+                faces.append((a[j], a[j + 1], b[j + 1], b[j]))  # CCW from above => normal up
         self.objects.append((name, material, faces))
 
     def add_faces(self, name: str, material: str, faces: list[tuple[int, ...]]) -> None:
@@ -125,16 +121,12 @@ class Obj:
     def write(self, path: str, mtl_name: str) -> None:
         with open(path, "w") as f:
             f.write(f"mtllib {mtl_name}\n")
-            for p in self.v:
-                f.write(f"v {p[0]:.4f} {p[1]:.4f} {p[2]:.4f}\n")
-            for t in self.vt:
-                f.write(f"vt {t[0]:.5f} {t[1]:.5f}\n")
-            for nrm in self.vn:
-                f.write(f"vn {nrm[0]:.4f} {nrm[1]:.4f} {nrm[2]:.4f}\n")
+            f.writelines(f"v {p[0]:.4f} {p[1]:.4f} {p[2]:.4f}\n" for p in self.v)
+            f.writelines(f"vt {t[0]:.5f} {t[1]:.5f}\n" for t in self.vt)
+            f.writelines(f"vn {nrm[0]:.4f} {nrm[1]:.4f} {nrm[2]:.4f}\n" for nrm in self.vn)
             for name, mat, faces in self.objects:
                 f.write(f"o {name}\nusemtl {mat}\n")
-                for face in faces:
-                    f.write("f " + " ".join(f"{i}/{i}/{i}" for i in face) + "\n")
+                f.writelines("f " + " ".join(f"{i}/{i}/{i}" for i in face) + "\n" for face in faces)
 
 
 MATERIALS = {
@@ -154,327 +146,261 @@ MATERIALS = {
 def write_mtl(path: str) -> None:
     with open(path, "w") as f:
         for name, (tex, kd) in MATERIALS.items():
-            alpha = f"map_d {tex}\n" if name == "tree" else ""  # tree billboards use the PNG alpha channel
+            alpha = f"map_d {tex}\n" if name == "tree" else ""
             f.write(f"newmtl {name}\nKa 0.2 0.2 0.2\nKd {kd[0]} {kd[1]} {kd[2]}\nKs 0.05 0.05 0.05\nNs 10\nd 1\nillum 2\nmap_Kd {tex}\n{alpha}\n")
 
 
 def make_textures(folder: str) -> None:
-    """Simple procedural placeholder textures (replace with real ones later)."""
+    """Procedural placeholder textures for the close-up materials."""
     os.makedirs(folder, exist_ok=True)
-    rng = random.Random(7)
+    rng = np.random.default_rng(7)
 
     def noise(size: int, base: tuple[int, int, int], spread: int, blur: float) -> Image.Image:
-        img = Image.new("RGB", (size, size))
-        px = img.load()
-        for yy in range(size):
-            for xx in range(size):
-                d = rng.randint(-spread, spread)
-                px[xx, yy] = tuple(max(0, min(255, c + d)) for c in base)
-        return img.filter(ImageFilter.GaussianBlur(blur))
+        arr = np.clip(np.array(base)[None, None, :] + rng.integers(-spread, spread + 1, (size, size, 1)), 0, 255).astype(np.uint8)
+        return Image.fromarray(arr).filter(ImageFilter.GaussianBlur(blur))
 
     noise(512, (72, 72, 74), 18, 0.6).save(os.path.join(folder, "road.png"))
     noise(512, (58, 104, 36), 22, 1.0).save(os.path.join(folder, "grass.png"))
     noise(512, (76, 98, 44), 20, 1.2).save(os.path.join(folder, "ground.png"))
     noise(256, (150, 150, 148), 12, 0.8).save(os.path.join(folder, "wall.png"))
     kerb = Image.new("RGB", (256, 256), (225, 225, 220))
-    d = ImageDraw.Draw(kerb)
-    d.rectangle([0, 0, 256, 128], fill=(200, 30, 30))  # red/white, V tiles along the track
+    ImageDraw.Draw(kerb).rectangle([0, 0, 256, 128], fill=(200, 30, 30))
     kerb.save(os.path.join(folder, "kerb.png"))
     Image.new("RGB", (64, 64), (235, 235, 235)).save(os.path.join(folder, "line.png"))
 
 
+# ----------------------------------------------------------------------------- road surface model
+class Surface:
+    """Height of the road surface: smoothed centre profile + smoothed cross slope from the terrain."""
+
+    def __init__(self, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr: np.ndarray, height_fn, step: float):
+        self.center, self.left, self.wl, self.wr = center, left, wl, wr
+        hc = height_fn(center)
+        hl = height_fn(center + left * wl[:, None])
+        hr = height_fn(center - left * wr[:, None])
+        sig = max(8.0 / step, 1.0)  # ~8 m smoothing: LiDAR noise is 0.18 m, a road is smooth
+        self.hc = smooth_profile(hc, sig)
+        self.slope = smooth_profile((hl - hr) / np.maximum(wl + wr, 1e-3), sig * 1.5)  # m per m, left minus right
+        self.tree = cKDTree(center)
+
+    def at(self, i: int, lateral: float) -> float:
+        """Height at station i, `lateral` metres to the left of the centre (negative = right)."""
+        return float(self.hc[i] + self.slope[i] * lateral)
+
+    def nearest(self, en: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """For arbitrary points: nearest station, signed lateral offset and height on the road plane."""
+        en = np.atleast_2d(en)
+        _, idx = self.tree.query(en)
+        d = en - self.center[idx]
+        lateral = np.einsum("ij,ij->i", d, self.left[idx])
+        return idx, lateral, self.hc[idx] + self.slope[idx] * lateral
+
+    def blend(self, en: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """(height, weight) for ground vertices: weight 1 next to the road, fading to 0 by 12 m outside the edge."""
+        idx, lateral, h = self.nearest(en)
+        edge = np.where(lateral >= 0, self.wl[idx], self.wr[idx]) + 1.2
+        outside = np.abs(lateral) - edge
+        w = np.clip(1.0 - outside / 12.0, 0.0, 1.0)
+        return h, w
+
+
 # ----------------------------------------------------------------------------- mesh building
-def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, pit_side_right: bool, pit_zone: tuple[int, int], out_dir: str, track: str, scenery=None, sf_index: int = 0) -> dict:
-    """wl/wr: distance (m) from the centerline to the left/right asphalt edge at each station."""
+def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str, track: str, scenery, surface: Surface,
+               sf_index: int, cones_en: np.ndarray | None) -> dict:
     t, left, curv = frames(center)
     n = len(center)
     kerb_w = 1.2
-    grass_w = 2.5 if scenery is not None else 10.0  # with the aerial ground only a short verge is needed
     obj = Obj()
-    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(center, axis=0), axis=1))])  # station (m)
+    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(center, axis=0), axis=1))])
+    step = s[1] - s[0]
 
-    def offset(i: int, d: float) -> np.ndarray:
-        """Point d metres to the LEFT of the centerline at station i (negative = right)."""
-        return center[i] + left[i] * d
+    def pt(i: int, d: float, dy: float = 0.0) -> np.ndarray:
+        """AC point at station i, d metres left of the centre, on the road surface (+dy)."""
+        e = center[i] + left[i] * d
+        return np.array([e[0], surface.at(i, d) + dy, -e[1]])
 
-    def ground_uv(en: np.ndarray, fallback: tuple[float, float]) -> tuple[float, float]:
-        """UV on the aerial texture when scenery is used, else the given tiling UV."""
+    def ground_uv(i: int, d: float, fallback: tuple[float, float]) -> tuple[float, float]:
         if scenery is None:
             return fallback
-        u, v = scenery.uv(scenery.en_to_px(en[None]))[0]
+        u, v = scenery.uv(scenery.en_to_px(center[i] + left[i] * d))[0]
         return (float(u), float(v))
 
-    # ---- road: 5 vertices across, UV v along length (1 tile per 8 m), u across
+    # ---- road: 7 vertices across, UV v along length (1 tile per 8 m)
     rows = []
     for i in range(n):
-        row = []
-        for k, d in enumerate(np.linspace(wl[i], -wr[i], 5)):
-            row.append(obj.add_vertex(to_ac(offset(i, d)[None])[0], (k / 4.0, s[i] / 8.0)))
-        rows.append(row)
+        rows.append([obj.add_vertex(pt(i, d), (k / 6.0, s[i] / 8.0)) for k, d in enumerate(np.linspace(wl[i], -wr[i], 7))])
     obj.add_ribbon("1ROAD_main", "road", rows, closed=True)
 
-    # ---- white edge lines (visual only, no digit prefix => not collidable)
+    # ---- white edge lines (visual only)
     for side, sign in (("L", 1.0), ("R", -1.0)):
         rows = []
         for i in range(n):
             w_i = wl[i] if sign > 0 else wr[i]
-            a = to_ac(offset(i, sign * (w_i - 0.05))[None], 0.003)[0]
-            b = to_ac(offset(i, sign * (w_i - 0.20))[None], 0.003)[0]
+            a = pt(i, sign * (w_i - 0.05), 0.004)
+            b = pt(i, sign * (w_i - 0.20), 0.004)
             rows.append([obj.add_vertex(a if sign > 0 else b, (0, s[i] / 8)), obj.add_vertex(b if sign > 0 else a, (1, s[i] / 8))])
         obj.add_ribbon(f"LINE_{side}", "line", rows, closed=True)
 
-    # ---- start/finish line: 0.5 m white stripe across the road (visual only)
+    # ---- start/finish stripe
     i0, i1 = sf_index, (sf_index + 1) % n
-    sf_quad = [to_ac(offset(i0, wl[i0] - 0.2)[None], 0.004)[0], to_ac(offset(i0, -(wr[i0] - 0.2))[None], 0.004)[0],
-               to_ac(offset(i1, -(wr[i1] - 0.2))[None], 0.004)[0], to_ac(offset(i1, wl[i1] - 0.2)[None], 0.004)[0]]
-    sfv = [obj.add_vertex(p, uv) for p, uv in zip(sf_quad, ((0, 0), (1, 0), (1, 1), (0, 1)))]
-    obj.add_faces("LINE_startfinish", "line", [(sfv[0], sfv[1], sfv[2], sfv[3])])
+    quad = [pt(i0, wl[i0] - 0.2, 0.005), pt(i0, -(wr[i0] - 0.2), 0.005), pt(i1, -(wr[i1] - 0.2), 0.005), pt(i1, wl[i1] - 0.2, 0.005)]
+    sfv = [obj.add_vertex(p, uv) for p, uv in zip(quad, ((0, 0), (1, 0), (1, 1), (0, 1)))]
+    obj.add_faces("LINE_startfinish", "line", [tuple(sfv)])
 
-    # ---- kerb band: kerb where the corner is tight, grass (flat) elsewhere.
-    # Kerbs sit on the INSIDE of a corner; curvature > 0 = turning left => inside is left.
-    # smooth the curvature over ~16 m before deciding where corners are (traced lines wobble)
-    ks = int(8 / (s[1] - s[0])) | 1
-    kern = np.exp(-0.5 * ((np.arange(ks) - ks // 2) / (ks / 4)) ** 2)
-    kern /= kern.sum()
-    curv_s = np.zeros_like(curv)
-    for k_i, w in enumerate(kern):
-        curv_s += w * np.roll(curv, k_i - ks // 2)
-    curv = curv_s
-    corner = np.abs(curv) > 1.0 / KERB_RADIUS
-    # widen each kerb zone by ~12 m so kerbs start before the apex
-    grow = int(12 / (s[1] - s[0]))
+    # ---- kerbs on the inside of tight corners, otherwise a flat edge band with the ground texture
+    curv_s = smooth_profile(curv, max(8.0 / step, 1))
+    corner = np.abs(curv_s) > 1.0 / KERB_RADIUS
+    grow = int(12 / step)
     corner_grown = corner.copy()
     for g in range(1, grow + 1):
         corner_grown |= np.roll(corner, g) | np.roll(corner, -g)
-    kerb_left = corner_grown & (curv > 0)
-    kerb_right = corner_grown & (curv < 0)
-    # smooth the kerb flags along the loop so there are no 1-segment blips
+    kerb_left = corner_grown & (curv_s > 0)
+    kerb_right = corner_grown & (curv_s < 0)
     for arr in (kerb_left, kerb_right):
         for g in (1, 2):
             arr |= np.roll(arr, g) & np.roll(arr, -g)
 
-    def band(side_sign: float, inner: np.ndarray, outer: np.ndarray, flags: np.ndarray, kerb_name: str, other_name: str, other_mat: str, height: float, uv_scale: float) -> None:
-        """Ribbon between per-station offsets inner..outer on one side, split into kerb/other objects by flags."""
-        verts_in, verts_out, verts_in_g, verts_out_g = [], [], [], []
+    def band(side_sign: float, inner: np.ndarray, flags: np.ndarray, kerb_name: str, other_name: str) -> None:
+        vi_k, vo_k, vi_g, vo_g = [], [], [], []
         for i in range(n):
-            en_in, en_out = offset(i, side_sign * inner[i]), offset(i, side_sign * outer[i])
-            pin = to_ac(en_in[None], 0.0)[0]
-            pout = to_ac(en_out[None], height if flags[i] else 0.0)[0]
-            verts_in.append(obj.add_vertex(pin, (0.0, s[i] / uv_scale)))
-            verts_out.append(obj.add_vertex(pout, (1.0, s[i] / uv_scale)))
-            # second copy with aerial-texture UVs for the non-kerb parts of the band
-            verts_in_g.append(obj.add_vertex(pin, ground_uv(en_in, (0.0, s[i] / 10.0))))
-            verts_out_g.append(obj.add_vertex(pout, ground_uv(en_out, (1.0, s[i] / 10.0))))
+            d_in, d_out = side_sign * inner[i], side_sign * (inner[i] + kerb_w)
+            p_in = pt(i, d_in)
+            p_out = pt(i, d_out, 0.04 if flags[i] else 0.0)
+            vi_k.append(obj.add_vertex(p_in, (0.0, s[i] / 2.0)))
+            vo_k.append(obj.add_vertex(p_out, (1.0, s[i] / 2.0)))
+            vi_g.append(obj.add_vertex(p_in, ground_uv(i, d_in, (0.0, s[i] / 10.0))))
+            vo_g.append(obj.add_vertex(p_out, ground_uv(i, d_out, (1.0, s[i] / 10.0))))
         kerb_faces, other_faces = [], []
         for i in range(n):
             j = (i + 1) % n
-            vi, vo = (verts_in, verts_out) if flags[i] else (verts_in_g, verts_out_g)
-            if side_sign > 0:  # left side: inner edge is to the right of the outer edge
-                quad = (vo[i], vi[i], vi[j], vo[j])
-            else:
-                quad = (vi[i], vo[i], vo[j], vi[j])
-            (kerb_faces if flags[i] else other_faces).append(quad)
+            vi, vo = (vi_k, vo_k) if flags[i] else (vi_g, vo_g)
+            q = (vo[i], vi[i], vi[j], vo[j]) if side_sign > 0 else (vi[i], vo[i], vo[j], vi[j])
+            (kerb_faces if flags[i] else other_faces).append(q)
         if kerb_faces:
             obj.add_faces(kerb_name, "kerb", kerb_faces)
         if other_faces:
-            obj.add_faces(other_name, other_mat, other_faces)
+            obj.add_faces(other_name, "aerial" if scenery is not None else "grass", other_faces)
 
-    edge_mat = "aerial" if scenery is not None else "grass"
-    band(+1.0, wl, wl + kerb_w, kerb_left, "1KERB_L", "1GRASS_edgeL", edge_mat, 0.04, 2.0)
-    band(-1.0, wr, wr + kerb_w, kerb_right, "1KERB_R", "1GRASS_edgeR", edge_mat, 0.04, 2.0)
+    band(+1.0, wl, kerb_left, "1KERB_L", "1GRASS_edgeL")
+    band(-1.0, wr, kerb_right, "1KERB_R", "1GRASS_edgeR")
 
-    # ---- grass verge 10 m each side; on the pit side inside the pit zone it becomes asphalt (pit apron)
-    pit_sign = -1.0 if pit_side_right else 1.0
-    in_pit = np.zeros(n, dtype=bool)
-    a, b = pit_zone
-    if a <= b:
-        in_pit[a:b] = True
-    else:  # zone wraps past the end of the loop
-        in_pit[a:] = True
-        in_pit[:b] = True
-    for side_sign, name in ((+1.0, "L"), (-1.0, "R")) if scenery is None else ():
-        # with the aerial ground the paddock asphalt already exists, so no artificial pit apron
-        pit_flags = in_pit if (side_sign == pit_sign and scenery is None) else np.zeros(n, dtype=bool)
-        w_side = wl if side_sign > 0 else wr
-        verts_in, verts_out = [], []
-        for i in range(n):
-            pin = to_ac(offset(i, side_sign * (w_side[i] + kerb_w))[None], 0.0)[0]
-            pout = to_ac(offset(i, side_sign * (w_side[i] + kerb_w + grass_w))[None], 0.0)[0]
-            verts_in.append(obj.add_vertex(pin, (0.0, s[i] / 10.0)))
-            verts_out.append(obj.add_vertex(pout, (1.0, s[i] / 10.0)))
-        grass_faces, pit_faces = [], []
-        for i in range(n):
-            j = (i + 1) % n
-            quad = (verts_out[i], verts_in[i], verts_in[j], verts_out[j]) if side_sign > 0 else (verts_in[i], verts_out[i], verts_out[j], verts_in[j])
-            (pit_faces if pit_flags[i] else grass_faces).append(quad)
-        obj.add_faces(f"1GRASS_verge{name}", "grass", grass_faces)
-        if pit_faces:
-            obj.add_faces("1ROAD_pitapron", "road", pit_faces)
-
-    info_extra: dict = {}
+    info: dict = {"kerb_left": int(kerb_left.sum()), "kerb_right": int(kerb_right.sum())}
     if scenery is not None:
-        # ---- ground, physics zones, cones, buildings and trees derived from the aerial image
         def band_mask(reach_m: float) -> np.ndarray:
-            """Pixels within reach_m of the traced centerline."""
             m = np.zeros((scenery.h, scenery.w), dtype=bool)
             reach = int(reach_m / scenery.scale)
             for (px, py) in scenery.en_to_px(center).astype(int):
                 m[max(py - reach, 0):min(py + reach + 1, scenery.h), max(px - reach, 0):min(px + reach + 1, scenery.w)] = True
             return m
-        scenery.ground(obj, near_track=band_mask(30.0))
+        scenery.ground(obj, cell_m=2.0, surface=surface.blend, near_track=band_mask(30.0))
         scenery.outer_ring(obj, margin_m=120.0)
-        info_extra["cones"] = scenery.cones(obj)
-        info_extra["buildings"] = scenery.buildings(obj)
-        # keep trees away from the track: no trees closer than (edge + 6 m) to the centerline
-        band_px = band_mask(max(wl.max(), wr.max()) + 6.0)
-        info_extra["trees"] = scenery.trees(obj, exclude_px=band_px)
+        info["cones"] = scenery.cones(obj, cones_en, surface=lambda en: (surface.nearest(en)[2], None))
+        info["buildings"] = scenery.buildings(obj, exclude_px=band_mask(max(wl.max(), wr.max()) + 10.0))
+        info["trees"] = scenery.trees(obj, exclude_px=band_mask(max(wl.max(), wr.max()) + 6.0))
         from scenery import make_scenery_textures
         make_scenery_textures(os.path.join(out_dir, "texture"))
-        obj.write(os.path.join(out_dir, f"{track}.obj"), f"{track}.mtl")
-        write_mtl(os.path.join(out_dir, f"{track}.mtl"))
-        make_textures(os.path.join(out_dir, "texture"))
-        return {"stations": s.tolist(), "kerb_left": int(kerb_left.sum()), "kerb_right": int(kerb_right.sum()), **info_extra}
-
-    # ---- ground plane under everything (2 cm lower) + perimeter walls so cars cannot fall off
-    margin = 80.0
-    ex0, ex1 = center[:, 0].min() - margin, center[:, 0].max() + margin
-    ny0, ny1 = center[:, 1].min() - margin, center[:, 1].max() + margin
-    gx = np.linspace(ex0, ex1, 25)
-    gy = np.linspace(ny0, ny1, 25)
-    grid = [[obj.add_vertex((x, -0.02, -y), (x / 20.0, y / 20.0)) for x in gx] for y in gy]
-    faces = []
-    for r in range(len(gy) - 1):
-        for c in range(len(gx) - 1):
-            # CCW from above in (east, north): (x0,y0) -> (x1,y0) -> (x1,y1) -> (x0,y1)
-            faces.append((grid[r][c], grid[r][c + 1], grid[r + 1][c + 1], grid[r + 1][c]))
-    obj.add_faces("1GRASS_ground", "ground", faces)
-
-    wall_h = 1.5
-    corners = [(ex0, ny0), (ex1, ny0), (ex1, ny1), (ex0, ny1)]
-    for k in range(4):
-        (xa, ya), (xb, yb) = corners[k], corners[(k + 1) % 4]
-        length = math.hypot(xb - xa, yb - ya)
-        # inward-facing wall: vertices ordered so the normal points toward the track
-        v0 = obj.add_vertex((xa, -0.02, -ya), (0, 0), (0, 0, 1))
-        v1 = obj.add_vertex((xb, -0.02, -yb), (length / 4, 0), (0, 0, 1))
-        v2 = obj.add_vertex((xb, wall_h, -yb), (length / 4, 1), (0, 0, 1))
-        v3 = obj.add_vertex((xa, wall_h, -ya), (0, 1), (0, 0, 1))
-        obj.add_faces(f"1WALL_perimeter_{k}", "wall", [(v0, v3, v2, v1)])
+    else:
+        margin = 80.0
+        ex0, ex1 = center[:, 0].min() - margin, center[:, 0].max() + margin
+        ny0, ny1 = center[:, 1].min() - margin, center[:, 1].max() + margin
+        gx, gy = np.linspace(ex0, ex1, 25), np.linspace(ny0, ny1, 25)
+        grid = [[obj.add_vertex((x, -0.02, -y), (x / 20.0, y / 20.0)) for x in gx] for y in gy]
+        faces = [(grid[r][c], grid[r][c + 1], grid[r + 1][c + 1], grid[r + 1][c]) for r in range(24) for c in range(24)]
+        obj.add_faces("1GRASS_ground", "ground", faces)
+        corners = [(ex0, ny0), (ex1, ny0), (ex1, ny1), (ex0, ny1)]
+        for k in range(4):
+            (xa, ya), (xb, yb) = corners[k], corners[(k + 1) % 4]
+            length = math.hypot(xb - xa, yb - ya)
+            v0 = obj.add_vertex((xa, -0.02, -ya), (0, 0), (0, 0, 1))
+            v1 = obj.add_vertex((xb, -0.02, -yb), (length / 4, 0), (0, 0, 1))
+            v2 = obj.add_vertex((xb, 1.5, -yb), (length / 4, 1), (0, 0, 1))
+            v3 = obj.add_vertex((xa, 1.5, -ya), (0, 1), (0, 0, 1))
+            obj.add_faces(f"1WALL_perimeter_{k}", "wall", [(v0, v3, v2, v1)])
 
     obj.write(os.path.join(out_dir, f"{track}.obj"), f"{track}.mtl")
     write_mtl(os.path.join(out_dir, f"{track}.mtl"))
     make_textures(os.path.join(out_dir, "texture"))
-    return {"stations": s.tolist(), "kerb_left": int(kerb_left.sum()), "kerb_right": int(kerb_right.sum())}
+    info["vertices"] = len(obj.v)
+    return info
 
 
 # ----------------------------------------------------------------------------- layout (start, pits, timing)
-def longest_straight(curv: np.ndarray, s: np.ndarray) -> tuple[int, int]:
-    """Indices (start, end) of the longest run with |curvature| < 1/400 m."""
+def longest_straight(curv: np.ndarray) -> tuple[int, int]:
     n = len(curv)
     straight = np.abs(curv) < 1.0 / 400.0
-    best, cur_start, cur_len, best_start, best_len = None, None, 0, 0, 0
-    # walk twice to handle wrap-around
+    cur_start, best_start, best_len = None, 0, 0
     for i in range(2 * n):
         if straight[i % n]:
-            if cur_start is None:
-                cur_start = i
-            cur_len = i - cur_start + 1
-            if cur_len > best_len:
-                best_len, best_start = cur_len, cur_start
+            cur_start = i if cur_start is None else cur_start
+            if i - cur_start + 1 > best_len:
+                best_len, best_start = i - cur_start + 1, cur_start
         else:
             cur_start = None
-    best = (best_start % n, (best_start + min(best_len, n) - 1) % n)
-    return best
+    return best_start % n, (best_start + min(best_len, n) - 1) % n
 
 
-def build_layout(center: np.ndarray, grid: int, pit_side_right: bool, wl: np.ndarray, wr: np.ndarray, sf_point: np.ndarray | None = None) -> tuple[dict, tuple[int, int]]:
+def build_layout(center: np.ndarray, grid: int, pit_side_right: bool, wl: np.ndarray, wr: np.ndarray, surface: Surface,
+                 sf_point: np.ndarray | None = None) -> dict:
     t, left, curv = frames(center)
     n = len(center)
     step = float(np.linalg.norm(center[1] - center[0]))
     if sf_point is not None:
-        # start/finish forced to the station nearest to the given (east, north) point
         sf = int(np.argmin(np.linalg.norm(center - sf_point, axis=1)))
     else:
-        s0, s1 = longest_straight(curv, np.array([step * i for i in range(n)]))
-        run = (s1 - s0) % n
-        # start/finish line at 62 % of the longest straight, grid behind it
-        sf = (s0 + int(run * 0.62)) % n
+        s0, s1 = longest_straight(curv)
+        sf = (s0 + int(((s1 - s0) % n) * 0.62)) % n
 
     def idx_back(i: int, metres: float) -> int:
         return (i - int(round(metres / step))) % n
 
-    def pose(i: int, lateral: float, y: float = 0.0) -> dict:
+    def pose(i: int, lateral: float) -> dict:
         p = center[i] + left[i] * lateral
         heading = math.degrees(math.atan2(t[i][1], t[i][0]))  # 0 = east, CCW positive (Blender convention)
-        return {"pos_ac": [float(p[0]), y, float(-p[1])], "dir_en": [float(t[i][0]), float(t[i][1])], "heading_deg_blender": heading}
+        return {"pos_ac": [float(p[0]), surface.at(i, lateral), float(-p[1])], "dir_en": [float(t[i][0]), float(t[i][1])], "heading_deg_blender": heading}
 
     layout: dict = {"AC_START": [], "AC_PIT": [], "AC_TIME": [], "AC_HOTLAP_START": [], "AC_CREW": []}
     for k in range(grid):
         row, col = divmod(k, 2)
         i = idx_back(sf, 12.0 + row * 8.0 + col * 4.0)
-        lat = (wl[i] if col == 0 else -wr[i]) * 0.5  # two columns, each in the middle of its half
-        layout["AC_START"].append(pose(i, lat))
+        layout["AC_START"].append(pose(i, (wl[i] if col == 0 else -wr[i]) * 0.5))
 
     pit_sign = -1.0 if pit_side_right else 1.0
     w_pit = wr if pit_side_right else wl
-    # pit boxes start 10 m after the start/finish line, 6 m apart, beside the track on the pit side
     pit_zone_start = (sf + int(round(10.0 / step))) % n
     for k in range(grid):
         i = (pit_zone_start + int(round((k * 6.0) / step))) % n
         pit_lat = pit_sign * (w_pit[i] + 1.2 + 4.0)
         layout["AC_PIT"].append(pose(i, pit_lat))
         layout["AC_CREW"].append(pose(i, pit_lat + pit_sign * 4.0))
-    pit_zone = ((pit_zone_start - int(8 / step)) % n, (pit_zone_start + int(round((grid * 6.0 + 10.0) / step))) % n)
 
     for sector, i in enumerate((sf, (sf + n // 3) % n, (sf + 2 * n // 3) % n)):
         layout["AC_TIME"].append({"index": sector, "L": pose(i, wl[i] + 1.0), "R": pose(i, -(wr[i] + 1.0))})
     layout["AC_HOTLAP_START"].append(pose(idx_back(sf, 180.0), 0.0))
     layout["start_finish_index"] = int(sf)
     layout["pit_side"] = "right" if pit_side_right else "left"
-    return layout, pit_zone
+    return layout
 
 
 # ----------------------------------------------------------------------------- cameras, map, ui images
-def write_cameras(path: str, center: np.ndarray, count: int = 8) -> None:
+def write_cameras(path: str, center: np.ndarray, height_fn, count: int = 8) -> None:
     t, left, curv = frames(center)
     n = len(center)
-    # pick camera spots at the sharpest corners, spread around the lap
     lines = ["[HEADER]", "VERSION=2", "SET_NAME=Default", f"CAMERA_COUNT={count}", ""]
     chunk = n // count
     for c in range(count):
-        seg = slice(c * chunk, (c + 1) * chunk)
-        local = int(np.argmax(np.abs(curv[seg]))) + c * chunk
+        local = int(np.argmax(np.abs(curv[c * chunk:(c + 1) * chunk]))) + c * chunk
         outside = -np.sign(curv[local]) if curv[local] != 0 else 1.0
         cam = center[local] + left[local] * outside * 22.0
+        cam_h = float(height_fn(cam[None])[0]) + 6.0
         look = center[(local + 15) % n]
-        fwd = np.array([look[0] - cam[0], -5.0, -(look[1] - cam[1])])
+        look_h = float(height_fn(look[None])[0])
+        fwd = np.array([look[0] - cam[0], look_h - cam_h, -(look[1] - cam[1])])
         fwd /= np.linalg.norm(fwd)
-        lines += [
-            f"[CAMERA_{c}]",
-            f"NAME=CAM_{c}",
-            f"POSITION={cam[0]:.3f},6.000,{-cam[1]:.3f}",
-            f"FORWARD={fwd[0]:.4f},{fwd[1]:.4f},{fwd[2]:.4f}",
-            "UP=0,1,0",
-            "MIN_FOV=8",
-            "MAX_FOV=55",
-            f"IN_POINT={c / count:.4f}",
-            f"OUT_POINT={(c + 1) / count:.4f}",
-            "SHADOW_SPLIT0=20",
-            "SHADOW_SPLIT1=80",
-            "SHADOW_SPLIT2=300",
-            "NEAR_PLANE=0.5",
-            "FAR_PLANE=5000",
-            "MIN_EXPOSURE=0.3",
-            "MAX_EXPOSURE=0.8",
-            "DOF_FACTOR=0",
-            "DOF_RANGE=1000",
-            "DOF_FOCUS=0",
-            "DOF_MANUAL=0",
-            "SPLINE=0",
-            "SPLINE_ANIMATION_LENGTH=0",
-            "IS_FIXED=0",
-            "",
-        ]
+        lines += [f"[CAMERA_{c}]", f"NAME=CAM_{c}", f"POSITION={cam[0]:.3f},{cam_h:.3f},{-cam[1]:.3f}",
+                  f"FORWARD={fwd[0]:.4f},{fwd[1]:.4f},{fwd[2]:.4f}", "UP=0,1,0", "MIN_FOV=8", "MAX_FOV=55",
+                  f"IN_POINT={c / count:.4f}", f"OUT_POINT={(c + 1) / count:.4f}", "SHADOW_SPLIT0=20", "SHADOW_SPLIT1=80",
+                  "SHADOW_SPLIT2=300", "NEAR_PLANE=0.5", "FAR_PLANE=5000", "MIN_EXPOSURE=0.3", "MAX_EXPOSURE=0.8",
+                  "DOF_FACTOR=0", "DOF_RANGE=1000", "DOF_FOCUS=0", "DOF_MANUAL=0", "SPLINE=0", "SPLINE_ANIMATION_LENGTH=0", "IS_FIXED=0", ""]
     with open(path, "w") as f:
         f.write("\n".join(lines))
 
@@ -482,107 +408,119 @@ def write_cameras(path: str, center: np.ndarray, count: int = 8) -> None:
 def write_map(track_dir: str, center: np.ndarray, width: float) -> None:
     """map.png + data/map.ini. AC maps world (x, z) to pixels with (x + X_OFFSET) / SCALE_FACTOR."""
     size, margin = 1024, 20
-    ac = to_ac(center)
-    x, z = ac[:, 0], ac[:, 2]
+    x, z = center[:, 0], -center[:, 1]
     ext = max(x.max() - x.min(), z.max() - z.min())
     scale = ext / (size - 2 * margin)
-    x_off = -x.min() + margin * scale
-    z_off = -z.min() + margin * scale
+    x_off, z_off = -x.min() + margin * scale, -z.min() + margin * scale
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
     pts = [((xx + x_off) / scale, (zz + z_off) / scale) for xx, zz in zip(x, z)]
-    d.line(pts + pts[:1], fill=(255, 255, 255, 255), width=max(3, int(width / scale)), joint="curve")
+    ImageDraw.Draw(img).line(pts + pts[:1], fill=(255, 255, 255, 255), width=max(3, int(width / scale)), joint="curve")
     img.save(os.path.join(track_dir, "map.png"))
     with open(os.path.join(track_dir, "data", "map.ini"), "w") as f:
-        f.write(
-            "[PARAMETERS]\n"
-            f"WIDTH={size}\nHEIGHT={size}\nMARGIN={margin}\n"
-            f"SCALE_FACTOR={scale:.6f}\nMAX_SIZE=1600\n"
-            f"X_OFFSET={x_off:.3f}\nZ_OFFSET={z_off:.3f}\nDRAWING_SIZE=10\n"
-        )
-    # ui/outline.png (transparent, white line) and ui/preview.png (green background)
+        f.write(f"[PARAMETERS]\nWIDTH={size}\nHEIGHT={size}\nMARGIN={margin}\nSCALE_FACTOR={scale:.6f}\nMAX_SIZE=1600\nX_OFFSET={x_off:.3f}\nZ_OFFSET={z_off:.3f}\nDRAWING_SIZE=10\n")
     outline = Image.new("RGBA", (800, 600), (0, 0, 0, 0))
-    o = ImageDraw.Draw(outline)
-    ext2 = max(x.max() - x.min(), z.max() - z.min())
-    sc = ext2 / 520.0
+    sc = ext / 520.0
     pts2 = [(((xx - x.min()) / sc) + 140, ((zz - z.min()) / sc) + 40) for xx, zz in zip(x, z)]
-    o.line(pts2 + pts2[:1], fill=(255, 255, 255, 255), width=10, joint="curve")
+    ImageDraw.Draw(outline).line(pts2 + pts2[:1], fill=(255, 255, 255, 255), width=10, joint="curve")
     outline.save(os.path.join(track_dir, "ui", "outline.png"))
-    preview = Image.new("RGB", (1022, 576), (62, 108, 48))
-    p = ImageDraw.Draw(preview)
-    sc = ext2 / 480.0
-    pts3 = [(((xx - x.min()) / sc) + 260, ((zz - z.min()) / sc) + 48) for xx, zz in zip(x, z)]
-    # draw the road as overlapping discs so bends stay smooth, then a thin centre line
-    for px, py in pts3:
-        p.ellipse([px - 11, py - 11, px + 11, py + 11], fill=(40, 40, 42))
-    p.line(pts3 + pts3[:1], fill=(230, 230, 230), width=2)
-    preview.save(os.path.join(track_dir, "ui", "preview.png"))
 
 
 # ----------------------------------------------------------------------------- main
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--track", default="sosnova")
-    ap.add_argument("--width", type=float, default=12.0, help="road width in metres")
+    ap.add_argument("--width", type=float, default=10.0, help="road width (m) when no aerial image is available")
     ap.add_argument("--grid", type=int, default=16, help="number of start/pit positions")
-    ap.add_argument("--step", type=float, default=2.0, help="mesh resolution along the track (m)")
-    ap.add_argument("--smooth", type=float, default=6.0, help="smoothing sigma in metres")
+    ap.add_argument("--step", type=float, default=1.0, help="mesh resolution along the track (m)")
+    ap.add_argument("--smooth", type=float, default=3.0, help="smoothing of the traced line (m)")
     ap.add_argument("--pit-left", action="store_true", help="put the pits on the left instead of right")
-    ap.add_argument("--no-scenery", action="store_true", help="do not use the aerial image for ground/scenery even if present")
+    ap.add_argument("--no-scenery", action="store_true", help="do not use the aerial image / heights even if present")
     ap.add_argument("--kerb-radius", type=float, default=60.0, help="corners tighter than this radius (m) get kerbs")
-    ap.add_argument("--sf-at-first-point", action="store_true", help="start/finish at the first centerline point instead of the longest straight")
+    ap.add_argument("--sf-at-first-point", action="store_true", help="start/finish at the first centerline point")
     ap.add_argument("--centerline", default=os.path.join(KIT, "source", "centerline.json"))
     a = ap.parse_args()
-
     global KERB_RADIUS
     KERB_RADIUS = a.kerb_radius
+
     src_dir = os.path.join(KIT, "source")
     track_dir = os.path.join(KIT, "content", "tracks", a.track)
     for sub in ("data", "ui", "ai", "extension"):
         os.makedirs(os.path.join(track_dir, sub), exist_ok=True)
+    os.makedirs(os.path.join(src_dir, "texture"), exist_ok=True)
 
     with open(a.centerline, encoding="utf-8") as f:
         src = json.load(f)
-    en, (lat0, lon0) = project(src["points"])
+
+    # ---- choose the image source: ČÚZK orthophoto + heights (preferred) or the layout screenshot
+    scenery = None
+    cones_en = None
+    origin = None
+    cuzk_meta = os.path.join(src_dir, "cuzk", "meta.json")
+    if not a.no_scenery and os.path.exists(cuzk_meta):
+        from scenery import Aerial, Terrain
+        meta = json.load(open(cuzk_meta))
+        origin = tuple(meta["center"])
+        scenery = Aerial(os.path.join(src_dir, "cuzk", "ortho.png"), meta["gsd"], origin[0], origin[1], has_overlays=False)
+        scenery.terrain = Terrain(os.path.join(src_dir, "cuzk", "dem.tif"), tuple(meta["half_m"]), meta["dem_gsd"])
+        scenery.clean_texture(os.path.join(src_dir, "texture", "aerial.png"))
+        ro = os.path.join(src_dir, "cuzk", "route_ortho.json")
+        if os.path.exists(ro):
+            rr = json.load(open(ro))
+            if rr.get("cones_px"):
+                cones_en = scenery.px_to_en(np.array(rr["cones_px"], float))
+        print(f"source: ČÚZK orthophoto {scenery.w}x{scenery.h} @ {scenery.scale} m/px + DMR 5G heights")
+    elif not a.no_scenery and os.path.exists(os.path.join(src_dir, "trace", "aerial.png")) and "scale_m_per_px" in src:
+        from scenery import Aerial
+        origin = tuple(src["image_center"])
+        scenery = Aerial(os.path.join(src_dir, "trace", "aerial.png"), src["scale_m_per_px"], origin[0], origin[1], has_overlays=True)
+        scenery.clean_texture(os.path.join(src_dir, "texture", "aerial.png"),
+                              extra_boxes=[(0, 0, 340, 85, 900, 90, 1140, 260), (0, 640, 650, scenery.h, 300, 430, 470, 540), (340, 350, 490, 380), (395, 322, 425, 342), (785, 648, 810, 668), (1110, 480, 1140, 500)])
+        print(f"source: layout screenshot @ {scenery.scale:.3f} m/px (flat)")
+
+    en, (lat0, lon0) = project(src["points"], origin)
     sf_point = en[0].copy() if a.sf_at_first_point else None
     en = resample_closed(en, 1.0)
     en = smooth_closed(en, a.smooth)
     en = resample_closed(en, a.step)
     en = ensure_ccw(en)
     length = float(np.sum(np.linalg.norm(np.diff(np.vstack([en, en[:1]]), axis=0), axis=1)))
-    print(f"centerline: {len(en)} stations, lap length {length:.0f} m, centre {lat0:.5f},{lon0:.5f}")
+    print(f"centerline: {len(en)} stations every {a.step} m, lap length {length:.0f} m")
 
-    # road edges: measured from the aerial image when available, otherwise constant width
-    scenery = None
-    aerial_path = os.path.join(src_dir, "trace", "aerial.png")
-    if not a.no_scenery and os.path.exists(aerial_path) and "scale_m_per_px" in src and "image_center" in src:
-        from scenery import Aerial
-        scenery = Aerial(aerial_path, src["scale_m_per_px"], src["image_center"][0], src["image_center"][1])
-        os.makedirs(os.path.join(src_dir, "texture"), exist_ok=True)
-        scenery.clean_texture(os.path.join(src_dir, "texture", "aerial.png"), extra_boxes=[(0, 0, 340, 85, 900, 90, 1140, 260), (0, 640, 650, scenery.h, 300, 430, 470, 540), (340, 350, 490, 380), (395, 322, 425, 342), (785, 648, 810, 668), (1110, 480, 1140, 500)])
-        t_, left_, _ = frames(en)
-        # the traced route centre is not necessarily the asphalt centre, so measure each side separately
+    t_, left_, _ = frames(en)
+    if scenery is not None:
         wl, wr = scenery.road_edges(en, left_)
-        print(f"road edges from aerial: left {wl.min():.1f}-{wl.max():.1f} m, right {wr.min():.1f}-{wr.max():.1f} m, mean width {np.mean(wl + wr):.1f} m")
+        print(f"road edges from image: left {wl.min():.1f}-{wl.max():.1f} m, right {wr.min():.1f}-{wr.max():.1f} m, mean width {np.mean(wl + wr):.1f} m")
     else:
-        wl = np.full(len(en), a.width / 2.0)
-        wr = np.full(len(en), a.width / 2.0)
-    layout, pit_zone = build_layout(en, a.grid, not a.pit_left, wl, wr, sf_point)
-    info = build_mesh(en, wl, wr, not a.pit_left, pit_zone, src_dir, a.track, scenery, layout["start_finish_index"])
-    layout["meta"] = {"track": a.track, "length_m": round(length), "width_m": float(np.mean(wl + wr)), "geotag": [lat0, lon0], "stations": len(en), "kerb_segments": [info["kerb_left"], info["kerb_right"]],
-                      "cones": len(info.get("cones", [])), "buildings": info.get("buildings", 0), "trees": info.get("trees", 0)}
+        wl = wr = np.full(len(en), a.width / 2.0)
+
+    # heights: reference the terrain to the start/finish point so the track sits near y = 0
+    if scenery is not None and scenery.terrain is not None:
+        sf_idx = int(np.argmin(np.linalg.norm(en - sf_point, axis=1))) if sf_point is not None else 0
+        scenery.terrain.ref = float(scenery.terrain.sample_raw(en[sf_idx][None])[0])
+        height_fn = scenery.height
+        hs = height_fn(en)
+        print(f"terrain: track height range {hs.min():.1f} .. {hs.max():.1f} m relative to the start line ({scenery.terrain.ref:.1f} m a.s.l.)")
+    else:
+        height_fn = lambda p: np.zeros(len(np.atleast_2d(p)))
+    surface = Surface(en, left_, wl, wr, height_fn, a.step)
+
+    layout = build_layout(en, a.grid, not a.pit_left, wl, wr, surface, sf_point)
+    info = build_mesh(en, wl, wr, src_dir, a.track, scenery, surface, layout["start_finish_index"], cones_en)
+    layout["meta"] = {"track": a.track, "length_m": round(length), "width_m": float(np.mean(wl + wr)), "geotag": [lat0, lon0],
+                      "stations": len(en), "kerb_segments": [info["kerb_left"], info["kerb_right"]], "cones": len(info.get("cones", [])),
+                      "buildings": info.get("buildings", 0), "trees": info.get("trees", 0), "vertices": info["vertices"],
+                      "height_range_m": [float(surface.hc.min()), float(surface.hc.max())]}
     with open(os.path.join(src_dir, "layout.json"), "w") as f:
         json.dump(layout, f, indent=1)
-    write_cameras(os.path.join(track_dir, "data", "cameras.ini"), en)
+
+    write_cameras(os.path.join(track_dir, "data", "cameras.ini"), en, height_fn)
     write_map(track_dir, en, float(np.mean(wl + wr)))
     if scenery is not None:
-        # menu preview: the cleaned aerial with the route drawn on it
         prev = Image.fromarray((scenery.clean * 255).astype(np.uint8)).convert("RGB")
         pd = ImageDraw.Draw(prev)
         pts = [tuple(p) for p in scenery.en_to_px(en)]
-        pd.line(pts + pts[:1], fill=(255, 40, 40), width=4)
+        pd.line(pts + pts[:1], fill=(255, 40, 40), width=max(2, int(1.5 / scenery.scale)))
         prev.resize((1022, int(1022 * prev.height / prev.width)), Image.LANCZOS).save(os.path.join(track_dir, "ui", "preview.png"))
-    # keep ui_track.json in sync with the real geometry
     ui_path = os.path.join(track_dir, "ui", "ui_track.json")
     if os.path.exists(ui_path):
         with open(ui_path, encoding="utf-8") as f:
@@ -590,10 +528,11 @@ def main() -> None:
         ui.update({"geotags": [f"{lat0:.5f}", f"{lon0:.5f}"], "length": str(round(length)), "width": str(int(round(np.mean(wl + wr)))), "pitboxes": str(a.grid)})
         with open(ui_path, "w", encoding="utf-8") as f:
             json.dump(ui, f, indent=2, ensure_ascii=False)
-    print(f"wrote {src_dir}/{a.track}.obj, layout.json, cameras.ini, map.png, map.ini, outline.png, preview.png")
+    print(f"wrote {src_dir}/{a.track}.obj ({info['vertices']} vertices), layout.json, cameras.ini, map.png, map.ini, outline.png, preview.png")
     print(f"start/finish at station {layout['start_finish_index']}, pits on the {layout['pit_side']}, {a.grid} grid slots")
     if scenery is not None:
-        print(f"scenery: {layout['meta']['cones']} cones, {layout['meta']['buildings']} buildings, {layout['meta']['trees']} trees")
+        print(f"scenery: {layout['meta']['cones']} cones, {layout['meta']['buildings']} buildings, {layout['meta']['trees']} trees, "
+              f"road height range {surface.hc.min():.1f}..{surface.hc.max():.1f} m")
 
 
 if __name__ == "__main__":

@@ -39,5 +39,10 @@ if a.east_at:
     idx = np.where((P[:, 0] > x0) & (P[:, 0] < x1) & (P[:, 1] > y0))[0]
     if len(idx) > 2 and np.sum(np.diff(P[idx], axis=0)[:, 0]) < 0: P = P[::-1]
 sx, sy = map(float, a.start.split(",")); P = np.roll(P, -int(np.argmin(np.linalg.norm(P - [sx, sy], axis=1))), axis=0)
-json.dump({"pixels": P.tolist(), "image": a.image}, open(a.out, "w"))
+# yellow dots = cone chicanes; keep their centroids too
+yellow = (r > 190) & (g > 165) & (b < 115) & (r - b > 100)
+yl, yn = label(remove_small_objects(yellow, max_size=11))
+cones = [[float(c[1]), float(c[0])] for c in __import__("scipy.ndimage", fromlist=["center_of_mass"]).center_of_mass(yellow, yl, range(1, yn + 1))]
+json.dump({"pixels": P.tolist(), "image": a.image, "cones_px": cones}, open(a.out, "w"))
+print(f"{len(cones)} cone dots")
 print(f"{len(P)} points, perimeter {np.sum(np.linalg.norm(np.diff(np.vstack([P, P[:1]]), axis=0), axis=1)):.0f} px -> {a.out}")
