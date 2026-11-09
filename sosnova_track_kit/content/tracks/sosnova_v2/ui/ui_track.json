@@ -1,0 +1,26 @@
+{
+  "name": "Autodrom Sosnová v2.0 (event layout 14.11.2026)",
+  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic: the combined event layout of 14.11.2026 with the slalom points, driven anticlockwise from the start straight. Rebuilt from scratch in v2.0: outline and widths from the Czech state orthophoto (ČÚZK, 12.5 cm/px), heights from the DMR 5G lidar model, smooth resurfaced road, solid barriers, kerbs, pit complex, 16 grid slots and 16 pit boxes, AI line. Optional CSP grass and rain. Not affiliated with the circuit owner.",
+  "tags": [
+    "circuit",
+    "czech",
+    "sosnova",
+    "event layout",
+    "slalom",
+    "lidar",
+    "csp"
+  ],
+  "geotags": [
+    "50.65900",
+    "14.53906"
+  ],
+  "country": "Czech Republic",
+  "city": "Sosnová (Česká Lípa)",
+  "length": "1751",
+  "width": "7-10",
+  "pitboxes": "16",
+  "run": "anticlockwise",
+  "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
+  "version": "2.0",
+  "url": ""
+}

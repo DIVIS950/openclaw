@@ -1,7 +1,8 @@
 numpy>=1.26
-pillow>=10
+pillow>=10.1
 scipy>=1.11
-scikit-image>=0.22
 opencv-python-headless>=4.9
-# optional: lets you run tools/blender_build.py without installing Blender
+shapely>=2.0
+triangle>=20230923
+# only for tools/render.py (check renders)
 # bpy>=4.2

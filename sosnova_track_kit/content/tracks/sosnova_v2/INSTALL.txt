@@ -1,0 +1,27 @@
+AUTODROM SOSNOVA v2.0 for Assetto Corsa (event layout 14.11.2026)
+==================================================================
+
+INSTALL
+1. If you installed the old version, DELETE the old folder first:
+      ...\assettocorsa\content\tracks\sosnova
+2. Copy the whole folder "sosnova_v2" into:
+      ...\Steam\steamapps\common\assettocorsa\content\tracks\
+   so that this file exists:
+      ...\content\tracks\sosnova_v2\sosnova_v2.kn5
+   (With Content Manager you can also just drag the zip onto its window.)
+3. Start the game and pick the track "Autodrom Sosnova v2.0".
+
+WHAT YOU GET
+- Lap of 1751 m, driven anticlockwise. The grid is on the bottom straight and the cars face the first corner.
+- 16 grid slots, 16 pit boxes on the asphalt apron to the left of the start straight.
+- Smooth road with white edge lines, red/white kerbs, solid barriers where the lap crosses other asphalt,
+  one tyre stack on every slalom point of the event layout.
+- AI line (ai/fast_lane.ai), track map, trackside cameras.
+
+OPTIONAL
+- Custom Shaders Patch: adds 3D grass. Rain, wet grip and puddles need a CSP version with RainFX
+  and a weather script (Sol or Pure). Without CSP the track still works, in dry weather.
+
+DATA
+Outline, widths and heights come from the Czech state orthophoto and the DMR 5G lidar terrain model
+(CUZK, CC BY 4.0). Accuracy is about 0.25 m in plan and 0.2 m in height. Not affiliated with the circuit owner.

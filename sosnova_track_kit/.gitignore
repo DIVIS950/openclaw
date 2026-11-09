@@ -1,1 +1,7 @@
 source/cuzk/ortho.png
+source/cuzk_far/ortho.png
+source/work/*
+!source/work/centerline.json
+!source/work/build_summary.json
+source/previews_v2/
+__pycache__/

@@ -1,0 +1,185 @@
+"""Render check images from the built track exactly as shipped: the kn5 is read back and drawn with Cycles.
+
+Back faces are made invisible, like in the game, so a wrongly wound triangle shows up as a hole.
+Cameras sit at the driver's eye on the spawn dummies (looking along the dummy's +Z, the way the car will face)
+and along the AI line.   usage: python3 render.py [shot name ...]      output: source/previews_v2/*.png
+"""
+from __future__ import annotations
+
+import os
+import struct
+import sys
+import tempfile
+
+import bpy
+import numpy as np
+from mathutils import Matrix, Vector
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import kn5  # noqa: E402
+from common import OUT, SRC, TRACK  # noqa: E402
+
+PREV = os.path.join(SRC, "previews_v2")
+
+
+def to_bl(p):
+    """AC (x left, y up, z forward) -> Blender (x forward, y left, z up); a pure rotation."""
+    p = np.asarray(p, float)
+    return np.stack([p[..., 2], p[..., 0], p[..., 1]], -1)
+
+
+def load_scene():
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    scene = bpy.context.scene
+    k = kn5.read(os.path.join(OUT, f"{TRACK}.kn5"))
+    tmp = tempfile.mkdtemp(prefix="kn5tex_")
+    images = {}
+    for name, data in k["textures"]:
+        path = os.path.join(tmp, name)
+        open(path, "wb").write(data)
+        images[name] = bpy.data.images.load(path)
+    mats = []
+    for m in k["materials"]:
+        mat = bpy.data.materials.new(m["name"])
+        mat.use_nodes = True
+        nt = mat.node_tree
+        nt.nodes.clear()
+        out = nt.nodes.new("ShaderNodeOutputMaterial")
+        bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        bsdf.inputs["Roughness"].default_value = 0.85
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = images[m["maps"]["txDiffuse"]]
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        geo = nt.nodes.new("ShaderNodeNewGeometry")
+        transp = nt.nodes.new("ShaderNodeBsdfTransparent")
+        mix = nt.nodes.new("ShaderNodeMixShader")
+        nt.links.new(bsdf.outputs["BSDF"], mix.inputs[1])
+        nt.links.new(transp.outputs["BSDF"], mix.inputs[2])
+        if m["alpha_tested"]:
+            mix.inputs[0].default_value = 0.0        # billboards carry both windings; draw them two-sided
+            gt = nt.nodes.new("ShaderNodeMath")
+            gt.operation = "GREATER_THAN"
+            gt.inputs[1].default_value = 0.5
+            nt.links.new(tex.outputs["Alpha"], gt.inputs[0])
+            nt.links.new(gt.outputs[0], bsdf.inputs["Alpha"])
+        else:
+            nt.links.new(geo.outputs["Backfacing"], mix.inputs[0])
+        nt.links.new(mix.outputs[0], out.inputs["Surface"])
+        mats.append(mat)
+    dummies = {}
+    for n in k["nodes"]:
+        if n["cls"] == 1 and n["depth"] == 1:
+            dummies[n["name"]] = n["matrix"].astype(float)
+        if n["cls"] != 2:
+            continue
+        v = n["vertices"]
+        tris = n["indices"].reshape(-1, 3).astype(int)
+        me = bpy.data.meshes.new(n["name"])
+        me.from_pydata(to_bl(v["pos"]).tolist(), [], tris.tolist())
+        uv = v["uv"].astype(float).copy()
+        uv[:, 1] = 1.0 - uv[:, 1]
+        layer = me.uv_layers.new(name="uv")
+        layer.data.foreach_set("uv", uv[tris.ravel()].ravel())
+        me.polygons.foreach_set("use_smooth", [True] * len(tris))
+        me.normals_split_custom_set_from_vertices(to_bl(v["normal"]).tolist())
+        me.materials.append(mats[n["material"]])
+        ob = bpy.data.objects.new(n["name"], me)
+        scene.collection.objects.link(ob)
+    return scene, dummies
+
+
+def read_ai():
+    b = open(os.path.join(OUT, "ai", "fast_lane.ai"), "rb").read()
+    n = struct.unpack_from("<4i", b, 0)[1]
+    rec = np.frombuffer(b, np.dtype([("p", "<f4", 3), ("d", "<f4"), ("i", "<i4")]), n, 16)
+    return rec["p"].astype(float)
+
+
+def setup(scene):
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = 20
+    scene.cycles.max_bounces = 3
+    scene.cycles.transparent_max_bounces = 12
+    try:
+        scene.cycles.use_denoising = True
+    except Exception:
+        pass
+    scene.render.resolution_x, scene.render.resolution_y = 1280, 720
+    scene.view_settings.view_transform = "Standard"
+    world = bpy.data.worlds.new("sky")
+    scene.world = world
+    world.use_nodes = True
+    bg = world.node_tree.nodes["Background"]
+    bg.inputs[0].default_value = (0.50, 0.68, 0.95, 1.0)
+    bg.inputs[1].default_value = 1.1
+    sun = bpy.data.lights.new("sun", "SUN")
+    sun.energy = 3.6
+    sun.angle = np.radians(1.0)
+    so = bpy.data.objects.new("sun", sun)
+    scene.collection.objects.link(so)
+    # sun from the south-west, 45 degrees up (AC direction to the sun, converted)
+    to_sun = Vector(to_bl(np.array([0.45, 0.75, -0.48]))).normalized()
+    so.rotation_euler = to_sun.to_track_quat("Z", "Y").to_euler()
+    cam_data = bpy.data.cameras.new("cam")
+    cam_data.clip_start, cam_data.clip_end = 0.2, 6000
+    cam = bpy.data.objects.new("cam", cam_data)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    return cam
+
+
+def aim(cam, eye_ac, target_ac, fov_deg=75.0):
+    eye, tgt = Vector(to_bl(eye_ac)), Vector(to_bl(target_ac))
+    cam.location = eye
+    cam.rotation_euler = (tgt - eye).to_track_quat("-Z", "Y").to_euler()
+    cam.data.type = "PERSP"
+    cam.data.sensor_fit = "HORIZONTAL"
+    cam.data.angle = np.radians(fov_deg)
+
+
+def main() -> None:
+    os.makedirs(PREV, exist_ok=True)
+    wanted = set(sys.argv[1:])
+    scene, dummies = load_scene()
+    cam = setup(scene)
+    ai = read_ai()
+    n = len(ai)
+    up = np.array([0.0, 1.0, 0.0])
+    shots = []
+    for name in ("AC_START_0", "AC_START_15", "AC_PIT_0", "AC_PIT_8", "AC_HOTLAP_START_0"):
+        m = dummies[name]
+        eye = m[3, :3] + up * 1.05
+        shots.append((name.lower(), eye, eye + m[2, :3] * 30 - up * 1.5, 75))
+    for st in (60, 130, 215, 320, 400, 480, 570, 650, 750, 860, 925, 1000, 1150, 1300, 1450, 1560, 1640):
+        i = int(st / 1751 * n) % n
+        j = (i + 14) % n
+        d = ai[j] - ai[i]
+        d /= np.linalg.norm(d)
+        shots.append((f"lap_{st:04d}", ai[i] + up * 1.05 - d * 0.5, ai[j] + up * 0.5, 75))
+    shots.append(("chase_grid", np.array([0.0, 7.0, -92.0]), np.array([0.0, 0.0, -20.0]), 60))
+    shots.append(("overview", np.array([-420.0, 330.0, -250.0]), np.array([20.0, 0.0, 60.0]), 55))
+    for name, eye, tgt, fov in shots:
+        if wanted and name not in wanted:
+            continue
+        aim(cam, eye, tgt, fov)
+        scene.render.filepath = os.path.join(PREV, name + ".png")
+        bpy.ops.render.render(write_still=True)
+        print("rendered", name, flush=True)
+        if name == "chase_grid":                     # also used as the picture in the track selection menu
+            from PIL import Image
+            Image.open(scene.render.filepath).convert("RGB").resize((355, 200), Image.LANCZOS).save(os.path.join(OUT, "ui", "preview.png"))
+    if not wanted or "top" in wanted:
+        cam.data.type = "ORTHO"
+        cam.data.ortho_scale = 720
+        cam.location = Vector(to_bl(np.array([0.0, 900.0, 60.0])))
+        # looking straight down with +Z (the start direction) up the picture and +X (driver's left) to the left
+        cam.rotation_euler = Matrix(((0, -1, 0), (1, 0, 0), (0, 0, 1))).to_euler()
+        scene.render.resolution_x, scene.render.resolution_y = 1400, 1400
+        scene.render.filepath = os.path.join(PREV, "top.png")
+        bpy.ops.render.render(write_still=True)
+        print("rendered top", flush=True)
+
+
+if __name__ == "__main__":
+    main()
