@@ -7,6 +7,15 @@ d 1
 illum 2
 map_Kd texture/road.png
 
+newmtl roadlow
+Ka 0.2 0.2 0.2
+Kd 0.33 0.33 0.34
+Ks 0.05 0.05 0.05
+Ns 10
+d 1
+illum 2
+map_Kd texture/road_low.png
+
 newmtl kerb
 Ka 0.2 0.2 0.2
 Kd 0.8 0.2 0.2

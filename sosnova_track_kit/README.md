@@ -56,6 +56,34 @@ The lap is delimited the way a Saturday race day would be set up, without changi
 
 Still approximate: placeholder textures for kerbs, cones, walls and trees, box buildings, billboard trees.
 
+## Weather, rain and puddles (version 1.0)
+
+Weather is not stored in a track in Assetto Corsa; you pick it in Content Manager. For rain you need
+**Custom Shaders Patch** (CSP, free, from Content Manager → Settings → Custom Shaders Patch, use a 0.2.x build) and a
+weather plugin: **Sol** (free) or **Pure** (Patreon). Then in Content Manager → Drive → Weather choose for example
+Clear, Few clouds, Scattered clouds / Overcast, Light rain, Rain, Heavy rain (Sol and Pure also have
+Thunderstorm and time of day). This track is prepared for all of them:
+
+- `extension/ext_config.ini` enables **RainFX**: all asphalt, kerbs, barriers and tyres get wet and reflective,
+  grip drops with the amount of rain (CSP does this automatically), rain streaks on the start/finish stripe.
+- **Puddles form in the real hollows of the surface**: the lowest 12 percent of the asphalt triangles by relative
+  height in the LiDAR terrain are a separate material (`roadlow`, objects `1ROAD_track_low_nn`, about 3300 triangles)
+  and only that material is listed as the puddle material. Light rain shows a few small puddles, heavy rain fills them.
+- **GrassFX** grows 3D grass on the grass and photo-textured ground around the circuit.
+- Sun position follows the real coordinates in `ui_track.json` (geotags), so morning and evening light are correct.
+
+Off-track physics (`data/surfaces.ini`): grass has 58 percent of asphalt grip with sinking and dirt pick-up,
+gravel run-off 70 percent with heavy rolling resistance, so a car slides and bogs down when it leaves the asphalt.
+Kerbs exist only on the main circuit (wider than 9.5 m), not in the handling loops, like on the real track.
+
+## Testing
+
+`python tools/validate_track.py` runs the checks that are possible without the game: mesh integrity and vertex
+limits, every physical object has a surface, textures exist, start slots and pit boxes are on real asphalt and do
+not overlap, timing lines span the road, the lap line lies inside the asphalt, cameras and map are valid, the
+RainFX materials exist. The in-game part (drive a lap, record the AI line, check the cars face forward) is yours;
+steps 5 to 7 below.
+
 ## What is in the kit
 
 ```
@@ -72,6 +100,7 @@ sosnova_track_kit/
     roadmesh.py                 asphalt outline -> polygons with holes -> constrained Delaunay triangles (Triangle)
     furniture.py                tape on posts, plastic barriers, tyre stacks, start gantry, realistic asphalt texture
     render_tour.py              renders source/previews/*.png (driver-eye views around the lap + overview)
+    validate_track.py           automated checks of mesh, naming, layout and configs (see Testing)
     blender_build.py            OBJ + layout.json -> Blender scene (.blend) and FBX for ksEditor
     render_check.py             renders source/preview_*.png from the .blend
     fetch_osm.py / georef_route.py   older OpenStreetMap / fixed-scale path (not needed now)
@@ -99,7 +128,7 @@ Physical objects start with a digit and the surface key from `surfaces.ini`. Obj
 
 | Object | What it is |
 |---|---|
-| `1ROAD_track_nn` | the whole paved area as triangles (about 27k) on LiDAR heights, 3 m² max triangle |
+| `1ROAD_track_nn`, `1ROAD_track_low_nn` | the whole paved area as triangles (about 27k) on LiDAR heights; `_low_` = hollows where puddles form |
 | `1KERB_L`, `1KERB_R` | 1.2 m kerbs on the inside of corners tighter than 60 m radius, 4 cm high |
 | `1ROAD_paddock`, `1SAND_runoff`, `1GRASS_ground` | terrain grid (2 m cells) on LiDAR heights, surface type classified from the photo |
 | `1GRASS_outer` | plain grass ring 120 m around the photo |
@@ -151,7 +180,8 @@ With `pip install bpy` the same script runs from the command line.
 
 1. **File → Open** → `source/sosnova.fbx`. Textures load from `source/texture/`.
 2. Scale check: the site is about 640 m across. If it is 100x off, re-export with Apply Scalings = FBX All.
-3. Materials: `tree` → shader `ksTree` (or `ksPerPixelAT`) so the alpha cuts out the trees; everything else `ksPerPixel`.
+3. Materials: `tree` → shader `ksTree` (or `ksPerPixelAT`), `tape` → `ksPerPixelAT` (alpha cut-out); everything else `ksPerPixel`.
+   (With CSP installed `ext_config.ini` sets these shaders anyway.)
    Nothing may be pink (missing texture). `aerial.png` is 4096 x 3712 px; if ksEditor refuses it, resize to 4096 x 2048.
 4. **File → Save KN5** → `content/tracks/sosnova/sosnova.kn5` (same name as the folder).
 5. **File → Save persistence** next to the FBX to keep the material settings for the next export.

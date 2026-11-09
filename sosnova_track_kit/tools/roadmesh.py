@@ -4,6 +4,8 @@ follows the LiDAR terrain. The result is the whole paved area of the site as dri
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import triangle as tr
 from scipy import ndimage as ndi
@@ -107,20 +109,32 @@ def triangulate(geom: MultiPolygon, max_area_m2: float = 3.0, min_angle: float =
     return np.vstack(all_v), np.vstack(all_t)
 
 
-def add_road_polygons(obj, aerial, geom: MultiPolygon, height_fn, name: str = "1ROAD_track", uv_scale: float = 8.0, max_area_m2: float = 3.0) -> int:
-    """Write the triangulated asphalt as AC road objects (chunked under the 65k vertex limit)."""
+def add_road_polygons(obj, aerial, geom: MultiPolygon, height_fn, name: str = "1ROAD_track", uv_scale: float = 8.0, max_area_m2: float = 3.0,
+                      low_fraction: float = 0.12) -> dict:
+    """Write the triangulated asphalt as AC road objects (chunked under the 65k vertex limit).
+    Triangles in local hollows of the LiDAR surface (the lowest `low_fraction` by relative height) get the
+    material `roadlow`, listed as the puddle material for CSP RainFX: rain collects where water really would."""
     V, T = triangulate(geom, max_area_m2)
     H = height_fn(V)
-    chunk = 20000  # triangles per object
-    count = 0
-    for c in range(0, len(T), chunk):
-        tris = T[c:c + chunk]
-        used = np.unique(tris)
-        remap = {int(u): obj.add_vertex((V[u, 0], H[u], -V[u, 1]), (V[u, 0] / uv_scale, V[u, 1] / uv_scale)) for u in used}
-        faces = []
-        for a, b, cc in tris:
-            # triangle gives CCW in (east, north) => normal up in AC space
-            faces.append((remap[int(a)], remap[int(b)], remap[int(cc)]))
-        obj.add_faces(f"{name}_{count:02d}", "road", faces)
-        count += 1
-    return len(T)
+    # relative height: vertex height minus the mean of the terrain within ~10 m (sampled on a ring)
+    ring = np.array([[math.cos(a), math.sin(a)] for a in np.linspace(0, 2 * math.pi, 12, endpoint=False)]) * 10.0
+    local = np.mean([height_fn(V + r) for r in ring], axis=0)
+    rel = H - local
+    cen = rel[T].mean(axis=1)
+    thresh = np.percentile(cen, low_fraction * 100)
+    low = cen <= min(thresh, -0.015)  # at least 1.5 cm below the surroundings
+    chunk = 20000
+    out = {"triangles": len(T), "low_triangles": int(low.sum()), "objects": 0}
+    for mat, sel in (("road", ~low), ("roadlow", low)):
+        tri_sel = T[sel]
+        count = 0
+        for c in range(0, len(tri_sel), chunk):
+            tris = tri_sel[c:c + chunk]
+            used = np.unique(tris)
+            remap = {int(u): obj.add_vertex((V[u, 0], H[u], -V[u, 1]), (V[u, 0] / uv_scale, V[u, 1] / uv_scale)) for u in used}
+            faces = [(remap[int(a)], remap[int(b)], remap[int(cc)]) for a, b, cc in tris]  # CCW (east, north) => up
+            suffix = "" if mat == "road" else "_low"
+            obj.add_faces(f"{name}{suffix}_{count:02d}", mat, faces)
+            count += 1
+            out["objects"] += 1
+    return out

@@ -131,6 +131,7 @@ class Obj:
 
 MATERIALS = {
     "road": ("texture/road.png", (0.35, 0.35, 0.36)),
+    "roadlow": ("texture/road_low.png", (0.33, 0.33, 0.34)),
     "kerb": ("texture/kerb.png", (0.8, 0.2, 0.2)),
     "grass": ("texture/grass.png", (0.25, 0.45, 0.15)),
     "ground": ("texture/ground.png", (0.3, 0.4, 0.2)),
@@ -241,9 +242,12 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
         from roadmesh import asphalt_geometry, add_road_polygons, rasterize
         geom = asphalt_geometry(scenery, center)
         road_mask = rasterize(scenery, geom)
+        info["geom"] = geom
         info["asphalt_m2"] = float(geom.area)
-        info["road_triangles"] = add_road_polygons(obj, scenery, geom, scenery.height)
-        print(f"asphalt polygons: {len(geom.geoms)} areas, {geom.area:.0f} m2, {info['road_triangles']} triangles")
+        rp = add_road_polygons(obj, scenery, geom, scenery.height)
+        info["road_triangles"] = rp["triangles"]
+        info["puddle_triangles"] = rp["low_triangles"]
+        print(f"asphalt polygons: {len(geom.geoms)} areas, {geom.area:.0f} m2, {rp['triangles']} triangles, {rp['low_triangles']} in hollows (puddle zones)")
     else:
         # ---- road ribbon: 7 vertices across, UV v along length (1 tile per 8 m)
         rows = []
@@ -273,8 +277,10 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
     corner_grown = corner.copy()
     for g in range(1, grow + 1):
         corner_grown |= np.roll(corner, g) | np.roll(corner, -g)
-    kerb_left = corner_grown & (curv_s > 0)
-    kerb_right = corner_grown & (curv_s < 0)
+    # kerbs exist on the main circuit (wide, > 9.5 m incl. run-off) but not in the narrow handling loops
+    wide = smooth_profile((wl + wr).astype(float), max(10.0 / step, 1)) > 9.5
+    kerb_left = corner_grown & (curv_s > 0) & wide
+    kerb_right = corner_grown & (curv_s < 0) & wide
     for arr in (kerb_left, kerb_right):
         for g in (1, 2):
             arr |= np.roll(arr, g) & np.roll(arr, -g)
@@ -391,7 +397,8 @@ def build_layout(center: np.ndarray, grid: int, pit_side_right: bool, wl: np.nda
     def pose(i: int, lateral: float) -> dict:
         p = center[i] + left[i] * lateral
         heading = math.degrees(math.atan2(t[i][1], t[i][0]))  # 0 = east, CCW positive (Blender convention)
-        return {"pos_ac": [float(p[0]), surface.at(i, lateral), float(-p[1])], "dir_en": [float(t[i][0]), float(t[i][1])], "heading_deg_blender": heading}
+        return {"pos_ac": [float(p[0]), surface.at(i, lateral), float(-p[1])], "dir_en": [float(t[i][0]), float(t[i][1])], "heading_deg_blender": heading,
+                "station": int(i), "lateral": float(lateral)}
 
     layout: dict = {"AC_START": [], "AC_PIT": [], "AC_TIME": [], "AC_HOTLAP_START": [], "AC_CREW": []}
     for k in range(grid):
@@ -414,6 +421,47 @@ def build_layout(center: np.ndarray, grid: int, pit_side_right: bool, wl: np.nda
     layout["start_finish_index"] = int(sf)
     layout["pit_side"] = "right" if pit_side_right else "left"
     return layout
+
+
+def snap_pits_to_asphalt(layout: dict, center: np.ndarray, left: np.ndarray, wl: np.ndarray, wr: np.ndarray, surface, geom, step: float) -> None:
+    """Move pit boxes (and their crew) so every box stands on real asphalt beside the lap, at least 1.2 m
+    from the asphalt edge and 5.5 m from the other boxes; slide forward along the lap if needed."""
+    from shapely.geometry import Point
+    inner = geom.buffer(-1.2)
+    n = len(center)
+    t = np.roll(center, -1, axis=0) - np.roll(center, 1, axis=0)
+    t /= np.linalg.norm(t, axis=1)[:, None]
+    placed: list[np.ndarray] = []
+    moved = 0
+    for k, (pit, crew) in enumerate(zip(layout["AC_PIT"], layout["AC_CREW"])):
+        i0, lat0 = pit["station"], pit["lateral"]
+        sign = 1.0 if lat0 >= 0 else -1.0
+        w = wl if sign > 0 else wr
+        best = None
+        for di in range(0, int(120 / step)):
+            i = (i0 + di) % n
+            for extra in (5.2, 4.4, 3.6, 2.8, 2.2):
+                lat = sign * (w[i] + extra)
+                p = center[i] + left[i] * lat
+                if not inner.contains(Point(p[0], p[1])):
+                    continue
+                if any(np.linalg.norm(p - q) < 5.5 for q in placed):
+                    continue
+                best = (i, lat, p)
+                break
+            if best:
+                break
+        if best is None:
+            continue
+        i, lat, p = best
+        placed.append(p)
+        if i != i0 or abs(lat - lat0) > 1e-6:
+            moved += 1
+        heading = math.degrees(math.atan2(t[i][1], t[i][0]))
+        pit.update({"pos_ac": [float(p[0]), surface.at(i, lat), float(-p[1])], "dir_en": [float(t[i][0]), float(t[i][1])], "heading_deg_blender": heading, "station": int(i), "lateral": float(lat)})
+        pc = center[i] + left[i] * (lat + sign * 4.0)
+        crew.update({"pos_ac": [float(pc[0]), surface.at(i, lat + sign * 4.0), float(-pc[1])], "dir_en": pit["dir_en"], "heading_deg_blender": heading, "station": int(i), "lateral": float(lat + sign * 4.0)})
+    print(f"pit boxes: {moved} moved onto asphalt, {len(placed)} of {len(layout['AC_PIT'])} placed")
 
 
 # ----------------------------------------------------------------------------- cameras, map, ui images
@@ -552,6 +600,8 @@ def main() -> None:
 
     layout = build_layout(en, a.grid, not a.pit_left, wl, wr, surface, sf_point)
     info = build_mesh(en, wl, wr, src_dir, a.track, scenery, surface, layout["start_finish_index"], cones_en, not a.pit_left, a.grid)
+    if "geom" in info:
+        snap_pits_to_asphalt(layout, en, left_, wl, wr, surface, info.pop("geom"), a.step)
     layout["meta"] = {"track": a.track, "length_m": round(length), "width_m": float(np.mean(wl + wr)), "geotag": [lat0, lon0],
                       "stations": len(en), "kerb_segments": [info["kerb_left"], info["kerb_right"]], "cones": len(info.get("cones", [])),
                       "buildings": info.get("buildings", 0), "trees": info.get("trees", 0), "vertices": info["vertices"],

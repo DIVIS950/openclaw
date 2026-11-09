@@ -274,6 +274,7 @@ def make_asphalt_texture(path: str, size: int = 2048, seed: int = 7, base_tone: 
 def make_furniture_textures(folder: str) -> None:
     os.makedirs(folder, exist_ok=True)
     make_asphalt_texture(os.path.join(folder, "road.png"))
+    make_asphalt_texture(os.path.join(folder, "road_low.png"), seed=7, base_tone=0.47)  # hollows: same grain, a touch darker
     # tape: transparent wall, red/white tape band in the top 15 %
     tape = Image.new("RGBA", (512, 256), (0, 0, 0, 0))
     d = ImageDraw.Draw(tape)
