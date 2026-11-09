@@ -37,6 +37,25 @@ Millimetre accuracy is not possible from any aerial source; that needs a terrest
 4. Nahraj AI linii (krok 7 níže), jinak nepojedou AI soupeři.
 5. Chceš něco změnit? `run_pipeline.bat` stáhne ortofoto + výšky z ČÚZK a vše vygeneruje znovu (potřebuje Python a internet).
 
+## Track furniture (version 5)
+
+The lap is delimited the way a Saturday race day would be set up, without changing the circuit itself:
+
+- **Barrier tape on posts** (`1WALL_tape_nnn`, `POST_nnnn`): wherever the asphalt continues past the lap edge for
+  more than about 24 m (paddock side, the wide connecting areas). The tape wall is collidable from 0.3 to 1.0 m,
+  the texture shows only the red/white tape band, posts every 4 m.
+- **Plastic barriers** (`1WALL_barrier_nnn`): red/white 1.0 x 0.5 x 0.8 m blocks nose to tail across the shorter
+  junction mouths where side roads join the lap.
+- **Tyre stacks** (`AC_POBJECT_TYRES_nn`): three-tyre stacks at the 33 chicane points of the event layout,
+  movable physics objects (replace the cones of earlier versions).
+- **Start/finish gantry** (`1WALL_gantry_postL/R`, `GANTRY_beam`, `GANTRY_banner_A/B`): 6 m high over the
+  start line with a START / FINISH banner. Timing lines: `AC_TIME_0` at the gantry, sectors at 1/3 and 2/3.
+- The pit side of the start straight (first 110 m after the line, paddock side) stays open so cars can leave the pits.
+- **Asphalt texture**: 2048 px tiling texture (one tile = 8 m) with aggregate grain, mild tone variation, faint
+  worn bands and stone speckles. Replace `source/texture/road.png` with a photo texture if you have one.
+
+Still approximate: placeholder textures for kerbs, cones, walls and trees, box buildings, billboard trees.
+
 ## What is in the kit
 
 ```
@@ -51,6 +70,8 @@ sosnova_track_kit/
     build_track.py              centerline + orthophoto + heights -> OBJ mesh, textures, layout.json, cameras, map, ui images
     scenery.py                  terrain sampler, ground zones, road edges, cones, buildings, trees
     roadmesh.py                 asphalt outline -> polygons with holes -> constrained Delaunay triangles (Triangle)
+    furniture.py                tape on posts, plastic barriers, tyre stacks, start gantry, realistic asphalt texture
+    render_tour.py              renders source/previews/*.png (driver-eye views around the lap + overview)
     blender_build.py            OBJ + layout.json -> Blender scene (.blend) and FBX for ksEditor
     render_check.py             renders source/preview_*.png from the .blend
     fetch_osm.py / georef_route.py   older OpenStreetMap / fixed-scale path (not needed now)
@@ -84,7 +105,9 @@ Physical objects start with a digit and the surface key from `surfaces.ini`. Obj
 | `1GRASS_outer` | plain grass ring 120 m around the photo |
 | `1WALL_perimeter_0..3` | 2 m walls around the whole area |
 | `1WALL_building_n`, `ROOF_building_n` | 19 buildings extruded from their roofs (walls collidable) |
-| `AC_POBJECT_CONE_n` | 33 movable cones at the chicanes |
+| `AC_POBJECT_TYRES_nn` | 33 movable tyre stacks at the chicanes |
+| `1WALL_tape_nnn`, `POST_nnnn`, `1WALL_barrier_nnn` | lap delimiters (see Track furniture) |
+| `1WALL_gantry_*`, `GANTRY_*` | start/finish gantry with banner |
 | `TREES_nn` | tree billboards (two crossed planes, alpha texture) |
 | `LINE_startfinish` | start/finish stripe (visual) |
 | `AC_START_0..15`, `AC_PIT_0..15`, `AC_CREW_0..15` | grid (2 columns, 8 m rows), pit boxes beside the start straight (north side), crew |
@@ -119,7 +142,7 @@ With `pip install bpy` the same script runs from the command line.
 ### 3. Optional: improve the track in Blender
 
 - Replace the placeholder textures in `source/texture/` (keep the file names) with real tiling textures.
-- Tyre walls / guard rails / chicane tyre stacks are the planned next step (as `1WALL_*` and `AC_POBJECT_*` meshes).
+- Guard rails and tyre walls of the permanent circuit (west side of the main loop) are not modelled yet.
 - Real pit lane: the pit boxes sit on the paddock asphalt north of the start straight; add `1ROAD_pitlane` and a
   `PIT` surface with `IS_PITLANE=1` if you want pit speed limits.
 - Re-export with Forward `-Z`, Up `Y`, Apply Scalings `FBX All`, Apply Transform on (what the script uses).

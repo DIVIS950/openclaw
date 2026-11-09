@@ -1,6 +1,6 @@
 {
   "name": "Autodrom Sosnová - 14.11.2026 layout",
-  "description": "Autodrom Sosnová (Česká Lípa, Czech Republic), special combined layout used for the 14.11.2026 event: main circuit, top chicane section, Sosnová Classic hairpin, Driving Camp handling loops and the start straight. Geometry from the Czech state orthophoto (ČÚZK, 12.5 cm/px) and LiDAR terrain (DMR 5G): real road edges, real elevation, paddock, gravel, buildings, trees and cone chicanes at their true positions. Not affiliated with the circuit owner.",
+  "description": "Autodrom Sosnová (Česká Lípa, Czech Republic), special combined layout used for the 14.11.2026 event: main circuit, top chicane section, Sosnová Classic hairpin, Driving Camp handling loops and the start straight. Geometry from the Czech state orthophoto (ČÚZK, 12.5 cm/px) and LiDAR terrain (DMR 5G): real road edges, real elevation, paddock, gravel, buildings, trees and tyre-stack chicanes at their true positions, lap delimited with barrier tape, plastic barriers and a start/finish gantry as on a race day. Not affiliated with the circuit owner.",
   "tags": [
     "circuit",
     "czech",
@@ -20,6 +20,6 @@
   "pitboxes": "16",
   "run": "clockwise",
   "author": "Starter kit (ČÚZK Ortofoto + DMR 5G, CC BY 4.0)",
-  "version": "0.3",
+  "version": "0.5",
   "url": ""
 }

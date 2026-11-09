@@ -85,7 +85,7 @@ def fix_materials() -> None:
         tex = next((n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE"), None)
         if bsdf and tex and not bsdf.inputs["Base Color"].is_linked:
             mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
-        if bsdf and tex and mat.name.startswith("tree"):
+        if bsdf and tex and (mat.name.startswith("tree") or mat.name.startswith("tape")):
             # tree billboards: PNG alpha drives transparency (in ksEditor use ksTree or ksPerPixelAT)
             if not bsdf.inputs["Alpha"].is_linked:
                 mat.node_tree.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])

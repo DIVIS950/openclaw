@@ -140,13 +140,19 @@ MATERIALS = {
     "cone": ("texture/cone.png", (0.9, 0.35, 0.1)),
     "building": ("texture/building.png", (0.75, 0.74, 0.72)),
     "tree": ("texture/tree.png", (0.2, 0.4, 0.15)),
+    "tape": ("texture/tape.png", (0.9, 0.2, 0.2)),
+    "post": ("texture/post.png", (0.9, 0.9, 0.9)),
+    "barrier": ("texture/barrier.png", (0.85, 0.15, 0.12)),
+    "tyre": ("texture/tyre.png", (0.12, 0.12, 0.12)),
+    "gantry": ("texture/gantry.png", (0.28, 0.28, 0.3)),
+    "banner": ("texture/banner.png", (0.8, 0.1, 0.1)),
 }
 
 
 def write_mtl(path: str) -> None:
     with open(path, "w") as f:
         for name, (tex, kd) in MATERIALS.items():
-            alpha = f"map_d {tex}\n" if name == "tree" else ""
+            alpha = f"map_d {tex}\n" if name in ("tree", "tape") else ""
             f.write(f"newmtl {name}\nKa 0.2 0.2 0.2\nKd {kd[0]} {kd[1]} {kd[2]}\nKs 0.05 0.05 0.05\nNs 10\nd 1\nillum 2\nmap_Kd {tex}\n{alpha}\n")
 
 
@@ -208,7 +214,7 @@ class Surface:
 
 # ----------------------------------------------------------------------------- mesh building
 def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str, track: str, scenery, surface: Surface,
-               sf_index: int, cones_en: np.ndarray | None) -> dict:
+               sf_index: int, cones_en: np.ndarray | None, pit_side_right: bool = False, grid: int = 16) -> dict:
     t, left, curv = frames(center)
     n = len(center)
     kerb_w = 1.2
@@ -307,7 +313,19 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
             return m
         scenery.ground(obj, cell_m=2.0, surface=None if polygon_road else surface.blend, near_track=band_mask(30.0), skip_mask=road_mask)
         scenery.outer_ring(obj, margin_m=120.0)
-        info["cones"] = scenery.cones(obj, cones_en, surface=lambda en: (surface.nearest(en)[2], None))
+        if polygon_road:
+            # chicanes: tyre stacks instead of cones; lap delimited with tape/barriers where asphalt stays open
+            from furniture import add_delimiters, add_gantry, add_tyre_stacks, open_edges
+            info["tyre_stacks"] = add_tyre_stacks(obj, cones_en, scenery.height) if cones_en is not None else 0
+            info["cones"] = []
+            pit_len = int(round((10.0 + grid * 6.0 + 8.0) / step))
+            skip = {"side": "right" if pit_side_right else "left", "range": ((sf_index - int(4 / step)) % n, (sf_index + pit_len) % n)}
+            fl, fr = open_edges(scenery, center, left, wl, wr, skip=skip)
+            info["delimiters"] = add_delimiters(obj, center, left, wl, wr, scenery.height, fl, fr, step)
+            add_gantry(obj, center, left, wl, wr, scenery.height, sf_index, step)
+            print(f"delimiters: {info['delimiters']['tape_m']:.0f} m of tape, {info['delimiters']['posts']} posts, {info['delimiters']['barriers']} barriers; {info['tyre_stacks']} tyre stacks")
+        else:
+            info["cones"] = scenery.cones(obj, cones_en, surface=lambda en: (surface.nearest(en)[2], None))
         info["buildings"] = scenery.buildings(obj, exclude_px=band_mask(max(wl.max(), wr.max()) + 10.0))
         info["trees"] = scenery.trees(obj, exclude_px=band_mask(max(wl.max(), wr.max()) + 6.0))
         from scenery import make_scenery_textures
@@ -333,6 +351,8 @@ def build_mesh(center: np.ndarray, wl: np.ndarray, wr: np.ndarray, out_dir: str,
     obj.write(os.path.join(out_dir, f"{track}.obj"), f"{track}.mtl")
     write_mtl(os.path.join(out_dir, f"{track}.mtl"))
     make_textures(os.path.join(out_dir, "texture"))
+    from furniture import make_furniture_textures
+    make_furniture_textures(os.path.join(out_dir, "texture"))  # also writes the realistic road.png
     info["vertices"] = len(obj.v)
     return info
 
@@ -529,10 +549,11 @@ def main() -> None:
     surface = Surface(en, left_, wl, wr, height_fn, a.step, smooth_m=0.0 if polygon_road else 8.0)
 
     layout = build_layout(en, a.grid, not a.pit_left, wl, wr, surface, sf_point)
-    info = build_mesh(en, wl, wr, src_dir, a.track, scenery, surface, layout["start_finish_index"], cones_en)
+    info = build_mesh(en, wl, wr, src_dir, a.track, scenery, surface, layout["start_finish_index"], cones_en, not a.pit_left, a.grid)
     layout["meta"] = {"track": a.track, "length_m": round(length), "width_m": float(np.mean(wl + wr)), "geotag": [lat0, lon0],
                       "stations": len(en), "kerb_segments": [info["kerb_left"], info["kerb_right"]], "cones": len(info.get("cones", [])),
                       "buildings": info.get("buildings", 0), "trees": info.get("trees", 0), "vertices": info["vertices"],
+                      "tyre_stacks": info.get("tyre_stacks", 0), "delimiters": info.get("delimiters", {}),
                       "height_range_m": [float(surface.hc.min()), float(surface.hc.max())]}
     with open(os.path.join(src_dir, "layout.json"), "w") as f:
         json.dump(layout, f, indent=1)

@@ -693,10 +693,16 @@
    528,
    339
   ],
-  "cones": 33,
+  "cones": 0,
   "buildings": 19,
   "trees": 439,
-  "vertices": 136044,
+  "vertices": 140223,
+  "tyre_stacks": 33,
+  "delimiters": {
+   "tape_m": 420.02324963957085,
+   "posts": 109,
+   "barriers": 221
+  },
   "height_range_m": [
    -2.3698213388847478,
    0.46849920197465167
