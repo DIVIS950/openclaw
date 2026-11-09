@@ -172,7 +172,10 @@ class Aerial:
             img = img.resize((img.width * 2, img.height * 2), Image.LANCZOS).filter(ImageFilter.UnsharpMask(1.5, 60, 2))
         elif img.width > max_width:
             img = img.resize((max_width, int(img.height * max_width / img.width)), Image.LANCZOS)
-        img.save(out_path)
+        if out_path.lower().endswith((".jpg", ".jpeg")):
+            img.convert("RGB").save(out_path, quality=92, subsampling=0)
+        else:
+            img.save(out_path)
 
     # --- road edges -----------------------------------------------------------------------
     def road_edges(self, center_en: np.ndarray, left_en: np.ndarray, min_m: float = 2.5, max_m: float = 14.0) -> tuple[np.ndarray, np.ndarray]:

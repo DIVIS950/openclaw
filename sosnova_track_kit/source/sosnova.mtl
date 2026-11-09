@@ -68,7 +68,7 @@ Ks 0.05 0.05 0.05
 Ns 10
 d 1
 illum 2
-map_Kd texture/aerial.png
+map_Kd texture/aerial.jpg
 
 newmtl cone
 Ka 0.2 0.2 0.2

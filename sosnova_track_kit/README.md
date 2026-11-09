@@ -110,7 +110,7 @@ sosnova_track_kit/
                                 (ortho.png, 46 MB, is not shipped; fetch_cuzk.py downloads it in 2 minutes)
     centerline.json             route in lat/lon, exact scale
     sosnova.obj / .mtl          generated mesh with Assetto Corsa object names
-    texture/*.png               aerial.png (ground photo, 4096 px) + placeholder textures
+    texture/*.png               aerial.jpg (ground photo, 4096 px) + placeholder textures
     layout.json                 start grid, pit boxes, timing lines, hotlap start with heights (AC coordinates)
     sosnova.blend / sosnova.fbx Blender scene and the FBX to load in ksEditor
     preview_top/drive/overview.png   render checks
@@ -182,7 +182,7 @@ With `pip install bpy` the same script runs from the command line.
 2. Scale check: the site is about 640 m across. If it is 100x off, re-export with Apply Scalings = FBX All.
 3. Materials: `tree` → shader `ksTree` (or `ksPerPixelAT`), `tape` → `ksPerPixelAT` (alpha cut-out); everything else `ksPerPixel`.
    (With CSP installed `ext_config.ini` sets these shaders anyway.)
-   Nothing may be pink (missing texture). `aerial.png` is 4096 x 3712 px; if ksEditor refuses it, resize to 4096 x 2048.
+   Nothing may be pink (missing texture). `aerial.jpg` is 4096 x 3712 px; if ksEditor refuses it, resize to 4096 x 2048.
 4. **File → Save KN5** → `content/tracks/sosnova/sosnova.kn5` (same name as the folder).
 5. **File → Save persistence** next to the FBX to keep the material settings for the next export.
 

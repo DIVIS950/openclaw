@@ -137,7 +137,7 @@ MATERIALS = {
     "ground": ("texture/ground.png", (0.3, 0.4, 0.2)),
     "line": ("texture/line.png", (1.0, 1.0, 1.0)),
     "wall": ("texture/wall.png", (0.6, 0.6, 0.6)),
-    "aerial": ("texture/aerial.png", (0.5, 0.5, 0.4)),
+    "aerial": ("texture/aerial.jpg", (0.5, 0.5, 0.4)),
     "cone": ("texture/cone.png", (0.9, 0.35, 0.1)),
     "building": ("texture/building.png", (0.75, 0.74, 0.72)),
     "tree": ("texture/tree.png", (0.2, 0.4, 0.15)),
@@ -545,7 +545,7 @@ def main() -> None:
         origin = tuple(meta["center"])
         scenery = Aerial(os.path.join(src_dir, "cuzk", "ortho.png"), meta["gsd"], origin[0], origin[1], has_overlays=False)
         scenery.terrain = Terrain(os.path.join(src_dir, "cuzk", "dem.tif"), tuple(meta["half_m"]), meta["dem_gsd"])
-        scenery.clean_texture(os.path.join(src_dir, "texture", "aerial.png"))
+        scenery.clean_texture(os.path.join(src_dir, "texture", "aerial.jpg"))
         ro = os.path.join(src_dir, "cuzk", "route_ortho.json")
         if os.path.exists(ro):
             rr = json.load(open(ro))
