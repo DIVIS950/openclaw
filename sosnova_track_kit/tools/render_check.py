@@ -49,4 +49,11 @@ if sf and start:
     cam.rotation_euler = (look - cam.location).to_track_quat("-Z", "Y").to_euler()
     scene.render.filepath = os.path.join(SRC, "preview_drive.png")
     bpy.ops.render.render(write_still=True)
+# high view over the start straight looking across the handling loops
+cam_data.type = "PERSP"; cam_data.lens = 24
+cam.location = Vector((centre.x - 40, centre.y - 260, 70))
+look = Vector((centre.x + 60, centre.y - 40, 0))
+cam.rotation_euler = (look - cam.location).to_track_quat("-Z", "Y").to_euler()
+scene.render.filepath = os.path.join(SRC, "preview_overview.png")
+bpy.ops.render.render(write_still=True)
 print("rendered")
