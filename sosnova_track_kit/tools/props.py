@@ -86,8 +86,8 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt) -> dict:
         nrm = np.column_stack([-d[:, 1], d[:, 0]])
         half, h = line.get("width", 0.7) / 2, line.get("height", 0.9)
         g = tr.H.ground(q)
-        u = np.linspace(0, s[-1], m) / 2.6
-        name = f"1WALL_tyres{k // 8:02d}"
+        u = np.linspace(0, s[-1], m) / 4.0
+        name = f"1WALL_barrier{k // 8:02d}"
         left, right = q + nrm * half, q - nrm * half
         faces = ((left, g - 0.2, left, g + h, nrm, 0.0, 1.0), (left, g + h, right, g + h, None, 0.86, 1.0), (right, g + h, right, g - 0.2, -nrm, 1.0, 0.0))
         for a_en, a_h, b_en, b_h, out, va, vb in faces:
@@ -101,11 +101,11 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt) -> dict:
                 o = tr.fr.vec(out)
                 o3 = np.column_stack([o[:, 0], np.zeros(m), o[:, 1]])
                 hint = np.vstack([o3[:-1], o3[:-1]])
-            parts.surface(name, "tyrewall", pos, uv, tris, hint=hint, smooth=False)
+            parts.surface(name, "softwall", pos, uv, tris, hint=hint, smooth=False)
         for e in (0, -1):                                             # close the ends
             a, b = tr.fr.world(left[e][None], g[e] - 0.2)[0], tr.fr.world(right[e][None], g[e] - 0.2)[0]
             dd = tr.fr.vec(d[e][None])[0] * (-1 if e == 0 else 1)
-            parts.quad(name, "tyrewall", [a, b, b + UP * (h + 0.2), a + UP * (h + 0.2)], (0, 0, 0.27, 1), hint=(dd[0], 0.0, dd[1]), smooth=False)
+            parts.quad(name, "softwall", [a, b, b + UP * (h + 0.2), a + UP * (h + 0.2)], (0.02, 0, 0.2, 1), hint=(dd[0], 0.0, dd[1]), smooth=False)
         count, length = count + 1, length + float(s[-1])
     return dict(walls=count, metres=round(length))
 
@@ -168,3 +168,18 @@ def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
     fpos = tr.fr.world(f, tr.H.far_ground(f))
     _billboards(parts, "TREES_far", fpos, fh, fh * 0.6, (rng.random(len(f)) < 0.3).astype(int), rng)
     return dict(near=len(g), far=len(f))
+
+
+# power pylons standing in the infield north of the bridge, read from the photo: (east, north, height m)
+PYLONS = [(-17.0, 108.0, 31.0), (-16.0, 127.0, 32.0), (-16.0, 147.0, 32.0)]
+
+
+def build_pylons(tr: Track, parts: Parts) -> int:
+    for k, (e, n, h) in enumerate(PYLONS):
+        en = np.array([[e, n]])
+        base = tr.fr.world(en, tr.H.ground(en))[0]
+        for ang in (0.0, np.pi / 2):
+            d = np.array([np.cos(ang + 0.3), 0.0, np.sin(ang + 0.3)]) * h / 4.0      # the texture cell is half as wide as tall
+            p = [base - d - UP * 0.2, base + d - UP * 0.2, base + d + UP * h, base - d + UP * h]
+            parts.quad("1WALL_pylons", "pylon", p, (0.0, 0.0, 1.0, 1.0), hint=np.cross(d, UP), smooth=False, double_sided=True)
+    return len(PYLONS)

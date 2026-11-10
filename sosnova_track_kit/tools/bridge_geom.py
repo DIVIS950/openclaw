@@ -6,8 +6,7 @@ import numpy as np
 A = np.array([-38.05, 10.75])        # south-west foot of the ramp, centre of the deck (east, north)
 B = np.array([2.90, 45.50])          # north-east foot
 WIDTH = 3.8                          # deck width (m)
-SPAN = (18.5, 31.5)                  # distance along the deck (m) of the opening the lower road passes through
-SLAB = 0.6                           # thickness of the deck over the opening (m)
+FASCIA = 1.0                         # depth of the green arch panel below the deck surface (m)
 # deck height above the terrain along the deck, read from the surface model (distance m, height m)
 PROFILE = np.array([(0, 0.0), (2, 0.55), (4, 1.2), (6, 1.9), (8, 2.6), (10, 3.2), (12, 3.75), (14, 4.15), (16, 4.45), (18, 4.7),
                     (20, 4.9), (22, 5.02), (24, 5.1), (26, 5.18), (28, 5.2), (30, 5.16), (32, 5.08), (34, 4.9), (36, 4.6), (38, 4.25),

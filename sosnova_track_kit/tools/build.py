@@ -45,7 +45,10 @@ MATERIALS = [
     M("garage", "garage.jpg"),
     M("hall", "hall.jpg", specular=0.15, specular_exp=40),
     M("hut", "hut.jpg"),
-    M("tyrewall", "tyrewall.jpg", specular=0.05),
+    M("softwall", "softwall.jpg", specular=0.06),
+    M("arch", "arch.jpg", specular=0.12, specular_exp=30),
+    M("fence", "fence.png", shader="ksPerPixelAT", alpha_tested=True, specular=0.1),
+    M("pylon", "pylon.png", shader="ksPerPixelAT", alpha_tested=True, specular=0.05),
     M("tree", "trees.png", shader="ksPerPixelAT", alpha_tested=True, ambient=0.8, diffuse=0.45, specular=0.0),
     M("forest", "forest.png", shader="ksPerPixelAT", alpha_tested=True, ambient=0.8, diffuse=0.45, specular=0.0),
 ]
@@ -62,14 +65,16 @@ def main() -> None:
     asphalt = unary_union([info["R"], info["A"]]).buffer(1.0)      # edge lines sit on the rim of the asphalt
     off_limits = unary_union([Polygon(bridge_geom.footprint(grow=1.0)), *[f.buffer(1.5) for f in foot]])
     paint = marks.build_marks(tr, parts, asphalt, off_limits)
-    span = bridge.build_bridge(tr, parts)
+    paint.update(marks.build_edge_lines(tr, parts))
+    span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
+    pylons = props.build_pylons(tr, parts)
     props.build_pit_wall(tr, parts)
     racing = info["R"].buffer(0.6)
     walls = props.build_tyre_walls(tr, parts, racing, unary_union([info["R"], info["A"]]))
     keep_out = unary_union([info["R"].buffer(7.0), info["A"].buffer(4.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()
-    tex.update(photo.build())
+    tex.update(photo.build([tr.edge_en(1), tr.edge_en(-1)], marks.edge_lines_en(tr)))
     dummies, dinfo = layout.make_dummies(tr)
     meshes = parts.meshes()
     os.makedirs(OUT, exist_ok=True)
@@ -82,7 +87,7 @@ def main() -> None:
     summary = dict(
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),
-        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), buildings=len(foot), bridge=span, paint=paint, tyre_walls=walls,
+        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), buildings=len(foot), bridge=span, pylons=pylons, paint=paint, barriers=walls,
         trees=trees, dummies=len(dummies),
         ai={k: (round(v, 2) if isinstance(v, float) else v) for k, v in ai.items() if k not in ("line", "speed")},
         frame=tr.fr.to_json(), sector_station=dinfo["sector_station"],

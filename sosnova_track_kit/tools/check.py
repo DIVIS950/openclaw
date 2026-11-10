@@ -102,8 +102,8 @@ def main() -> None:
         p = v["pos"].astype(np.float64)
         fn = np.cross(p[t[:, 1]] - p[t[:, 0]], p[t[:, 2]] - p[t[:, 0]])
         dots = np.einsum("ij,ij->i", fn, v["normal"][t[:, 0]].astype(np.float64))
-        if m["name"].startswith(("TREES", "HORIZON")):
-            continue                                    # billboards: both windings on purpose, normals up
+        if m["name"].startswith(("TREES", "HORIZON", "1WALL_pylons", "1WALL_bridge_rail")):
+            continue                                    # two-sided sheets: both windings on purpose
         bad_w += int((dots <= 0).sum())
         tot += len(t)
     check(finite, "no NaN / infinite vertex data")

@@ -171,7 +171,7 @@ def garage() -> np.ndarray:
         door[np.arange(176) % 11 < 2] *= 0.8
         a[70:246, x0: x0 + 200] = door
         a[64:70, x0 - 6: x0 + 206] = (70, 72, 76)
-    a[:14] = (150, 30, 28)
+    a[:14] = (30, 72, 140)                                  # the venue's blue trim
     a[-10:] = (96, 96, 94)
     return a
 
@@ -201,6 +201,77 @@ def tyrewall() -> np.ndarray:
     return a
 
 
+def softwall() -> np.ndarray:
+    """Green and yellow padded barrier modules as on the 2026 circuit photos: u along (2 modules = 4 m), v up."""
+    h, w = 128, 512
+    a = np.zeros((h, w, 3), np.float32)
+    a[:, : w // 2] = (28, 118, 62)
+    a[:, w // 2:] = (224, 196, 30)
+    y = np.linspace(1, 0, h)[:, None, None]
+    a = a * (0.74 + 0.26 * y) * (0.94 + 0.05 * fnoise(512, 3, 30, 281)[:h, :, None])
+    for x0 in (0, w // 2):
+        a[:, x0: x0 + 5] *= 0.45
+        a[:, (x0 - 5) % w: (x0 - 5) % w + 5] *= 0.45
+    a[-12:] *= 0.65
+    a[:6] *= 1.12
+    return a
+
+
+def arch() -> np.ndarray:
+    """Green side panel of the bridge arch with a white band (no lettering), 8 m per tile."""
+    h, w = 128, 512
+    a = np.zeros((h, w, 3), np.float32) + (22, 122, 68)
+    a *= 0.95 + 0.04 * fnoise(512, 4, 60, 291)[:h, :, None]
+    a[52:76, 40: w - 40] = (232, 236, 232)
+    a[:6] = (200, 204, 200)
+    a[-6:] = (14, 70, 40)
+    a[:, :3] *= 0.6
+    return a
+
+
+def fence() -> np.ndarray:
+    """Welded mesh railing, RGBA, 2 m x 1.1 m per tile."""
+    h, w = 128, 256
+    a = np.zeros((h, w, 4), np.float32)
+    a[..., :3] = (150, 156, 160)
+    wire = (np.arange(w)[None, :] % 16 < 2) | (np.arange(h)[:, None] % 32 < 2)
+    a[..., 3] = wire * 255
+    a[:6, :, 3] = 255
+    a[-5:, :, 3] = 255
+    a[:, :5, 3] = 255
+    return a
+
+
+def pylon() -> np.ndarray:
+    """Lattice power pylon silhouette, RGBA: the cell is 16 m wide and 32 m tall."""
+    from PIL import ImageDraw
+    w, h = 256, 512
+    im = Image.new("RGBA", (w, h), (120, 124, 128, 0))
+    d = ImageDraw.Draw(im)
+    steel = (128, 132, 136, 255)
+    px = lambda x, y: (w / 2 + x / 16.0 * w, h - y / 32.0 * h)
+    half = lambda y: 3.2 - 2.6 * min(y, 26.0) / 26.0 if y < 26 else 0.6
+    levels = [0, 5, 10, 14.5, 18.5, 22, 25, 27.5, 30, 32]
+    for a_, b_ in zip(levels[:-1], levels[1:]):
+        for sgn in (-1, 1):
+            d.line([px(sgn * half(a_), a_), px(sgn * half(b_), b_)], fill=steel, width=4)
+        d.line([px(-half(a_), a_), px(half(b_), b_)], fill=steel, width=2)
+        d.line([px(half(a_), a_), px(-half(b_), b_)], fill=steel, width=2)
+        d.line([px(-half(b_), b_), px(half(b_), b_)], fill=steel, width=2)
+    for y, reach in ((19.5, 6.5), (24.0, 7.6), (28.5, 5.2)):                 # cross-arms
+        for sgn in (-1, 1):
+            d.line([px(sgn * half(y), y), px(sgn * reach, y)], fill=steel, width=4)
+            d.line([px(sgn * half(y + 2.2), y + 2.2), px(sgn * reach, y)], fill=steel, width=2)
+            d.line([px(sgn * reach, y), px(sgn * reach, y - 1.4)], fill=(60, 62, 66, 255), width=3)
+    a = np.asarray(im, np.float32).copy()
+    yy = (h - np.arange(h)) / h * 32.0
+    band = (yy > 26)[:, None] & (a[..., 3] > 0)                              # red and white aviation marking on top
+    red = ((yy // 1.5) % 2 == 0)[:, None]
+    a[band & red] = (196, 40, 34, 255)
+    a[band & ~red] = (232, 232, 228, 255)
+    return a
+
+
 def build_static() -> dict[str, bytes]:
     return {
         "detail_asphalt.jpg": _jpg(detail_asphalt(), 90),
@@ -215,6 +286,10 @@ def build_static() -> dict[str, bytes]:
         "hall.jpg": _jpg(hall()),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
         "tyrewall.jpg": _jpg(tyrewall()),
+        "softwall.jpg": _jpg(softwall()),
+        "arch.jpg": _jpg(arch()),
+        "fence.png": _png(fence()),
+        "pylon.png": _png(pylon()),
         "trees.png": _png(trees()),
         "forest.png": _png(forest()),
     }

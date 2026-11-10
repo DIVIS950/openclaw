@@ -34,7 +34,7 @@ def classes(rgb: np.ndarray):
     return w / np.maximum(w.sum(-1, keepdims=True), 1e-6)
 
 
-def tone(rgb: np.ndarray, w: np.ndarray, ref: dict | None = None):
+def tone(rgb: np.ndarray, w: np.ndarray, ref: dict | None = None, no_paint: np.ndarray | None = None):
     """Photo -> game brightness. Returns (toned rgb 0..1 before the detail layer, reference medians)."""
     lum = rgb.mean(-1)
     if ref is None:
@@ -46,6 +46,9 @@ def tone(rgb: np.ndarray, w: np.ndarray, ref: dict | None = None):
     k = max(3, int(round(1.2 / (2 * SITE_HALF / rgb.shape[1]))) | 1)
     tophat = lum - ndi.grey_opening(lum, size=(k * 2 + 1, k * 2 + 1))
     paint = np.clip((tophat - 0.07) / 0.10, 0, 1) * np.clip((ratio - 1.12) / 0.25, 0, 1)
+    if no_paint is not None:                                # sharp lines are drawn here as geometry: no blurred copy
+        paint = np.where(no_paint, 0.0, paint)
+        base = np.where(no_paint, np.minimum(base, ASPHALT_TARGET * 1.08), base)
     asph_l = base * (1 - paint) + 0.86 * paint
     grey = rgb / np.maximum(lum[..., None], 1e-4)
     asph = (0.35 * grey + 0.65) * asph_l[..., None]                    # mostly neutral, a trace of the real tint
@@ -82,14 +85,15 @@ def site_canvas(n: int = PHOTO_PX) -> np.ndarray:
     return np.asarray(canvas, np.float32) / 255.0
 
 
-def clean_bridge(rgb: np.ndarray, w: np.ndarray) -> None:
-    """The photo shows the deck of the overpass and its shadow where the game needs the ground underneath.
-    The opening gets plain asphalt; the shadow is lifted to the brightness of its surroundings."""
+def clean_bridge(rgb: np.ndarray, w: np.ndarray, road_px: np.ndarray) -> None:
+    """The photo shows the deck of the bridge and its shadow where the game needs the ground underneath.
+    Under the open arch the ground becomes grass, with asphalt where the lower road passes (road_px: boolean
+    raster of that road on the canvas); the shadow is lifted to the brightness of its surroundings."""
     n = rgb.shape[0]
-    lum = rgb.mean(-1)
     deck = _poly_mask(n, bg.footprint(grow=0.8))
     shadow = _poly_mask(n, bg.shadow_polygon()) & ~deck
-    ring = ndi.binary_dilation(deck | shadow, iterations=int(10 * n / (2 * SITE_HALF))) & ~ndi.binary_dilation(deck | shadow, iterations=6)
+    px_m = n / (2 * SITE_HALF)
+    ring = ndi.binary_dilation(deck | shadow, iterations=int(10 * px_m)) & ~ndi.binary_dilation(deck | shadow, iterations=6)
     # in the shadow the colours are unreliable, so every pixel borrows the class of the nearest lit pixel
     idx = ndi.distance_transform_edt(deck | shadow, return_distances=False, return_indices=True)
     w[shadow] = w[idx[0][shadow], idx[1][shadow]]
@@ -99,14 +103,18 @@ def clean_bridge(rgb: np.ndarray, w: np.ndarray) -> None:
             gain = np.median(rgb[outside], axis=0) / np.maximum(np.median(rgb[inside], axis=0), 1e-3)
             rgb[inside] = np.clip(rgb[inside] * np.minimum(gain, 3.5), 0, 1)
     asph = np.median(rgb[ring & (w[..., 0] > 0.9)], axis=0)
-    noise = ndi.gaussian_filter(np.random.default_rng(3).standard_normal((n, n)), 6) * 0.25
-    under = _poly_mask(n, bg.footprint(bg.SPAN[0] - 3.0, bg.SPAN[1] + 3.0, grow=1.2))
-    soft = ndi.gaussian_filter(under.astype(np.float32), 2.0)[..., None]
-    rgb[:] = rgb * (1 - soft) + (asph[None, None, :] * (1 + noise[..., None])) * soft
-    w[under] = (1.0, 0.0, 0.0)
+    grass = np.median(rgb[ring & (w[..., 1] > 0.9)], axis=0)
+    noise = 1 + ndi.gaussian_filter(np.random.default_rng(3).standard_normal((n, n)), 5)[..., None] * 0.3
+    road = ndi.binary_dilation(road_px, iterations=int(1.5 * px_m)) & deck
+    fill = np.where(road[..., None], asph[None, None, :], grass[None, None, :]) * noise
+    soft = ndi.gaussian_filter(deck.astype(np.float32), 1.5)[..., None]
+    rgb[:] = rgb * (1 - soft) + fill * soft
+    w[deck] = np.where(road[deck][:, None], np.array([1.0, 0.0, 0.0], np.float32), np.array([0.0, 1.0, 0.0], np.float32))
 
 
-def build(n: int = PHOTO_PX) -> dict[str, bytes]:
+def build(lap_edges: list[np.ndarray], line_runs: list[np.ndarray], n: int = PHOTO_PX) -> dict[str, bytes]:
+    """lap_edges: the two edge loops of the lap (east/north). line_runs: polylines where the build paints its own
+    sharp edge lines, so the blurred photo of the same lines is toned down there."""
     rgb = site_canvas(n)
     w = classes(rgb)
     # under tree canopy the photo is dark and colourless; the surface model says it is vegetation
@@ -117,8 +125,15 @@ def build(n: int = PHOTO_PX) -> dict[str, bytes]:
     c = np.zeros((n, n), np.float32)
     c[pad: pad + rows, (n - cv.shape[1]) // 2: (n - cv.shape[1]) // 2 + cv.shape[1]] = cv
     w = w * (1 - c[..., None]) + np.array([0.0, 1.0, 0.0], np.float32) * c[..., None]
-    clean_bridge(rgb, w)
-    toned, ref = tone(rgb, w)
+    road = np.zeros((n, n), np.uint8)
+    outer, inner = sorted(lap_edges, key=lambda e: -abs(np.sum(e[:, 0] * np.roll(e[:, 1], -1) - np.roll(e[:, 0], -1) * e[:, 1])))
+    cv2.fillPoly(road, [np.round(_en_to_px(outer, n)).astype(np.int32)], 1)
+    cv2.fillPoly(road, [np.round(_en_to_px(inner, n)).astype(np.int32)], 0)
+    clean_bridge(rgb, w, road.astype(bool))
+    band = np.zeros((n, n), np.uint8)
+    for run in line_runs:
+        cv2.polylines(band, [np.round(_en_to_px(run, n)).astype(np.int32)], False, 1, thickness=max(3, int(round(2.0 * n / (2 * SITE_HALF)))))
+    toned, ref = tone(rgb, w, no_paint=band.astype(bool))
     out = {}
     buf = io.BytesIO()
     Image.fromarray((toned * 255).astype(np.uint8)).save(buf, "JPEG", quality=90)
@@ -136,12 +151,3 @@ def build(n: int = PHOTO_PX) -> dict[str, bytes]:
     Image.fromarray((far_toned * 255).astype(np.uint8)).save(buf, "JPEG", quality=86)
     out["ground_far.jpg"] = buf.getvalue()
     return out
-
-
-if __name__ == "__main__":
-    d = os.path.join(WORK, "tex_preview")
-    os.makedirs(d, exist_ok=True)
-    for name, data in build().items():
-        open(os.path.join(d, name), "wb").write(data)
-        im = Image.open(io.BytesIO(data))
-        print(f"{name:18} {im.size} {im.mode} {len(data) / 1e6:.1f} MB")

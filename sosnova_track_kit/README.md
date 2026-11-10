@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v3.0)
+# Autodrom Sosnová for Assetto Corsa (v3.1)
 
 A drivable Assetto Corsa (2014) copy of Autodrom Sosnová near Česká Lípa, Czech Republic, built from public
 survey data: the state aerial photo and two lidar height models.
@@ -7,21 +7,22 @@ survey data: the state aerial photo and two lidar height models.
 [`content/tracks/sosnova_v3/INSTALL.txt`](content/tracks/sosnova_v3/INSTALL.txt). Delete the older `sosnova`
 and `sosnova_v2` folders from `content/tracks` first.
 
-## What v3.0 is
+## What v3.1 is
 
-Version 3.0 is the circuit itself, as an exact copy of the place. The event barriers and slalom tyres of the
+Version 3.1 is the circuit itself, as an exact copy of the place. The event barriers and slalom tyres of the
 14.11.2026 layout are left out on purpose and come back in a later step.
 
 | Part | How it is made |
 | --- | --- |
 | Ground | The real aerial photo (12.5 cm per pixel) is the base colour of all asphalt and grass, toned to game brightness. The game's multilayer shader lays sharp asphalt, grass and bare-ground detail over it, chosen per pixel by a mask. |
-| Markings | Painted lines, start boxes and white kerb stones are traced from the photo and added as sharp geometry 2 cm above the asphalt. |
+| Markings | Solid white lines along both edges of the lap, as on the resurfaced circuit. Other clear paint (start boxes, kerb stones) is traced from the photo. All of it is sharp geometry 2 cm above the asphalt. |
 | Drivable area | All asphalt of the complex, not only the lap. The lap itself is a structured ribbon with an analytic, smooth height. |
-| Bridge | The concrete overpass: 54 m long, 3.8 m wide, deck 5.2 m above the lower road at its highest. Position from the photo, height profile from the surface model. The lap passes under it and the deck is drivable. |
+| Bridge | The green arch bridge: 54 m long, 3.8 m wide, deck 5.2 m above the lower road at its highest, open underneath, with mesh railings. Position from the aerial photo, height from the surface model, look from the circuit's own 2026 photos. The lap passes under it and the deck is drivable. |
 | Buildings | Footprints and heights from the surface model (tall, flat-topped objects), pit complex outlines measured on the photo. Every roof shows its own piece of the photo. |
-| Tyre barriers | Traced from the photo: black, colour-neutral, narrow and long, standing on grass, within 35 m of the lap. |
+| Barriers | Traced from the aerial photo (black, colour-neutral, narrow and long, standing on grass, within 35 m of the lap) and shown as the green and yellow padded modules of the 2026 photos. |
 | Trees | Placed where the surface model shows canopy, at the measured height. |
-| Lap | 1751 m anticlockwise, the route of the 14.11.2026 event. 16 grid slots, 16 pit boxes, AI line, map, cameras. |
+| Lap | 1764 m anticlockwise, the route of the 14.11.2026 event, moved onto the real asphalt where the hand-drawn route cut corners (up to 7 m at two hairpins). 16 grid slots, 16 pit boxes, AI line, map, cameras. |
+| Pylons | Three lattice power pylons north of the bridge, positions from the aerial photo. |
 
 ## Rebuilding
 
@@ -36,6 +37,8 @@ python3 geom.py            # centre line and widths of the lap
 python3 heights.py         # smooth road surface and blended ground
 python3 survey.py          # object heights, buildings, canopy, hard surface
 python3 paint.py           # trace painted markings and tyre barriers
+python3 refine.py          # move the lap onto the real asphalt, limit its widths to the real edges
+python3 heights.py         # again, for the refined lap
 python3 mkbuildings.py     # building footprints and heights
 python3 build.py           # writes content/tracks/sosnova_v3
 python3 check.py           # validates the files the game will load
@@ -55,6 +58,14 @@ The orthophoto files are not stored in the repository because of their size. `fe
 - The ground uses the stock `ksMultilayer` shader: `txDiffuse` is the photo, `txMask` selects the detail
   layers `txDetailR/G/B` (asphalt, grass, bare ground), tiled by `multR/G/B`. `txDetailA` is black, so the
   mask needs no alpha channel.
+
+## Reference photos
+
+Ground-level photos were used only to learn what things look like (colours, shapes, materials). None of them
+is stored here or used as a texture.
+
+- Driving Camp Autodrom Sosnová, track day galleries 2026: <https://www.autodrom.cz/>
+- corners.cz, "Novinky na okruhu v Sosnové" (2022): <https://www.corners.cz/en/blog/novinky-na-okruhu-v-sosnove/>
 
 ## Limits
 
@@ -76,6 +87,7 @@ Rendered from the built `sosnova_v3.kn5` with `tools/render.py`.
 
 ![Pole position](previews/ac_start_0.jpg)
 ![Approaching the bridge](previews/lap_0600.jpg)
+![Hairpin](previews/lap_0400.jpg)
 ![The bridge from the side](previews/bridge_side.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
 ![From above](previews/top.jpg)

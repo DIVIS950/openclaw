@@ -210,7 +210,7 @@ DESCRIPTION = Autodrom Sosnova
 
 [GRASS_FX]
 GRASS_MATERIALS = grass
-OCCLUDING_MATERIALS = asph, deck, concrete, building, garage, hall, hut, tyrewall, roofphoto
+OCCLUDING_MATERIALS = asph, deck, concrete, building, garage, hall, hut, softwall, arch, roofphoto, paint
 SHAPE_SIZE = 0.8, 1.0
 SHAPE_TIDY = 0.4
 
@@ -218,11 +218,11 @@ SHAPE_TIDY = 0.4
 PUDDLES_MATERIALS = asph
 SOAKING_MATERIALS = asph, deck, grass, photofar, concrete
 SMOOTH_MATERIALS = hall, garage
-ROUGH_MATERIALS = tyrewall
+ROUGH_MATERIALS = softwall
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v3.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v3.1 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -234,7 +234,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v3\\sosnova_v3.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v3.0".
+3. Start the game and pick the track "Autodrom Sosnova v3.1".
 
 WHAT IT IS
 - A copy of the real circuit built from the Czech state aerial photo and lidar height models.
@@ -242,7 +242,7 @@ WHAT IT IS
 - All asphalt of the complex is drivable, not only the lap.
 - The concrete bridge is there. The lap passes under it, and you can also drive over it.
 - Real buildings with their real heights, tyre barriers and trees where the survey shows them.
-- The timed lap (1751 m, anticlockwise) is the route of the 14.11.2026 event. 16 grid slots, 16 pit boxes, AI line.
+- The timed lap (1764 m, anticlockwise) is the route of the 14.11.2026 event. 16 grid slots, 16 pit boxes, AI line.
 - The event barriers and slalom tyres are NOT in this version. This version is the circuit itself.
 
 OPTIONAL
@@ -307,7 +307,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v3.0",
+        "name": "Autodrom Sosnová v3.1",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as an exact copy of the real place: the whole asphalt "
                        "complex is drivable, with the concrete overpass, the pit buildings and the real surface taken from the "
                        "Czech state orthophoto (ČÚZK, 12.5 cm/px). Heights from the DMR 5G lidar terrain and DMP 1G surface models. "
@@ -323,7 +323,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "3.0",
+        "version": "3.1",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

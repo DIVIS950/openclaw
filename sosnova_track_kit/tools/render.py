@@ -193,8 +193,8 @@ def main() -> None:
         m = dummies[name]
         eye = m[3, :3] + up * 1.05
         shots.append((name.lower(), eye, eye + m[2, :3] * 30 - up * 1.5, 75))
-    for st in (60, 130, 215, 320, 400, 480, 560, 600, 615, 650, 750, 860, 925, 1000, 1150, 1300, 1450, 1560, 1640):
-        i = int(st / 1751 * n) % n
+    for st in (60, 130, 215, 320, 400, 480, 560, 600, 615, 650, 750, 860, 925, 1000, 1150, 1300, 1450, 1560, 1640):   # metres along the lap
+        i = int(st / 1764 * n) % n
         j = (i + 14) % n
         d = ai[j] - ai[i]
         d /= np.linalg.norm(d)
