@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v4.0)
+# Autodrom Sosnová for Assetto Corsa (v4.1)
 
 A drivable Assetto Corsa (2014) copy of Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) copy of Autodrom Sosnová near Česká Lípa, Cz
 [`content/tracks/sosnova_v4/INSTALL.txt`](content/tracks/sosnova_v4/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v4.0 is
+## What v4.1 is
 
 Geometry from survey data, look from real materials. The event barriers and slalom tyres of the 14.11.2026
 layout are left out on purpose and come back in a later step.
@@ -17,6 +17,7 @@ layout are left out on purpose and come back in a later step.
 | Surfaces | Photo-scanned CC0 materials from Poly Haven, brought to game brightness: race-track asphalt on the lap, pit-lane asphalt on the aprons, a light concrete-like surface on pads and flat kerbs, grass, gravel. The aerial photo decides which one goes where. Far from the track the ground shows the aerial photo itself. |
 | Trees | Pictures rendered from scanned 3D trees (Poly Haven `fir_tree_01`, `tree_small_02`), placed where the surface model shows canopy, at the measured height. |
 | Lap | 1764 m anticlockwise, the route of the 14.11.2026 event, moved onto the real asphalt (`refine.py`). Structured ribbon with an analytic, smooth height. Solid white lines along both edges. |
+| Kerbs | Red and white kerbs (`kerbs.py`): 1 m wide on the verge outside the edge line, along the inside of every corner tighter than 60 m radius and on the outside of the exit of corners tighter than 28 m. 20 kerbs, 759 m. Physical surface `KERB`. These are a racing addition, the real circuit has flat concrete kerbs. |
 | Other paint | Start boxes and clear lines traced from the aerial photo, as sharp geometry 2 cm above the asphalt. |
 | Gravel | Light bare ground beside the asphalt, from the photo. Physical surface `SAND`. |
 | Bridge | The green arch bridge: 54 m long, 3.8 m wide, deck 5.2 m above the lower road, open underneath, mesh railings. Position from the aerial photo, height from the surface model, look from the circuit's own 2026 photos. |

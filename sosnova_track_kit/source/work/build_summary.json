@@ -1,10 +1,10 @@
 {
  "track": "sosnova_v4",
  "lap_m": 1764.1395761149456,
- "meshes": 307,
- "vertices": 126153,
- "triangles": 114196,
- "kn5_mb": 17.85,
+ "meshes": 327,
+ "vertices": 127790,
+ "triangles": 118257,
+ "kn5_mb": 17.97,
  "ground": {
   "asphalt": 11645,
   "gravel": 8216,
@@ -14,6 +14,10 @@
  "asphalt_m2": 51172,
  "gravel_m2": 18743,
  "buildings": 45,
+ "kerbs": {
+  "kerbs": 20,
+  "kerb_m": 759
+ },
  "bridge": {
   "length": 53.70721553013151,
   "peak": 5.199809348051539,
@@ -22,9 +26,9 @@
  },
  "pylons": 3,
  "paint": {
-  "lines": 547,
-  "line_m": 1081,
-  "areas": 239,
+  "lines": 545,
+  "line_m": 1075,
+  "areas": 219,
   "edge_line_m": 2381
  },
  "barriers": {

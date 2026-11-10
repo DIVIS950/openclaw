@@ -324,6 +324,20 @@ def wall(kind: str) -> np.ndarray:
     return a
 
 
+def kerb() -> np.ndarray:
+    """Painted kerb blocks on real concrete: one tile is 2 m along (v): 1 m red, 1 m white."""
+    base = scan("gravel_concrete_03.jpg", 128, 512)
+    grain = (base.mean(-1, keepdims=True) / 128.0)[:, :128]
+    a = np.zeros((512, 128, 3), np.float32)
+    a[:256] = (176, 30, 28)
+    a[256:] = (222, 220, 212)
+    a = a * (0.55 + 0.45 * grain)
+    for row in (0, 256):                                      # joints between the blocks
+        a[row: row + 4] *= 0.6
+        a[row - 4 if row else 508: row if row else 512] *= 0.6
+    return a
+
+
 def build_static() -> dict[str, bytes]:
     out = {
         "road.jpg": _jpg(scan("asphalt_track.jpg", 50, 2048, repeat=4, desat=0.6, patchy=0.03, seed=301), 90),
@@ -336,6 +350,7 @@ def build_static() -> dict[str, bytes]:
         "garage.jpg": _jpg(wall("garage"), 90),
         "hall.jpg": _jpg(wall("hall"), 90),
         "paint.jpg": _jpg(paint()),
+        "kerb.jpg": _jpg(kerb(), 90),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
         "softwall.jpg": _jpg(softwall()),
         "arch.jpg": _jpg(arch()),

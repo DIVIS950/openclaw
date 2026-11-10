@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge  # noqa: E402
 import bridge_geom  # noqa: E402
 import ground  # noqa: E402
+import kerbs  # noqa: E402
 import kn5  # noqa: E402
 import layout  # noqa: E402
 import marks  # noqa: E402
@@ -39,6 +40,7 @@ MATERIALS = [
     M("photofar", "ground_far.jpg", specular=0.0),
     M("roofphoto", "roof_photo.jpg", specular=0.05),
     M("paint", "paint.jpg", specular=0.12, specular_exp=30),
+    M("kerb", "kerb.jpg", specular=0.10, specular_exp=30),
     M("concrete", "concrete.jpg"),
     M("building", "building.jpg"),
     M("garage", "garage.jpg"),
@@ -63,7 +65,10 @@ def main() -> None:
     ground.build_far(tr, parts, info)
     foot = props.build_buildings(tr, parts)
     asphalt = unary_union([info["R"], info["A"]]).buffer(1.0)      # edge lines sit on the rim of the asphalt
-    off_limits = unary_union([Polygon(bridge_geom.footprint(grow=1.0)), *[f.buffer(1.5) for f in foot]])
+    kerb_info = kerbs.build_kerbs(tr, parts)
+    from shapely.geometry import LineString
+    off_limits = unary_union([Polygon(bridge_geom.footprint(grow=1.0)), *[f.buffer(1.5) for f in foot],
+                              *[LineString(k).buffer(1.2) for k in kerbs.kerb_lines_en(tr)]])
     paint = marks.build_marks(tr, parts, asphalt, off_limits)
     paint.update(marks.build_edge_lines(tr, parts))
     span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
@@ -87,7 +92,7 @@ def main() -> None:
     summary = dict(
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),
-        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), bridge=span, pylons=pylons, paint=paint, barriers=walls,
+        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), kerbs=kerb_info, bridge=span, pylons=pylons, paint=paint, barriers=walls,
         trees=trees, dummies=len(dummies),
         ai={k: (round(v, 2) if isinstance(v, float) else v) for k, v in ai.items() if k not in ("line", "speed")},
         frame=tr.fr.to_json(), sector_station=dinfo["sector_station"],
