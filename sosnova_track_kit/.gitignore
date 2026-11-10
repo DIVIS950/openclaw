@@ -7,5 +7,9 @@ source/work/*
 !source/work/paint.json
 !source/work/tyre_walls.json
 !source/work/edges.json
+!source/work/centerline_std.json
+!source/work/centerline_route_std.json
+!source/work/edges_std.json
 source/previews_v2/
 __pycache__/
+content/tracks/sosnova_v7_standard/*.kn5

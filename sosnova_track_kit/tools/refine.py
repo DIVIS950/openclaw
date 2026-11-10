@@ -74,7 +74,8 @@ def intervals(c: np.ndarray, nrm: np.ndarray, mask: np.ndarray, reach: float = R
 
 
 def main() -> None:
-    src = json.load(open(os.path.join(WORK, "centerline_route.json"), encoding="utf-8"))
+    from common import lap_file
+    src = json.load(open(lap_file("centerline_route", "json"), encoding="utf-8"))
     c = np.array(src["en"])
     start = c[0].copy()
     mask = drivable_mask()
@@ -122,7 +123,7 @@ def main() -> None:
     out.update(en=c.tolist(), s=np.arange(len(c)).astype(float).tolist(), curv=periodic_gauss(curv, 2.0).tolist(), wl=wl.tolist(), wr=wr.tolist(),
                edge_l=(c + nrm * wl[:, None]).tolist(), edge_r=(c - nrm * wr[:, None]).tolist(), open_l=open_l.tolist(), open_r=open_r.tolist(),
                lap_m=lap, step=lap / len(c))
-    json.dump(out, open(os.path.join(WORK, "centerline.json"), "w"))
+    json.dump(out, open(lap_file("centerline", "json"), "w"))
     old = np.array(src["en"])
     from scipy.spatial import cKDTree
     shift = cKDTree(old).query(c)[0]

@@ -1,16 +1,25 @@
-# Autodrom Sosnová for Assetto Corsa (v6.0)
+# Autodrom Sosnová for Assetto Corsa (v7.0)
 
-A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
+Two drivable Assetto Corsa (2014) tracks of Autodrom Sosnová near Česká Lípa, Czech Republic. They are the same
+place and the same model with two different laps.
 
-**Download:** [`download/sosnova_v6.zip`](download/sosnova_v6.zip). Install notes are in
-[`content/tracks/sosnova_v6/INSTALL.txt`](content/tracks/sosnova_v6/INSTALL.txt). Delete older `sosnova*`
-folders from `content/tracks` first.
+| Track folder | Lap | Length |
+| --- | --- | --- |
+| `sosnova_v7_race` | The route of the race on 14.11.2026, under the green bridge | 1764 m |
+| `sosnova_v7_standard` | The standard circuit, turns 1 to 12 | 1667 m |
 
-## What v6.0 is
+**Download:** [`download/sosnova_v7.zip`](download/sosnova_v7.zip) holds both folders. Install notes are in
+[`content/tracks/sosnova_v7_race/INSTALL.txt`](content/tracks/sosnova_v7_race/INSTALL.txt). Delete older
+`sosnova*` folders from `content/tracks` first. The model of the standard track is a copy of the race model. It is in
+the zip but not stored a second time under `content/`.
 
-The circuit as the aerial photo shows it, for practice before a race. Version 5 was a design laid over the
-survey: one road width, kerbs and gravel traps on every corner. That made the first turn 9 m wide where the
-real one is about 17 m. In v6 the photo decides everything along the lap.
+## What v7.0 is
+
+The circuit as the aerial photo shows it, for practice before a race. The race route lies inside the standard
+circuit and shares most of its asphalt with it. Version 6 measured the edges of the race lap in the photo but
+drew the other roads of the standard circuit by hand with one width. In v7 the standard circuit is a second
+surveyed lap (`stdlap.py`), so the return road, the link at the infield hairpin, the north junction and the
+south-west loop have their real edges too, and the standard circuit can be driven as its own timed lap.
 
 | Part | How it is made |
 | --- | --- |
@@ -21,7 +30,8 @@ real one is about 17 m. In v6 the photo decides everything along the lap.
 | Kerbs | Only where the real circuit has them (`edgescan.py`): 12 flat strips of pale concrete, 221 m. The photo shows no red and white kerbs anywhere on the lap. |
 | Sand | Only where the photo shows it: 4 run-offs, 143 m along the lap, plus the pocket inside the first turn. |
 | Barriers | The tyre walls traced from the photo, cut where they would cross asphalt, and the paddock wall. |
-| Original circuit | Hand-traced in `circuit.py` and checked against the surveyed asphalt: the return road, the south-west loop, the bridge link, the big square, the start area, the junctions, the wide outside of the first turn, the paddock and the white concrete inside the first turn. |
+| Standard circuit | Put together from the surveyed race line and four hand-traced links, then moved onto the asphalt and measured like the race lap. Its own roads are polygons between their real edges with a smooth surface of their own. 13 concrete kerbs and 4 sand run-offs were found along it. |
+| Rest of the place | Hand-traced in `circuit.py` and checked against the surveyed asphalt: the big square, the start area, the junctions, the wide outside of the first turn, the link by the bridge, the paddock and the white concrete inside the first turn. |
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50, 16 pit bays on the start area. These are additions for the game. |
 | Still from the survey | The green arch bridge, buildings with their heights and photo roofs, pylons, trees at measured heights, the terrain and the distant ground photo. |
 | Materials | Photo-scanned CC0 surfaces and pictures of scanned 3D trees from Poly Haven. |
@@ -39,12 +49,16 @@ python3 fetch_cuzk.py --center 50.65900,14.53906 --half 1250,1000 --gsd 1 --dem-
 python3 prep.py            # photo at 25 cm and first colour classes
 python3 survey.py          # object heights, buildings, canopy, hard surface
 python3 paint.py           # trace painted markings and barriers
-python3 refine.py          # move the lap onto the real asphalt and measure its real edges
-python3 edgescan.py        # real concrete kerbs and sand run-offs along the lap
+python3 refine.py          # move the race lap onto the real asphalt and measure its real edges
+python3 edgescan.py        # real concrete kerbs and sand run-offs along the race lap
+python3 stdlap.py          # the standard circuit as a second lap
+SOSNOVA_LAP=_std python3 refine.py && SOSNOVA_LAP=_std python3 edgescan.py
 python3 heights.py         # smooth road surface and blended ground
+SOSNOVA_LAP=_std python3 heights.py
 python3 mkbuildings.py     # building footprints and heights
-python3 build.py           # writes content/tracks/sosnova_v6 (the original circuit comes from circuit.py)
+python3 build.py           # writes content/tracks/sosnova_v7_race and sosnova_v7_standard
 python3 check.py           # validates the files the game will load
+SOSNOVA_TRACK=sosnova_v7_standard python3 check.py
 python3 render.py          # check renders from the spawn points, along the lap and at the bridge
 ```
 
@@ -75,6 +89,7 @@ is stored here or used as a texture.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. Millimetre accuracy is not possible from
   aerial survey data. No public laser scan of the track surface itself was found.
 - The track was validated by reading back the built files and by renders. It was not run inside the game here.
+- The standard lap's own roads lie on the ground mesh, not on a road mesh of their own. Where the standard lap leaves or joins the race lap (five places) the surface has a slight crease, up to 2.8 % change of gradient per metre. The race lap stays below 0.3 %.
 - The lap edges follow the photo to about 0.5 m. The other roads and paved areas are traced by eye to about 1 m.
 - The photo shows few painted lines. The white edge lines are an addition, as on the resurfaced circuit.
 - The orthophoto is the current state survey edition. Anything changed on site after it was flown is not in the track.
@@ -87,15 +102,15 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 
 ## Check renders
 
-Rendered from the built `sosnova_v6.kn5` with `tools/render.py`.
+Rendered from the built `sosnova_v7_race.kn5` with `tools/render.py`.
 
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
 ![First turn from the air](previews/air_east.jpg)
 ![In the first turn](previews/lap_0130.jpg)
-![Start area and return road](previews/air_start.jpg)
-![The big square](previews/air_plaza.jpg)
-![South-west loop, link and paddock](previews/air_sw.jpg)
-![Infield hairpin](previews/lap_0400.jpg)
-![Under the bridge](previews/lap_0600.jpg)
+![Start area, return road and infield loop](previews/air_start.jpg)
+![South-west loop](previews/air_sw.jpg)
+![Standard circuit: on the return road](previews/std_return.jpg)
+![Standard circuit: turn 2 into the infield loop](previews/std_turn2.jpg)
+![Standard circuit: the south-west loop](previews/std_swloop.jpg)
 ![From above](previews/top.jpg)

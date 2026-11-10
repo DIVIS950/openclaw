@@ -17,15 +17,17 @@ PIT_Z = (-36.0, 74.0)   # stretch of the start straight whose left side stays op
 
 
 class Track:
-    def __init__(self):
-        cl = json.load(open(os.path.join(WORK, "centerline.json"), encoding="utf-8"))
+    def __init__(self, lap: str = ""):
+        from common import lap_file
+        self.lap_name = lap
+        cl = json.load(open(lap_file("centerline", "json", lap), encoding="utf-8"))
         self.c = np.array(cl["en"])
         self.n = len(self.c)
         self.tan, self.nrm, _, _ = closed_frames(self.c)
         self.k = np.array(cl["curv"])
         self.wl, self.wr = np.array(cl["wl"]), np.array(cl["wr"])
         self.open_l, self.open_r = np.array(cl["open_l"], bool), np.array(cl["open_r"], bool)
-        self.H = Heights()
+        self.H = Heights(lap)
         self.fr = Frame(cl["sf_en"], cl["fwd_en"], float(self.H.z[0]))
         self.cones_en = np.array(cl["cones_en"])
         self.cone_station = np.array(cl["cone_station"], float)

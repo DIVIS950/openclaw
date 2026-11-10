@@ -39,7 +39,8 @@ def main() -> None:
     Image.MAX_IMAGE_PIXELS = None
     im = np.asarray(Image.open(os.path.join(SRC, "cuzk", "ortho.png")).convert("RGB")).astype(np.int32)
     pale = (im.min(-1) >= 160) & (im.max(-1) - im.min(-1) <= 50)
-    cl = json.load(open(os.path.join(WORK, "centerline.json"), encoding="utf-8"))
+    from common import lap_file
+    cl = json.load(open(lap_file("centerline", "json"), encoding="utf-8"))
     c, wl, wr = np.array(cl["en"]), np.array(cl["wl"]), np.array(cl["wr"])
     open_l, open_r = np.array(cl["open_l"], bool), np.array(cl["open_r"], bool)
     _, nrm, _, _ = closed_frames(c)
@@ -79,7 +80,7 @@ def main() -> None:
             st = (a + np.arange(ln)) % n
             depth = np.clip(ndi.gaussian_filter1d(np.maximum(width[st], SAND_MIN), 4.0, mode="nearest"), SAND_MIN, 13.0)
             (sand if np.median(tone[st]) >= 18 else slabs).append(dict(side=side, start=a, length=ln, depth=depth.round(2).tolist()))
-    json.dump(dict(kerbs=kerbs, sand=sand, concrete=slabs), open(os.path.join(WORK, "edges.json"), "w"))
+    json.dump(dict(kerbs=kerbs, sand=sand, concrete=slabs), open(lap_file("edges", "json"), "w"))
     tag = lambda k: f"{'L' if k['side'] > 0 else 'R'}{k['start']}+{k['length']}"
     print(f"{len(kerbs)} concrete kerbs, {sum(k['length'] for k in kerbs)} m:", ", ".join(f"{tag(k)} ({k['width']} m)" for k in kerbs))
     print(f"{len(slabs)} concrete strips:", ", ".join(f"{tag(k)} (to {max(k['depth'])} m)" for k in slabs))

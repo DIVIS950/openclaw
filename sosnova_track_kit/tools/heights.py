@@ -69,7 +69,8 @@ def smoothstep(x: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    cl = json.load(open(os.path.join(WORK, "centerline.json"), encoding="utf-8"))
+    from common import lap_file
+    cl = json.load(open(lap_file("centerline", "json"), encoding="utf-8"))
     c = np.array(cl["en"])
     wl, wr = np.array(cl["wl"]), np.array(cl["wr"])
     n_st = len(c)
@@ -136,16 +137,17 @@ def main() -> None:
     print(f"ground raster {cols}x{rows} at {G_GSD} m; road/terrain correction rms {np.sqrt(np.mean(delta[inside2] ** 2)):.3f} m, max {np.abs(delta).max():.3f} m")
 
     far = ndi.gaussian_filter(load_dem(os.path.join(SRC, "cuzk_far", "dem.tif")), 1.0)
-    np.savez_compressed(os.path.join(WORK, "heights.npz"), z=z, camber=camber, ground=ground.astype(np.float32),
+    np.savez_compressed(lap_file("heights", "npz"), z=z, camber=camber, ground=ground.astype(np.float32),
                         far=far.astype(np.float32), z_raw=z0, camber_raw=cam)
-    print("wrote", os.path.join(WORK, "heights.npz"))
+    print("wrote", lap_file("heights", "npz"))
 
 
 class Heights:
     """Loader used by the builder."""
 
-    def __init__(self):
-        d = np.load(os.path.join(WORK, "heights.npz"))
+    def __init__(self, lap: str = ""):
+        from common import lap_file
+        d = np.load(lap_file("heights", "npz", lap))
         self.z, self.camber = d["z"], d["camber"]
         self.g = Raster(d["ground"].astype(np.float64), HALF_E, HALF_N, G_GSD)
         fh = META_FAR["half_m"]

@@ -159,6 +159,12 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         for p, hh in zip(tr.shoulder_en(side), tr.shoulder_h(side)):
             if edge_tree.query(p)[0] > SHOULDER * 0.8 and (chain_lines is None or chain_lines.distance(Point(p)) > 0.3):
                 reg.add(p, hh)
+    # 3a. the standard circuit's own roads: rows of vertices along them, so the mesh can carry their smooth surface
+    std_poly, std_pts, std_height = design.std_surface(tr)
+    seen = cKDTree(np.array(reg.pts))
+    inside = contains_xy(A.buffer(-0.6), std_pts[:, 0], std_pts[:, 1]) & (seen.query(std_pts)[0] > 0.9)
+    for p in std_pts[inside]:
+        reg.add(p)
     # 3b. gravel trap outlines: closed rings that touch nothing else
     for poly in getattr(G, "geoms", [G]):
         if poly.is_empty:
@@ -196,6 +202,14 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     Hh = tr.H.ground(V)
     for i, hh in reg.fixed_h.items():
         Hh[i] = hh
+    # the standard circuit's own roads take their smooth analytic surface, blended into the ground near the race lap
+    from shapely import distance as _dist, points as _points
+    free_all = np.array([i for i in range(len(V)) if i not in reg.fixed_h])
+    on_std = free_all[contains_xy(std_poly.buffer(0.4), V[free_all, 0], V[free_all, 1])]
+    if len(on_std):
+        wgt = np.clip(_dist(_points(V[on_std]), R) / 7.0, 0, 1)
+        wgt = wgt * wgt * (3 - 2 * wgt)
+        Hh[on_std] = Hh[on_std] * (1 - wgt) + std_height(V[on_std]) * wgt
     # vertices that the triangulator put on a road edge between two road vertices take the height of that edge
     from shapely import distance, line_locate_point, points
     free = np.array([i for i in range(len(V)) if i not in reg.fixed_h])
@@ -242,7 +256,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     tile = np.floor((cen + [HALF_E, HALF_N]) / TILE).astype(int)
     tile_id = tile[:, 0] * 100 + tile[:, 1]
     plan = pos[:, [0, 2]]
-    layers = ((apron & (kind == 0), "1APRON_r", "road", plan / TILE_M["road"]), (apron & (kind == 1), "1APRON_a", "apron", plan / TILE_M["apron"]),
+    layers = ((apron & (kind == 0), "1ROAD_x", "road", plan / TILE_M["road"]), (apron & (kind == 1), "1APRON_a", "apron", plan / TILE_M["apron"]),
               (apron & (kind == 2), "1APRON_c", "pad", plan / TILE_M["pad"]), (gravel, "1SAND_s", "gravel", plan / TILE_M["gravel"]),
               (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (far, "1GRASS_p", "photo", site_uv(V)))
     for sel, prefix, mat, uv in layers:
@@ -257,7 +271,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads,
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, roads_poly=roads_poly,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
     return info

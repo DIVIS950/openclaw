@@ -10,18 +10,12 @@ from scipy.interpolate import splev, splprep
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
 
-# name, width (m), centre line, square end ("" / "end"). Roads carry the same dark asphalt, white edge lines and kerbs
-# as the lap. A road normally runs on into the lap; a square end is a clean seam where it meets a paved area.
+# name, width (m), centre line, square end ("" / "end"). Roads here have one width. The roads of the standard
+# circuit (return road, link at the infield hairpin, north junction, south-west loop) are not listed: they come
+# from the surveyed standard lap with their real edges (stdlap.py, design.std_branches).
 ROADS = [
-    # the return leg of the permanent circuit: from the east hairpin back west to the start area
-    ("return", 9.5, [(186, -8.3), (170, -5.5), (155, -4.6), (140, -5.6), (120, -8.6), (100, -11.5), (80, -14), (62, -17.5)], "end"),
-    # the loop south-west of the start straight
-    ("sw_loop", 8.5, [(-49, -30), (-55.5, -40), (-57.5, -52), (-55, -63), (-47, -70.5), (-35, -72.5), (-23, -70), (-15, -62), (-12.5, -51),
-                      (-12.5, -42), (-9.5, -35)], ""),
     # the short link west of the bridge
     ("west_link", 7.0, [(-49.5, -4), (-41, -5), (-33, -8), (-28, -14.5), (-27, -23), (-26.5, -31)], ""),
-    # the outer line of the infield hairpin, joining the east leg
-    ("hairpin_outer", 8.0, [(147, 50), (146.5, 38), (142, 28), (133, 22), (124, 22.5), (117, 26)], ""),
 ]
 
 # name, kind, corner radius (m), outline. kind: "apron" lighter asphalt, "pad" concrete, "gravel".
