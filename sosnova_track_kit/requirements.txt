@@ -4,5 +4,6 @@ scipy>=1.11
 opencv-python-headless>=4.9
 shapely>=2.0
 triangle>=20230923
+scikit-image>=0.22
 # only for tools/render.py (check renders)
 # bpy>=4.2

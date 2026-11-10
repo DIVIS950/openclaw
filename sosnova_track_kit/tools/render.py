@@ -49,7 +49,49 @@ def load_scene():
         bsdf.inputs["Roughness"].default_value = 0.85
         tex = nt.nodes.new("ShaderNodeTexImage")
         tex.image = images[m["maps"]["txDiffuse"]]
-        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        colour = tex.outputs["Color"]
+        if m["shader"].lower() == "ksmultilayer":
+            # colour = photo x (sum of mask channel x tiled detail) x magicMult, as the game shader does
+            uv = nt.nodes.new("ShaderNodeTexCoord")
+            mask = nt.nodes.new("ShaderNodeTexImage")
+            mask.image = images[m["maps"]["txMask"]]
+            mask.image.colorspace_settings.name = "Non-Color"
+            sep = nt.nodes.new("ShaderNodeSeparateColor")
+            nt.links.new(mask.outputs["Color"], sep.inputs["Color"])
+            total = None
+            for ch, sock in (("R", sep.outputs[0]), ("G", sep.outputs[1]), ("B", sep.outputs[2]), ("A", mask.outputs["Alpha"])):
+                name = m["maps"].get("txDetail" + ch)
+                if not name:
+                    continue
+                mp = nt.nodes.new("ShaderNodeMapping")
+                rep = float(m["props"].get("mult" + ch, 1.0))
+                mp.inputs["Scale"].default_value = (rep, rep, 1.0)
+                nt.links.new(uv.outputs["UV"], mp.inputs["Vector"])
+                det = nt.nodes.new("ShaderNodeTexImage")
+                det.image = images[name]
+                nt.links.new(mp.outputs["Vector"], det.inputs["Vector"])
+                sc = nt.nodes.new("ShaderNodeVectorMath")
+                sc.operation = "SCALE"
+                nt.links.new(det.outputs["Color"], sc.inputs[0])
+                nt.links.new(sock, sc.inputs["Scale"])
+                if total is None:
+                    total = sc.outputs[0]
+                else:
+                    add = nt.nodes.new("ShaderNodeVectorMath")
+                    add.operation = "ADD"
+                    nt.links.new(total, add.inputs[0])
+                    nt.links.new(sc.outputs[0], add.inputs[1])
+                    total = add.outputs[0]
+            mul = nt.nodes.new("ShaderNodeVectorMath")
+            mul.operation = "MULTIPLY"
+            nt.links.new(tex.outputs["Color"], mul.inputs[0])
+            nt.links.new(total, mul.inputs[1])
+            mm = nt.nodes.new("ShaderNodeVectorMath")
+            mm.operation = "SCALE"
+            mm.inputs["Scale"].default_value = float(m["props"].get("magicMult", 1.0))
+            nt.links.new(mul.outputs[0], mm.inputs[0])
+            colour = mm.outputs[0]
+        nt.links.new(colour, bsdf.inputs["Base Color"])
         geo = nt.nodes.new("ShaderNodeNewGeometry")
         transp = nt.nodes.new("ShaderNodeBsdfTransparent")
         mix = nt.nodes.new("ShaderNodeMixShader")
@@ -151,7 +193,7 @@ def main() -> None:
         m = dummies[name]
         eye = m[3, :3] + up * 1.05
         shots.append((name.lower(), eye, eye + m[2, :3] * 30 - up * 1.5, 75))
-    for st in (60, 130, 215, 320, 400, 480, 570, 650, 750, 860, 925, 1000, 1150, 1300, 1450, 1560, 1640):
+    for st in (60, 130, 215, 320, 400, 480, 560, 600, 615, 650, 750, 860, 925, 1000, 1150, 1300, 1450, 1560, 1640):
         i = int(st / 1751 * n) % n
         j = (i + 14) % n
         d = ai[j] - ai[i]
@@ -159,6 +201,15 @@ def main() -> None:
         shots.append((f"lap_{st:04d}", ai[i] + up * 1.05 - d * 0.5, ai[j] + up * 0.5, 75))
     shots.append(("chase_grid", np.array([0.0, 7.0, -92.0]), np.array([0.0, 0.0, -20.0]), 60))
     shots.append(("overview", np.array([-420.0, 330.0, -250.0]), np.array([20.0, 0.0, 60.0]), 55))
+    # the overpass: from the side, and from the driver's seat on its ramp
+    import bridge_geom as bg
+    from track import Track
+    tr = Track()
+    mid = tr.fr.world(bg.point(np.array([bg.LENGTH / 2]), np.array([0.0])), tr.H.ground(bg.point(np.array([bg.LENGTH / 2]), np.array([0.0]))))[0]
+    side = tr.fr.vec(bg.LEFT[None, :])[0]
+    shots.append(("bridge_side", mid + np.array([-side[0] * 38, 9.0, -side[1] * 38]) + np.array([12.0, 0, 0]), mid + up * 2.0, 55))
+    foot = tr.fr.world(bg.point(np.array([-9.0, 14.0]), np.array([0.0, 0.0])), tr.H.ground(bg.point(np.array([-9.0, 14.0]), np.array([0.0, 0.0]))))
+    shots.append(("bridge_ramp", foot[0] + up * 1.1, foot[1] + up * 4.0, 75))
     for name, eye, tgt, fov in shots:
         if wanted and name not in wanted:
             continue

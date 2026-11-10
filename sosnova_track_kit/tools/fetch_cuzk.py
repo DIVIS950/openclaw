@@ -28,6 +28,7 @@ from PIL import Image
 
 ORTHO_WMS = "https://ags.cuzk.gov.cz/arcgis1/services/ORTOFOTO/MapServer/WMSServer"
 DEM_IMG = "https://ags.cuzk.cz/arcgis2/rest/services/dmr5g/ImageServer/exportImage"
+DSM_IMG = "https://ags.cuzk.cz/arcgis2/rest/services/dmp1g/ImageServer/exportImage"
 R = 20037508.342789244
 
 
@@ -48,6 +49,7 @@ def main() -> None:
     ap.add_argument("--gsd", type=float, default=0.125, help="orthophoto ground sample distance (m/px)")
     ap.add_argument("--dem-gsd", type=float, default=1.0, help="height grid spacing (m/px)")
     ap.add_argument("--tile", type=int, default=4000, help="max orthophoto request size in px (server limit 4096)")
+    ap.add_argument("--dsm", action="store_true", help="also fetch the DMP 1G surface model (dsm.tif)")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "source", "cuzk"))
     a = ap.parse_args()
     lat0, lon0 = map(float, a.center.split(","))
@@ -89,6 +91,14 @@ def main() -> None:
     with open(os.path.join(a.out, "dem.tif"), "wb") as f:
         f.write(data)
     print(f"dem {dw}x{dh} px at {a.dem_gsd} m/px")
+
+    # ---- DMP 1G surface model (buildings, trees, bridges) at twice the DEM resolution
+    if a.dsm:
+        q = urllib.parse.urlencode({"bbox": f"{x0:.3f},{y0:.3f},{x1:.3f},{y1:.3f}", "bboxSR": 3857, "imageSR": 3857, "size": f"{dw * 2},{dh * 2}",
+                                    "format": "tiff", "pixelType": "F32", "noData": -9999, "interpolation": "RSP_BilinearInterpolation", "f": "image"})
+        with open(os.path.join(a.out, "dsm.tif"), "wb") as f:
+            f.write(fetch(DSM_IMG + "?" + q))
+        print(f"dsm {dw * 2}x{dh * 2} px")
 
     meta = {"center": [lat0, lon0], "half_m": [hw, hh], "gsd": a.gsd, "dem_gsd": a.dem_gsd, "mercator_k": k,
             "bbox3857": [x0, y0, x1, y1], "ortho_size": [W, H], "dem_size": [dw, dh],

@@ -15,8 +15,7 @@ from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import HALF_E, HALF_N, META_FAR, WORK  # noqa: E402
-from textures import APRON_TILE_M, GRASS_TILE_M  # noqa: E402
+from common import HALF_E, HALF_N, META_FAR, WORK, site_uv  # noqa: E402
 from track import SHOULDER, Parts, Track, vertex_normals, wind_up  # noqa: E402
 
 MASK_GSD = 0.25
@@ -60,7 +59,7 @@ def mask_polygons(mask: np.ndarray):
 
 
 def apron_geometry(tr: Track, R: Polygon):
-    asphalt = np.load(os.path.join(WORK, "classes.npz"))["asphalt"]
+    asphalt = np.load(os.path.join(WORK, "survey.npz"))["hard"]
     A = mask_polygons(asphalt)
     A = A.buffer(1.0).buffer(-1.0)                       # close pinholes
     A = A.difference(R.buffer(0.02))
@@ -225,25 +224,17 @@ def build_ground(tr: Track, parts: Parts) -> dict:
     pos = tr.fr.world(V, Hh)
     T = wind_up(pos, T)
     nrm = vertex_normals(pos, T)
-    uv_apron = pos[:, [0, 2]] / APRON_TILE_M
-    uv_grass = pos[:, [0, 2]] / GRASS_TILE_M
-    uv_photo = np.column_stack([(V[:, 0] + HALF_E) / (2 * HALF_E), (V[:, 1] + HALF_N) / (2 * HALF_N)])
+    uv = site_uv(V)
     tile = np.floor((cen + [HALF_E, HALF_N]) / TILE).astype(int)
     tile_id = tile[:, 0] * 100 + tile[:, 1]
-    for sel, prefix, mat, uv in ((apron, "1APRON_a", "apron", uv_apron), (near, "1GRASS_n", "grass", uv_grass), (photo, "1GRASS_p", "photo", uv_photo)):
+    for sel, prefix, mat in ((apron, "1APRON_a", "asph"), (~apron, "1GRASS_g", "grass")):
         for tid in np.unique(tile_id[sel]):
             t = T[sel & (tile_id == tid)]
             ids, inv = np.unique(t, return_inverse=True)
             parts.add(f"{prefix}{tid:04d}", mat, pos[ids], nrm[ids], uv[ids], inv.reshape(-1, 3), cast_shadows=False)
-    # raster of everything covered by tiled textures (for blending the photo)
-    covered = np.zeros((int(2 * HALF_N / MASK_GSD), int(2 * HALF_E / MASK_GSD)), np.uint8)
-    px = np.stack([(V[:, 0] + HALF_E) / MASK_GSD, (HALF_N - V[:, 1]) / MASK_GSD], -1)
-    cv2.fillPoly(covered, [np.round(px[t]).astype(np.int32) for t in T[~photo]], 1)
-    cv2.fillPoly(covered, [np.round(np.stack([(np.array(r.coords)[:, 0] + HALF_E) / MASK_GSD, (HALF_N - np.array(r.coords)[:, 1]) / MASK_GSD], -1)).astype(np.int32)
-                           for r in [R.exterior]], 1)
-    info = dict(R=R, A=A, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(apron=int(apron.sum()), near=int(near.sum()), photo=int(photo.sum())), chains=len(chains),
-                apron_area=float(area[apron].sum()), V=V, T=T, cls=np.where(apron, 1, np.where(near, 2, 3)))
+    info = dict(R=R, A=A, zone=zone, rect=np.array(rect), rect_h=Hh[rect_ids],
+                tris=dict(asphalt=int(apron.sum()), grass=int((~apron).sum())), chains=len(chains),
+                apron_area=float(area[apron].sum()), V=V, T=T, cls=np.where(apron, 1, 2))
     return info
 
 

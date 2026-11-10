@@ -1,0 +1,29 @@
+AUTODROM SOSNOVA v3.0 for Assetto Corsa
+=======================================
+
+INSTALL
+1. Delete older versions first, if you have them:
+      ...\assettocorsa\content\tracks\sosnova
+      ...\assettocorsa\content\tracks\sosnova_v2
+2. Copy the whole folder "sosnova_v3" into:
+      ...\Steam\steamapps\common\assettocorsa\content\tracks\
+   so that this file exists:
+      ...\content\tracks\sosnova_v3\sosnova_v3.kn5
+   (With Content Manager you can also just drag the zip onto its window.)
+3. Start the game and pick the track "Autodrom Sosnova v3.0".
+
+WHAT IT IS
+- A copy of the real circuit built from the Czech state aerial photo and lidar height models.
+  The ground shows the real asphalt, lines, kerb stones and grass of the place.
+- All asphalt of the complex is drivable, not only the lap.
+- The concrete bridge is there. The lap passes under it, and you can also drive over it.
+- Real buildings with their real heights, tyre barriers and trees where the survey shows them.
+- The timed lap (1751 m, anticlockwise) is the route of the 14.11.2026 event. 16 grid slots, 16 pit boxes, AI line.
+- The event barriers and slalom tyres are NOT in this version. This version is the circuit itself.
+
+OPTIONAL
+- Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
+
+DATA
+Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
+Accuracy is about 0.25 m in plan and 0.2 m in height. Not affiliated with the circuit owner.

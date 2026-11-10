@@ -1,30 +1,35 @@
 {
- "track": "sosnova_v2",
+ "track": "sosnova_v3",
  "lap_m": 1750.9656860454725,
- "meshes": 237,
- "vertices": 65892,
- "triangles": 78995,
- "kn5_mb": 9.89,
- "kerb_runs": 15,
- "kerb_m": 467,
- "barrier_runs": 24,
- "barrier_m": 500,
+ "meshes": 223,
+ "vertices": 114618,
+ "triangles": 99548,
+ "kn5_mb": 18.59,
  "ground": {
-  "apron": 9361,
-  "near": 19925,
-  "photo": 1923
+  "asphalt": 10690,
+  "grass": 21964
  },
- "apron_m2": 27329,
- "buildings": 27,
- "boards": {
-  "chevrons": 24,
-  "brake": 10
+ "asphalt_m2": 51835,
+ "buildings": 45,
+ "bridge": {
+  "length": 53.70721553013151,
+  "peak": 5.199809348051539,
+  "clearance": 4.021448569806324,
+  "max_grade": 0.31402192710953614
+ },
+ "paint": {
+  "lines": 671,
+  "line_m": 1686,
+  "areas": 237
+ },
+ "tyre_walls": {
+  "walls": 79,
+  "metres": 508
  },
  "trees": {
-  "near": 442,
-  "far": 370
+  "near": 2335,
+  "far": 560
  },
- "tyre_stacks": 33,
  "dummies": 37,
  "ai": {
   "points": 1682,

@@ -3,5 +3,7 @@ source/cuzk_far/ortho.png
 source/work/*
 !source/work/centerline.json
 !source/work/build_summary.json
+!source/work/paint.json
+!source/work/tyre_walls.json
 source/previews_v2/
 __pycache__/

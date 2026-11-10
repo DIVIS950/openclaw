@@ -28,6 +28,11 @@ class Material:
     specular_exp: float = 20.0
     emissive: float = 0.0
     alpha_ref: float = 0.5
+    maps: dict = field(default_factory=dict)     # extra texture slots, e.g. {"txMask": "mask.png"}
+    props: dict = field(default_factory=dict)    # extra shader values, e.g. {"multR": 100.0}
+
+    def textures(self) -> list[tuple[str, str]]:
+        return [("txDiffuse", self.texture), *self.maps.items()]
 
 
 @dataclass
@@ -103,7 +108,7 @@ def write(path: str, root_name: str, textures: dict[str, bytes], materials: list
     w = _W()
     w.raw(b"sc6969")
     w.i(5)
-    used = {m.texture for m in materials}
+    used = {t for m in materials for _, t in m.textures()}
     tex = [(n, d) for n, d in textures.items() if n in used]
     assert used <= set(textures), f"missing textures: {used - set(textures)}"
     w.i(len(tex))
@@ -124,6 +129,8 @@ def write(path: str, root_name: str, textures: dict[str, bytes], materials: list
         props = [("ksAmbient", m.ambient), ("ksDiffuse", m.diffuse), ("ksSpecular", m.specular),
                  ("ksSpecularEXP", m.specular_exp), ("ksEmissive", m.emissive), ("ksAlphaRef", m.alpha_ref),
                  ("diffuseMult", 1.0), ("normalMult", 1.0), ("useDetail", 0.0), ("detailUVMultiplier", 1.0)]
+        if m.props:                   # shader specific values replace the generic tail
+            props = props[:6] + list(m.props.items())
         w.i(len(props))
         for pn, pv in props:
             w.s(pn)
@@ -131,10 +138,12 @@ def write(path: str, root_name: str, textures: dict[str, bytes], materials: list
             w.f(0, 0)
             w.f(0, 0, 0)
             w.f(0, 0, 0, 0)
-        w.i(1)
-        w.s("txDiffuse")
-        w.i(0)
-        w.s(m.texture)
+        maps = m.textures()
+        w.i(len(maps))
+        for slot, (slot_name, tex_name) in enumerate(maps):
+            w.s(slot_name)
+            w.i(slot)
+            w.s(tex_name)
     w.i(1)
     w.s(root_name)
     w.i(len(dummies) + len(meshes))

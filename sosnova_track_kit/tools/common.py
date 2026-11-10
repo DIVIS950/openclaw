@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
 SRC = os.path.join(KIT, "source")
 WORK = os.path.join(SRC, "work")
-TRACK = "sosnova_v2"
+TRACK = "sosnova_v3"
 OUT = os.path.join(KIT, "content", "tracks", TRACK)
 
 META = json.load(open(os.path.join(SRC, "cuzk", "meta.json"), encoding="utf-8"))
@@ -94,3 +94,14 @@ def closed_frames(p: np.ndarray):
 def periodic_gauss(v: np.ndarray, sigma: float) -> np.ndarray:
     from scipy.ndimage import gaussian_filter1d
     return gaussian_filter1d(v, sigma, mode="wrap", axis=0)
+
+
+# --- ground photo: one square texture over the whole site (east/north +-SITE_HALF metres) ---
+SITE_HALF = 320.0
+PHOTO_PX = 4096
+
+
+def site_uv(en: np.ndarray) -> np.ndarray:
+    """Texture coordinates of the ground photo and its mask (v measured northwards)."""
+    en = np.atleast_2d(en)
+    return (en + SITE_HALF) / (2 * SITE_HALF)

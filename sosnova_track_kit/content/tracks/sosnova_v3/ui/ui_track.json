@@ -1,0 +1,26 @@
+{
+  "name": "Autodrom Sosnová v3.0",
+  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as an exact copy of the real place: the whole asphalt complex is drivable, with the concrete overpass, the pit buildings and the real surface taken from the Czech state orthophoto (ČÚZK, 12.5 cm/px). Heights from the DMR 5G lidar terrain and DMP 1G surface models. The timed lap is the combined route of the 14.11.2026 event, anticlockwise from the start straight and under the bridge. 16 grid slots, 16 pit boxes, AI line. Optional CSP grass and rain. Not affiliated with the circuit owner.",
+  "tags": [
+    "circuit",
+    "czech",
+    "sosnova",
+    "bridge",
+    "lidar",
+    "orthophoto",
+    "csp"
+  ],
+  "geotags": [
+    "50.65900",
+    "14.53906"
+  ],
+  "country": "Czech Republic",
+  "city": "Sosnová (Česká Lípa)",
+  "length": "1751",
+  "width": "7-10",
+  "pitboxes": "16",
+  "run": "anticlockwise",
+  "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
+  "version": "3.0",
+  "url": ""
+}

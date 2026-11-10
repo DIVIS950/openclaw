@@ -155,7 +155,12 @@ class Parts:
         pos, tris = np.asarray(pos, float), np.asarray(tris, np.int64).reshape(-1, 3)
         uv = np.asarray(uv, float)
         fn = np.cross(pos[tris[:, 1]] - pos[tris[:, 0]], pos[tris[:, 2]] - pos[tris[:, 0]])
-        flip = np.einsum("ij,ij->i", fn, np.broadcast_to(np.asarray(hint, float), fn.shape)) < 0
+        hint = np.broadcast_to(np.asarray(hint, float), fn.shape)
+        ok = np.linalg.norm(fn, axis=1) > 1e-7                          # drop degenerate triangles
+        tris, fn, hint = tris[ok], fn[ok], hint[ok]
+        if len(tris) == 0:
+            return
+        flip = np.einsum("ij,ij->i", fn, hint) < 0
         tris = tris.copy()
         tris[flip] = tris[flip][:, ::-1]
         if not smooth:                              # flat shading: unshare the vertices
@@ -197,3 +202,47 @@ def speed_profile(k: np.ndarray, step: float = 1.0, a_lat: float = 11.5, a_acc: 
             j = (i + 1) % n
             v[i] = min(v[i], np.sqrt(v[j] ** 2 + 2 * a_brk * step))
     return v
+
+
+class SurfaceLookup:
+    """Height of triangle meshes under a point (vertical ray), for laying thin objects exactly on the ground."""
+
+    def __init__(self, tri_pos: np.ndarray, cell: float = 6.0):
+        self.tri = np.asarray(tri_pos, float)                 # (m, 3, 3) world coordinates
+        self.cell = cell
+        lo, hi = self.tri[:, :, [0, 2]].min(1), self.tri[:, :, [0, 2]].max(1)
+        a, b = np.floor(lo / cell).astype(int), np.floor(hi / cell).astype(int)
+        self.buckets: dict[tuple[int, int], list[int]] = {}
+        for k in range(len(self.tri)):
+            for i in range(a[k, 0], b[k, 0] + 1):
+                for j in range(a[k, 1], b[k, 1] + 1):
+                    self.buckets.setdefault((i, j), []).append(k)
+
+    @staticmethod
+    def from_parts(parts: "Parts", prefixes: tuple[str, ...]) -> "SurfaceLookup":
+        tris = [pos[t] for (group, _), items in parts.groups.items() if group.startswith(prefixes) for pos, _, _, t in items]
+        return SurfaceLookup(np.vstack(tris))
+
+    def y(self, x: float, z: float):
+        ids = self.buckets.get((int(np.floor(x / self.cell)), int(np.floor(z / self.cell))))
+        if not ids:
+            return None
+        t = self.tri[ids]
+        a, b, c = t[:, 0], t[:, 1], t[:, 2]
+        d = (b[:, 2] - c[:, 2]) * (a[:, 0] - c[:, 0]) + (c[:, 0] - b[:, 0]) * (a[:, 2] - c[:, 2])
+        d = np.where(np.abs(d) < 1e-12, 1e-12, d)
+        w0 = ((b[:, 2] - c[:, 2]) * (x - c[:, 0]) + (c[:, 0] - b[:, 0]) * (z - c[:, 2])) / d
+        w1 = ((c[:, 2] - a[:, 2]) * (x - c[:, 0]) + (a[:, 0] - c[:, 0]) * (z - c[:, 2])) / d
+        w2 = 1 - w0 - w1
+        inside = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
+        if not inside.any():
+            return None
+        return float(np.where(inside, w0 * a[:, 1] + w1 * b[:, 1] + w2 * c[:, 1], -1e9).max())
+
+    def ys(self, xz: np.ndarray, fallback: np.ndarray) -> np.ndarray:
+        out = np.array(fallback, float)
+        for k, (x, z) in enumerate(np.asarray(xz, float)):
+            v = self.y(x, z)
+            if v is not None:
+                out[k] = v
+        return out

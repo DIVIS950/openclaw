@@ -53,8 +53,9 @@ class Surface:
                 for j in range(a[k, 1], b[k, 1] + 1):
                     self.buckets.setdefault((i, j), []).append(k)
 
-    def at(self, x: float, z: float):
-        """(height, mesh name) of the highest surface under the point, or (None, None)."""
+    def at(self, x: float, z: float, near_y: float | None = None):
+        """(height, mesh name) of the surface under the point: the highest one, or the one nearest to near_y
+        where surfaces overlap (the road under the bridge). (None, None) when there is none."""
         ids = self.buckets.get((int(np.floor(x / self.cell)), int(np.floor(z / self.cell))))
         if not ids:
             return None, None
@@ -70,7 +71,7 @@ class Surface:
             return None, None
         y = w0 * a[:, 1] + w1 * b[:, 1] + w2 * c[:, 1]
         y = np.where(inside, y, -1e9)
-        k = int(y.argmax())
+        k = int(y.argmax()) if near_y is None else int(np.where(inside, np.abs(y - near_y), 1e9).argmin())
         return float(y[k]), self.names[self.owner[ids[k]]]
 
 
@@ -132,7 +133,7 @@ def main() -> None:
     check(abs(step.mean() - 1.0) < 0.02 and step.max() < 1.1, f"points about 1 m apart (mean {step.mean():.3f}, max {step.max():.3f})")
     on_road, dy = 0, []
     for q in p:
-        y, name = ground.at(q[0], q[2])
+        y, name = ground.at(q[0], q[2], q[1])
         if name and name.startswith("1ROAD"):
             on_road += 1
             dy.append(q[1] - y)
@@ -141,11 +142,24 @@ def main() -> None:
     check(np.abs(dy).max() < 0.03, f"AI line height matches the road (max difference {np.abs(dy).max() * 1000:.0f} mm)")
     check(abs(p[0, 2]) < 0.6 and extra[0, 15] > 0.99, f"point 0 is on the start line heading +Z (z = {p[0, 2]:.2f}, forward z = {extra[0, 15]:.3f})")
     check(extra[:, 5].min() > 1.0 and extra[:, 6].min() > 1.0, f"line keeps clear of the edges (min {extra[:, 5].min():.2f} / {extra[:, 6].min():.2f} m)")
-    check(wall_tree.query(p[:, [0, 2]])[0].min() > 1.2, f"line keeps clear of walls and tyre stacks (min {wall_tree.query(p[:, [0, 2]])[0].min():.2f} m)")
+    near = wall_tree.query_ball_point(p[:, [0, 2]], 1.2)
+    hits = sum(1 for q, ids in zip(p, near) if any(-0.6 < walls[i, 1] - q[1] < 2.2 for i in ids))   # walls at car height only
+    check(hits == 0, f"line keeps 1.2 m clear of walls, tyre barriers and bridge supports ({hits} points too close)")
     ys = p[:, 1]
     grade = (np.roll(ys, -1) - ys) / step
     bump = np.abs(np.roll(grade, -1) - grade) / step
     check(bump.max() < 0.006, f"road profile is smooth: max change of gradient {bump.max() * 100:.3f} % per metre, gradient {grade.min() * 100:.1f}..{grade.max() * 100:.1f} %")
+
+    print("bridge")
+    deck = Surface([m for m in meshes if m["name"].startswith("1ROAD_bridge")])
+    under = [(deck.at(q[0], q[2])[0], q[1]) for q in p]
+    under = [(a, b) for a, b in under if a is not None]
+    check(len(under) >= 3 and min(a - b for a, b in under) > 3.8,
+          f"the lap passes under the bridge deck with {min(a - b for a, b in under):.1f} m between road and deck top ({len(under)} AI points)")
+    dv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith("1ROAD_bridge")]).astype(np.float64)
+    ends = dv[np.argsort(dv[:, 1])[:6]]
+    gaps = [abs(ground.at(q[0], q[2], q[1])[0] - q[1]) for q in ends if ground.at(q[0], q[2], q[1])[0] is not None]
+    check(len(gaps) > 0 and max(gaps) < 0.12, f"both feet of the bridge meet the ground (largest step {max(gaps) * 100:.0f} cm)")
 
     print("spawn points")
     ui = json.load(open(os.path.join(OUT, "ui", "ui_track.json"), encoding="utf-8"))
@@ -161,7 +175,7 @@ def main() -> None:
         pos, face = m[3, :3], m[2, :3]
         j = ai_tree.query(pos[[0, 2]])[1]
         worst_dot = min(worst_dot, float(face @ fwd[j]))
-        y, sname = ground.at(pos[0], pos[2])
+        y, sname = ground.at(pos[0], pos[2], pos[1])
         surf_ok &= bool(sname and sname.startswith("1ROAD"))
         worst_h = max(worst_h, abs(pos[1] - y - 0.05))
         worst_ortho = max(worst_ortho, float(np.abs(m[:3, :3] @ m[:3, :3].T - np.eye(3)).max()), abs(float(np.linalg.det(m[:3, :3])) - 1))
@@ -202,7 +216,7 @@ def main() -> None:
     print("joins")
     from track import Track
     tr = Track()
-    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_n", "1APRON"))]).astype(np.float64)
+    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1APRON"))]).astype(np.float64)
     gtree = cKDTree(gv)
     worst, tj, tj_gap = 0.0, 0, 0.0
     for side in (1, -1):
