@@ -299,7 +299,7 @@ def build_tape(tr: Track, parts: Parts, max_gap: float = 7.5) -> dict:
                 continue
             en = np.array([c[i], c[j]])
             g = tr.H.ground(en)
-            pos = np.vstack([tr.fr.world(en, g + 0.70), tr.fr.world(en, g + 0.78)])
+            pos = np.vstack([tr.fr.world(en, g + 0.66), tr.fr.world(en, g + 0.80)])
             P.append(pos)
             U.append(np.array([[0, 0.3], [d / 1.0, 0.3], [0, 0.6], [d / 1.0, 0.6]]))
             T.append(np.array([[0, 1, 3], [0, 3, 2]]) + off)

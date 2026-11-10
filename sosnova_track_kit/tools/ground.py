@@ -242,6 +242,26 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     Hh = tr.H.ground(V)
     for i, hh in reg.fixed_h.items():
         Hh[i] = hh
+    # the other roads take a smooth surface of their own. Near the lap they continue the lap's own surface (its
+    # height profile and cross-fall carried outwards), so a road leaves the lap without a crease
+    from shapely import distance as _dist, points as _points
+    road_h = design.road_surface(tr)
+    lap_tree = cKDTree(tr.c)
+
+    def lap_h(p: np.ndarray) -> np.ndarray:
+        _, k = lap_tree.query(p)
+        return tr.H.road(k.astype(float), np.einsum("ij,ij->i", p - tr.c[k], tr.nrm[k]))
+    free_all = np.array([i for i in range(len(V)) if i not in reg.fixed_h])
+    on_road = free_all[contains_xy(circuit.roads_polygon().buffer(0.5), V[free_all, 0], V[free_all, 1])]
+    if len(on_road):
+        wgt = np.clip((_dist(_points(V[on_road]), R) - 0.3) / 8.0, 0, 1)
+        wgt = wgt * wgt * (3 - 2 * wgt)
+        Hh[on_road] = lap_h(V[on_road]) * (1 - wgt) + road_h(V[on_road]) * wgt
+    wide = np.setdiff1d(free_all[contains_xy(circuit.areas("road").buffer(0.3), V[free_all, 0], V[free_all, 1])], on_road)
+    if len(wide):                                                  # the outside of turn 1 lies in the plane of the lap
+        wgt = np.clip((_dist(_points(V[wide]), R) - 5.0) / 5.0, 0, 1)
+        wgt = wgt * wgt * (3 - 2 * wgt)
+        Hh[wide] = lap_h(V[wide]) * (1 - wgt) + Hh[wide] * wgt
     # vertices that the triangulator put on a road edge between two road vertices take the height of that edge
     from shapely import distance, line_locate_point, points
     free = np.array([i for i in range(len(V)) if i not in reg.fixed_h])

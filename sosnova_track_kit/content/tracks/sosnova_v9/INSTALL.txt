@@ -1,4 +1,4 @@
-AUTODROM SOSNOVA v9.3 for Assetto Corsa
+AUTODROM SOSNOVA v9.4 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -9,7 +9,7 @@ INSTALL
    so that this file exists:
       ...\content\tracks\sosnova_v9\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v9.3".
+3. Start the game and pick the track "Autodrom Sosnova v9.4".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:

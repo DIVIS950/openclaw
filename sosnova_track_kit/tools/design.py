@@ -170,3 +170,26 @@ def road_barriers(G) -> list[dict]:
         if contains_xy(G, back[:, 0], back[:, 1]).mean() > 0.7:
             out.append(dict(en=(q + nrm * (road["half"] + VERGE + depth[ok] + 0.7)[:, None]).round(2).tolist(), width=0.8, height=0.95))
     return out
+
+
+def road_surface(tr: Track):
+    """A smooth surface for the other roads, made the way the lap's surface is made: a height profile along each
+    road's centre line and a gentle cross-fall, both taken from the terrain and smoothed along the road.
+    Returns a function east/north -> height (m a.s.l.)."""
+    import circuit
+    from scipy.ndimage import gaussian_filter1d
+    from scipy.spatial import cKDTree
+    C, N, Z, K = [], [], [], []
+    for f in circuit.road_frames():
+        en, nrm, half = f["en"], f["nrm"], f["half"]
+        z = gaussian_filter1d(tr.H.ground(en), 14.0, mode="nearest")                  # 7 m along the road
+        cross = (tr.H.ground(en + nrm * (0.8 * half)) - tr.H.ground(en - nrm * (0.8 * half))) / (1.6 * half)
+        cross = np.clip(gaussian_filter1d(cross, 20.0, mode="nearest"), -0.035, 0.035)
+        C.append(en), N.append(nrm), Z.append(z), K.append(cross)
+    C, N, Z, K = np.vstack(C), np.vstack(N), np.concatenate(Z), np.concatenate(K)
+    tree = cKDTree(C)
+
+    def height(p: np.ndarray) -> np.ndarray:
+        _, k = tree.query(p)
+        return Z[k] + K[k] * np.einsum("ij,ij->i", p - C[k], N[k])
+    return height

@@ -241,6 +241,56 @@ def main() -> None:
     check(worst < 0.001, f"every road edge vertex is shared with the ground mesh (max gap {worst * 1000:.2f} mm)")
     check(tj_gap < 0.001, f"ground vertices lying on a road edge between road vertices are at edge height ({tj} vertices, max gap {tj_gap * 1000:.2f} mm)")
 
+    print("other roads and race equipment")
+    import circuit
+    import ground
+    from shapely import contains_xy as _inside, distance as _dist, points as _points
+    from track import Track
+    tr = Track()
+    drive = Surface([m for m in meshes if m["name"].startswith(("1ROAD_trk", "1APRON"))])
+    for f in circuit.road_frames():
+        worst, holes = 0.0, 0
+        for g in (-0.6, 0.0, 0.6):
+            xz = tr.fr.xz(f["en"][::2] + f["nrm"][::2] * (f["half"] * g))          # every metre
+            hit = [drive.at(x, z) for x, z in xz]
+            holes += sum(y is None for y, _ in hit[4:-4])                           # the last metres lie under the lap
+            y = np.array([np.nan if v is None else v for v, _ in hit])
+            bump = np.nan_to_num(np.abs(np.diff(np.diff(y))))
+            worst = max(worst, float(bump.max()))
+        # the lap itself stays below 0.6 %; a road that leaves the cambered lap may crease a little more
+        check(holes == 0 and worst < 0.02, f"road '{f['name']}' is paved over its whole width and even (holes {holes}, max change of gradient {worst * 100:.2f} % per metre)")
+    road_kerbs = [m for m in meshes if m["name"].startswith("1KERB_r")]
+    check(len(road_kerbs) >= 8, f"the other roads carry raised kerbs ({len(road_kerbs)})")
+    lap_poly = ground.ribbon_polygon(tr)
+    to_en = lambda v: tr.fr.o + v[:, [0]] * tr.fr.l + v[:, [2]] * tr.fr.f
+    blocks = [m for m in meshes if m["name"].startswith("1WALL") and m["name"].endswith("barricade")]
+    if blocks:
+        bv = to_en(np.vstack([m["vertices"]["pos"] for m in blocks]).astype(np.float64))
+        d = _dist(_points(bv), lap_poly)
+        check(float(d.min()) > 0.8, f"barricades stand off the race lap ({len(blocks)} meshes, nearest {float(d.min()):.2f} m from its edge)")
+    stacks = [m for m in meshes if m["name"].startswith("1WALL_tyrestacks")]
+    if len(tr.cones_en):
+        top = Surface(stacks)
+        gnd = Surface([m for m in meshes if m["name"].startswith(("1ROAD_trk", "1APRON", "1GRASS", "1SAND"))])
+        ok_, worst_h = 0, 0.0
+        for x, z in tr.fr.xz(tr.cones_en):
+            yt, yg = top.at(x, z)[0], gnd.at(x, z)[0]
+            if yt is not None and yg is not None:
+                ok_ += 1
+                worst_h = max(worst_h, abs((yt - yg) - 0.92))
+        check(ok_ == len(tr.cones_en) and worst_h < 0.12, f"a tyre stack stands on the ground at each of the {len(tr.cones_en)} yellow dots ({ok_} found, height off by at most {worst_h * 100:.0f} cm)")
+        st = np.array([np.argmin(np.linalg.norm(p[:, [0, 2]] - q, axis=1)) for q in tr.fr.xz(tr.cones_en)])
+        gap = np.array([np.linalg.norm(p[i, [0, 2]] - q) for i, q in zip(st, tr.fr.xz(tr.cones_en))]) - 0.34
+        check(float(gap.min()) > 1.2, f"the racing line passes every tyre stack with room (least {float(gap.min()):.2f} m)")
+        from scipy.spatial import cKDTree as _KD
+        near = _KD(tr.c).query(tr.cones_en)[1]
+        lat = np.einsum("ij,ij->i", tr.cones_en - tr.c[near], tr.nrm[near])
+        free = []
+        for k_, l_ in zip(near, lat):                              # widest free stretch of road beside each stack
+            lo_, hi_ = -tr.wr[k_], tr.wl[k_]
+            a_, b_ = max(lo_, l_ - 0.34), min(hi_, l_ + 0.34)
+            free.append(hi_ - lo_ if a_ >= b_ else max(a_ - lo_, hi_ - b_))
+        check(min(free) > 4.0, f"the road stays passable at every tyre stack (narrowest free width {min(free):.1f} m, {int(sum(abs(l_) < 4.84 for l_ in lat))} stacks stand on the road)")
     print("files")
     cpm = configparser.ConfigParser()
     cpm.read(os.path.join(OUT, "data", "map.ini"))

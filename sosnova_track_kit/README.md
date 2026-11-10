@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v9.3)
+# Autodrom Sosnová for Assetto Corsa (v9.4)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v9.3 is
+## What v9.4 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -27,6 +27,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Turn 1 | From 9.2 the first turn has its real width, about 17 m. The owner drew the line he wanted on a render. The asphalt outside the 9 m lap is added up to one smooth outer curve (`circuit.t1_lane`): it follows the outer asphalt edge measured in the orthophoto and then sweeps into the north edge of the return road, as the painted limit of the real turn does. Same dark asphalt, a white line along the outer edge, a dashed line where that curve crosses the race route, the gravel trap and barrier moved out behind it. |
 | Race layout (9.3) | A tyre stack with a yellow top at each of the 33 yellow dots of the organiser's map (registered on the photo in the first version, `tr.cones_en`), with red and white tape along each row (131 m). Three rows form the chicane on the back straight, the others split the route on the open asphalt. A row of red and white barricades closes each of the 14 road mouths that are not part of the race route (179 m). The racing line is kept 1.4 m clear of every stack. |
 | Timing | Start/finish gate at point 0 and one sector gate in the middle of the lap, each 14 m wide. The game times every lap and shows two sectors. |
+| Road surface (9.4) | The other roads have a smooth surface of their own, made like the lap's: a height profile along the centre line and a gentle cross-fall, smoothed along the road. Near the lap they continue the lap's own surface outwards. Worst change of gradient 1.6 % per metre, before 4 %. The lap itself is below 0.3 %. All asphalt has the same grip now. |
 | Junctions | Where a road joins the lap, the lap's kerb stops and its edge line turns into dashes across the mouth. |
 | Paved areas | Clean polygons with rounded corners and a white line along every free edge: the big square, the start area, the junction fans and the paddock. They stay behind the 4 m grass verge of the lap and of every road. |
 | Concrete and gravel | The white apron inside the east hairpin with its gravel pocket, the skid pad on the square, the slab at the foot of the bridge, the paddock lane and the lay-by on the north straight. |
@@ -86,6 +87,7 @@ is stored here or used as a texture.
 - The road width, verges, kerbs, gravel traps, lines and the pit apron are a design, not a copy of the real circuit.
 - The other roads and paved areas are in their real places, traced by eye to about 1 m. Their widths, lines and kerbs are a design.
 - The real asphalt is wider than 9 m in places. Only the first turn has its real width. Its outer curve uses `source/work/centerline_std.json`, the standard lap measured for version 7.
+- `check.py` runs 47 checks from 9.4. Ten new ones cover each connected road (paved over its whole width, even), the road kerbs, the barricades (clear of the lap), every tyre stack (on the ground, racing line and free road width past it).
 - The ground mesh builder merges outline points closer than 10 cm and splits segments at vertices lying on them.
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
