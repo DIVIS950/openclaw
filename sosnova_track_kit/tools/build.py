@@ -79,8 +79,9 @@ def main() -> None:
     pit_boxes = [(d.pos[0], d.pos[2], d.facing) for d in layout.make_dummies(tr)[0] if d.name.startswith("AC_PIT_")]
     paint.update(marks.build_start(tr, parts, layout.grid_slots(), pit_boxes))
     near_buildings = unary_union([f.buffer(3.0) for f in foot])
-    flat = unary_union([info["aprons"], info["pads"]])
+    flat = unary_union([info["aprons"], info["pads"], circuit.areas("road")]).buffer(0.05).buffer(-0.05)
     paint.update(marks.build_road_lines(tr, parts, info["roads"], asphalt, flat, near_buildings, lap=info["R"]))
+    paint.update(marks.build_turn1_limit(tr, parts, circuit.t1_lane()[1], info["R"]))
     paint.update(marks.build_area_lines(tr, parts, flat, asphalt.buffer(0.05), unary_union([near_buildings, info["R"].buffer(0.3)])))
     props.build_gantry(tr, parts)
     paint["brake_boards"] = props.build_brake_boards(tr, parts)

@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v9.1)
+# Autodrom Sosnová for Assetto Corsa (v9.2)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v9.1 is
+## What v9.2 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -24,6 +24,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Pit apron | A clean slab 20 m deep beside the start straight with 16 painted bays. |
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50. |
 | Connected roads | Five roads, 457 m, each from the lap to the lap, so none ends in the grass: the return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of the start (all 9 m wide) and the short link by the bridge (8 m). From 9.1 they are finished like the lap by the same rules: dark asphalt, two parallel white lines, 12 raised red and white kerbs (374 m) on the inside of their bends and the outside of tight exits, a 4 m grass verge on both sides, a gravel trap with a padded barrier on the outside of their bends, and rows of mesh vertices along them for an even surface. |
+| Turn 1 | From 9.2 the first turn has its real width, about 17 m. The owner drew the line he wanted on a render. The asphalt outside the 9 m lap is added up to one smooth outer curve (`circuit.t1_lane`): it follows the outer asphalt edge measured in the orthophoto and then sweeps into the north edge of the return road, as the painted limit of the real turn does. Same dark asphalt, a white line along the outer edge, a dashed line where that curve crosses the race route, the gravel trap and barrier moved out behind it. |
 | Junctions | Where a road joins the lap, the lap's kerb stops and its edge line turns into dashes across the mouth. |
 | Paved areas | Clean polygons with rounded corners and a white line along every free edge: the big square, the start area, the junction fans and the paddock. They stay behind the 4 m grass verge of the lap and of every road. |
 | Concrete and gravel | The white apron inside the east hairpin with its gravel pocket, the skid pad on the square, the slab at the foot of the bridge, the paddock lane and the lay-by on the north straight. |
@@ -82,7 +83,7 @@ is stored here or used as a texture.
 - The track was validated by reading back the built files and by renders. It was not run inside the game here.
 - The road width, verges, kerbs, gravel traps, lines and the pit apron are a design, not a copy of the real circuit.
 - The other roads and paved areas are in their real places, traced by eye to about 1 m. Their widths, lines and kerbs are a design.
-- The real asphalt is wider than 9 m in places, most of all in the first turn (about 17 m). This version keeps the designed 9 m road there on purpose.
+- The real asphalt is wider than 9 m in places. Only the first turn has its real width. Its outer curve uses `source/work/centerline_std.json`, the standard lap measured for version 7.
 - The ground mesh builder merges outline points closer than 10 cm and splits segments at vertices lying on them.
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
@@ -104,5 +105,6 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![On the return road](previews/road_return_50.jpg)
 ![On the south-west loop](previews/road_sw_loop_50.jpg)
 ![Infield hairpin](previews/lap_0400.jpg)
+![Turn 1 from the car](previews/lap_0130.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![From above](previews/top.jpg)

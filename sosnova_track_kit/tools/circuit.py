@@ -46,9 +46,6 @@ AREAS = [
     # the triangle between the infield hairpin and the east leg, and the flare where the return road leaves the hairpin
     ("hairpin_tri", "apron", 1.5, [(126, 46), (147, 50), (143, 24), (133, 20), (124, 30)]),
     ("return_flare", "apron", 1.5, [(150, -9), (168, -11.5), (172, -16), (160, -17.5), (152, -13)]),
-    # the wide outside of the east hairpin
-    ("hairpin_outside", "apron", 2.5, [(172, -57), (180, -66), (196, -60), (205, -48), (209, -34), (206, -18), (199, -5), (190, 2), (184, -6),
-                                       (193, -28), (189, -46)]),
     # where the infield loop runs out into the return road
     ("kart_fillet", "apron", 1.5, [(35.5, 6), (37.5, -2), (42, -8), (49, -11.5), (58, -12.7), (63.5, -12.5), (63.5, -17), (46, -17), (30, -18), (30, 6)]),
     # the mouths of the south-west loop, the junction to the paddock and the lane beside the west leg
@@ -115,7 +112,28 @@ def roads_polygon():
     return unary_union([road_polygon(en, w, sq) for (_, en, w), (_, _, _, sq) in zip(roads(), ROADS)])
 
 
+def t1_lane():
+    """The first turn at its real width. The real turn 1 is about 17 m wide and its outer edge sweeps round from
+    the start straight into the return road; the race lap is 9 m and leaves that turn northwards. This is the
+    asphalt between the two: the outside of the turn, bounded by one smooth curve. The curve follows the outer
+    asphalt edge measured on the standard lap (centerline_std.json) and then the painted limit of the real turn
+    into the north edge of the return road. Returns (polygon, outer curve east/north, mesh points)."""
+    import json
+    import os
+    from common import WORK, closed_frames
+    c = np.array(json.load(open(os.path.join(WORK, "centerline_std.json"), encoding="utf-8"))["en"])
+    _, nrm, _, _ = closed_frames(c)
+    ctrl = [c[s] - nrm[s] * d for s, d in ((110, 4.4), (114, 5.6), (118, 7.6), (122, 9.3), (126, 10.2), (132, 10.6), (138, 10.6), (144, 10.6), (149, 10.6))]
+    ctrl += [(198.6, -12.5), (194.0, -6.0), (187.0, -2.0), (178.0, -0.3), (167.0, 0.2), (157.0, -0.1), (147.0, -0.9), (139.0, -2.6)]
+    outer = spline(ctrl)
+    poly = Polygon(np.vstack([outer, c[110:206][::-1]])).buffer(0)
+    rows = np.vstack([c[114:162:2] - nrm[114:162:2] * d for d in (6.0, 8.2)])
+    return poly, outer, rows
+
+
 def areas(kind: str):
+    if kind == "road":
+        return t1_lane()[0]
     out = [rounded(pts, r) for _, k, r, pts in AREAS if k == kind]
     if kind == "pad":
         out += [LineString(spline(pts)).buffer(w / 2, cap_style="flat", quad_segs=5) for _, w, pts in LANES]

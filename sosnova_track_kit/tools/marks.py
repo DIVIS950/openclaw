@@ -35,8 +35,9 @@ def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
     for side in (1, -1):
         w = tr.wl if side > 0 else tr.wr
         beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
-        mouth = contains_xy(mouths, beyond[:, 0], beyond[:, 1])           # a road joins the lap here: dashes, not a wall of paint
-        solid = (~pit if side > 0 else np.ones(n, bool)) & ~mouth
+        wide = contains_xy(circuit.areas("road").buffer(0.3), beyond[:, 0], beyond[:, 1])     # turn 1 is wider here: its line is further out
+        mouth = contains_xy(mouths, beyond[:, 0], beyond[:, 1]) & ~wide   # a road joins the lap here: dashes, not a wall of paint
+        solid = (~pit if side > 0 else np.ones(n, bool)) & ~mouth & ~wide
         for a, ln in cyclic_runs(solid, 6, 0):
             out.append((side, a + np.arange(ln + (0 if ln == n else 1) + (1 if ln == n else 0))))
         for a, ln in cyclic_runs(mouth & (~pit if side > 0 else np.ones(n, bool)), 3, 0):
@@ -302,6 +303,33 @@ def build_area_lines(tr: Track, parts: Parts, areas, asphalt, keep_out) -> dict:
         order = np.lexsort((np.floor(cen[:, 2] / 100), np.floor(cen[:, 0] / 100)))
         parts.surface("MARK_areas", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
     return dict(area_line_m=round(total))
+
+
+def build_turn1_limit(tr: Track, parts: Parts, outer: np.ndarray, lap) -> dict:
+    """The outer limit of the real turn 1 where it crosses the race lap: a dashed white line, so the sweep of the
+    turn into the return road can be seen but the race route stays open."""
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g"))
+    d = np.gradient(outer, axis=0)
+    d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+    nrm = np.column_stack([-d[:, 1], d[:, 0]])
+    inside = contains_xy(lap.buffer(-0.15), outer[:, 0], outer[:, 1])
+    P, U, T, off, total = [], [], [], 0, 0.0
+    for a0, ln in _runs(inside):
+        for k in range(a0, a0 + ln - 5, 12):                               # 3 m line, 3 m gap (points are 0.5 m apart)
+            cc, nn = outer[k: k + 7] - nrm[k: k + 7] * 0.3, nrm[k: k + 7] * 0.075
+            en = np.vstack([cc + nn, cc - nn])
+            pos = tr.fr.world(en, tr.H.ground(en))
+            pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
+            m = len(cc)
+            r = np.arange(m - 1)
+            P.append(pos)
+            U.append(np.vstack([np.column_stack([np.full(m, 0.2), np.arange(m) * 0.25]), np.column_stack([np.full(m, 0.8), np.arange(m) * 0.25])]))
+            T.append(np.concatenate([np.stack([r, r + m, r + m + 1], -1), np.stack([r, r + m + 1, r + 1], -1)]) + off)
+            off += len(pos)
+            total += 3.0
+    if P:
+        parts.surface("MARK_turn1", "paint", np.vstack(P), np.vstack(U), np.vstack(T), hint=UP, smooth=False, cast_shadows=False)
+    return dict(turn1_limit_m=round(total))
 
 
 def _runs(mask: np.ndarray) -> list[tuple[int, int]]:

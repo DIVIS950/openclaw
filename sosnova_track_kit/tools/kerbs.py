@@ -7,6 +7,7 @@ import sys
 
 import numpy as np
 from shapely import contains_xy
+from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import circuit  # noqa: E402
@@ -34,7 +35,7 @@ def kerb_runs(tr: Track) -> list[tuple[int, int, int]]:
         # no kerb across the mouth of a road that joins the lap
         w = tr.wl if side > 0 else tr.wr
         mid = tr.en(np.arange(n).astype(float), side * (w + 0.5))
-        mask &= ~contains_xy(circuit.roads_polygon().buffer(0.4), mid[:, 0], mid[:, 1])
+        mask &= ~contains_xy(unary_union([circuit.roads_polygon(), circuit.areas("road")]).buffer(0.4), mid[:, 0], mid[:, 1])
         out += [(side, int(a), int(ln)) for a, ln in cyclic_runs(mask, 8, 2)]
     return out
 

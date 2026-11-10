@@ -201,6 +201,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     # 3a. rows of vertices along the other roads, so their surface is as even as the lap
     import circuit
     rows = np.vstack([f["en"][::4] + f["nrm"][::4] * (f["half"] * g_) for f in circuit.road_frames() for g_ in (-0.55, 0.0, 0.55)])
+    rows = np.vstack([rows, circuit.t1_lane()[2]])
     seen = cKDTree(np.array(reg.pts))
     for p in rows[contains_xy(A.buffer(-0.7), rows[:, 0], rows[:, 1]) & (seen.query(rows)[0] > 0.9)]:
         reg.add(p)

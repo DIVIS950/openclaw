@@ -33,6 +33,8 @@ def verge(tr: Track, R: Polygon):
     st = np.where(st > tr.n / 2, st - tr.n, st)
     s = np.arange(st.min() + 3, st.max() - 2).astype(float)
     inner, outer = tr.en(s, np.full_like(s, LAP_HALF - 0.05)), tr.en(s, np.full_like(s, LAP_HALF + VERGE + 0.5))
+    import circuit
+    v = v.difference(circuit.areas("road").buffer(0.5))            # the outside of turn 1 is asphalt up to the lap
     return v.difference(Polygon(np.vstack([inner, outer[::-1]])))
 
 
@@ -55,7 +57,7 @@ def other_asphalt(tr: Track, R: Polygon):
     Returns (all asphalt, paved areas, roads [(centre line east/north, width m)], roads polygon, concrete pads)."""
     import circuit
     roads = [(en, w) for _, en, w in circuit.roads()]
-    roads_poly = circuit.roads_polygon()
+    roads_poly = unary_union([circuit.roads_polygon(), circuit.areas("road")]).buffer(0)
     clear = unary_union([verge(tr, R).buffer(0.05), roads_poly.buffer(VERGE)])     # the same grass verge beside every road
 
     def tidy(g):                                          # keep off the verge and off the roads; no slivers
