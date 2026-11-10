@@ -30,10 +30,18 @@ def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
     n = tr.n
     out = []
     pit = tr.in_pit_stretch()
+    import circuit
+    mouths = circuit.roads_polygon().buffer(0.3)
     for side in (1, -1):
-        solid = ~pit if side > 0 else np.ones(n, bool)
+        w = tr.wl if side > 0 else tr.wr
+        beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
+        mouth = contains_xy(mouths, beyond[:, 0], beyond[:, 1])           # a road joins the lap here: dashes, not a wall of paint
+        solid = (~pit if side > 0 else np.ones(n, bool)) & ~mouth
         for a, ln in cyclic_runs(solid, 6, 0):
             out.append((side, a + np.arange(ln + (0 if ln == n else 1) + (1 if ln == n else 0))))
+        for a, ln in cyclic_runs(mouth & (~pit if side > 0 else np.ones(n, bool)), 3, 0):
+            for k in range(a, a + ln - 2, 6):
+                out.append((side, k + np.arange(4)))
     dash = np.where(pit)[0]
     dash = np.where(dash > n / 2, dash - n, dash)
     for a in range(int(dash.min()), int(dash.max()) - 2, 6):                      # 3 m line, 3 m gap
@@ -244,7 +252,7 @@ def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep
         cen = pos[tris].mean(1)
         order = np.lexsort((np.floor(cen[:, 2] / 100), np.floor(cen[:, 0] / 100)))
         parts.surface("MARK_roads", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
-    if KP:
+    if KP and False:                                   # the other roads carry raised kerbs now (kerbs.build_road_kerbs)
         parts.surface("MARK_roadkerbs", "kerb", np.vstack(KP), np.vstack(KU), np.vstack(KT), hint=UP, smooth=False, cast_shadows=False)
     return dict(other_roads=len(roads), other_road_m=round(sum(float(np.linalg.norm(np.diff(l, axis=0), axis=1).sum()) for l, _ in roads)),
                 other_road_line_m=round(total), other_road_kerb_m=round(kerb_m))

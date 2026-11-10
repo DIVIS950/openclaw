@@ -24,7 +24,7 @@ ROADS = [
     ("sw_loop", 9.0, [(-49.5, -14), (-53.5, -30), (-56.5, -42), (-57.5, -52), (-55, -63), (-47, -70.5), (-35, -72.5), (-23, -70), (-15, -62),
                       (-12.5, -51), (-11.5, -43), (-7, -37.5), (2, -35.6), (12, -36.8)], ""),
     # the short link west of the bridge
-    ("west_link", 7.0, [(-49.5, -4), (-41, -5), (-33, -8), (-28, -14.5), (-27, -23), (-26.5, -31)], ""),
+    ("west_link", 8.0, [(-49.5, -4), (-41, -5), (-33, -8), (-28, -14.5), (-27, -23), (-26.5, -31)], ""),
 ]
 
 # name, kind, corner radius (m), outline. kind: "apron" lighter asphalt, "pad" concrete, "gravel".
@@ -125,3 +125,18 @@ def areas(kind: str):
 def all_paved():
     """Everything in this file that is asphalt or concrete."""
     return unary_union([areas("apron"), areas("pad"), roads_polygon()]).buffer(0)
+
+
+def road_frames() -> list[dict]:
+    """Each road as points every 0.5 m with left normals, half width and signed curvature (+ = bends left)."""
+    out = []
+    for name, en, w in roads():
+        d = np.gradient(en, axis=0)
+        d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+        nrm = np.column_stack([-d[:, 1], d[:, 0]])
+        a, b = en[1:-1] - en[:-2], en[2:] - en[1:-1]
+        k = np.zeros(len(en))
+        k[1:-1] = (a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]) / np.maximum(np.linalg.norm(a, axis=1) * np.linalg.norm(b, axis=1) * 0.5, 1e-9)
+        k = np.convolve(np.pad(k, 8, mode="edge"), np.ones(17) / 17, "valid")
+        out.append(dict(name=name, en=en, nrm=nrm, half=w / 2.0, k=k))
+    return out

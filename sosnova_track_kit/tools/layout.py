@@ -239,7 +239,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v9.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v9.1 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -250,15 +250,17 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v9.0".
+3. Start the game and pick the track "Autodrom Sosnova v9.1".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
   the road is 9 m wide everywhere, both white lines run parallel, and a 4 m grass verge runs along both sides.
 - Red and white kerbs on every corner. A gravel trap with a barrier behind it on the outside of every corner.
-- The other roads of the circuit are connected to the lap, with the same asphalt, white lines and kerbs: the
-  return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north
-  junction, the loop south-west of the start and the short link by the bridge. No road ends in the grass.
+- Every road of the circuit is finished like the lap, not only the lap itself. The return road from turn 1 into
+  the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of
+  the start and the link by the bridge have the same asphalt, two white lines, raised red and white kerbs on
+  their bends, a grass strip on both sides and a gravel trap with a barrier on the outside of their bends.
+  Each of them runs from the lap to the lap.
 - The big square, the start area and the paddock are clean paved areas behind the grass verge.
 - A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
 - Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
@@ -327,7 +329,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v9.0",
+        "name": "Autodrom Sosnová v9.1",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models "
                        "(ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, "
                        "barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees "
@@ -343,7 +345,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "9.0",
+        "version": "9.1",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

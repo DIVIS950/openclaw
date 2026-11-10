@@ -1,5 +1,5 @@
 {
-  "name": "Autodrom Sosnová v9.0",
+  "name": "Autodrom Sosnová v9.1",
   "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models (ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees (Poly Haven, CC0). The timed lap is the combined route of the 14.11.2026 event, anticlockwise from the start straight and under the bridge. 16 grid slots, 16 pit boxes, AI line. Optional CSP grass and rain. Not affiliated with the circuit owner.",
   "tags": [
     "circuit",
@@ -21,6 +21,6 @@
   "pitboxes": "16",
   "run": "anticlockwise",
   "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-  "version": "9.0",
+  "version": "9.1",
   "url": ""
 }

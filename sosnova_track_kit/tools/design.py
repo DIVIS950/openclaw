@@ -56,7 +56,7 @@ def other_asphalt(tr: Track, R: Polygon):
     import circuit
     roads = [(en, w) for _, en, w in circuit.roads()]
     roads_poly = circuit.roads_polygon()
-    clear = unary_union([verge(tr, R).buffer(0.05), roads_poly.buffer(1.0)])
+    clear = unary_union([verge(tr, R).buffer(0.05), roads_poly.buffer(VERGE)])     # the same grass verge beside every road
 
     def tidy(g):                                          # keep off the verge and off the roads; no slivers
         g = g.difference(clear)
@@ -115,4 +115,56 @@ def trap_barriers(tr: Track, G) -> list[dict]:
         back = tr.en(st[ok], side * (LAP_HALF + VERGE + depth[ok] - 1.5))
         if contains_xy(G, back[:, 0], back[:, 1]).mean() > 0.7:                 # only where the trap was really built
             out.append(dict(en=line.round(2).tolist(), width=0.8, height=0.95))
+    return out
+
+
+def _road_trap_runs():
+    """(road, slice, side, depth) of the gravel trap on the outside of every bend of the other roads."""
+    import circuit
+    for road in circuit.road_frames():
+        k, m = road["k"], len(road["k"])
+        on = np.abs(k) > 1.0 / TRAP_R
+        d = np.diff(np.concatenate([[0], on.astype(int), [0]]))
+        for a, e in zip(np.where(d == 1)[0], np.where(d == -1)[0]):
+            if e - a < 10:
+                continue
+            side = -int(np.sign(k[(a + e) // 2]))
+            sl = slice(max(0, a - 12), min(m, e + 32))
+            n = sl.stop - sl.start
+            ramp = np.clip(np.minimum(np.arange(n), n - 1 - np.arange(n)) / 18.0, 0, 1)
+            yield road, sl, side, TRAP_DEPTH * ramp * ramp * (3 - 2 * ramp)
+
+
+def road_gravel(R: Polygon, avoid):
+    """Gravel traps on the outside of the bends of the other roads, behind their verge, like those of the lap."""
+    import circuit
+    traps = []
+    for road, sl, side, depth in _road_trap_runs():
+        ok = depth > 0.8
+        if ok.sum() < 12:
+            continue
+        q, nrm = road["en"][sl][ok], road["nrm"][sl][ok] * side
+        p = Polygon(np.vstack([q + nrm * (road["half"] + VERGE), (q + nrm * (road["half"] + VERGE + depth[ok])[:, None])[::-1]])).buffer(0)
+        if not p.is_empty:
+            traps.append(p)
+    if not traps:
+        return Polygon()
+    keep_off = unary_union([avoid.buffer(1.2), R.buffer(VERGE - 0.01), circuit.roads_polygon().buffer(VERGE - 0.01)])
+    G = unary_union(traps).difference(keep_off)
+    G = G.buffer(-0.8).buffer(1.6).buffer(-0.8).difference(keep_off).simplify(0.2)
+    return unary_union([p for p in getattr(G, "geoms", [G]) if p.geom_type == "Polygon" and p.area > 60.0]).buffer(0)
+
+
+def road_barriers(G) -> list[dict]:
+    """A padded barrier along the back of every road trap that was really built."""
+    from shapely import contains_xy
+    out = []
+    for road, sl, side, depth in _road_trap_runs():
+        ok = depth > 4.0
+        if ok.sum() < 16:
+            continue
+        q, nrm = road["en"][sl][ok], road["nrm"][sl][ok] * side
+        back = q + nrm * (road["half"] + VERGE + depth[ok] - 1.5)[:, None]
+        if contains_xy(G, back[:, 0], back[:, 1]).mean() > 0.7:
+            out.append(dict(en=(q + nrm * (road["half"] + VERGE + depth[ok] + 0.7)[:, None]).round(2).tolist(), width=0.8, height=0.95))
     return out

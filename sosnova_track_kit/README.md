@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v9.0)
+# Autodrom Sosnová for Assetto Corsa (v9.1)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v9.0 is
+## What v9.1 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -23,8 +23,9 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Gravel traps | One on the outside of every corner tighter than 45 m radius, behind the verge, 11 m deep with tapered ends, and a padded barrier along its back. Physical surface `SAND`. |
 | Pit apron | A clean slab 20 m deep beside the start straight with 16 painted bays. |
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50. |
-| Connected roads | Five roads, 457 m, each from the lap to the lap, so none ends in the grass: the return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of the start (all 9 m wide) and the short link by the bridge (7 m). Same dark asphalt as the lap, two parallel white lines, flat red and white kerbs on the inside of their bends. |
-| Paved areas | Clean polygons with rounded corners and a white line along every free edge: the big square, the start area, the junction fans and the paddock. They stay behind the 4 m grass verge of the lap and clear of the roads, as in version 5. |
+| Connected roads | Five roads, 457 m, each from the lap to the lap, so none ends in the grass: the return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of the start (all 9 m wide) and the short link by the bridge (8 m). From 9.1 they are finished like the lap by the same rules: dark asphalt, two parallel white lines, 12 raised red and white kerbs (374 m) on the inside of their bends and the outside of tight exits, a 4 m grass verge on both sides, a gravel trap with a padded barrier on the outside of their bends, and rows of mesh vertices along them for an even surface. |
+| Junctions | Where a road joins the lap, the lap's kerb stops and its edge line turns into dashes across the mouth. |
+| Paved areas | Clean polygons with rounded corners and a white line along every free edge: the big square, the start area, the junction fans and the paddock. They stay behind the 4 m grass verge of the lap and of every road. |
 | Concrete and gravel | The white apron inside the east hairpin with its gravel pocket, the skid pad on the square, the slab at the foot of the bridge, the paddock lane and the lay-by on the north straight. |
 | Seams | Mesh edges follow every seam between road, apron and concrete, so no seam is jagged. |
 | Barriers | Padded barriers behind the gravel traps, and the concrete wall between the paddock and the west leg. A barrier is cut where it would cross asphalt. |
@@ -100,6 +101,8 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![The big square](previews/air_plaza.jpg)
 ![South-west loop, link and paddock](previews/air_sw.jpg)
 ![East hairpin](previews/air_east.jpg)
+![On the return road](previews/road_return_50.jpg)
+![On the south-west loop](previews/road_sw_loop_50.jpg)
 ![Infield hairpin](previews/lap_0400.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![From above](previews/top.jpg)

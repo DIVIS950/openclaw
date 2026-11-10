@@ -161,7 +161,9 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     zone = unary_union([R, A]).buffer(ZONE_M).intersection(site.buffer(-6.0))
     zone = unary_union([Polygon(g.exterior) for g in getattr(zone, "geoms", [zone])])   # no photo islands in the infield
     G = design.gravel_traps(tr, R, unary_union([A, avoid]))
-    G = unary_union([G, design.gravel_pockets(A)]).buffer(0)
+    G = unary_union([G.difference(roads_poly.buffer(design.VERGE - 0.01)), design.road_gravel(R, unary_union([A, avoid])), design.gravel_pockets(A)]).buffer(0)
+    G = unary_union([p.buffer(-0.5).buffer(0.5) for p in getattr(G, "geoms", [G]) if p.area > 60.0]).buffer(0)
+    G = unary_union([p for p in getattr(G, "geoms", [G]) if p.geom_type == "Polygon" and p.area > 60.0]).buffer(0)
     reg = Registry()
     segs: list[tuple[int, int]] = []
     # 1. road edges: exact vertices and heights of the road mesh
@@ -196,6 +198,12 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         for p, hh in zip(tr.shoulder_en(side), tr.shoulder_h(side)):
             if edge_tree.query(p)[0] > SHOULDER * 0.8 and (chain_lines is None or chain_lines.distance(Point(p)) > 0.3):
                 reg.add(p, hh)
+    # 3a. rows of vertices along the other roads, so their surface is as even as the lap
+    import circuit
+    rows = np.vstack([f["en"][::4] + f["nrm"][::4] * (f["half"] * g_) for f in circuit.road_frames() for g_ in (-0.55, 0.0, 0.55)])
+    seen = cKDTree(np.array(reg.pts))
+    for p in rows[contains_xy(A.buffer(-0.7), rows[:, 0], rows[:, 1]) & (seen.query(rows)[0] > 0.9)]:
+        reg.add(p)
     # 3b. gravel trap outlines: closed rings that touch nothing else
     for poly in getattr(G, "geoms", [G]):
         if poly.is_empty:
