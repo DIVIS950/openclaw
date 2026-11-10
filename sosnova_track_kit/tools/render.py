@@ -210,6 +210,20 @@ def main() -> None:
     shots.append(("bridge_side", mid + np.array([-side[0] * 38, 9.0, -side[1] * 38]) + np.array([12.0, 0, 0]), mid + up * 2.0, 55))
     foot = tr.fr.world(bg.point(np.array([-9.0, 14.0]), np.array([0.0, 0.0])), tr.H.ground(bg.point(np.array([-9.0, 14.0]), np.array([0.0, 0.0]))))
     shots.append(("bridge_ramp", foot[0] + up * 1.1, foot[1] + up * 4.0, 75))
+    # the original circuit outside the lap: from the air, and from a car on each of its roads
+    import circuit
+
+    def at(e, n, h):
+        en = np.array([[float(e), float(n)]])
+        return tr.fr.world(en, tr.H.ground(en))[0] + up * h
+    for name, eye, tgt in (("air_start", (45, -125, 70), (65, -22)), ("air_plaza", (-75, 15, 60), (12, 76)), ("air_east", (235, -75, 60), (150, -8)),
+                           ("air_sw", (-105, -115, 50), (-33, -42)), ("air_paddock", (-190, -60, 70), (-70, 0))):
+        shots.append((name, at(*eye), at(*tgt, 0.0), 60))
+    for rname, en, _w in circuit.roads():
+        for frac in (0.12, 0.5):
+            i = int(frac * len(en))
+            j = min(len(en) - 1, i + 28)
+            shots.append((f"road_{rname}_{int(frac * 100):02d}", at(*en[i], 1.05), at(*en[j], 0.5), 75))
     for name, eye, tgt, fov in shots:
         if wanted and name not in wanted:
             continue

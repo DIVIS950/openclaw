@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge  # noqa: E402
 import design  # noqa: E402
 import bridge_geom  # noqa: E402
+import circuit  # noqa: E402
 import ground  # noqa: E402
 import kerbs  # noqa: E402
 import kn5  # noqa: E402
@@ -76,13 +77,17 @@ def main() -> None:
     paint = marks.build_edge_lines(tr, parts)
     pit_boxes = [(d.pos[0], d.pos[2], d.facing) for d in layout.make_dummies(tr)[0] if d.name.startswith("AC_PIT_")]
     paint.update(marks.build_start(tr, parts, layout.grid_slots(), pit_boxes))
-    paint.update(marks.build_road_lines(tr, parts, info["roads"], asphalt, info["aprons"], unary_union([f.buffer(6.0) for f in foot])))
+    near_buildings = unary_union([f.buffer(3.0) for f in foot])
+    flat = unary_union([info["aprons"], info["pads"]])
+    paint.update(marks.build_road_lines(tr, parts, info["roads"], asphalt, flat, near_buildings, lap=info["R"]))
+    paint.update(marks.build_area_lines(tr, parts, flat, asphalt.buffer(0.05), unary_union([near_buildings, info["R"].buffer(0.3)])))
     props.build_gantry(tr, parts)
     paint["brake_boards"] = props.build_brake_boards(tr, parts)
     span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
     pylons = props.build_pylons(tr, parts)
     props.build_pit_wall(tr, parts)
-    walls = props.build_tyre_walls(tr, parts, info["R"].buffer(design.VERGE), asphalt, lines=design.trap_barriers(tr, info["G"]))
+    barriers = design.trap_barriers(tr, info["G"]) + [dict(b, material="concrete") for b in circuit.BARRIERS]
+    walls = props.build_tyre_walls(tr, parts, info["R"].buffer(design.VERGE), asphalt, lines=barriers)
     keep_out = unary_union([info["R"].buffer(design.VERGE + 3.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()

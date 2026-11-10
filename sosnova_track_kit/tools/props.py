@@ -10,6 +10,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 from shapely import contains_xy
 from shapely.geometry import Polygon
+from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import HALF_E, HALF_N, META_FAR, SRC, WORK, site_uv  # noqa: E402
@@ -72,23 +73,31 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
         if os.path.exists(path):
             lines += json.load(open(path, encoding="utf-8")).get("tyre_walls", [])
     venue = keep_clear.buffer(35.0)                                   # the circuit itself, not the yards and woods around it
-    count, length = 0, 0.0
-    for k, line in enumerate(lines):
+    off = unary_union([keep_clear, asphalt.buffer(0.8)])
+    pieces = []
+    for line in lines:                                                # never a wall on the racing surface or across a road
         p = np.array(line["en"], float)
         seg = np.linalg.norm(np.diff(p, axis=0), axis=1)
         s = np.concatenate([[0], np.cumsum(seg)])
         m = max(2, int(round(s[-1] / 0.65)) + 1)
         q = np.column_stack([np.interp(np.linspace(0, s[-1], m), s, p[:, 0]), np.interp(np.linspace(0, s[-1], m), s, p[:, 1])])
-        if contains_xy(keep_clear, q[:, 0], q[:, 1]).any() or contains_xy(asphalt, q[:, 0], q[:, 1]).mean() > 0.25 \
-                or not contains_xy(venue, q[:, 0], q[:, 1]).all():
-            continue                                                  # never put a wall on the racing surface or across a road
+        ok = ~contains_xy(off, q[:, 0], q[:, 1]) & contains_xy(venue, q[:, 0], q[:, 1])
+        dd = np.diff(np.concatenate([[0], ok.astype(int), [0]]))
+        for a0, a1 in zip(np.where(dd == 1)[0], np.where(dd == -1)[0]):
+            if (a1 - a0) * 0.65 >= 6.0:
+                pieces.append((line, q[a0:a1]))
+    count, length = 0, 0.0
+    for k, (line, q) in enumerate(pieces):
+        m = len(q)
+        s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(q, axis=0), axis=1))])
+        mat = line.get("material", "softwall")
         d = np.gradient(q, axis=0)
         d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
         nrm = np.column_stack([-d[:, 1], d[:, 0]])
         half, h = line.get("width", 0.7) / 2, line.get("height", 0.9)
         g = tr.H.ground(q)
         u = np.linspace(0, s[-1], m) / 4.0
-        name = f"1WALL_barrier{k // 8:02d}"
+        name = f"1WALL_barrier{k // 8:02d}" if mat == "softwall" else f"1WALL_wall{k // 8:02d}"
         left, right = q + nrm * half, q - nrm * half
         faces = ((left, g - 0.2, left, g + h, nrm, 0.0, 1.0), (left, g + h, right, g + h, None, 0.86, 1.0), (right, g + h, right, g - 0.2, -nrm, 1.0, 0.0))
         for a_en, a_h, b_en, b_h, out, va, vb in faces:
@@ -102,11 +111,11 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
                 o = tr.fr.vec(out)
                 o3 = np.column_stack([o[:, 0], np.zeros(m), o[:, 1]])
                 hint = np.vstack([o3[:-1], o3[:-1]])
-            parts.surface(name, "softwall", pos, uv, tris, hint=hint, smooth=False)
+            parts.surface(name, mat, pos, uv, tris, hint=hint, smooth=False)
         for e in (0, -1):                                             # close the ends
             a, b = tr.fr.world(left[e][None], g[e] - 0.2)[0], tr.fr.world(right[e][None], g[e] - 0.2)[0]
             dd = tr.fr.vec(d[e][None])[0] * (-1 if e == 0 else 1)
-            parts.quad(name, "softwall", [a, b, b + UP * (h + 0.2), a + UP * (h + 0.2)], (0.02, 0, 0.2, 1), hint=(dd[0], 0.0, dd[1]), smooth=False)
+            parts.quad(name, mat, [a, b, b + UP * (h + 0.2), a + UP * (h + 0.2)], (0.02, 0, 0.2, 1), hint=(dd[0], 0.0, dd[1]), smooth=False)
         count, length = count + 1, length + float(s[-1])
     return dict(walls=count, metres=round(length))
 

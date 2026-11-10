@@ -4,46 +4,26 @@
   * a grass verge of one width runs along both sides of the lap (except at the pit apron)
   * gravel traps of one depth sit on the outside of every real corner
   * the pit apron is a clean slab beside the start straight
-  * the long service roads of the complex are rebuilt with constant widths from their own centre lines
+  * every other road and paved area of the original circuit comes from the hand-traced layout in circuit.py:
+    roads with one width along a smooth centre line, paved areas as clean polygons
 """
 from __future__ import annotations
 
 import os
 import sys
 
-import cv2
 import numpy as np
-from scipy import ndimage as ndi
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import Polygon
 from shapely.ops import unary_union
-from skimage.morphology import skeletonize
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import HALF_E, HALF_N  # noqa: E402
 from track import Track, cyclic_runs  # noqa: E402
 
-GSD = 0.25
 LAP_HALF = 4.5          # half width of the lap (m): 9 m of asphalt everywhere
 VERGE = 4.0             # grass strip along both sides of the lap (m)
 TRAP_R = 45.0           # corners tighter than this get a gravel trap on the outside
 TRAP_DEPTH = 11.0       # depth of a gravel trap (m)
-WIDE = 6.5              # asphalt broader than twice this is an apron, narrower is a road
-REACH = 75.0            # other asphalt is modelled up to this distance from the lap
-ROAD_MIN = 60.0         # shorter pieces of road beside the lap are left out
 PIT_DEPTH = 20.0        # depth of the pit apron beside the start straight (m)
-
-
-def _raster(geom, shape) -> np.ndarray:
-    m = np.zeros(shape, np.uint8)
-    for p in getattr(geom, "geoms", [geom]):
-        if p.is_empty:
-            continue
-        rings = [p.exterior, *p.interiors]
-        pts = [np.round(np.column_stack([(np.array(r.coords)[:, 0] + HALF_E) / GSD, (HALF_N - np.array(r.coords)[:, 1]) / GSD])).astype(np.int32) for r in rings]
-        cv2.fillPoly(m, pts[:1], 1)
-        if len(pts) > 1:
-            cv2.fillPoly(m, pts[1:], 0)
-    return m.astype(bool)
 
 
 def verge(tr: Track, R: Polygon):
@@ -67,38 +47,27 @@ def pit_apron(tr: Track) -> Polygon:
     return unary_union([p.buffer(-3.0).buffer(3.0), p.intersection(cut)]).buffer(0)       # round only the far corners
 
 
-def other_asphalt(tr: Track, R: Polygon, clear, mask: np.ndarray):
-    """Asphalt outside the lap, regularised. mask: surveyed drivable surface (0.25 m raster).
-    Returns (all asphalt polygon, the pit apron, roads as [(centre line east/north, width m)])."""
-    from paint import smooth_line, trace
-    m = mask & _raster(R.buffer(REACH), mask.shape) & ~_raster(unary_union([R, clear]).buffer(0.2), mask.shape)
-    m = ndi.binary_opening(m, iterations=3)
-    dist = ndi.distance_transform_edt(m) * GSD
-    core = dist > WIDE
-    wide = (ndi.distance_transform_edt(~core) * GSD <= WIDE + 0.3) & m             # opening with a 6.5 m disc
-    lab, n = ndi.label(m & ~wide)
-    area = ndi.sum(np.ones_like(lab), lab, np.arange(1, n + 1)) * GSD ** 2
-    narrow = np.concatenate([[False], area > 40.0])[lab]
-    roads = []
-    for p in trace(skeletonize(narrow)):
-        ln = float(np.linalg.norm(np.diff(p, axis=0), axis=1).sum()) * GSD
-        if ln < 14.0:
-            continue
-        ix, iy = p[:, 0].astype(int), p[:, 1].astype(int)
-        w = float(np.clip(np.round((2 * np.median(dist[iy, ix]) + 0.3) * 2) / 2, 4.5, 9.0))
-        q = smooth_line(p, 16.0)                                                    # 4 m: a road, not a pixel trail
-        en = np.column_stack([(q[:, 0] + 0.5) * GSD - HALF_E, HALF_N - (q[:, 1] + 0.5) * GSD])
-        en = np.array(LineString(en).simplify(0.1).coords)
-        for end, a, b in ((0, 0, 1), (-1, -1, -2)):                                 # run on into the apron or junction
-            d = en[a] - en[b]
-            en[a] = en[a] + d / max(np.linalg.norm(d), 1e-6) * (w * 0.6)
-        roads.append((en, w))
-    roads = [(en, w) for en, w in roads if LineString(en).length >= ROAD_MIN]       # long service roads only, no stubs
-    aprons = pit_apron(tr)
-    A = unary_union([aprons, *[LineString(en).buffer(w / 2, cap_style="round", join_style="round", quad_segs=5) for en, w in roads]])
-    A = A.buffer(0.4).buffer(-0.4).difference(unary_union([R, clear]))
-    A = unary_union([p for p in getattr(A, "geoms", [A]) if p.area > 40.0]).buffer(0).simplify(0.15)
-    return A, aprons, roads
+def other_asphalt(tr: Track, R: Polygon):
+    """The original circuit outside the lap, from the hand-traced layout in tools/circuit.py.
+
+    Every real road is a ribbon of constant width along its own smooth centre line and joins the lap where the
+    real road does; paved areas are clean polygons with rounded corners.
+    Returns (all asphalt, paved areas, roads [(centre line east/north, width m)], roads polygon, concrete pads)."""
+    import circuit
+    roads = [(en, w) for _, en, w in circuit.roads()]
+    roads_poly = circuit.roads_polygon()
+    pads = circuit.areas("pad")
+    paved = unary_union([circuit.areas("apron"), pit_apron(tr)]).buffer(0)
+    A = unary_union([paved, pads, roads_poly]).buffer(0.3).buffer(-0.3).difference(R)
+    A = unary_union([p for p in getattr(A, "geoms", [A]) if p.area > 15.0]).buffer(0).simplify(0.1)
+    return A, paved, roads, roads_poly, pads
+
+
+def gravel_pockets(A):
+    """Gravel that belongs to the original circuit (not a trap of the lap); kept clear of the asphalt outline."""
+    import circuit
+    g = circuit.areas("gravel")
+    return g.difference(A.buffer(0.35)).buffer(-0.3).buffer(0.3) if not g.is_empty else g
 
 
 def gravel_traps(tr: Track, R: Polygon, avoid):

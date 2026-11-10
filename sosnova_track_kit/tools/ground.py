@@ -119,14 +119,14 @@ def apron_chains(A, R: Polygon, edge_tree: cKDTree, edge_pts: np.ndarray):
 def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     """avoid: shapely geometry of the building footprints (no gravel there)."""
     import design
-    import refine
     R = ribbon_polygon(tr)
     verge = design.verge(tr, R)
-    A, aprons, roads = design.other_asphalt(tr, R, verge, refine.drivable_mask())
+    A, aprons, roads, roads_poly, pads = design.other_asphalt(tr, R)
     site = box(-HALF_E, -HALF_N, HALF_E, HALF_N)
     zone = unary_union([R, A]).buffer(ZONE_M).intersection(site.buffer(-6.0))
     zone = unary_union([Polygon(g.exterior) for g in getattr(zone, "geoms", [zone])])   # no photo islands in the infield
     G = design.gravel_traps(tr, R, unary_union([A, avoid]))
+    G = unary_union([G, design.gravel_pockets(A)]).buffer(0)
     reg = Registry()
     segs: list[tuple[int, int]] = []
     # 1. road edges: exact vertices and heights of the road mesh
@@ -146,6 +146,16 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         segs += [(a, b) for a, b in zip(ids[:-1], ids[1:]) if a != b]
         chain_pts += list(ch)
     chain_lines = MultiLineString([LineString(ch) for ch in chains if len(ch) > 1]) if chains else None
+    # 2b. seams inside the asphalt, where a road or a concrete pad meets the lighter apron: mesh edges follow them
+    road_part = roads_poly.simplify(0.05).intersection(A)
+    pad_part = pads.simplify(0.05).difference(roads_poly.simplify(0.05)).intersection(A)
+    seams = unary_union([road_part.boundary, pad_part.boundary]).difference(A.boundary.buffer(0.3))
+    for ln in getattr(seams, "geoms", [seams]):
+        if ln.is_empty or ln.geom_type != "LineString" or ln.length < 1.0:
+            continue
+        ids = [reg.add(p) for p in ln.segmentize(2.0).coords]
+        segs += [(a, b) for a, b in zip(ids[:-1], ids[1:]) if a != b]
+        chain_pts += [tuple(p) for p in ln.coords]
     # 3. verge: one row of vertices 1.2 m outside each edge, in the plane of the road
     for side in (1, -1):
         for p, hh in zip(tr.shoulder_en(side), tr.shoulder_h(side)):
@@ -225,7 +235,8 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     gravel = ~apron & contains_xy(G, cen[:, 0], cen[:, 1]) if not G.is_empty else np.zeros(len(T), bool)
     near = contains_xy(zone, cen[:, 0], cen[:, 1]) & ~apron & ~gravel
     far = ~apron & ~gravel & ~near
-    kind = np.ones(len(T), int)                           # one asphalt for everything outside the lap
+    # roads of the circuit carry the same dark asphalt as the lap, paved areas the lighter apron asphalt, pads concrete
+    kind = np.where(contains_xy(road_part, cen[:, 0], cen[:, 1]), 0, np.where(contains_xy(pad_part, cen[:, 0], cen[:, 1]), 2, 1))
     # geometry
     pos = tr.fr.world(V, Hh)
     T = wind_up(pos, T)
@@ -248,7 +259,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, verge=verge,
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
     return info

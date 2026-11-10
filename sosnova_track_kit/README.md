@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v5.0)
+# Autodrom Sosnová for Assetto Corsa (v5.1)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,11 +6,12 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v5/INSTALL.txt`](content/tracks/sosnova_v5/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v5.0 is
+## What v5.1 is
 
-The surveyed lap, redesigned as a clean racetrack (`tools/design.py`). Up to v4 the asphalt followed the
-aerial photo exactly, which gave uneven road widths, wobbly lines and ragged grass edges. In v5 the survey
-decides where things are, and the design decides how they are finished.
+The surveyed lap, redesigned as a clean racetrack (`tools/design.py`), plus the rest of the original circuit
+finished to the same standard (`tools/circuit.py`). Up to v4 the asphalt followed the aerial photo exactly,
+which gave uneven road widths, wobbly lines and ragged grass edges. From v5 the survey decides where things
+are, and the design decides how they are finished. v5.0 left most of the other asphalt out. v5.1 brings it back.
 
 | Part | How it is made |
 | --- | --- |
@@ -21,7 +22,11 @@ decides where things are, and the design decides how they are finished.
 | Gravel traps | One on the outside of every corner tighter than 45 m radius, behind the verge, 11 m deep with tapered ends, and a padded barrier along its back. Physical surface `SAND`. |
 | Pit apron | A clean slab 20 m deep beside the start straight with 16 painted bays. |
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50. |
-| Other asphalt | Only the long service roads (60 m or more), rebuilt with constant widths from their own centre lines, with parallel edge lines. Aprons, stubs and the surveyed barriers are left out. |
+| Original circuit roads | Traced by hand from the 12.5 cm orthophoto as centre lines with one width: the return road from the east hairpin (9.5 m), the loop south-west of the start (8.5 m), the link by the bridge (7 m) and the outer hairpin road (8 m). Same dark asphalt as the lap, two parallel white lines, flat red and white kerbs on the inside of their bends. 408 m in total. |
+| Paved areas | Clean polygons with rounded corners and a white line along every edge that meets grass: the big square, the start area up to the bridge, the north junction, the fan at the east hairpin and the paddock. Lighter asphalt than the roads. |
+| Concrete and gravel | The white apron inside the east hairpin with its gravel pocket, the skid pad on the square, the slab at the foot of the bridge, the paddock lane and the lay-by on the north straight. |
+| Seams | Mesh edges follow every seam between road, apron and concrete, so no seam is jagged. |
+| Barriers | Padded barriers behind the gravel traps, and the concrete wall between the paddock and the west leg. A barrier is cut where it would cross asphalt. |
 | Still from the survey | The green arch bridge, buildings with their heights and photo roofs, pylons, trees at measured heights, the terrain and the distant ground photo. |
 | Materials | Photo-scanned CC0 surfaces and pictures of scanned 3D trees from Poly Haven. |
 
@@ -41,7 +46,7 @@ python3 paint.py           # trace painted markings and barriers
 python3 refine.py          # move the lap onto the real asphalt, limit its widths to the real edges
 python3 heights.py         # smooth road surface and blended ground
 python3 mkbuildings.py     # building footprints and heights
-python3 build.py           # writes content/tracks/sosnova_v5
+python3 build.py           # writes content/tracks/sosnova_v5 (the original circuit comes from circuit.py)
 python3 check.py           # validates the files the game will load
 python3 render.py          # check renders from the spawn points, along the lap and at the bridge
 ```
@@ -74,6 +79,7 @@ is stored here or used as a texture.
   aerial survey data. No public laser scan of the track surface itself was found.
 - The track was validated by reading back the built files and by renders. It was not run inside the game here.
 - The road width, verges, kerbs, gravel traps, lines and the pit apron are a design, not a copy of the real circuit.
+- The other roads and paved areas are in their real places, traced by eye to about 1 m. Their widths, lines and kerbs are a design.
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
 ## Data and licence
@@ -87,6 +93,10 @@ Rendered from the built `sosnova_v5.kn5` with `tools/render.py`.
 
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
-![Hairpin](previews/lap_0400.jpg)
+![Start area and return road](previews/air_start.jpg)
+![The big square](previews/air_plaza.jpg)
+![South-west loop, link and paddock](previews/air_sw.jpg)
+![East hairpin](previews/air_east.jpg)
+![On the return road](previews/road_return_12.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![From above](previews/top.jpg)
