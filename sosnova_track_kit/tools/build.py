@@ -32,7 +32,13 @@ from track import Parts, Track  # noqa: E402
 M = kn5.Material
 MATERIALS = [
     M("road", "road.jpg", specular=0.10, specular_exp=30),
+    M("road_g1", "road_g1.jpg", specular=0.11, specular_exp=32),
+    M("road_g2", "road_g2.jpg", specular=0.12, specular_exp=34),
+    M("road_g3", "road_g3.jpg", specular=0.13, specular_exp=36),
     M("apron", "apron.jpg", specular=0.08, specular_exp=25),
+    M("metal", "metal.jpg", specular=0.2, specular_exp=50),
+    M("lights", "lights.jpg", specular=0.1),
+    M("boards", "boards.jpg", specular=0.05),
     M("pad", "pad.jpg", specular=0.06, specular_exp=20),
     M("gravel", "gravel.jpg", specular=0.0),
     M("grass", "grass.jpg", specular=0.0),
@@ -60,7 +66,7 @@ def main() -> None:
     t0 = time.time()
     tr = Track()
     parts = Parts()
-    ribbon.build_road(tr, parts)
+    ribbon.build_road(tr, parts, layout.racing_line(tr))
     info = ground.build_ground(tr, parts)
     ground.build_far(tr, parts, info)
     foot = props.build_buildings(tr, parts)
@@ -71,6 +77,11 @@ def main() -> None:
                               *[LineString(k).buffer(1.2) for k in kerbs.kerb_lines_en(tr)]])
     paint = marks.build_marks(tr, parts, asphalt, off_limits)
     paint.update(marks.build_edge_lines(tr, parts))
+    pit_boxes = [(d.pos[0], d.pos[2], d.facing) for d in layout.make_dummies(tr)[0] if d.name.startswith("AC_PIT_")]
+    paint.update(marks.build_start(tr, parts, layout.grid_slots(), pit_boxes))
+    paint.update(marks.build_road_lines(tr, parts, info["chain_lines"], unary_union([info["R"], info["A"]]), info["R"], unary_union(foot)))
+    props.build_gantry(tr, parts)
+    paint["brake_boards"] = props.build_brake_boards(tr, parts)
     span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
     pylons = props.build_pylons(tr, parts)
     props.build_pit_wall(tr, parts)

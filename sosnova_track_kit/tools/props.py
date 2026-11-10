@@ -189,3 +189,59 @@ def build_pylons(tr: Track, parts: Parts) -> int:
             p = [base - d - UP * 0.2, base + d - UP * 0.2, base + d + UP * h, base - d + UP * h]
             parts.quad("1WALL_pylons", "pylon", p, (0.0, 0.0, 1.0, 1.0), hint=np.cross(d, UP), smooth=False, double_sided=True)
     return len(PYLONS)
+
+
+GANTRY_AT = 20.0      # metres after the start line, so every car on the grid sees the lights
+
+
+def build_gantry(tr: Track, parts: Parts) -> None:
+    """Start lights on a gantry over the road, facing the grid."""
+    st = GANTRY_AT
+    wl, wr = float(tr.interp(tr.wl, np.array([st]))[0]), float(tr.interp(tr.wr, np.array([st]))[0])
+    left, right = tr.world(st, wl + 1.0)[0], tr.world(st, -(wr + 1.0))[0]
+    road = tr.world(st, 0.0)[0]
+    for p in (left, right):
+        c = np.array([(p[0] - 0.12, p[2] - 0.12), (p[0] + 0.12, p[2] - 0.12), (p[0] + 0.12, p[2] + 0.12), (p[0] - 0.12, p[2] + 0.12)])
+        box(parts, "1WALL_gantry", "metal", c, p[1] - 0.4, road[1] + 6.1, uv_scale=(2.0, 2.0), top_uv=2.0)
+    beam = np.array([(right[0], right[2] - 0.15), (left[0], left[2] - 0.15), (left[0], left[2] + 0.15), (right[0], right[2] + 0.15)])
+    box(parts, "GANTRY_beam", "metal", beam, road[1] + 5.6, road[1] + 6.1, uv_scale=(2.0, 2.0), top_uv=2.0)
+    cx = (left[0] + right[0]) / 2
+    z = road[2] - 0.2
+    p = [(cx + 2.4, road[1] + 4.4, z), (cx - 2.4, road[1] + 4.4, z), (cx - 2.4, road[1] + 5.6, z), (cx + 2.4, road[1] + 5.6, z)]    # seen from the grid
+    parts.quad("GANTRY_lights", "lights", p, (0.0, 0.0, 1.0, 1.0), hint=(0, 0, -1), smooth=False)
+    back = [(q[0], q[1], q[2] + 0.1) for q in (p[1], p[0], p[3], p[2])]
+    parts.quad("GANTRY_lights", "metal", back, (0, 0, 1, 1), hint=(0, 0, 1), smooth=False)
+
+
+def build_brake_boards(tr: Track, parts: Parts) -> int:
+    """150 / 100 / 50 m boards before the hard braking zones, on the side that has a verge."""
+    from track import cyclic_runs, speed_profile
+    n = tr.n
+    v = speed_profile(tr.k)
+    count = 0
+    for a, ln in cyclic_runs(np.roll(v, -1) < v - 0.05, 25, 3):
+        end = a + ln
+        if v[a % n] - v[end % n] < 11.0:
+            continue
+        for dist, cell in ((150, 0), (100, 1), (50, 2)):
+            if dist > ln + 60:
+                continue
+            st = end - dist
+            i = int(st) % n
+            side = -1 if not tr.open_r[i] else (1 if not tr.open_l[i] else 0)
+            if side == 0:
+                continue
+            w = (tr.wl if side > 0 else tr.wr)[i]
+            base = tr.world(float(st), side * (w + 2.2))[0]
+            t = tr.fr.vec(tr.tan[i][None, :])[0]
+            f = np.array([-t[0], 0.0, -t[1]])                                    # faces the cars
+            right = -np.cross(f, UP)
+            a_, b_ = base - right * 0.45, base + right * 0.45
+            p = np.array([a_ + UP * 0.9, b_ + UP * 0.9, b_ + UP * 1.8, a_ + UP * 1.8])
+            parts.quad("SIGN_brake", "boards", p + f * 0.02, (cell / 3 + 0.004, 0.0, (cell + 1) / 3 - 0.004, 1.0), hint=f, smooth=False)
+            parts.quad("SIGN_brake", "metal", p[[1, 0, 3, 2]] - f * 0.02, (0, 0, 1, 1), hint=-f, smooth=False)
+            for q in (a_ + right * 0.1, b_ - right * 0.1):
+                c = np.array([(q[0] - 0.03, q[2] - 0.03), (q[0] + 0.03, q[2] - 0.03), (q[0] + 0.03, q[2] + 0.03), (q[0] - 0.03, q[2] + 0.03)])
+                box(parts, "SIGN_brake", "metal", c, base[1] - 0.3, base[1] + 0.9, uv_scale=(1.0, 1.0), top_uv=1.0)
+            count += 1
+    return count

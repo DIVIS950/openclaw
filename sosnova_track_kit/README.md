@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v4.1)
+# Autodrom Sosnová for Assetto Corsa (v4.2)
 
 A drivable Assetto Corsa (2014) copy of Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) copy of Autodrom Sosnová near Česká Lípa, Cz
 [`content/tracks/sosnova_v4/INSTALL.txt`](content/tracks/sosnova_v4/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v4.1 is
+## What v4.2 is
 
 Geometry from survey data, look from real materials. The event barriers and slalom tyres of the 14.11.2026
 layout are left out on purpose and come back in a later step.
@@ -16,8 +16,11 @@ layout are left out on purpose and come back in a later step.
 | Where things are | Czech state orthophoto (12.5 cm per pixel), lidar terrain model DMR 5G and surface model DMP 1G. |
 | Surfaces | Photo-scanned CC0 materials from Poly Haven, brought to game brightness: race-track asphalt on the lap, pit-lane asphalt on the aprons, a light concrete-like surface on pads and flat kerbs, grass, gravel. The aerial photo decides which one goes where. Far from the track the ground shows the aerial photo itself. |
 | Trees | Pictures rendered from scanned 3D trees (Poly Haven `fir_tree_01`, `tree_small_02`), placed where the surface model shows canopy, at the measured height. |
-| Lap | 1764 m anticlockwise, the route of the 14.11.2026 event, moved onto the real asphalt (`refine.py`). Structured ribbon with an analytic, smooth height. Solid white lines along both edges. |
-| Kerbs | Red and white kerbs (`kerbs.py`): 1 m wide on the verge outside the edge line, along the inside of every corner tighter than 60 m radius and on the outside of the exit of corners tighter than 28 m. 20 kerbs, 759 m. Physical surface `KERB`. These are a racing addition, the real circuit has flat concrete kerbs. |
+| Lap | 1764 m anticlockwise, the route of the 14.11.2026 event, moved onto the real asphalt (`refine.py`). Structured ribbon with an analytic, smooth height. White lines along both edges all the way round, dashed along the pit apron. |
+| Kerbs | Red and white kerbs (`kerbs.py`): 1 m wide outside the edge line, along the inside of every corner tighter than 60 m radius and on the outside of the exit of corners tighter than 28 m, also where the lap runs across aprons. 27 kerbs, 1175 m. Physical surface `KERB`. These are a racing addition, the real circuit has flat concrete kerbs. |
+| Racing line | The lap mesh has columns 0.4 m apart. Quads near the racing line use three slightly darker versions of the same asphalt, so rubber shows without any transparency. |
+| Start | Chequered start/finish band, 16 grid boxes, start lights on a gantry 20 m after the line, painted pit bays, 150/100/50 m brake boards. |
+| Other roads | Every hard surface gets a smoothed height (5 m), asphalt outlines are rounded so no pixel steps remain, and clean asphalt edges away from buildings carry a white edge line (2.5 km). |
 | Other paint | Start boxes and clear lines traced from the aerial photo, as sharp geometry 2 cm above the asphalt. |
 | Gravel | Light bare ground beside the asphalt, from the photo. Physical surface `SAND`. |
 | Bridge | The green arch bridge: 54 m long, 3.8 m wide, deck 5.2 m above the lower road, open underneath, mesh railings. Position from the aerial photo, height from the surface model, look from the circuit's own 2026 photos. |
@@ -88,6 +91,7 @@ Rendered from the built `sosnova_v4.kn5` with `tools/render.py`.
 ![Pole position](previews/ac_start_0.jpg)
 ![Approaching the bridge](previews/lap_0600.jpg)
 ![Hairpin](previews/lap_0400.jpg)
+![Grid from the last slot](previews/ac_start_15.jpg)
 ![The bridge from the side](previews/bridge_side.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
 ![From above](previews/top.jpg)

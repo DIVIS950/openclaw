@@ -125,6 +125,14 @@ def main() -> None:
     ground = np.where(inside2, road.reshape(rows, cols), terr.reshape(rows, cols) + fade * ext)
     # soften the small step that is left where the road plane hands over to the terrain
     ground = np.where(inside2, ground, ndi.gaussian_filter(ground, 1.5 / G_GSD))
+    # all other asphalt (aprons, the roads beside the lap): take out everything shorter than a few metres
+    survey = os.path.join(WORK, "survey.npz")
+    if os.path.exists(survey):
+        hard = np.load(survey)["hard"]
+        hard = hard.reshape(rows, 2, cols, 2).any(axis=(1, 3))
+        w = ndi.gaussian_filter((hard & ~inside2).astype(float), 3.0 / G_GSD)                 # soft edge of the effect
+        smooth = ndi.gaussian_filter(ground, 5.0 / G_GSD)
+        ground = np.where(inside2, ground, ground * (1 - w) + smooth * w)
     print(f"ground raster {cols}x{rows} at {G_GSD} m; road/terrain correction rms {np.sqrt(np.mean(delta[inside2] ** 2)):.3f} m, max {np.abs(delta).max():.3f} m")
 
     far = ndi.gaussian_filter(load_dem(os.path.join(SRC, "cuzk_far", "dem.tif")), 1.0)

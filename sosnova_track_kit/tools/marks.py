@@ -13,7 +13,7 @@ from shapely.geometry import Polygon
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import WORK  # noqa: E402
-from track import Parts, SurfaceLookup, Track  # noqa: E402
+from track import Parts, SurfaceLookup, Track, cyclic_runs  # noqa: E402
 
 LIFT = 0.02
 MAX_AREA = 40.0        # larger bright patches are surfaces (concrete, sand), not paint: the photo shows those
@@ -24,13 +24,19 @@ EDGE_IN, EDGE_W = 0.22, 0.15    # white edge line of the lap: distance from the 
 
 
 def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
-    """Stations where the lap has its own asphalt edge (grass or gravel beyond it), per side: (side, stations)."""
-    from track import cyclic_runs
+    """Both edges of the lap carry a white line all the way round: (side, stations) per piece. Along the pit
+    apron the left line is broken into dashes, so the way out of the pits reads as an exit."""
+    n = tr.n
     out = []
+    pit = tr.in_pit_stretch()
     for side in (1, -1):
-        solid = ~(tr.open_l if side > 0 else tr.open_r)
-        for a, ln in cyclic_runs(solid, 6, 2):
-            out.append((side, a + np.arange(ln + 1)))
+        solid = ~pit if side > 0 else np.ones(n, bool)
+        for a, ln in cyclic_runs(solid, 6, 0):
+            out.append((side, a + np.arange(ln + (0 if ln == n else 1) + (1 if ln == n else 0))))
+    dash = np.where(pit)[0]
+    dash = np.where(dash > n / 2, dash - n, dash)
+    for a in range(int(dash.min()), int(dash.max()) - 2, 6):                      # 3 m line, 3 m gap
+        out.append((1, a + np.arange(4)))
     return out
 
 
@@ -123,3 +129,105 @@ def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
         parts.surface("MARK_paint", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
     stats["line_m"] = round(stats["line_m"])
     return stats
+
+
+def _patch(tr: Track, parts: Parts, group: str, i0: float, i1: float, d0: float, d1: float) -> None:
+    """Painted rectangle on the lap between stations i0..i1 and lateral offsets d0..d1."""
+    rows = np.unique(np.concatenate([[i0, i1], np.arange(np.ceil(i0), np.floor(i1) + 1)]))
+    rows = rows[(rows >= i0) & (rows <= i1)]
+    ii, dd = np.meshgrid(rows, np.array([d0, d1]), indexing="ij")
+    pos = tr.world(ii, dd, LIFT + 0.004)
+    uv = np.stack([np.where(dd == d0, 0.2, 0.8), ii / 2.0], -1).reshape(-1, 2)
+    r = np.arange(len(rows) - 1) * 2
+    parts.surface(group, "paint", pos, uv, np.concatenate([np.stack([r, r + 1, r + 3], -1), np.stack([r, r + 3, r + 2], -1)]), hint=UP, cast_shadows=False)
+
+
+def build_start(tr: Track, parts: Parts, grid: list[tuple[float, float]], pits: list[tuple[float, float, tuple]]) -> dict:
+    """Chequered start/finish band, a box for every grid slot, a painted bay for every pit box.
+    grid: (station, lateral) of the car centres. pits: (world x, world z, facing vector) of the pit boxes."""
+    wl, wr = float(tr.wl[0]), float(tr.wr[0])
+    a, b = -(wr - EDGE_IN - EDGE_W - 0.05), wl - EDGE_IN - EDGE_W - 0.05
+    nsq = int((b - a) / 0.5)
+    sq = (b - a) / nsq
+    for r, (i0, i1) in enumerate(((-0.5, 0.0), (0.0, 0.5))):
+        for c in range(nsq):
+            if (r + c) % 2 == 0:
+                _patch(tr, parts, "MARK_start", i0, i1, a + c * sq, a + (c + 1) * sq)
+    for st, lat in grid:
+        front = st + 2.6
+        _patch(tr, parts, "MARK_grid", front, front + 0.12, lat - 1.15, lat + 1.15)
+        for side in (-1.15, 1.03):
+            _patch(tr, parts, "MARK_grid", front - 1.5, front, lat + side, lat + side + 0.12)
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON"))
+    P, U, T, off = [], [], [], 0
+    for x, z, face in pits:
+        f = np.array([face[0], face[2]])
+        f /= np.linalg.norm(f)
+        r = np.array([f[1], -f[0]])
+        c = np.array([x, z])
+        bars = [(c + r * 1.45 - f * 2.8, c + r * 1.45 + f * 2.8), (c - r * 1.45 - f * 2.8, c - r * 1.45 + f * 2.8), (c - r * 1.45 - f * 2.8, c + r * 1.45 - f * 2.8)]
+        for p0, p1 in bars:
+            m = max(2, int(np.linalg.norm(p1 - p0) / 0.6) + 1)
+            q = p0 + (p1 - p0) * np.linspace(0, 1, m)[:, None]
+            d = (p1 - p0) / np.linalg.norm(p1 - p0)
+            nn = np.array([-d[1], d[0]]) * 0.05
+            xz = np.vstack([q + nn, q - nn])
+            en = tr.fr.o + xz[:, :1] * tr.fr.l + xz[:, 1:] * tr.fr.f
+            pos = tr.fr.world(en, tr.H.ground(en))
+            pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
+            k = np.arange(m - 1)
+            P.append(pos)
+            U.append(np.vstack([np.column_stack([np.full(m, 0.2), np.arange(m) * 0.3]), np.column_stack([np.full(m, 0.8), np.arange(m) * 0.3])]))
+            T.append(np.concatenate([np.stack([k, k + m, k + m + 1], -1), np.stack([k, k + m + 1, k + 1], -1)]) + off)
+            off += len(pos)
+    if P:
+        parts.surface("MARK_pits", "paint", np.vstack(P), np.vstack(U), np.vstack(T), hint=UP, smooth=False, cast_shadows=False)
+    return dict(grid_boxes=len(grid), pit_bays=len(pits))
+
+
+def build_road_lines(tr: Track, parts: Parts, outlines: list[np.ndarray], asphalt, lap, keep_out) -> dict:
+    """White edge lines on the other roads of the complex: along every clean asphalt edge, 0.25 m in.
+    outlines: asphalt outline pieces (east/north). lap: the lap ribbon. keep_out: buildings and the like."""
+    from scipy.ndimage import gaussian_filter1d
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON"))
+    lap_near = lap.buffer(2.0)
+    yard = keep_out.buffer(9.0)
+    P, U, T, off, total = [], [], [], 0, 0.0
+    for line in outlines:
+        seg = np.linalg.norm(np.diff(line, axis=0), axis=1)
+        cum = np.concatenate([[0], np.cumsum(seg)])
+        if cum[-1] < 15.0:
+            continue
+        m = int(cum[-1] / 0.6) + 1
+        s = np.linspace(0, cum[-1], m)
+        q = np.column_stack([np.interp(s, cum, line[:, 0]), np.interp(s, cum, line[:, 1])])
+        q[1:-1] = gaussian_filter1d(q, 3.0, axis=0, mode="nearest")[1:-1]             # take the wobble out
+        d = np.gradient(q, axis=0)
+        d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+        nrm = np.column_stack([-d[:, 1], d[:, 0]])
+        left = contains_xy(asphalt, *(q + nrm * 0.6).T).mean() > contains_xy(asphalt, *(q - nrm * 0.6).T).mean()
+        inward = nrm if left else -nrm
+        c = q + inward * 0.3
+        ok = contains_xy(asphalt, c[:, 0], c[:, 1]) & ~contains_xy(lap_near, c[:, 0], c[:, 1]) & ~contains_xy(yard, c[:, 0], c[:, 1])
+        for a0, ln in ((a_, l_) for a_, l_ in _runs(ok) if l_ * 0.6 >= 12.0):
+            cc, nn = c[a0: a0 + ln], inward[a0: a0 + ln] * 0.06
+            en = np.vstack([cc + nn, cc - nn])
+            pos = tr.fr.world(en, tr.H.ground(en))
+            pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
+            k = np.arange(ln - 1)
+            P.append(pos)
+            U.append(np.vstack([np.column_stack([np.full(ln, 0.2), np.arange(ln) * 0.3]), np.column_stack([np.full(ln, 0.8), np.arange(ln) * 0.3])]))
+            T.append(np.concatenate([np.stack([k, k + ln, k + ln + 1], -1), np.stack([k, k + ln + 1, k + 1], -1)]) + off)
+            off += len(pos)
+            total += (ln - 1) * 0.6
+    if P:
+        pos, tris = np.vstack(P), np.vstack(T)
+        cen = pos[tris].mean(1)
+        order = np.lexsort((np.floor(cen[:, 2] / 100), np.floor(cen[:, 0] / 100)))
+        parts.surface("MARK_roads", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
+    return dict(other_road_line_m=round(total))
+
+
+def _runs(mask: np.ndarray) -> list[tuple[int, int]]:
+    d = np.diff(np.concatenate([[0], mask.astype(int), [0]]))
+    return list(zip(np.where(d == 1)[0].tolist(), (np.where(d == -1)[0] - np.where(d == 1)[0]).tolist()))

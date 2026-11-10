@@ -22,7 +22,7 @@ def kerb_runs(tr: Track) -> list[tuple[int, int, int]]:
     n = tr.n
     out = []
     for side in (1, -1):
-        blocked = tr.open_l if side > 0 else tr.open_r
+        blocked = tr.in_pit_stretch() if side > 0 else np.zeros(n, bool)       # the pit exit stays free
         mask = np.zeros(n, bool)
         for a, ln in cyclic_runs((np.abs(tr.k) > 1.0 / INSIDE_R) & (np.sign(tr.k) == side), 3, 4):       # inside of the bend
             mask[(a - LEAD + np.arange(ln + 2 * LEAD)) % n] = True

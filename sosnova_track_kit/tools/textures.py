@@ -338,10 +338,43 @@ def kerb() -> np.ndarray:
     return a
 
 
+def lights() -> np.ndarray:
+    """Start light panel: five pairs of lamps on a black board, 4:1."""
+    from PIL import ImageDraw
+    im = Image.new("RGB", (512, 128), (14, 14, 16))
+    d = ImageDraw.Draw(im)
+    for k in range(5):
+        cx = 60 + k * 98
+        d.rounded_rectangle([cx - 36, 10, cx + 36, 118], radius=10, fill=(30, 30, 34), outline=(70, 70, 76), width=3)
+        for cy in (40, 90):
+            d.ellipse([cx - 20, cy - 20, cx + 20, cy + 20], fill=(120, 14, 12), outline=(46, 8, 8), width=3)
+            d.ellipse([cx - 9, cy - 12, cx + 1, cy - 2], fill=(190, 60, 50))
+    return np.asarray(im, np.float32)
+
+
+def boards() -> np.ndarray:
+    """Brake distance boards 150 / 100 / 50, three square cells side by side."""
+    from PIL import ImageDraw, ImageFont
+    im = Image.new("RGB", (768, 256), (236, 236, 232))
+    d = ImageDraw.Draw(im)
+    f = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 104)
+    for k, t in enumerate(("150", "100", "50")):
+        x0 = k * 256
+        d.rectangle([x0 + 4, 4, x0 + 251, 251], outline=(16, 16, 18), width=12)
+        d.text((x0 + 128 - d.textlength(t, font=f) / 2, 64), t, font=f, fill=(16, 16, 18))
+    return np.asarray(im, np.float32)
+
+
 def build_static() -> dict[str, bytes]:
     out = {
         "road.jpg": _jpg(scan("asphalt_track.jpg", 50, 2048, repeat=4, desat=0.6, patchy=0.03, seed=301), 90),
         "apron.jpg": _jpg(scan("asphalt_pit_lane.jpg", 72, 2048, repeat=4, desat=0.65, patchy=0.07, seed=311), 90),
+        "road_g1.jpg": _jpg(scan("asphalt_track.jpg", 47.0, 2048, repeat=4, desat=0.7, patchy=0.03, seed=301), 88),
+        "road_g2.jpg": _jpg(scan("asphalt_track.jpg", 43.5, 2048, repeat=4, desat=0.8, patchy=0.03, seed=301), 88),
+        "road_g3.jpg": _jpg(scan("asphalt_track.jpg", 40.5, 2048, repeat=4, desat=0.9, patchy=0.03, seed=301), 88),
+        "lights.jpg": _jpg(lights(), 92),
+        "metal.jpg": _jpg(np.stack([(62 + fnoise(64, 2, 16, 131) * 3) * c for c in (1.0, 1.0, 1.05)], -1)),
+        "boards.jpg": _jpg(boards(), 92),
         "pad.jpg": _jpg(scan("asphalt_06.jpg", 122, 1024, repeat=2, patchy=0.05, seed=321), 90),
         "grass.jpg": _jpg(scan("grass_ground.jpg", GRASS_MEAN, 2048, repeat=4, patchy=0.13, seed=331), 90),
         "gravel.jpg": _jpg(scan("gravel_floor_02.jpg", (150, 146, 134), 1024, repeat=2, patchy=0.05, seed=341), 90),

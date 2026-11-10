@@ -66,7 +66,9 @@ def apron_geometry(tr: Track, R: Polygon):
     A = A.buffer(1.0).buffer(-1.0)                       # close pinholes
     A = A.difference(R.buffer(0.02))
     A = A.buffer(-0.8).buffer(0.8)                       # drop slivers narrower than ~1.6 m
-    A = A.intersection(R.buffer(APRON_REACH)).simplify(0.3)
+    A = A.intersection(R.buffer(APRON_REACH))
+    A = A.buffer(0.7).buffer(-1.4).buffer(0.7)           # round every corner: no pixel steps left in the outline
+    A = A.difference(R.buffer(0.02)).simplify(0.07)
     parts = [p for p in getattr(A, "geoms", [A]) if p.area > 25.0 and p.distance(R) < 2.0]
     return unary_union(parts).buffer(0)
 
@@ -265,7 +267,7 @@ def build_ground(tr: Track, parts: Parts) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains),
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), chain_lines=[np.array(ch) for ch in chains if len(ch) > 1],
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
     return info
