@@ -332,6 +332,41 @@ def build_turn1_limit(tr: Track, parts: Parts, outer: np.ndarray, lap) -> dict:
     return dict(turn1_limit_m=round(total))
 
 
+def build_arrows(tr: Track, parts: Parts) -> dict:
+    """A white arrow painted on the lap 14 m before every place where another road joins or a race row stands
+    beside it, pointing the way of the race route. So the driver always sees where to go."""
+    import circuit
+    n = tr.n
+    mark = np.zeros(n, bool)
+    mouths = circuit.roads_polygon().buffer(0.3)
+    for side in (1, -1):
+        w = tr.wl if side > 0 else tr.wr
+        beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
+        mark |= contains_xy(mouths, beyond[:, 0], beyond[:, 1])
+    from scipy.spatial import cKDTree
+    near = cKDTree(tr.c).query(tr.cones_en)
+    mark[near[1][near[0] < 22.0]] = True
+    starts = sorted(a for a, ln in cyclic_runs(mark, 1, 25))
+    P, U, T, off = [], [], [], 0
+    shape = np.array([(0.0, -0.2), (2.6, -0.2), (2.6, -0.75), (4.2, 0.0), (2.6, 0.75), (2.6, 0.2), (0.0, 0.2)])
+    tris = np.array([(0, 1, 5), (0, 5, 6), (2, 3, 4)])
+    used = []
+    for a in starts:
+        s0 = (a - 14) % n
+        if tr.in_pit_stretch()[s0] or any(min(abs(s0 - u), n - abs(s0 - u)) < 40 for u in used):
+            continue
+        used.append(s0)
+        for lat in (-1.6, 1.6):                                    # two arrows side by side
+            pos = tr.world(s0 + shape[:, 0], lat + shape[:, 1], LIFT + 0.002)
+            P.append(pos)
+            U.append(np.column_stack([np.full(len(shape), 0.5), shape[:, 0] * 0.1]))
+            T.append(tris + off)
+            off += len(shape)
+    if P:
+        parts.surface("MARK_arrows", "paint", np.vstack(P), np.vstack(U), np.vstack(T), hint=UP, smooth=False, cast_shadows=False)
+    return dict(route_arrows=len(used))
+
+
 def _runs(mask: np.ndarray) -> list[tuple[int, int]]:
     d = np.diff(np.concatenate([[0], mask.astype(int), [0]]))
     return list(zip(np.where(d == 1)[0].tolist(), (np.where(d == -1)[0] - np.where(d == 1)[0]).tolist()))

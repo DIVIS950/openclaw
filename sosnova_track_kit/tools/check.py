@@ -278,7 +278,7 @@ def main() -> None:
             if yt is not None and yg is not None:
                 ok_ += 1
                 worst_h = max(worst_h, abs((yt - yg) - 0.92))
-        check(ok_ == len(tr.cones_en) and worst_h < 0.12, f"a tyre stack stands on the ground at each of the {len(tr.cones_en)} yellow dots ({ok_} found, height off by at most {worst_h * 100:.0f} cm)")
+        check(ok_ == len(tr.cones_en) and worst_h < 0.12, f"a tyre barrel stands on the ground at each of the {tr.map_dots} yellow dots and {len(tr.cones_en) - tr.map_dots} extra points ({ok_} found, height off by at most {worst_h * 100:.0f} cm)")
         st = np.array([np.argmin(np.linalg.norm(p[:, [0, 2]] - q, axis=1)) for q in tr.fr.xz(tr.cones_en)])
         gap = np.array([np.linalg.norm(p[i, [0, 2]] - q) for i, q in zip(st, tr.fr.xz(tr.cones_en))]) - 0.34
         check(float(gap.min()) > 1.2, f"the racing line passes every tyre stack with room (least {float(gap.min()):.2f} m)")

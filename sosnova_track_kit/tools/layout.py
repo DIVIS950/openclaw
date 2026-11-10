@@ -243,7 +243,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v9.5 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v9.6 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -254,7 +254,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v9.5".
+3. Start the game and pick the track "Autodrom Sosnova v9.6".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
@@ -275,6 +275,8 @@ WHAT IT IS
   with a yellow top stands at each dot (33), red and white barriers fill the gaps between them, and red and white
   tape runs along the top. Three rows make the chicane on the back straight. The others close the roads and
   areas the race does not use. Barricades close the remaining unused roads.
+- So that you always see where to go: a long barrier line stands on the left after turn 1, from the infield
+  loop down to the return road, and white arrows are painted on the road before every junction.
 - Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game
   times every lap and shows two sector times.
 
@@ -340,7 +342,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v9.5",
+        "name": "Autodrom Sosnová v9.6",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models "
                        "(ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, "
                        "barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees "
@@ -356,7 +358,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "9.5",
+        "version": "9.6",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

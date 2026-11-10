@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v9.5)
+# Autodrom Sosnová for Assetto Corsa (v9.6)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v9.5 is
+## What v9.6 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -26,6 +26,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Connected roads | Five roads, 457 m, each from the lap to the lap, so none ends in the grass: the return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of the start (all 9 m wide) and the short link by the bridge (8 m). From 9.1 they are finished like the lap by the same rules: dark asphalt, two parallel white lines, 12 raised red and white kerbs (374 m) on the inside of their bends and the outside of tight exits, a 4 m grass verge on both sides, a gravel trap with a padded barrier on the outside of their bends, and rows of mesh vertices along them for an even surface. |
 | Turn 1 | From 9.2 the first turn has its real width, about 17 m. The owner drew the line he wanted on a render. The asphalt outside the 9 m lap is added up to one smooth outer curve (`circuit.t1_lane`): it follows the outer asphalt edge measured in the orthophoto and then sweeps into the north edge of the return road, as the painted limit of the real turn does. Same dark asphalt, a white line along the outer edge, a dashed line where that curve crosses the race route, the gravel trap and barrier moved out behind it. |
 | Race layout (9.3, 9.5) | The 33 yellow dots of the organiser's map (registered on the photo, `tr.cones_en`) are grouped into 7 rows. Each row is a closed line: a tyre barrel with a yellow top at every dot, red and white plastic barriers between the barrels (26 pieces, 108 m) and red and white tape along the top (139 m). Three rows form the chicane on the back straight, the other four close the roads and areas the race does not use. Rows of barricades close the 10 remaining unused road mouths that no organiser row covers (124 m). The racing line is kept 1.4 m clear of every barrel. |
+| Route guidance (9.6) | The owner drew a line on the organiser's map, on the left of the east leg from the infield loop down to the return road, and asked to see clearly where to go. Eight more tyre barrels (`circuit.EXTRA_DOTS`) continue the organiser's row there in both directions, with barriers and tape like every row, so after turn 1 the only way is north. Pairs of white arrows are painted on the lap 14 m before each of 11 junctions, pointing along the race route. |
 | Timing | Start/finish gate at point 0 and one sector gate in the middle of the lap, each 14 m wide. The game times every lap and shows two sectors. |
 | Road surface (9.4) | The other roads have a smooth surface of their own, made like the lap's: a height profile along the centre line and a gentle cross-fall, smoothed along the road. Near the lap they continue the lap's own surface outwards. Worst change of gradient 1.6 % per metre, before 4 %. The lap itself is below 0.3 %. All asphalt has the same grip now. |
 | Junctions | Where a road joins the lap, the lap's kerb stops and its edge line turns into dashes across the mouth. |
@@ -111,6 +112,7 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![Infield hairpin](previews/lap_0400.jpg)
 ![Turn 1 from the car](previews/lap_0130.jpg)
 ![The chicane on the back straight](previews/race_chicane.jpg)
-![The row that closes the infield link](previews/race_row_east.jpg)
+![The barrier line on the east leg](previews/race_row_east.jpg)
+![Arrows before a junction](previews/route_arrows.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![From above](previews/top.jpg)

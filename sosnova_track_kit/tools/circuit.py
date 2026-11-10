@@ -78,6 +78,12 @@ BARRIERS = [
 ]
 
 
+# The barrier line the owner drew on the organiser's map: on the left of the east leg, from the infield loop down
+# to the return road. It continues the organiser's row of yellow dots there (138, 21..40) in both directions, so
+# after turn 1 the only way is north. Points are tyre barrels, 6.5 m left of the lap where the line runs beside it.
+EXTRA_DOTS = [(128.6, 59.3), (131.3, 55.0), (134.0, 50.7), (136.2, 45.6), (139.5, 15.5), (141.5, 10.0), (143.5, 4.5), (146.0, -1.0)]
+
+
 def spline(pts, step: float = 0.5) -> np.ndarray:
     """A smooth line through hand-set points, resampled every step metres."""
     p = np.array(pts, float)

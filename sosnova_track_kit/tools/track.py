@@ -27,7 +27,9 @@ class Track:
         self.open_l, self.open_r = np.array(cl["open_l"], bool), np.array(cl["open_r"], bool)
         self.H = Heights()
         self.fr = Frame(cl["sf_en"], cl["fwd_en"], float(self.H.z[0]))
-        self.cones_en = np.array(cl["cones_en"])
+        import circuit
+        self.map_dots = len(cl["cones_en"])                       # the yellow dots of the organiser's map come first
+        self.cones_en = np.vstack([np.array(cl["cones_en"]), np.array(circuit.EXTRA_DOTS, float)])
         self.cone_station = np.array(cl["cone_station"], float)
         self.cone_lat = np.array(cl["cone_lat"], float)
         self.lap = float(cl["lap_m"])

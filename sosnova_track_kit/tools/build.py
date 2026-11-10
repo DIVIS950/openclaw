@@ -95,6 +95,7 @@ def main() -> None:
     # race equipment of 14.11.2026: tyre stacks at the organiser's yellow dots, tape along each row, and a row of
     # barricades across every road that is not part of the race route
     race = props.build_tyre_stacks(tr, parts)
+    race.update(marks.build_arrows(tr, parts))
     race.update(props.build_tape(tr, parts))
     rows = props.build_tyre_walls(tr, parts, Polygon(), Polygon(), lines=props.race_barrier_lines(tr), min_len=1.0, anywhere=True)
     race.update(rows=len(props.race_rows(tr)), row_barriers=rows["walls"], row_barrier_m=rows["metres"])
