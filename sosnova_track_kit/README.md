@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v9.2)
+# Autodrom Sosnová for Assetto Corsa (v9.3)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v9.2 is
+## What v9.3 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -25,6 +25,8 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50. |
 | Connected roads | Five roads, 457 m, each from the lap to the lap, so none ends in the grass: the return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of the start (all 9 m wide) and the short link by the bridge (8 m). From 9.1 they are finished like the lap by the same rules: dark asphalt, two parallel white lines, 12 raised red and white kerbs (374 m) on the inside of their bends and the outside of tight exits, a 4 m grass verge on both sides, a gravel trap with a padded barrier on the outside of their bends, and rows of mesh vertices along them for an even surface. |
 | Turn 1 | From 9.2 the first turn has its real width, about 17 m. The owner drew the line he wanted on a render. The asphalt outside the 9 m lap is added up to one smooth outer curve (`circuit.t1_lane`): it follows the outer asphalt edge measured in the orthophoto and then sweeps into the north edge of the return road, as the painted limit of the real turn does. Same dark asphalt, a white line along the outer edge, a dashed line where that curve crosses the race route, the gravel trap and barrier moved out behind it. |
+| Race layout (9.3) | A tyre stack with a yellow top at each of the 33 yellow dots of the organiser's map (registered on the photo in the first version, `tr.cones_en`), with red and white tape along each row (131 m). Three rows form the chicane on the back straight, the others split the route on the open asphalt. A row of red and white barricades closes each of the 14 road mouths that are not part of the race route (179 m). The racing line is kept 1.4 m clear of every stack. |
+| Timing | Start/finish gate at point 0 and one sector gate in the middle of the lap, each 14 m wide. The game times every lap and shows two sectors. |
 | Junctions | Where a road joins the lap, the lap's kerb stops and its edge line turns into dashes across the mouth. |
 | Paved areas | Clean polygons with rounded corners and a white line along every free edge: the big square, the start area, the junction fans and the paddock. They stay behind the 4 m grass verge of the lap and of every road. |
 | Concrete and gravel | The white apron inside the east hairpin with its gravel pocket, the skid pad on the square, the slab at the foot of the bridge, the paddock lane and the lay-by on the north straight. |
@@ -33,7 +35,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Still from the survey | The green arch bridge, buildings with their heights and photo roofs, pylons, trees at measured heights, the terrain and the distant ground photo. |
 | Materials | Photo-scanned CC0 surfaces and pictures of scanned 3D trees from Poly Haven. |
 
-The event barriers and slalom tyres of the 14.11.2026 layout are still left out.
+The positions of the tyre stacks come from the organiser's map. The barricades across the unused roads are my addition.
 
 ## Rebuilding
 
@@ -106,5 +108,6 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![On the south-west loop](previews/road_sw_loop_50.jpg)
 ![Infield hairpin](previews/lap_0400.jpg)
 ![Turn 1 from the car](previews/lap_0130.jpg)
+![The chicane on the back straight](previews/race_chicane.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![From above](previews/top.jpg)

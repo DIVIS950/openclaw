@@ -338,6 +338,33 @@ def kerb() -> np.ndarray:
     return a
 
 
+def barricade() -> np.ndarray:
+    """Plastic road barricades and barrier tape: 2 m red, 2 m white along (u)."""
+    a = np.zeros((128, 512, 3), np.float32)
+    a[:, :256] = (198, 34, 30)
+    a[:, 256:] = (232, 230, 224)
+    a *= np.linspace(1.0, 0.78, 128)[:, None, None]
+    for x in range(0, 512, 128):
+        a[:, x: x + 3] *= 0.55
+    return np.clip(a, 0, 255)
+
+
+def tyres() -> np.ndarray:
+    """A stack of four tyres: black rubber with tread, the top tyre painted yellow (v runs up the stack)."""
+    a = np.full((256, 128, 3), (26, 26, 28), np.float32)
+    rng = np.random.default_rng(3)
+    a += rng.normal(0, 3.0, a.shape)
+    for k in range(4):
+        y0 = 256 - (k + 1) * 64
+        if k == 3:
+            a[y0: y0 + 64] = np.array((232, 196, 34), np.float32) + rng.normal(0, 4.0, (64, 128, 3))
+        a[y0: y0 + 5] *= 0.45                                  # the gap between two tyres
+        a[y0 + 59: y0 + 64] *= 0.6
+        for x in range(0, 128, 16):                            # tread blocks
+            a[y0 + 14: y0 + 50, x: x + 2] *= 0.7
+    return np.clip(a, 0, 255)
+
+
 def lights() -> np.ndarray:
     """Start light panel: five pairs of lamps on a black board, 4:1."""
     from PIL import ImageDraw
@@ -384,6 +411,8 @@ def build_static() -> dict[str, bytes]:
         "hall.jpg": _jpg(wall("hall"), 90),
         "paint.jpg": _jpg(paint()),
         "kerb.jpg": _jpg(kerb(), 90),
+        "barricade.jpg": _jpg(barricade(), 90),
+        "tyres.jpg": _jpg(tyres(), 90),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
         "softwall.jpg": _jpg(softwall()),
         "arch.jpg": _jpg(arch()),

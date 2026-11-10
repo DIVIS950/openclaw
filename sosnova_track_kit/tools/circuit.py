@@ -124,7 +124,9 @@ def t1_lane():
     c = np.array(json.load(open(os.path.join(WORK, "centerline_std.json"), encoding="utf-8"))["en"])
     _, nrm, _, _ = closed_frames(c)
     ctrl = [c[s] - nrm[s] * d for s, d in ((110, 4.4), (114, 5.6), (118, 7.6), (122, 9.3), (126, 10.2), (132, 10.6), (138, 10.6), (144, 10.6), (149, 10.6))]
-    ctrl += [(198.6, -12.5), (194.0, -6.0), (187.0, -2.0), (178.0, -0.3), (167.0, 0.2), (157.0, -0.1), (147.0, -0.9), (139.0, -2.6)]
+    # the painted limit of the real turn, read off the 12.5 cm photo: it leaves the outer edge and runs straight
+    # into the north edge of the return road
+    ctrl += [(197.6, -12.6), (193.0, -8.6), (187.0, -6.6), (181.0, -5.6), (171.0, -3.6), (161.0, -1.6), (152.0, -0.3), (144.0, -0.9), (138.0, -2.4)]
     outer = spline(ctrl)
     poly = Polygon(np.vstack([outer, c[110:206][::-1]])).buffer(0)
     rows = np.vstack([c[114:162:2] - nrm[114:162:2] * d for d in (6.0, 8.2)])

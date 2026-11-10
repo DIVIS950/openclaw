@@ -55,11 +55,15 @@ def make_dummies(tr: Track) -> tuple[list[Dummy], dict]:
 def racing_line(tr: Track, margin: float = 1.7, iters: int = 60) -> np.ndarray:
     """Lateral offset (m, + = left) of a smooth line that uses the width of the road."""
     lo, hi = -(tr.wr - margin), tr.wl - margin
-    for st, lat in zip(tr.cone_station, tr.cone_lat):           # keep clear of tyre stacks standing on the road
+    # the tyre stacks are measured against the lap as it is now (the lap line was moved after they were registered)
+    from scipy.spatial import cKDTree
+    near = cKDTree(tr.c).query(tr.cones_en)[1]
+    lats = np.einsum("ij,ij->i", tr.cones_en - tr.c[near], tr.nrm[near])
+    for st, lat in zip(near, lats):                             # keep clear of tyre stacks standing on or beside the road
         idx = (int(round(st)) + np.arange(-7, 8)) % tr.n
-        if 0 < lat < tr.wl[idx].max():
+        if 0 < lat < tr.wl[idx].max() + 0.8:
             hi[idx] = np.minimum(hi[idx], lat - 0.36 - 1.4)
-        elif 0 > lat > -tr.wr[idx].max():
+        elif 0 > lat > -(tr.wr[idx].max() + 0.8):
             lo[idx] = np.maximum(lo[idx], lat + 0.36 + 1.4)
     lo, hi = periodic_gauss(lo, 2.0), periodic_gauss(hi, 2.0)
     hi = np.maximum(hi, lo + 0.2)
@@ -239,7 +243,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v9.2 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v9.3 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -250,7 +254,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v9.2".
+3. Start the game and pick the track "Autodrom Sosnova v9.3".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
@@ -267,7 +271,11 @@ WHAT IT IS
 - A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
 - Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
 - The position and the heights of the lap, the bridge, the buildings and the trees come from Czech state survey data.
-- The event barriers and slalom tyres are NOT in this version.
+- Race layout of 14.11.2026: a tyre stack with a yellow top at every yellow dot of the organiser's map (33
+  stacks, with tape along each row). They form the chicane on the back straight and split the route on the open
+  asphalt. A row of red and white barricades closes every road that is not part of the race route.
+- Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game
+  times every lap and shows two sector times.
 
 OPTIONAL
 - Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
@@ -331,7 +339,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v9.2",
+        "name": "Autodrom Sosnová v9.3",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models "
                        "(ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, "
                        "barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees "
@@ -347,7 +355,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "9.2",
+        "version": "9.3",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

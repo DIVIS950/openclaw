@@ -255,3 +255,74 @@ def build_brake_boards(tr: Track, parts: Parts) -> int:
                 box(parts, "SIGN_brake", "metal", c, base[1] - 0.3, base[1] + 0.9, uv_scale=(1.0, 1.0), top_uv=1.0)
             count += 1
     return count
+
+
+def build_tyre_stacks(tr: Track, parts: Parts) -> dict:
+    """Tyre stacks of the race layout: one at every yellow dot of the organiser's map (registered on the photo,
+    tr.cones_en). Four tyres high, the top one painted yellow. They stand beside the lap and form the chicanes."""
+    R_, H_, SEG = 0.34, 0.92, 10
+    ang = np.linspace(0, 2 * np.pi, SEG + 1)
+    ring = np.column_stack([np.cos(ang), np.sin(ang)])
+    P, U, T, HN, TP, TU, TT, off, toff = [], [], [], [], [], [], [], 0, 0
+    for c in tr.cones_en:
+        g = float(tr.H.ground(np.array([c]))[0])
+        en = c[None, :] + ring * R_
+        lo, hi = tr.fr.world(en, np.full(SEG + 1, g - 0.15)), tr.fr.world(en, np.full(SEG + 1, g + H_))
+        out = tr.fr.vec(ring)
+        n3 = np.column_stack([out[:, 0], np.zeros(SEG + 1), out[:, 1]])
+        P.append(np.vstack([lo, hi]))
+        U.append(np.vstack([np.column_stack([ang / (2 * np.pi) * 3, np.zeros(SEG + 1)]), np.column_stack([ang / (2 * np.pi) * 3, np.ones(SEG + 1)])]))
+        r = np.arange(SEG)
+        mid = n3[r] + n3[r + 1]
+        HN.append(np.vstack([mid, mid]))                           # one outward vector per side triangle
+        T.append(np.concatenate([np.stack([r, r + SEG + 1, r + SEG + 2], -1), np.stack([r, r + SEG + 2, r + 1], -1)]) + off)
+        off += 2 * (SEG + 1)
+        top = np.vstack([hi[:SEG], tr.fr.world(c[None, :], np.array([g + H_]))])
+        TP.append(top)
+        TU.append(np.column_stack([np.full(SEG + 1, 0.5), np.full(SEG + 1, 0.95)]))
+        TT.append(np.stack([np.full(SEG, SEG), r, (r + 1) % SEG], -1) + toff)
+        toff += SEG + 1
+    if P:
+        parts.surface("1WALL_tyrestacks", "tyres", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.vstack(HN), smooth=True)
+        parts.surface("1WALL_tyrestacks", "tyres", np.vstack(TP), np.vstack(TU), np.vstack(TT), hint=UP, smooth=False)
+    return dict(tyre_stacks=len(tr.cones_en))
+
+
+def build_tape(tr: Track, parts: Parts, max_gap: float = 7.5) -> dict:
+    """Red and white barrier tape strung from tyre stack to tyre stack along each row (visual only)."""
+    c = tr.cones_en
+    P, U, T, HN, off, total = [], [], [], [], 0, 0.0
+    for i in range(len(c)):
+        for j in range(i + 1, len(c)):
+            d = float(np.linalg.norm(c[i] - c[j]))
+            if d > max_gap:
+                continue
+            en = np.array([c[i], c[j]])
+            g = tr.H.ground(en)
+            pos = np.vstack([tr.fr.world(en, g + 0.70), tr.fr.world(en, g + 0.78)])
+            P.append(pos)
+            U.append(np.array([[0, 0.3], [d / 1.0, 0.3], [0, 0.6], [d / 1.0, 0.6]]))
+            T.append(np.array([[0, 1, 3], [0, 3, 2]]) + off)
+            side = tr.fr.vec(np.array([[-(c[j] - c[i])[1], (c[j] - c[i])[0]]]) / d)[0]
+            HN += [(side[0], 0.0, side[1])] * 2
+            off += 4
+            total += d
+    if P:
+        parts.surface("TAPE_rows", "barricade", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.array(HN), smooth=False, double_sided=True, cast_shadows=False)
+    return dict(tape_m=round(total))
+
+
+def road_block_lines(tr: Track, mouths) -> list[dict]:
+    """A row of red and white barricades across every road that joins the lap, 1.6 m outside the lap's edge, so
+    the race route is the only way through. mouths: polygon of the roads (east/north)."""
+    from track import cyclic_runs
+    out = []
+    n = tr.n
+    for side in (1, -1):
+        w = tr.wl if side > 0 else tr.wr
+        beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
+        m = contains_xy(mouths, beyond[:, 0], beyond[:, 1])
+        for a, ln in cyclic_runs(m, 4, 2):
+            st = (a - 1 + np.arange(ln + 2)).astype(float)
+            out.append(dict(en=tr.en(st, side * (w[(a - 1 + np.arange(ln + 2)) % n] + 1.6)).round(2).tolist(), width=0.5, height=0.85, material="barricade"))
+    return out

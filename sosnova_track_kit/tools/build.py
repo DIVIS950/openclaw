@@ -49,6 +49,8 @@ MATERIALS = [
     M("roofphoto", "roof_photo.jpg", specular=0.05),
     M("paint", "paint.jpg", specular=0.12, specular_exp=30),
     M("kerb", "kerb.jpg", specular=0.10, specular_exp=30),
+    M("barricade", "barricade.jpg", specular=0.18, specular_exp=40),
+    M("tyres", "tyres.jpg", specular=0.05),
     M("concrete", "concrete.jpg"),
     M("building", "building.jpg"),
     M("garage", "garage.jpg"),
@@ -81,7 +83,7 @@ def main() -> None:
     near_buildings = unary_union([f.buffer(3.0) for f in foot])
     flat = unary_union([info["aprons"], info["pads"], circuit.areas("road")]).buffer(0.05).buffer(-0.05)
     paint.update(marks.build_road_lines(tr, parts, info["roads"], asphalt, flat, near_buildings, lap=info["R"]))
-    paint.update(marks.build_turn1_limit(tr, parts, circuit.t1_lane()[1], info["R"]))
+    paint.update(marks.build_turn1_limit(tr, parts, circuit.t1_lane()[1], asphalt.buffer(-0.3)))
     paint.update(marks.build_area_lines(tr, parts, flat, asphalt.buffer(0.05), unary_union([near_buildings, info["R"].buffer(0.3)])))
     props.build_gantry(tr, parts)
     paint["brake_boards"] = props.build_brake_boards(tr, parts)
@@ -90,6 +92,12 @@ def main() -> None:
     props.build_pit_wall(tr, parts)
     barriers = design.trap_barriers(tr, info["G"]) + design.road_barriers(info["G"]) + [dict(b, material="concrete") for b in circuit.BARRIERS]
     walls = props.build_tyre_walls(tr, parts, info["R"].buffer(design.VERGE), asphalt, lines=barriers)
+    # race equipment of 14.11.2026: tyre stacks at the organiser's yellow dots, tape along each row, and a row of
+    # barricades across every road that is not part of the race route
+    race = props.build_tyre_stacks(tr, parts)
+    race.update(props.build_tape(tr, parts))
+    blocks = props.build_tyre_walls(tr, parts, info["R"].buffer(0.8), Polygon(), lines=props.road_block_lines(tr, circuit.roads_polygon().buffer(0.3)))
+    race.update(road_blocks=blocks["walls"], road_block_m=blocks["metres"])
     keep_out = unary_union([info["R"].buffer(design.VERGE + 3.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()
@@ -107,7 +115,7 @@ def main() -> None:
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),
         ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), kerbs=kerb_info, bridge=span, pylons=pylons, paint=paint, barriers=walls,
-        trees=trees, dummies=len(dummies),
+        trees=trees, race=race, dummies=len(dummies),
         ai={k: (round(v, 2) if isinstance(v, float) else v) for k, v in ai.items() if k not in ("line", "speed")},
         frame=tr.fr.to_json(), sector_station=dinfo["sector_station"],
     )
