@@ -353,7 +353,8 @@ def build_arrows(tr: Track, parts: Parts) -> dict:
     used = []
     for a in starts:
         s0 = (a - 14) % n
-        if tr.in_pit_stretch()[s0] or any(min(abs(s0 - u), n - abs(s0 - u)) < 40 for u in used):
+        on_grid = s0 > n - 110 or s0 < 80                         # the grid, the hotlap start and the pit exit stay clean
+        if on_grid or any(min(abs(s0 - u), n - abs(s0 - u)) < 40 for u in used):
             continue
         used.append(s0)
         for lat in (-1.6, 1.6):                                    # two arrows side by side

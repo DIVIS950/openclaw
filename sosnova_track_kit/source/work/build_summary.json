@@ -2,8 +2,8 @@
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
  "meshes": 341,
- "vertices": 178516,
- "triangles": 188230,
+ "vertices": 178498,
+ "triangles": 188224,
  "kn5_mb": 24.6,
  "ground": {
   "asphalt": 4384,
@@ -49,7 +49,7 @@
  },
  "race": {
   "tyre_stacks": 41,
-  "route_arrows": 11,
+  "route_arrows": 10,
   "tape_m": 184,
   "rows": 7,
   "row_barriers": 34,
