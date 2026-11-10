@@ -48,7 +48,7 @@ MATERIALS = [
     M("photofar", "ground_far.jpg", specular=0.0),
     M("roofphoto", "roof_photo.jpg", specular=0.05),
     M("paint", "paint.jpg", specular=0.12, specular_exp=30),
-    M("kerb", "kerb.jpg", specular=0.10, specular_exp=30),
+    M("kerbc", "kerbc.jpg", specular=0.06, specular_exp=20),
     M("concrete", "concrete.jpg"),
     M("building", "building.jpg"),
     M("garage", "garage.jpg"),
@@ -86,9 +86,11 @@ def main() -> None:
     span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
     pylons = props.build_pylons(tr, parts)
     props.build_pit_wall(tr, parts)
-    barriers = design.trap_barriers(tr, info["G"]) + [dict(b, material="concrete") for b in circuit.BARRIERS]
-    walls = props.build_tyre_walls(tr, parts, info["R"].buffer(design.VERGE), asphalt, lines=barriers)
-    keep_out = unary_union([info["R"].buffer(design.VERGE + 3.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
+    # barriers: the tyre walls traced from the photo, and the walls of the original circuit
+    traced = json.load(open(os.path.join(WORK, "tyre_walls.json"), encoding="utf-8"))["tyre_walls"]
+    barriers = traced + [dict(b, material="concrete") for b in circuit.BARRIERS]
+    walls = props.build_tyre_walls(tr, parts, info["R"].buffer(1.2), asphalt, lines=barriers)
+    keep_out = unary_union([info["R"].buffer(5.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()
     tex.update(photo.build(info["covered"], textures.GRASS_MEAN))

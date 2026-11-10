@@ -6,5 +6,6 @@ source/work/*
 !source/work/build_summary.json
 !source/work/paint.json
 !source/work/tyre_walls.json
+!source/work/edges.json
 source/previews_v2/
 __pycache__/

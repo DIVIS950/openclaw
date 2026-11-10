@@ -25,19 +25,20 @@ EDGE_IN, EDGE_W = 0.22, 0.15    # white edge line of the lap: distance from the 
 
 
 def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
-    """Both edges of the lap carry a white line all the way round: (side, stations) per piece. Along the pit
-    apron the left line is broken into dashes, so the way out of the pits reads as an exit."""
+    """(side, stations) of every piece of white edge line. A real asphalt edge carries a solid line. Where the
+    lap runs beside open asphalt (a junction, the square, the pit apron) the line is broken into dashes, so the
+    route stays readable without inventing an edge."""
     n = tr.n
     out = []
-    pit = tr.in_pit_stretch()
-    for side in (1, -1):
-        solid = ~pit if side > 0 else np.ones(n, bool)
-        for a, ln in cyclic_runs(solid, 6, 0):
-            out.append((side, a + np.arange(ln + (0 if ln == n else 1) + (1 if ln == n else 0))))
-    dash = np.where(pit)[0]
-    dash = np.where(dash > n / 2, dash - n, dash)
-    for a in range(int(dash.min()), int(dash.max()) - 2, 6):                      # 3 m line, 3 m gap
-        out.append((1, a + np.arange(4)))
+    for side, is_open, w in ((1, tr.open_l, tr.wl), (-1, tr.open_r, tr.wr)):
+        # no line where the edge swings sideways (the mouth of a junction): a line there would be a hook
+        swing = np.abs(np.roll(w, -1) - np.roll(w, 1)) / 2.0 > 0.14
+        swing = np.convolve(np.tile(swing, 3), np.ones(7), "same")[n: 2 * n] > 0
+        for a, ln in cyclic_runs(~is_open & ~swing, 6, 0):
+            out.append((side, a + np.arange(ln + 1)))
+        for a, ln in cyclic_runs(is_open & ~swing, 4, 0):
+            for k in range(a + 2, a + ln - 3, 6):                                 # 3 m line, 3 m gap
+                out.append((side, k + np.arange(4)))
     return out
 
 
@@ -245,7 +246,7 @@ def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep
         order = np.lexsort((np.floor(cen[:, 2] / 100), np.floor(cen[:, 0] / 100)))
         parts.surface("MARK_roads", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
     if KP:
-        parts.surface("MARK_roadkerbs", "kerb", np.vstack(KP), np.vstack(KU), np.vstack(KT), hint=UP, smooth=False, cast_shadows=False)
+        parts.surface("MARK_roadkerbs", "kerbc", np.vstack(KP), np.vstack(KU), np.vstack(KT), hint=UP, smooth=False, cast_shadows=False)
     return dict(other_roads=len(roads), other_road_m=round(sum(float(np.linalg.norm(np.diff(l, axis=0), axis=1).sum()) for l, _ in roads)),
                 other_road_line_m=round(total), other_road_kerb_m=round(kerb_m))
 

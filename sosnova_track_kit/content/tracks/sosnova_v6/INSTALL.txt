@@ -1,0 +1,33 @@
+AUTODROM SOSNOVA v6.0 for Assetto Corsa
+=======================================
+
+INSTALL
+1. Delete older versions first, if you have them:
+      ...\assettocorsa\content\tracks\sosnova, sosnova_v2, sosnova_v3, sosnova_v4, sosnova_v5
+2. Copy the whole folder "sosnova_v6" into:
+      ...\Steam\steamapps\common\assettocorsa\content\tracks\
+   so that this file exists:
+      ...\content\tracks\sosnova_v6\sosnova_v6.kn5
+   (With Content Manager you can also just drag the zip onto its window.)
+3. Start the game and pick the track "Autodrom Sosnova v6.0".
+
+WHAT IT IS
+- Autodrom Sosnova as the aerial photo shows it, for practice before a race. The lap is 1764 m, anticlockwise,
+  under the green bridge.
+- The edges of the lap are the real asphalt edges. The road is as wide as the real one: about 8 m at the
+  narrowest and up to 17 m in the first turn.
+- Kerbs only where the real circuit has them: flat strips of pale concrete at some corners. No red and white kerbs.
+- Sand only where the real circuit has it. Tyre barriers where the photo shows them.
+- The rest of the circuit is there too: the return road, the south-west loop, the big square, the junctions, the
+  paddock and the white concrete inside the first turn. All asphalt can be driven.
+- A solid white line marks a real asphalt edge. A dashed line marks the lap where it crosses open asphalt.
+- Heights are the real ones from the Czech state survey. The site is nearly flat: 2.8 m between the highest
+  and the lowest point of the lap.
+- The event barriers and slalom tyres are NOT in this version.
+
+OPTIONAL
+- Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
+
+DATA
+Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.

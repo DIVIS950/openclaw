@@ -338,6 +338,17 @@ def kerb() -> np.ndarray:
     return a
 
 
+def kerb_concrete() -> np.ndarray:
+    """The pale concrete edge strips of the real circuit: 2 m of blocks along (v), with joints."""
+    base = scan("gravel_concrete_03.jpg", 128, 512)
+    grain = (base.mean(-1, keepdims=True) / 128.0)[:, :128]
+    a = np.full((512, 128, 3), (198, 194, 182), np.float32) * (0.72 + 0.28 * grain)
+    for row in (0, 256):                                      # joints between the blocks
+        a[row: row + 3] *= 0.72
+        a[row - 3 if row else 509: row if row else 512] *= 0.72
+    return a
+
+
 def lights() -> np.ndarray:
     """Start light panel: five pairs of lamps on a black board, 4:1."""
     from PIL import ImageDraw
@@ -383,7 +394,7 @@ def build_static() -> dict[str, bytes]:
         "garage.jpg": _jpg(wall("garage"), 90),
         "hall.jpg": _jpg(wall("hall"), 90),
         "paint.jpg": _jpg(paint()),
-        "kerb.jpg": _jpg(kerb(), 90),
+        "kerbc.jpg": _jpg(kerb_concrete(), 90),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
         "softwall.jpg": _jpg(softwall()),
         "arch.jpg": _jpg(arch()),

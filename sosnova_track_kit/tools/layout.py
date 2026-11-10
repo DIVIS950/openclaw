@@ -239,30 +239,31 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v5.1 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v6.0 for Assetto Corsa
 =======================================
 
 INSTALL
 1. Delete older versions first, if you have them:
       ...\\assettocorsa\\content\\tracks\\sosnova, sosnova_v2, sosnova_v3, sosnova_v4, sosnova_v5
-2. Copy the whole folder "sosnova_v5" into:
+2. Copy the whole folder "sosnova_v6" into:
       ...\\Steam\\steamapps\\common\\assettocorsa\\content\\tracks\\
    so that this file exists:
-      ...\\content\\tracks\\sosnova_v5\\sosnova_v5.kn5
+      ...\\content\\tracks\\sosnova_v6\\sosnova_v6.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v5.1".
+3. Start the game and pick the track "Autodrom Sosnova v6.0".
 
 WHAT IT IS
-- The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
-  the road is 9 m wide everywhere, both white lines run parallel, and a 4 m grass verge runs along both sides.
-- Red and white kerbs on every corner. A gravel trap with a barrier behind it on the outside of every corner.
-- NEW in 5.1: the rest of the original circuit is back, finished like the race lap. The return road from the
-  east hairpin, the loop south-west of the start, the link by the bridge and the outer hairpin road have the
-  same dark asphalt, white lines and kerbs. The big square, the start area, the junctions, the paddock and the
-  concrete hairpin apron are clean paved areas with white edge lines. All of it can be driven.
-- A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
-- Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
-- The position and the heights of the lap, the bridge, the buildings and the trees come from Czech state survey data.
+- Autodrom Sosnova as the aerial photo shows it, for practice before a race. The lap is 1764 m, anticlockwise,
+  under the green bridge.
+- The edges of the lap are the real asphalt edges. The road is as wide as the real one: about 8 m at the
+  narrowest and up to 17 m in the first turn.
+- Kerbs only where the real circuit has them: flat strips of pale concrete at some corners. No red and white kerbs.
+- Sand only where the real circuit has it. Tyre barriers where the photo shows them.
+- The rest of the circuit is there too: the return road, the south-west loop, the big square, the junctions, the
+  paddock and the white concrete inside the first turn. All asphalt can be driven.
+- A solid white line marks a real asphalt edge. A dashed line marks the lap where it crosses open asphalt.
+- Heights are the real ones from the Czech state survey. The site is nearly flat: 2.8 m between the highest
+  and the lowest point of the lap.
 - The event barriers and slalom tyres are NOT in this version.
 
 OPTIONAL
@@ -327,7 +328,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v5.1",
+        "name": "Autodrom Sosnová v6.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models "
                        "(ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, "
                        "barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees "
@@ -339,11 +340,11 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "country": "Czech Republic",
         "city": "Sosnová (Česká Lípa)",
         "length": str(int(round(tr.lap))),
-        "width": "9",
+        "width": "8-17",
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "5.1",
+        "version": "6.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

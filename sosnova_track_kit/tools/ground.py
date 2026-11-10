@@ -120,13 +120,11 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     """avoid: shapely geometry of the building footprints (no gravel there)."""
     import design
     R = ribbon_polygon(tr)
-    verge = design.verge(tr, R)
     A, aprons, roads, roads_poly, pads = design.other_asphalt(tr, R)
     site = box(-HALF_E, -HALF_N, HALF_E, HALF_N)
     zone = unary_union([R, A]).buffer(ZONE_M).intersection(site.buffer(-6.0))
     zone = unary_union([Polygon(g.exterior) for g in getattr(zone, "geoms", [zone])])   # no photo islands in the infield
-    G = design.gravel_traps(tr, R, unary_union([A, avoid]))
-    G = unary_union([G, design.gravel_pockets(A)]).buffer(0)
+    G = design.gravel(tr, R, A, avoid)
     reg = Registry()
     segs: list[tuple[int, int]] = []
     # 1. road edges: exact vertices and heights of the road mesh
@@ -259,7 +257,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
     return info
