@@ -1,4 +1,4 @@
-"""Build the complete Assetto Corsa track folder content/tracks/sosnova_v3 from the survey data.
+"""Build the complete Assetto Corsa track folder content/tracks/sosnova_v4 from the survey data.
 
     python3 prep.py && python3 geom.py && python3 heights.py && python3 survey.py && python3 mkbuildings.py   (once)
     python3 build.py
@@ -29,17 +29,16 @@ from common import OUT, TRACK, WORK  # noqa: E402
 from track import Parts, Track  # noqa: E402
 
 M = kn5.Material
-GROUND_MAPS = {"txMask": "ground_mask.png", "txDetailR": "detail_asphalt.jpg", "txDetailG": "detail_grass.jpg",
-               "txDetailB": "detail_dirt.jpg", "txDetailA": "black.png"}
-# the ground photo covers 640 m; the detail layers repeat every 5 m (asphalt) and 4 m (grass, bare ground)
-GROUND_PROPS = {"multR": 128.0, "multG": 160.0, "multB": 160.0, "multA": 1.0, "magicMult": 1.0}
 MATERIALS = [
-    M("asph", "ground_photo.jpg", shader="ksMultilayer", specular=0.10, specular_exp=30, maps=GROUND_MAPS, props=GROUND_PROPS),
-    M("grass", "ground_photo.jpg", shader="ksMultilayer", specular=0.0, maps=GROUND_MAPS, props=GROUND_PROPS),
+    M("road", "road.jpg", specular=0.10, specular_exp=30),
+    M("apron", "apron.jpg", specular=0.08, specular_exp=25),
+    M("pad", "pad.jpg", specular=0.06, specular_exp=20),
+    M("gravel", "gravel.jpg", specular=0.0),
+    M("grass", "grass.jpg", specular=0.0),
+    M("photo", "ground_photo.jpg", specular=0.0),
     M("photofar", "ground_far.jpg", specular=0.0),
     M("roofphoto", "roof_photo.jpg", specular=0.05),
     M("paint", "paint.jpg", specular=0.12, specular_exp=30),
-    M("deck", "deck.jpg", specular=0.08, specular_exp=25),
     M("concrete", "concrete.jpg"),
     M("building", "building.jpg"),
     M("garage", "garage.jpg"),
@@ -49,7 +48,8 @@ MATERIALS = [
     M("arch", "arch.jpg", specular=0.12, specular_exp=30),
     M("fence", "fence.png", shader="ksPerPixelAT", alpha_tested=True, specular=0.1),
     M("pylon", "pylon.png", shader="ksPerPixelAT", alpha_tested=True, specular=0.05),
-    M("tree", "trees.png", shader="ksPerPixelAT", alpha_tested=True, ambient=0.8, diffuse=0.45, specular=0.0),
+    M("treeconifer", "tree_conifer.png", shader="ksPerPixelAT", alpha_tested=True, ambient=0.8, diffuse=0.45, specular=0.0),
+    M("treeleaf", "tree_leaf.png", shader="ksPerPixelAT", alpha_tested=True, ambient=0.8, diffuse=0.45, specular=0.0),
     M("forest", "forest.png", shader="ksPerPixelAT", alpha_tested=True, ambient=0.8, diffuse=0.45, specular=0.0),
 ]
 
@@ -74,7 +74,7 @@ def main() -> None:
     keep_out = unary_union([info["R"].buffer(7.0), info["A"].buffer(4.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()
-    tex.update(photo.build([tr.edge_en(1), tr.edge_en(-1)], marks.edge_lines_en(tr)))
+    tex.update(photo.build(info["covered"], textures.GRASS_MEAN))
     dummies, dinfo = layout.make_dummies(tr)
     meshes = parts.meshes()
     os.makedirs(OUT, exist_ok=True)
@@ -87,7 +87,7 @@ def main() -> None:
     summary = dict(
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),
-        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), buildings=len(foot), bridge=span, pylons=pylons, paint=paint, barriers=walls,
+        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), bridge=span, pylons=pylons, paint=paint, barriers=walls,
         trees=trees, dummies=len(dummies),
         ai={k: (round(v, 2) if isinstance(v, float) else v) for k, v in ai.items() if k not in ("line", "speed")},
         frame=tr.fr.to_json(), sector_station=dinfo["sector_station"],

@@ -1,5 +1,6 @@
-"""Generated textures: the close-up detail layers that go over the ground photo (asphalt, grass, bare ground),
-paint, concrete, building walls, tyre barriers and trees. No third-party images."""
+"""Textures. Surfaces (asphalt, grass, gravel, concrete, plaster, sheet metal) are photo-scanned CC0 material
+from Poly Haven (source/assets), brought to game brightness. Paint, barrier covers, the bridge panel, fences and
+pylons are drawn here. Trees are pictures rendered from real 3D tree models (mktrees.py)."""
 from __future__ import annotations
 
 import io
@@ -272,27 +273,80 @@ def pylon() -> np.ndarray:
     return a
 
 
+ASSETS = os.path.join(SRC, "assets")
+GRASS_MEAN = (78.0, 98.0, 44.0)                 # the grass tile and the distant ground photo share this colour
+TILE_M = {"road": 8.0, "apron": 8.0, "pad": 6.0, "grass": 10.0, "gravel": 4.0}     # metres covered by one texture
+
+
+def scan(name: str, target, px: int, repeat: int = 1, desat: float = 0.0, patchy: float = 0.0, seed: int = 0) -> np.ndarray:
+    """A photo-scanned CC0 texture from source/assets, brought to game brightness.
+
+    target: mean brightness (number) or mean colour (r, g, b). repeat: the scan is laid repeat x repeat times into
+    one texture; `patchy` then adds slow light/dark variation over the whole texture so the repeat does not show."""
+    im = Image.open(os.path.join(ASSETS, name)).convert("RGB").resize((px // repeat, px // repeat), Image.LANCZOS)
+    a = np.tile(np.asarray(im, np.float32), (repeat, repeat, 1))
+    if desat:
+        a = a * (1 - desat) + a.mean(-1, keepdims=True) * desat
+    t = np.asarray(target, np.float32)
+    a = a * (t / a.mean()) if t.ndim == 0 else a * (t / a.reshape(-1, 3).mean(0))
+    if patchy:
+        n = a.shape[0]
+        a = a * (1 + patchy * (0.6 * fnoise(n, n / 6, n, seed + 1) + 0.4 * fnoise(n, n / 16, n / 5, seed + 2)))[..., None]
+    return a
+
+
+def wall(kind: str) -> np.ndarray:
+    """Building fronts on real plaster / sheet metal: 8 m x 4 m per tile."""
+    h, w = 512, 1024
+    if kind == "hall":
+        a = np.tile(scan("corrugated_iron.jpg", (150, 156, 162), 512), (1, 2, 1))
+        a[-44:] = a[-44:] * 0.45 + 40
+        a[:14] *= 0.7
+        return a
+    a = np.tile(scan("painted_plaster_wall.jpg", (196, 194, 186), 512), (1, 2, 1))
+    a[-52:] = a[-52:] * 0.52                                      # plinth
+    if kind == "garage":
+        for k in range(2):
+            x0 = 56 + k * 512
+            door = np.zeros((352, 400, 3), np.float32) + (104, 110, 118)
+            door[np.arange(352) % 22 < 3] *= 0.78
+            a[140:492, x0: x0 + 400] = door
+            a[128:140, x0 - 12: x0 + 412] = (70, 72, 78)
+        a[:28] = (30, 72, 140)                                    # the venue's blue trim
+    else:
+        for k in range(4):
+            x0 = 48 + k * 256
+            a[150:300, x0: x0 + 160] = (48, 62, 78)
+            a[150:300, x0 + 76: x0 + 84] = (208, 208, 204)
+            a[142:150, x0 - 8: x0 + 168] = (214, 214, 210)
+            a[300:308, x0 - 8: x0 + 168] = (214, 214, 210)
+        a[:18] = (96, 98, 102)
+    return a
+
+
 def build_static() -> dict[str, bytes]:
-    return {
-        "detail_asphalt.jpg": _jpg(detail_asphalt(), 90),
-        "detail_grass.jpg": _jpg(detail_grass(), 90),
-        "detail_dirt.jpg": _jpg(detail_dirt(), 90),
-        "black.png": _png(np.zeros((8, 8, 3))),
+    out = {
+        "road.jpg": _jpg(scan("asphalt_track.jpg", 50, 2048, repeat=4, desat=0.6, patchy=0.03, seed=301), 90),
+        "apron.jpg": _jpg(scan("asphalt_pit_lane.jpg", 72, 2048, repeat=4, desat=0.65, patchy=0.07, seed=311), 90),
+        "pad.jpg": _jpg(scan("asphalt_06.jpg", 122, 1024, repeat=2, patchy=0.05, seed=321), 90),
+        "grass.jpg": _jpg(scan("grass_ground.jpg", GRASS_MEAN, 2048, repeat=4, patchy=0.13, seed=331), 90),
+        "gravel.jpg": _jpg(scan("gravel_floor_02.jpg", (150, 146, 134), 1024, repeat=2, patchy=0.05, seed=341), 90),
+        "concrete.jpg": _jpg(scan("gravel_concrete_03.jpg", 132, 1024), 90),
+        "building.jpg": _jpg(wall("building"), 90),
+        "garage.jpg": _jpg(wall("garage"), 90),
+        "hall.jpg": _jpg(wall("hall"), 90),
         "paint.jpg": _jpg(paint()),
-        "deck.jpg": _jpg(deck()),
-        "concrete.jpg": _jpg(concrete()),
-        "building.jpg": _jpg(building()),
-        "garage.jpg": _jpg(garage()),
-        "hall.jpg": _jpg(hall()),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
-        "tyrewall.jpg": _jpg(tyrewall()),
         "softwall.jpg": _jpg(softwall()),
         "arch.jpg": _jpg(arch()),
         "fence.png": _png(fence()),
         "pylon.png": _png(pylon()),
-        "trees.png": _png(trees()),
         "forest.png": _png(forest()),
     }
+    for name in sorted(os.listdir(ASSETS)):                       # tree pictures rendered from real 3D models
+        if name.startswith("tree_") and name.endswith(".png"):
+            out[name] = open(os.path.join(ASSETS, name), "rb").read()
+    return out
 
 
 if __name__ == "__main__":

@@ -1,23 +1,24 @@
-AUTODROM SOSNOVA v3.1 for Assetto Corsa
+AUTODROM SOSNOVA v4.0 for Assetto Corsa
 =======================================
 
 INSTALL
 1. Delete older versions first, if you have them:
       ...\assettocorsa\content\tracks\sosnova
       ...\assettocorsa\content\tracks\sosnova_v2
-2. Copy the whole folder "sosnova_v3" into:
+      ...\assettocorsa\content\tracks\sosnova_v3
+2. Copy the whole folder "sosnova_v4" into:
       ...\Steam\steamapps\common\assettocorsa\content\tracks\
    so that this file exists:
-      ...\content\tracks\sosnova_v3\sosnova_v3.kn5
+      ...\content\tracks\sosnova_v4\sosnova_v4.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v3.1".
+3. Start the game and pick the track "Autodrom Sosnova v4.0".
 
 WHAT IT IS
-- A copy of the real circuit built from the Czech state aerial photo and lidar height models.
-  The ground shows the real asphalt, lines, kerb stones and grass of the place.
-- All asphalt of the complex is drivable, not only the lap.
-- The concrete bridge is there. The lap passes under it, and you can also drive over it.
-- Real buildings with their real heights, tyre barriers and trees where the survey shows them.
+- The real circuit: every asphalt area of the complex, the gravel run-offs, the green arch bridge,
+  buildings with their real heights, barriers and pylons, placed from the Czech state aerial photo and laser data.
+- Real materials: the asphalt, grass, gravel, concrete and walls are photo scans of real surfaces,
+  and the trees are pictures of scanned real trees.
+- White lines along both edges of the lap, other paint traced from the aerial photo.
 - The timed lap (1764 m, anticlockwise) is the route of the 14.11.2026 event. 16 grid slots, 16 pit boxes, AI line.
 - The event barriers and slalom tyres are NOT in this version. This version is the circuit itself.
 
@@ -26,4 +27,4 @@ OPTIONAL
 
 DATA
 Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
-Accuracy is about 0.25 m in plan and 0.2 m in height. Not affiliated with the circuit owner.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.

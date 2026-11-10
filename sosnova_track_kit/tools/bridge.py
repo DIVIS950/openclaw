@@ -32,8 +32,8 @@ def build_bridge(tr: Track, parts: Parts, under_road) -> dict:
 
     cols = np.array([-half, 0.0, half])
     pos = np.vstack([line(s, top) for s in cols]).reshape(len(cols), m, 3).transpose(1, 0, 2).reshape(-1, 3)
-    uv = np.stack([np.tile(cols / bg.WIDTH + 0.5, m), np.repeat(t / 4.0, len(cols))], -1)
-    parts.surface("1ROAD_bridge", "deck", pos, uv, grid_tris(m, len(cols)), hint=UP)
+    uv = pos[:, [0, 2]] / 8.0
+    parts.surface("1ROAD_bridge", "apron", pos, uv, grid_tris(m, len(cols)), hint=UP)
     r = np.arange(m - 1)
     strip = np.concatenate([np.stack([r, r + m, r + m + 1], -1), np.stack([r, r + m + 1, r + 1], -1)])
 

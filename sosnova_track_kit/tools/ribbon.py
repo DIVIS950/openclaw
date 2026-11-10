@@ -1,5 +1,5 @@
-"""The racing surface of the lap: a structured ribbon with an analytic, smooth height. It carries the same
-ground photo as the asphalt around it, so no seam shows."""
+"""The racing surface of the lap: a structured ribbon with an analytic, smooth height, in the dark asphalt of
+the resurfaced circuit. Textures are laid in plan so they join the asphalt around it without a seam."""
 from __future__ import annotations
 
 import os
@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import HALF_E, HALF_N, WORK, site_uv  # noqa: E402
+from textures import TILE_M  # noqa: E402
 from track import Parts, Track, grid_tris, vertex_normals, wind_up  # noqa: E402
 
 CHUNK = 125                       # stations per road mesh
@@ -34,11 +34,11 @@ def build_road(tr: Track, parts: Parts) -> None:
     seam = nrm[0] + nrm[n]
     nrm[0] = nrm[n] = seam / np.linalg.norm(seam, axis=1, keepdims=True)
     nrm = nrm.reshape(-1, 3)
-    uv = site_uv(en.reshape(-1, 2))
+    uv = pos[:, [0, 2]] / TILE_M["road"]
     for k, a in enumerate(range(0, n, CHUNK)):
         b = min(n, a + CHUNK)
         r = np.arange(a, b)[:, None] * cols + np.arange(cols - 1)[None, :]
         r = r.ravel()
         t = wind_up(pos, np.concatenate([np.stack([r, r + 1, r + cols + 1], -1), np.stack([r, r + cols + 1, r + cols], -1)]))
         ids, inv = np.unique(t, return_inverse=True)
-        parts.add(f"1ROAD_trk_{k:02d}", "asph", pos[ids], nrm[ids], uv[ids], inv.reshape(-1, 3), cast_shadows=False)
+        parts.add(f"1ROAD_trk_{k:02d}", "road", pos[ids], nrm[ids], uv[ids], inv.reshape(-1, 3), cast_shadows=False)

@@ -91,6 +91,7 @@ def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
         off += len(pos)
         stats["lines"] += 1
         stats["line_m"] += float(cum[-1])
+    AP, AU, AT, aoff = [], [], [], 0
     for ring in data["areas"]:
         poly = Polygon(ring).buffer(0)
         if poly.is_empty or poly.geom_type != "Polygon" or not (0.15 < poly.area < MAX_AREA):
@@ -108,11 +109,13 @@ def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
             continue
         if "triangles" not in out or len(out["triangles"]) == 0:
             continue
-        P.append(lay(out["vertices"]))
-        U.append(out["vertices"] / 2.0)
-        T.append(out["triangles"] + off)
-        off += len(out["vertices"])
+        AP.append(lay(out["vertices"]))
+        AU.append(out["vertices"] / 3.0)
+        AT.append(out["triangles"] + aoff)
+        aoff += len(out["vertices"])
         stats["areas"] += 1
+    if AP:                                                   # flat concrete kerbs and painted patches
+        parts.surface("MARK_kerb", "pad", np.vstack(AP), np.vstack(AU), np.vstack(AT), hint=UP, smooth=False, cast_shadows=False)
     if P:
         pos, tris = np.vstack(P), np.vstack(T)
         cen = pos[tris].mean(1)

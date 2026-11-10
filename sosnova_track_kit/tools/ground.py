@@ -15,7 +15,9 @@ from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import photo  # noqa: E402
 from common import HALF_E, HALF_N, META_FAR, WORK, site_uv  # noqa: E402
+from textures import TILE_M  # noqa: E402
 from track import SHOULDER, Parts, Track, vertex_normals, wind_up  # noqa: E402
 
 MASK_GSD = 0.25
@@ -131,6 +133,10 @@ def build_ground(tr: Track, parts: Parts) -> dict:
     site = box(-HALF_E, -HALF_N, HALF_E, HALF_N)
     zone = unary_union([R, A]).buffer(ZONE_M).intersection(site.buffer(-6.0))
     zone = unary_union([Polygon(g.exterior) for g in getattr(zone, "geoms", [zone])])   # no photo islands in the infield
+    # gravel and bare ground beside the track, from the photo
+    G = mask_polygons(photo.bare_ground())
+    G = G.intersection(zone).difference(unary_union([R, A]).buffer(0.3)).buffer(-0.5).buffer(0.5).simplify(0.4)
+    G = unary_union([p for p in getattr(G, "geoms", [G]) if p.area > 40.0 and p.distance(unary_union([R, A])) < 12.0]).buffer(0)
     reg = Registry()
     segs: list[tuple[int, int]] = []
     # 1. road edges: exact vertices and heights of the road mesh
@@ -155,6 +161,17 @@ def build_ground(tr: Track, parts: Parts) -> dict:
         for p, hh in zip(tr.shoulder_en(side), tr.shoulder_h(side)):
             if edge_tree.query(p)[0] > SHOULDER * 0.8 and (chain_lines is None or chain_lines.distance(Point(p)) > 0.3):
                 reg.add(p, hh)
+    # 3b. outline points of the gravel areas, so the mesh can follow their edges
+    taken = cKDTree(np.array(reg.pts))
+    for poly in getattr(G, "geoms", [G]):
+        if poly.is_empty:
+            continue
+        for ring in [poly.exterior, *poly.interiors]:
+            ln = ring.length
+            for d in np.arange(0, ln, 1.5):
+                p = ring.interpolate(d)
+                if taken.query((p.x, p.y))[0] > 0.8:
+                    reg.add((p.x, p.y))
     # 4. site rectangle
     rect = []
     for (x0, y0), (x1, y1) in zip([(-HALF_E, -HALF_N), (HALF_E, -HALF_N), (HALF_E, HALF_N), (-HALF_E, HALF_N)],
@@ -218,23 +235,39 @@ def build_ground(tr: Track, parts: Parts) -> dict:
     area = 0.5 * np.abs(e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0])
     frac = np.bincount(lab, area * in_a, ncomp) / np.maximum(np.bincount(lab, area, ncomp), 1e-9)
     apron = np.where((frac[lab] > 0.15) & (frac[lab] < 0.85), in_a, frac[lab] >= 0.5)
-    near = contains_xy(zone, cen[:, 0], cen[:, 1]) & ~apron
-    photo = ~apron & ~near
+    gravel = ~apron & contains_xy(G, cen[:, 0], cen[:, 1]) if not G.is_empty else np.zeros(len(T), bool)
+    near = contains_xy(zone, cen[:, 0], cen[:, 1]) & ~apron & ~gravel
+    far = ~apron & ~gravel & ~near
+    # asphalt by its look in the photo: dark, ordinary, or light concrete-like
+    kinds = photo.surface_kinds()
+    kpx = np.clip(((cen[:, 0] + HALF_E) / MASK_GSD).astype(int), 0, kinds.shape[1] - 1)
+    kpy = np.clip(((HALF_N - cen[:, 1]) / MASK_GSD).astype(int), 0, kinds.shape[0] - 1)
+    kind = kinds[kpy, kpx]
     # geometry
     pos = tr.fr.world(V, Hh)
     T = wind_up(pos, T)
     nrm = vertex_normals(pos, T)
-    uv = site_uv(V)
     tile = np.floor((cen + [HALF_E, HALF_N]) / TILE).astype(int)
     tile_id = tile[:, 0] * 100 + tile[:, 1]
-    for sel, prefix, mat in ((apron, "1APRON_a", "asph"), (~apron, "1GRASS_g", "grass")):
+    plan = pos[:, [0, 2]]
+    layers = ((apron & (kind == 0), "1APRON_r", "road", plan / TILE_M["road"]), (apron & (kind == 1), "1APRON_a", "apron", plan / TILE_M["apron"]),
+              (apron & (kind == 2), "1APRON_c", "pad", plan / TILE_M["pad"]), (gravel, "1SAND_s", "gravel", plan / TILE_M["gravel"]),
+              (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (far, "1GRASS_p", "photo", site_uv(V)))
+    for sel, prefix, mat, uv in layers:
         for tid in np.unique(tile_id[sel]):
             t = T[sel & (tile_id == tid)]
             ids, inv = np.unique(t, return_inverse=True)
             parts.add(f"{prefix}{tid:04d}", mat, pos[ids], nrm[ids], uv[ids], inv.reshape(-1, 3), cast_shadows=False)
-    info = dict(R=R, A=A, zone=zone, rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), grass=int((~apron).sum())), chains=len(chains),
-                apron_area=float(area[apron].sum()), V=V, T=T, cls=np.where(apron, 1, 2))
+    # raster of everything that carries tiled textures (the photo is faded into grass next to it)
+    covered = np.zeros((int(2 * HALF_N / MASK_GSD), int(2 * HALF_E / MASK_GSD)), np.uint8)
+    px = np.stack([(V[:, 0] + HALF_E) / MASK_GSD, (HALF_N - V[:, 1]) / MASK_GSD], -1)
+    cv2.fillPoly(covered, [np.round(px[t]).astype(np.int32) for t in T[~far]], 1)
+    rr = np.array(R.exterior.coords)
+    cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
+    info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains),
+                apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
+                cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
     return info
 
 
@@ -293,7 +326,7 @@ if __name__ == "__main__":
     im = np.zeros((int(2 * HALF_N * S), int(2 * HALF_E * S), 3), np.uint8)
     V, T, cls = info["V"], info["T"], info["cls"]
     px = np.stack([(V[:, 0] + HALF_E) * S, (HALF_N - V[:, 1]) * S], -1)
-    for c, col in ((1, (120, 120, 125)), (2, (70, 140, 60)), (3, (40, 80, 40))):
+    for c, col in ((1, (120, 120, 125)), (2, (70, 140, 60)), (3, (40, 80, 40)), (4, (200, 190, 150))):
         cv2.fillPoly(im, [np.round(px[t]).astype(np.int32) for t in T[cls == c]], col)
     cv2.polylines(im, [np.round(px[t]).astype(np.int32) for t in T], True, (20, 30, 20), 1)
     for side, col in ((1, (0, 220, 255)), (-1, (255, 220, 0))):

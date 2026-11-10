@@ -110,28 +110,32 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt) -> dict:
     return dict(walls=count, metres=round(length))
 
 
-def _billboards(parts: Parts, group: str, pos: np.ndarray, height: np.ndarray, width: np.ndarray, kind: np.ndarray, rng) -> None:
-    """Two crossed, double-sided quads per tree; normals point up so both sides are lit alike."""
+def _billboards(parts: Parts, group: str, material: str, cells: list[dict], pos: np.ndarray, height: np.ndarray, rng) -> None:
+    """Two crossed, double-sided pictures of a real tree per tree; normals point up so both sides are lit alike."""
     m = len(pos)
     if m == 0:
         return
+    pick = rng.integers(0, len(cells), m)
+    u0 = np.array([c["u0"] for c in cells])[pick] + 0.003
+    u1 = np.array([c["u1"] for c in cells])[pick] - 0.003
+    width = height * np.array([c["aspect"] for c in cells])[pick]
     yaw = rng.uniform(0, np.pi, m)
     P, U, T = [], [], []
-    for cross in (0.0, np.pi / 2):
+    for k, cross in enumerate((0.0, np.pi / 2)):
         dx, dz = np.cos(yaw + cross) * width * 0.5, np.sin(yaw + cross) * width * 0.5
-        a = pos + np.column_stack([-dx, np.full(m, -0.3), -dz])
-        b = pos + np.column_stack([dx, np.full(m, -0.3), dz])
+        a = pos + np.column_stack([-dx, np.full(m, -0.25), -dz])
+        b = pos + np.column_stack([dx, np.full(m, -0.25), dz])
         quad = np.stack([a, b, b + UP * height[:, None], a + UP * height[:, None]], 1)
-        u0 = np.where(kind == 0, 0.0, 0.5) + 0.004
-        uv = np.stack([np.column_stack([u0, np.full(m, 0.004)]), np.column_stack([u0 + 0.492, np.full(m, 0.004)]),
-                       np.column_stack([u0 + 0.492, np.full(m, 0.996)]), np.column_stack([u0, np.full(m, 0.996)])], 1)
+        ua, ub = (u0, u1) if k == 0 else (u1, u0)                    # the second picture is mirrored
+        uv = np.stack([np.column_stack([ua, np.full(m, 0.004)]), np.column_stack([ub, np.full(m, 0.004)]),
+                       np.column_stack([ub, np.full(m, 0.996)]), np.column_stack([ua, np.full(m, 0.996)])], 1)
         base = len(P) * 4 * m + np.arange(m)[:, None] * 4
         P.append(quad.reshape(-1, 3)), U.append(uv.reshape(-1, 2))
         T.append(np.concatenate([base + [0, 1, 2], base + [0, 2, 3], base + [2, 1, 0], base + [3, 2, 0]]))
     P, U, T = np.vstack(P), np.vstack(U), np.vstack(T)
     cen = P[T].mean(1)
     order = np.lexsort((np.floor(cen[:, 2] / 120), np.floor(cen[:, 0] / 120)))
-    parts.add(group, "tree", P, np.tile(UP, (len(P), 1)), U, T[order], cast_shadows=True)
+    parts.add(group, material, P, np.tile(UP, (len(P), 1)), U, T[order], cast_shadows=True)
 
 
 def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
@@ -146,9 +150,11 @@ def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
     py = np.clip(((HALF_N - g[:, 1]) / 0.25).astype(int), 0, canopy.shape[0] - 1)
     ok = (canopy[py, px] > 3.0) & ~contains_xy(keep_out, g[:, 0], g[:, 1])
     g, h = g[ok], np.clip(top[py, px][ok] * rng.uniform(0.95, 1.08, ok.sum()), 4.0, 30.0)
-    w = np.clip(h * 0.62, 3.5, 12.0)
+    cells = json.load(open(os.path.join(SRC, "assets", "trees.json"), encoding="utf-8"))
     pos = tr.fr.world(g, tr.H.ground(g))
-    _billboards(parts, "TREES_near", pos, h, w, (rng.random(len(g)) < 0.35).astype(int), rng)
+    low = h < 9.0                                                     # low canopy is broadleaf scrub, the rest conifers
+    _billboards(parts, "TREES_conifer", "treeconifer", cells["conifer"], pos[~low], h[~low], rng)
+    _billboards(parts, "TREES_leaf", "treeleaf", cells["leaf"], pos[low], h[low], rng)
     # forests around the site, from the wide photo (1 m/px)
     far = np.asarray(Image.open(os.path.join(SRC, "cuzk_far", "ortho.png")).convert("RGB"), np.float32) / 255.0
     far = ndi.uniform_filter(far, size=(3, 3, 1))
@@ -166,7 +172,7 @@ def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
     f = f[fdepth[py, px] > 3.0]
     fh = rng.uniform(17, 25, len(f))
     fpos = tr.fr.world(f, tr.H.far_ground(f))
-    _billboards(parts, "TREES_far", fpos, fh, fh * 0.6, (rng.random(len(f)) < 0.3).astype(int), rng)
+    _billboards(parts, "TREES_far", "treeconifer", cells["conifer"], fpos, fh, rng)
     return dict(near=len(g), far=len(f))
 
 

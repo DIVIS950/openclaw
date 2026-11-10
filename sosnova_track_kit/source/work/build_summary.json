@@ -1,15 +1,18 @@
 {
- "track": "sosnova_v3",
+ "track": "sosnova_v4",
  "lap_m": 1764.1395761149456,
- "meshes": 226,
- "vertices": 113809,
- "triangles": 102482,
- "kn5_mb": 18.58,
+ "meshes": 307,
+ "vertices": 126153,
+ "triangles": 114196,
+ "kn5_mb": 17.85,
  "ground": {
-  "asphalt": 10386,
-  "grass": 22166
+  "asphalt": 11645,
+  "gravel": 8216,
+  "grass": 22467,
+  "photo": 1906
  },
  "asphalt_m2": 51172,
+ "gravel_m2": 18743,
  "buildings": 45,
  "bridge": {
   "length": 53.70721553013151,
@@ -30,7 +33,7 @@
  },
  "trees": {
   "near": 2335,
-  "far": 560
+  "far": 564
  },
  "dummies": 37,
  "ai": {

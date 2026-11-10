@@ -187,6 +187,22 @@ VIBRATION_GAIN=0.2
 VIBRATION_LENGTH=0.6
 
 [SURFACE_4]
+KEY=SAND
+FRICTION=0.75
+DAMPING=0.35
+WAV=sand.wav
+WAV_PITCH=0
+FF_EFFECT=1
+DIRT_ADDITIVE=1
+IS_VALID_TRACK=0
+BLACK_FLAG_TIME=0
+SIN_HEIGHT=0.03
+SIN_LENGTH=0.4
+IS_PITLANE=0
+VIBRATION_GAIN=0.4
+VIBRATION_LENGTH=0.5
+
+[SURFACE_5]
 KEY=WALL
 FRICTION=0.6
 DAMPING=0
@@ -210,38 +226,40 @@ DESCRIPTION = Autodrom Sosnova
 
 [GRASS_FX]
 GRASS_MATERIALS = grass
-OCCLUDING_MATERIALS = asph, deck, concrete, building, garage, hall, hut, softwall, arch, roofphoto, paint
+OCCLUDING_MATERIALS = road, apron, pad, gravel, paint, concrete, building, garage, hall, hut, softwall, arch, roofphoto
 SHAPE_SIZE = 0.8, 1.0
 SHAPE_TIDY = 0.4
 
 [RAIN_FX]
-PUDDLES_MATERIALS = asph
-SOAKING_MATERIALS = asph, deck, grass, photofar, concrete
-SMOOTH_MATERIALS = hall, garage
-ROUGH_MATERIALS = softwall
+PUDDLES_MATERIALS = road, apron, pad
+SOAKING_MATERIALS = road, apron, pad, gravel, grass, photo, photofar, concrete
+SMOOTH_MATERIALS = hall, garage, paint
+ROUGH_MATERIALS = softwall, gravel
+LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v3.1 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v4.0 for Assetto Corsa
 =======================================
 
 INSTALL
 1. Delete older versions first, if you have them:
       ...\\assettocorsa\\content\\tracks\\sosnova
       ...\\assettocorsa\\content\\tracks\\sosnova_v2
-2. Copy the whole folder "sosnova_v3" into:
+      ...\\assettocorsa\\content\\tracks\\sosnova_v3
+2. Copy the whole folder "sosnova_v4" into:
       ...\\Steam\\steamapps\\common\\assettocorsa\\content\\tracks\\
    so that this file exists:
-      ...\\content\\tracks\\sosnova_v3\\sosnova_v3.kn5
+      ...\\content\\tracks\\sosnova_v4\\sosnova_v4.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v3.1".
+3. Start the game and pick the track "Autodrom Sosnova v4.0".
 
 WHAT IT IS
-- A copy of the real circuit built from the Czech state aerial photo and lidar height models.
-  The ground shows the real asphalt, lines, kerb stones and grass of the place.
-- All asphalt of the complex is drivable, not only the lap.
-- The concrete bridge is there. The lap passes under it, and you can also drive over it.
-- Real buildings with their real heights, tyre barriers and trees where the survey shows them.
+- The real circuit: every asphalt area of the complex, the gravel run-offs, the green arch bridge,
+  buildings with their real heights, barriers and pylons, placed from the Czech state aerial photo and laser data.
+- Real materials: the asphalt, grass, gravel, concrete and walls are photo scans of real surfaces,
+  and the trees are pictures of scanned real trees.
+- White lines along both edges of the lap, other paint traced from the aerial photo.
 - The timed lap (1764 m, anticlockwise) is the route of the 14.11.2026 event. 16 grid slots, 16 pit boxes, AI line.
 - The event barriers and slalom tyres are NOT in this version. This version is the circuit itself.
 
@@ -250,7 +268,7 @@ OPTIONAL
 
 DATA
 Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
-Accuracy is about 0.25 m in plan and 0.2 m in height. Not affiliated with the circuit owner.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.
 """
 
 
@@ -307,12 +325,12 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v3.1",
-        "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as an exact copy of the real place: the whole asphalt "
-                       "complex is drivable, with the concrete overpass, the pit buildings and the real surface taken from the "
-                       "Czech state orthophoto (ČÚZK, 12.5 cm/px). Heights from the DMR 5G lidar terrain and DMP 1G surface models. "
-                       "The timed lap is the combined route of the 14.11.2026 event, anticlockwise from the start straight and "
-                       "under the bridge. 16 grid slots, 16 pit boxes, AI line. Optional CSP grass and rain. "
+        "name": "Autodrom Sosnová v4.0",
+        "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models "
+                       "(ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, "
+                       "barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees "
+                       "(Poly Haven, CC0). The timed lap is the combined route of the 14.11.2026 event, anticlockwise from the "
+                       "start straight and under the bridge. 16 grid slots, 16 pit boxes, AI line. Optional CSP grass and rain. "
                        "Not affiliated with the circuit owner.",
         "tags": ["circuit", "czech", "sosnova", "bridge", "lidar", "orthophoto", "csp"],
         "geotags": ["50.65900", "14.53906"],
@@ -323,7 +341,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "3.1",
+        "version": "4.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

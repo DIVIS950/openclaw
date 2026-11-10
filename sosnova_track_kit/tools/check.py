@@ -120,7 +120,7 @@ def main() -> None:
     phys = [n for n in names if re.match(r"^\d", n)]
     prefixes = {re.match(r"^\d+([A-Z]+)", n).group(1) for n in phys}
     check(prefixes <= keys, f"physical mesh prefixes {sorted(prefixes)} are all defined in surfaces.ini {sorted(keys)}")
-    ground = Surface([m for m in meshes if re.match(r"^\d+(ROAD|APRON|GRASS|KERB)", m["name"])])
+    ground = Surface([m for m in meshes if re.match(r"^\d+(ROAD|APRON|GRASS|KERB|SAND)", m["name"])])
     walls = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith("1WALL")]).astype(np.float64)
     wall_tree = cKDTree(walls[:, [0, 2]])
 
@@ -216,7 +216,7 @@ def main() -> None:
     print("joins")
     from track import Track
     tr = Track()
-    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1APRON"))]).astype(np.float64)
+    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1APRON", "1SAND"))]).astype(np.float64)
     gtree = cKDTree(gv)
     worst, tj, tj_gap = 0.0, 0, 0.0
     for side in (1, -1):
