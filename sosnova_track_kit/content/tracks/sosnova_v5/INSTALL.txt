@@ -1,0 +1,28 @@
+AUTODROM SOSNOVA v5.0 for Assetto Corsa
+=======================================
+
+INSTALL
+1. Delete older versions first, if you have them:
+      ...\assettocorsa\content\tracks\sosnova, sosnova_v2, sosnova_v3, sosnova_v4
+2. Copy the whole folder "sosnova_v5" into:
+      ...\Steam\steamapps\common\assettocorsa\content\tracks\
+   so that this file exists:
+      ...\content\tracks\sosnova_v5\sosnova_v5.kn5
+   (With Content Manager you can also just drag the zip onto its window.)
+3. Start the game and pick the track "Autodrom Sosnova v5.0".
+
+WHAT IT IS
+- The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
+  the road is 9 m wide everywhere, both white lines run parallel, and a 4 m grass verge runs along both sides.
+- Red and white kerbs on every corner. A gravel trap with a barrier behind it on the outside of every corner.
+- A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
+- Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
+- The position and the heights of the lap, the bridge, the buildings and the trees come from Czech state survey data.
+- The event barriers and slalom tyres are NOT in this version.
+
+OPTIONAL
+- Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
+
+DATA
+Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.

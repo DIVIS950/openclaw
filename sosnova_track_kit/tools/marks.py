@@ -10,6 +10,7 @@ import numpy as np
 import triangle as tri
 from shapely import contains_xy
 from shapely.geometry import Polygon
+from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import WORK  # noqa: E402
@@ -185,47 +186,43 @@ def build_start(tr: Track, parts: Parts, grid: list[tuple[float, float]], pits: 
     return dict(grid_boxes=len(grid), pit_bays=len(pits))
 
 
-def build_road_lines(tr: Track, parts: Parts, outlines: list[np.ndarray], asphalt, lap, keep_out) -> dict:
-    """White edge lines on the other roads of the complex: along every clean asphalt edge, 0.25 m in.
-    outlines: asphalt outline pieces (east/north). lap: the lap ribbon. keep_out: buildings and the like."""
-    from scipy.ndimage import gaussian_filter1d
+def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep_out) -> dict:
+    """White edge lines on the other roads: two parallel lines per road, the same distance from its centre.
+    roads: [(centre line east/north, width m)]. No lines across broad aprons, the lap, or next to buildings."""
     look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON"))
-    lap_near = lap.buffer(2.0)
-    yard = keep_out.buffer(9.0)
+    off_limits = unary_union([aprons.buffer(-1.0), keep_out]) if not aprons.is_empty else keep_out
     P, U, T, off, total = [], [], [], 0, 0.0
-    for line in outlines:
+    for line, width in roads:
         seg = np.linalg.norm(np.diff(line, axis=0), axis=1)
         cum = np.concatenate([[0], np.cumsum(seg)])
-        if cum[-1] < 15.0:
-            continue
         m = int(cum[-1] / 0.6) + 1
+        if m < 12:
+            continue
         s = np.linspace(0, cum[-1], m)
         q = np.column_stack([np.interp(s, cum, line[:, 0]), np.interp(s, cum, line[:, 1])])
-        q[1:-1] = gaussian_filter1d(q, 3.0, axis=0, mode="nearest")[1:-1]             # take the wobble out
         d = np.gradient(q, axis=0)
         d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
         nrm = np.column_stack([-d[:, 1], d[:, 0]])
-        left = contains_xy(asphalt, *(q + nrm * 0.6).T).mean() > contains_xy(asphalt, *(q - nrm * 0.6).T).mean()
-        inward = nrm if left else -nrm
-        c = q + inward * 0.3
-        ok = contains_xy(asphalt, c[:, 0], c[:, 1]) & ~contains_xy(lap_near, c[:, 0], c[:, 1]) & ~contains_xy(yard, c[:, 0], c[:, 1])
-        for a0, ln in ((a_, l_) for a_, l_ in _runs(ok) if l_ * 0.6 >= 12.0):
-            cc, nn = c[a0: a0 + ln], inward[a0: a0 + ln] * 0.06
-            en = np.vstack([cc + nn, cc - nn])
-            pos = tr.fr.world(en, tr.H.ground(en))
-            pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
-            k = np.arange(ln - 1)
-            P.append(pos)
-            U.append(np.vstack([np.column_stack([np.full(ln, 0.2), np.arange(ln) * 0.3]), np.column_stack([np.full(ln, 0.8), np.arange(ln) * 0.3])]))
-            T.append(np.concatenate([np.stack([k, k + ln, k + ln + 1], -1), np.stack([k, k + ln + 1, k + 1], -1)]) + off)
-            off += len(pos)
-            total += (ln - 1) * 0.6
+        for side in (1.0, -1.0):
+            c = q + nrm * side * (width / 2 - 0.3)
+            ok = contains_xy(asphalt, c[:, 0], c[:, 1]) & ~contains_xy(off_limits, c[:, 0], c[:, 1])
+            for a0, ln in ((a_, l_) for a_, l_ in _runs(ok) if l_ * 0.6 >= 8.0):
+                cc, nn = c[a0: a0 + ln], nrm[a0: a0 + ln] * 0.06
+                en = np.vstack([cc + nn, cc - nn])
+                pos = tr.fr.world(en, tr.H.ground(en))
+                pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
+                k = np.arange(ln - 1)
+                P.append(pos)
+                U.append(np.vstack([np.column_stack([np.full(ln, 0.2), np.arange(ln) * 0.3]), np.column_stack([np.full(ln, 0.8), np.arange(ln) * 0.3])]))
+                T.append(np.concatenate([np.stack([k, k + ln, k + ln + 1], -1), np.stack([k, k + ln + 1, k + 1], -1)]) + off)
+                off += len(pos)
+                total += (ln - 1) * 0.6
     if P:
         pos, tris = np.vstack(P), np.vstack(T)
         cen = pos[tris].mean(1)
         order = np.lexsort((np.floor(cen[:, 2] / 100), np.floor(cen[:, 0] / 100)))
         parts.surface("MARK_roads", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
-    return dict(other_road_line_m=round(total))
+    return dict(other_roads=len(roads), other_road_line_m=round(total))
 
 
 def _runs(mask: np.ndarray) -> list[tuple[int, int]]:

@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
 SRC = os.path.join(KIT, "source")
 WORK = os.path.join(SRC, "work")
-TRACK = "sosnova_v4"
+TRACK = "sosnova_v5"
 OUT = os.path.join(KIT, "content", "tracks", TRACK)
 
 META = json.load(open(os.path.join(SRC, "cuzk", "meta.json"), encoding="utf-8"))

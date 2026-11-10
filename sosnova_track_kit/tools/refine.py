@@ -91,8 +91,15 @@ def main() -> None:
     wr = np.clip(-a - EDGE_GAP, MIN_HALF - 0.4, MAX_HALF)
     wl = periodic_gauss(ndi.minimum_filter1d(wl, 5, mode="wrap"), 2.0)
     wr = periodic_gauss(ndi.minimum_filter1d(wr, 5, mode="wrap"), 2.0)
-    open_l = ndi.minimum_filter1d((b >= wl + 2.0).astype(np.uint8), 3, mode="wrap").astype(bool)     # asphalt goes on beyond the edge
-    open_r = ndi.minimum_filter1d((-a >= wr + 2.0).astype(np.uint8), 3, mode="wrap").astype(bool)
+    # the racetrack design: one width all the way round (design.LAP_HALF), open only where the pit apron joins
+    fit = float(np.mean((wl >= 4.4) & (wr >= 4.4)))
+    wl = np.full(len(c), 4.5)
+    wr = np.full(len(c), 4.5)
+    s_ = np.arange(len(c), dtype=float)
+    s_ = np.where(s_ > len(c) / 2, s_ - len(c), s_)
+    open_l = (s_ >= -36.0) & (s_ <= 74.0)
+    open_r = np.zeros(len(c), bool)
+    print(f"design width 9.0 m; the surveyed asphalt is at least that wide along {fit * 100:.0f} % of the lap")
     out = dict(src)
     lap = float(np.linalg.norm(np.roll(c, -1, axis=0) - c, axis=1).sum())
     out.update(en=c.tolist(), s=np.arange(len(c)).astype(float).tolist(), curv=periodic_gauss(curv, 2.0).tolist(), wl=wl.tolist(), wr=wr.tolist(),

@@ -64,10 +64,11 @@ def build_pit_wall(tr: Track, parts: Parts) -> None:
         box(parts, "1WALL_pitwall", "concrete", c, min(y[a], y[a + 1]) - 0.3, max(y[a], y[a + 1]) + 1.05, uv_scale=(3.0, 3.0), top_uv=3.0)
 
 
-def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt) -> dict:
+def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list | None = None) -> dict:
     """Tyre barriers traced from the photo (work/tyre_walls.json; hand-made additions in source/features.json)."""
-    lines = []
-    for path in (os.path.join(WORK, "tyre_walls.json"), os.path.join(SRC, "features.json")):
+    given = lines
+    lines = list(given) if given is not None else []
+    for path in (() if given is not None else (os.path.join(WORK, "tyre_walls.json"), os.path.join(SRC, "features.json"))):
         if os.path.exists(path):
             lines += json.load(open(path, encoding="utf-8")).get("tyre_walls", [])
     venue = keep_clear.buffer(35.0)                                   # the circuit itself, not the yards and woods around it

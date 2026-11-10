@@ -60,19 +60,6 @@ def mask_polygons(mask: np.ndarray):
     return unary_union(polys)
 
 
-def apron_geometry(tr: Track, R: Polygon):
-    asphalt = np.load(os.path.join(WORK, "survey.npz"))["hard"]
-    A = mask_polygons(asphalt)
-    A = A.buffer(1.0).buffer(-1.0)                       # close pinholes
-    A = A.difference(R.buffer(0.02))
-    A = A.buffer(-0.8).buffer(0.8)                       # drop slivers narrower than ~1.6 m
-    A = A.intersection(R.buffer(APRON_REACH))
-    A = A.buffer(0.7).buffer(-1.4).buffer(0.7)           # round every corner: no pixel steps left in the outline
-    A = A.difference(R.buffer(0.02)).simplify(0.07)
-    parts = [p for p in getattr(A, "geoms", [A]) if p.area > 25.0 and p.distance(R) < 2.0]
-    return unary_union(parts).buffer(0)
-
-
 class Registry:
     """Vertex list without duplicates (coordinates rounded to 1 mm)."""
 
@@ -129,16 +116,17 @@ def apron_chains(A, R: Polygon, edge_tree: cKDTree, edge_pts: np.ndarray):
     return chains
 
 
-def build_ground(tr: Track, parts: Parts) -> dict:
+def build_ground(tr: Track, parts: Parts, avoid) -> dict:
+    """avoid: shapely geometry of the building footprints (no gravel there)."""
+    import design
+    import refine
     R = ribbon_polygon(tr)
-    A = apron_geometry(tr, R)
+    verge = design.verge(tr, R)
+    A, aprons, roads = design.other_asphalt(tr, R, verge, refine.drivable_mask())
     site = box(-HALF_E, -HALF_N, HALF_E, HALF_N)
     zone = unary_union([R, A]).buffer(ZONE_M).intersection(site.buffer(-6.0))
     zone = unary_union([Polygon(g.exterior) for g in getattr(zone, "geoms", [zone])])   # no photo islands in the infield
-    # gravel and bare ground beside the track, from the photo
-    G = mask_polygons(photo.bare_ground())
-    G = G.intersection(zone).difference(unary_union([R, A]).buffer(0.3)).buffer(-0.5).buffer(0.5).simplify(0.4)
-    G = unary_union([p for p in getattr(G, "geoms", [G]) if p.area > 40.0 and p.distance(unary_union([R, A])) < 12.0]).buffer(0)
+    G = design.gravel_traps(tr, R, unary_union([A, avoid]))
     reg = Registry()
     segs: list[tuple[int, int]] = []
     # 1. road edges: exact vertices and heights of the road mesh
@@ -163,17 +151,14 @@ def build_ground(tr: Track, parts: Parts) -> dict:
         for p, hh in zip(tr.shoulder_en(side), tr.shoulder_h(side)):
             if edge_tree.query(p)[0] > SHOULDER * 0.8 and (chain_lines is None or chain_lines.distance(Point(p)) > 0.3):
                 reg.add(p, hh)
-    # 3b. outline points of the gravel areas, so the mesh can follow their edges
-    taken = cKDTree(np.array(reg.pts))
+    # 3b. gravel trap outlines: closed rings that touch nothing else
     for poly in getattr(G, "geoms", [G]):
         if poly.is_empty:
             continue
         for ring in [poly.exterior, *poly.interiors]:
-            ln = ring.length
-            for d in np.arange(0, ln, 1.5):
-                p = ring.interpolate(d)
-                if taken.query((p.x, p.y))[0] > 0.8:
-                    reg.add((p.x, p.y))
+            k = max(8, int(ring.length / 1.5))
+            ids = [reg.add((p.x, p.y)) for p in (ring.interpolate(j / k, normalized=True) for j in range(k))]
+            segs += [(ids[j], ids[(j + 1) % k]) for j in range(k) if ids[j] != ids[(j + 1) % k]]
     # 4. site rectangle
     rect = []
     for (x0, y0), (x1, y1) in zip([(-HALF_E, -HALF_N), (HALF_E, -HALF_N), (HALF_E, HALF_N), (-HALF_E, HALF_N)],
@@ -240,11 +225,7 @@ def build_ground(tr: Track, parts: Parts) -> dict:
     gravel = ~apron & contains_xy(G, cen[:, 0], cen[:, 1]) if not G.is_empty else np.zeros(len(T), bool)
     near = contains_xy(zone, cen[:, 0], cen[:, 1]) & ~apron & ~gravel
     far = ~apron & ~gravel & ~near
-    # asphalt by its look in the photo: dark, ordinary, or light concrete-like
-    kinds = photo.surface_kinds()
-    kpx = np.clip(((cen[:, 0] + HALF_E) / MASK_GSD).astype(int), 0, kinds.shape[1] - 1)
-    kpy = np.clip(((HALF_N - cen[:, 1]) / MASK_GSD).astype(int), 0, kinds.shape[0] - 1)
-    kind = kinds[kpy, kpx]
+    kind = np.ones(len(T), int)                           # one asphalt for everything outside the lap
     # geometry
     pos = tr.fr.world(V, Hh)
     T = wind_up(pos, T)
@@ -267,7 +248,7 @@ def build_ground(tr: Track, parts: Parts) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), chain_lines=[np.array(ch) for ch in chains if len(ch) > 1],
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, verge=verge,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
     return info

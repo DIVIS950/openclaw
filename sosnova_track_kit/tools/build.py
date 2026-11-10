@@ -1,4 +1,4 @@
-"""Build the complete Assetto Corsa track folder content/tracks/sosnova_v4 from the survey data.
+"""Build the complete Assetto Corsa track folder content/tracks/sosnova_v5 from the survey data.
 
     python3 prep.py && python3 geom.py && python3 heights.py && python3 survey.py && python3 mkbuildings.py   (once)
     python3 build.py
@@ -16,6 +16,7 @@ from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge  # noqa: E402
+import design  # noqa: E402
 import bridge_geom  # noqa: E402
 import ground  # noqa: E402
 import kerbs  # noqa: E402
@@ -67,27 +68,22 @@ def main() -> None:
     tr = Track()
     parts = Parts()
     ribbon.build_road(tr, parts, layout.racing_line(tr))
-    info = ground.build_ground(tr, parts)
-    ground.build_far(tr, parts, info)
     foot = props.build_buildings(tr, parts)
-    asphalt = unary_union([info["R"], info["A"]]).buffer(1.0)      # edge lines sit on the rim of the asphalt
+    info = ground.build_ground(tr, parts, unary_union(foot))
+    ground.build_far(tr, parts, info)
+    asphalt = unary_union([info["R"], info["A"]])
     kerb_info = kerbs.build_kerbs(tr, parts)
-    from shapely.geometry import LineString
-    off_limits = unary_union([Polygon(bridge_geom.footprint(grow=1.0)), *[f.buffer(1.5) for f in foot],
-                              *[LineString(k).buffer(1.2) for k in kerbs.kerb_lines_en(tr)]])
-    paint = marks.build_marks(tr, parts, asphalt, off_limits)
-    paint.update(marks.build_edge_lines(tr, parts))
+    paint = marks.build_edge_lines(tr, parts)
     pit_boxes = [(d.pos[0], d.pos[2], d.facing) for d in layout.make_dummies(tr)[0] if d.name.startswith("AC_PIT_")]
     paint.update(marks.build_start(tr, parts, layout.grid_slots(), pit_boxes))
-    paint.update(marks.build_road_lines(tr, parts, info["chain_lines"], unary_union([info["R"], info["A"]]), info["R"], unary_union(foot)))
+    paint.update(marks.build_road_lines(tr, parts, info["roads"], asphalt, info["aprons"], unary_union([f.buffer(6.0) for f in foot])))
     props.build_gantry(tr, parts)
     paint["brake_boards"] = props.build_brake_boards(tr, parts)
     span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
     pylons = props.build_pylons(tr, parts)
     props.build_pit_wall(tr, parts)
-    racing = info["R"].buffer(0.6)
-    walls = props.build_tyre_walls(tr, parts, racing, unary_union([info["R"], info["A"]]))
-    keep_out = unary_union([info["R"].buffer(7.0), info["A"].buffer(4.0), *[f.buffer(2.0) for f in foot]])
+    walls = props.build_tyre_walls(tr, parts, info["R"].buffer(design.VERGE), asphalt, lines=design.trap_barriers(tr, info["G"]))
+    keep_out = unary_union([info["R"].buffer(design.VERGE + 3.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()
     tex.update(photo.build(info["covered"], textures.GRASS_MEAN))
