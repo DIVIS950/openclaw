@@ -1,6 +1,6 @@
 """Step: put the lap exactly on the real asphalt. The lap line comes from a hand-drawn route; where it cuts a
-corner over grass it is moved sideways onto the road seen in the photo, and its edges are the real asphalt
-edges of the photo.  Reads source/work/centerline_route.json, writes source/work/centerline.json"""
+corner over grass it is moved sideways onto the road seen in the photo, and its widths are limited to the
+real asphalt edges.  Reads source/work/centerline_route.json, writes source/work/centerline.json"""
 from __future__ import annotations
 
 import json
@@ -17,12 +17,8 @@ from common import HALF_E, HALF_N, WORK, closed_frames, closed_resample, periodi
 
 GSD = 0.25
 REACH, STEP = 11.0, 0.25
-MIN_HALF, MAX_HALF = 2.6, 5.25       # half width of the racing surface while the line is being moved (m)
+MIN_HALF, MAX_HALF = 2.6, 5.25       # half width of the racing surface (m)
 EDGE_GAP = 0.15                      # keep the mesh edge this far inside the photo's asphalt edge
-WIDE_REACH = 17.0                    # how far the real edge is searched for the final widths (m)
-OPEN_AT = 13.0                       # no edge within this distance: the lap runs beside open asphalt there
-OPEN_HALF = 5.0                      # half width of the lap beside open asphalt (m)
-REAL_MIN, REAL_MAX = 3.0, 12.5       # limits of a real half width (m)
 
 
 def drivable_mask() -> np.ndarray:
@@ -35,20 +31,9 @@ def drivable_mask() -> np.ndarray:
     return ndi.binary_closing(m.astype(bool), iterations=4)
 
 
-def white_concrete() -> np.ndarray:
-    """Bright concrete slabs seen in the photo (the apron inside the east hairpin): paved, but not the racing surface."""
-    from PIL import Image
-    Image.MAX_IMAGE_PIXELS = None
-    hsv = cv2.cvtColor(np.asarray(Image.open(os.path.join(WORK, "ortho_025.png")).convert("RGB")), cv2.COLOR_RGB2HSV)
-    w = ndi.binary_opening((hsv[..., 2] > 205) & (hsv[..., 1] < 45), iterations=5)       # slabs, not painted lines
-    lab, n = ndi.label(w)
-    area = ndi.sum(np.ones_like(lab), lab, np.arange(1, n + 1)) * GSD ** 2
-    return ndi.binary_dilation(np.concatenate([[False], area > 150.0])[lab], iterations=5)
-
-
-def intervals(c: np.ndarray, nrm: np.ndarray, mask: np.ndarray, reach: float = REACH):
+def intervals(c: np.ndarray, nrm: np.ndarray, mask: np.ndarray):
     """For every station: lateral extent (a, b) of the asphalt strip that holds, or is nearest to, the line."""
-    d = np.arange(-reach, reach + 1e-6, STEP)
+    d = np.arange(-REACH, REACH + 1e-6, STEP)
     en = c[:, None, :] + nrm[:, None, :] * d[None, :, None]
     px = np.clip(((en[..., 0] + HALF_E) / GSD).astype(int), 0, mask.shape[1] - 1)
     py = np.clip(((HALF_N - en[..., 1]) / GSD).astype(int), 0, mask.shape[0] - 1)
@@ -74,8 +59,7 @@ def intervals(c: np.ndarray, nrm: np.ndarray, mask: np.ndarray, reach: float = R
 
 
 def main() -> None:
-    from common import lap_file
-    src = json.load(open(lap_file("centerline_route", "json"), encoding="utf-8"))
+    src = json.load(open(os.path.join(WORK, "centerline_route.json"), encoding="utf-8"))
     c = np.array(src["en"])
     start = c[0].copy()
     mask = drivable_mask()
@@ -102,28 +86,26 @@ def main() -> None:
     c = np.roll(c, -k0, axis=0)
     c[0] = start
     t, nrm, curv, seg = closed_frames(c)
-    # final widths: the real asphalt edges seen in the photo. Where no edge lies within OPEN_AT (a junction, the
-    # square, the pit apron) the lap keeps a lane of OPEN_HALF and the side is marked open.
-    slabs = white_concrete()
-    a, b = intervals(c, nrm, mask & ~slabs[: mask.shape[0], : mask.shape[1]], WIDE_REACH)
-    open_l, open_r = b >= OPEN_AT, -a >= OPEN_AT
-    open_l = ndi.binary_opening(ndi.binary_closing(np.tile(open_l, 3), iterations=4), iterations=3)[len(c): 2 * len(c)]
-    open_r = ndi.binary_opening(ndi.binary_closing(np.tile(open_r, 3), iterations=4), iterations=3)[len(c): 2 * len(c)]
-    wl = np.where(open_l, OPEN_HALF, np.clip(b - EDGE_GAP, REAL_MIN, REAL_MAX))
-    wr = np.where(open_r, OPEN_HALF, np.clip(-a - EDGE_GAP, REAL_MIN, REAL_MAX))
-    wl = periodic_gauss(ndi.median_filter(wl, 9, mode="wrap"), 4.0)
-    wr = periodic_gauss(ndi.median_filter(wr, 9, mode="wrap"), 4.0)
+    a, b = intervals(c, nrm, mask)
+    wl = np.clip(b - EDGE_GAP, MIN_HALF - 0.4, MAX_HALF)
+    wr = np.clip(-a - EDGE_GAP, MIN_HALF - 0.4, MAX_HALF)
+    wl = periodic_gauss(ndi.minimum_filter1d(wl, 5, mode="wrap"), 2.0)
+    wr = periodic_gauss(ndi.minimum_filter1d(wr, 5, mode="wrap"), 2.0)
+    # the racetrack design: one width all the way round (design.LAP_HALF), open only where the pit apron joins
+    fit = float(np.mean((wl >= 4.4) & (wr >= 4.4)))
+    wl = np.full(len(c), 4.5)
+    wr = np.full(len(c), 4.5)
     s_ = np.arange(len(c), dtype=float)
     s_ = np.where(s_ > len(c) / 2, s_ - len(c), s_)
-    open_l = open_l | ((s_ >= -36.0) & (s_ <= 74.0))                       # the pit apron
-    print(f"real widths: {np.mean(wl + wr):.2f} m on average, {(wl + wr).min():.2f}..{(wl + wr).max():.2f} m; "
-          f"open asphalt beside the lap: left {open_l.mean() * 100:.0f} %, right {open_r.mean() * 100:.0f} % of the lap")
+    open_l = (s_ >= -36.0) & (s_ <= 74.0)
+    open_r = np.zeros(len(c), bool)
+    print(f"design width 9.0 m; the surveyed asphalt is at least that wide along {fit * 100:.0f} % of the lap")
     out = dict(src)
     lap = float(np.linalg.norm(np.roll(c, -1, axis=0) - c, axis=1).sum())
     out.update(en=c.tolist(), s=np.arange(len(c)).astype(float).tolist(), curv=periodic_gauss(curv, 2.0).tolist(), wl=wl.tolist(), wr=wr.tolist(),
                edge_l=(c + nrm * wl[:, None]).tolist(), edge_r=(c - nrm * wr[:, None]).tolist(), open_l=open_l.tolist(), open_r=open_r.tolist(),
                lap_m=lap, step=lap / len(c))
-    json.dump(out, open(lap_file("centerline", "json"), "w"))
+    json.dump(out, open(os.path.join(WORK, "centerline.json"), "w"))
     old = np.array(src["en"])
     from scipy.spatial import cKDTree
     shift = cKDTree(old).query(c)[0]

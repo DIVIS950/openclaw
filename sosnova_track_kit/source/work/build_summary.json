@@ -1,65 +1,44 @@
 {
- "track": "sosnova_v8_race",
+ "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "route_marks": {
-  "sosnova_v8_race": {
-   "route_line_m": 523,
-   "walls": 16,
-   "metres": 483
-  },
-  "sosnova_v8_standard": {
-   "route_line_m": 359,
-   "walls": 12,
-   "metres": 310
-  }
- },
- "standard": {
-  "track": "sosnova_v8_standard",
-  "lap_m": 1666.8466008674643,
-  "lap_s": 73.88
- },
- "meshes": 330,
- "vertices": 170842,
- "triangles": 179632,
- "kn5_mb": 24.97,
+ "meshes": 320,
+ "vertices": 166224,
+ "triangles": 179978,
+ "kn5_mb": 23.99,
  "ground": {
-  "asphalt": 7454,
-  "gravel": 4082,
-  "grass": 19393,
-  "photo": 2137
+  "asphalt": 3709,
+  "gravel": 2535,
+  "grass": 21521,
+  "photo": 2127
  },
- "asphalt_m2": 38661,
- "gravel_m2": 5967,
+ "asphalt_m2": 32586,
+ "gravel_m2": 7276,
  "buildings": 45,
  "kerbs": {
-  "kerbs": 18,
-  "kerb_m": 441,
-  "standard_roads": {
-   "kerbs": 8,
-   "kerb_m": 214
-  }
+  "kerbs": 27,
+  "kerb_m": 1175
  },
  "bridge": {
   "length": 53.70721553013151,
   "peak": 5.199809348051539,
-  "clearance": -0.30000000000001137,
-  "max_grade": 0.31880894396493886
+  "clearance": 3.8176919542442533,
+  "max_grade": 0.3139419088915929
  },
  "pylons": 3,
  "paint": {
-  "edge_line_m": 2118,
+  "edge_line_m": 3471,
   "grid_boxes": 16,
   "pit_bays": 16,
-  "other_roads": 1,
-  "other_road_m": 42,
-  "other_road_line_m": 61,
-  "other_road_kerb_m": 29,
-  "area_line_m": 1627,
+  "other_roads": 5,
+  "other_road_m": 457,
+  "other_road_line_m": 677,
+  "other_road_kerb_m": 206,
+  "area_line_m": 1659,
   "brake_boards": 14
  },
  "barriers": {
-  "walls": 33,
-  "metres": 1088
+  "walls": 9,
+  "metres": 551
  },
  "trees": {
   "near": 2349,
@@ -67,13 +46,13 @@
  },
  "dummies": 37,
  "ai": {
-  "points": 1691,
-  "length": 1691.33,
-  "lap_s": 82.36,
-  "v_min": 29.28,
-  "v_max": 139.63,
-  "off_min": -5.54,
-  "off_max": 5.96
+  "points": 1688,
+  "length": 1688.39,
+  "lap_s": 78.84,
+  "v_min": 29.64,
+  "v_max": 142.57,
+  "off_min": -2.8,
+  "off_max": 2.8
  },
  "frame": {
   "origin_en": [
@@ -84,7 +63,7 @@
    0.9900655078949834,
    -0.14060686354744148
   ],
-  "ref_h": 255.4392576600278
+  "ref_h": 255.4444144964859
  },
  "sector_station": 882.0
 }

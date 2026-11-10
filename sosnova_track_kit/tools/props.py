@@ -57,12 +57,11 @@ def build_buildings(tr: Track, parts: Parts) -> list[Polygon]:
 
 
 def build_pit_wall(tr: Track, parts: Parts) -> None:
-    """Low concrete wall between the start straight and the pit buildings, 0.4 m outside the real asphalt edge."""
+    """Low concrete wall between the start straight and the pit buildings (measured on the photo: x = -7.7 m)."""
     z = np.arange(-6.0, 111.0, 3.0)
-    off = -(tr.interp(tr.wr, z) + 0.4)
-    y = tr.h(z, off) - tr.fr.ref
+    y = tr.h(z, np.full_like(z, -7.7)) - tr.fr.ref
     for a in range(len(z) - 1):
-        c = np.array([(off[a] - 0.15, z[a]), (off[a] + 0.15, z[a]), (off[a + 1] + 0.15, z[a + 1]), (off[a + 1] - 0.15, z[a + 1])])
+        c = np.array([(-7.85, z[a]), (-7.55, z[a]), (-7.55, z[a + 1]), (-7.85, z[a + 1])])
         box(parts, "1WALL_pitwall", "concrete", c, min(y[a], y[a + 1]) - 0.3, max(y[a], y[a + 1]) + 1.05, uv_scale=(3.0, 3.0), top_uv=3.0)
 
 

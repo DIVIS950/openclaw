@@ -16,8 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
 SRC = os.path.join(KIT, "source")
 WORK = os.path.join(SRC, "work")
-TRACK = os.environ.get("SOSNOVA_TRACK", "sosnova_v8_race")       # the folder a step works on
-RACE_TRACK, STD_TRACK = "sosnova_v8_race", "sosnova_v8_standard"
+TRACK = "sosnova_v9"
 OUT = os.path.join(KIT, "content", "tracks", TRACK)
 
 META = json.load(open(os.path.join(SRC, "cuzk", "meta.json"), encoding="utf-8"))
@@ -106,12 +105,3 @@ def site_uv(en: np.ndarray) -> np.ndarray:
     """Texture coordinates of the ground photo and its mask (v measured northwards)."""
     en = np.atleast_2d(en)
     return (en + SITE_HALF) / (2 * SITE_HALF)
-
-
-# Two laps are surveyed: "" is the route of the 14.11.2026 event, "_std" is the standard circuit (turns 1 to 12).
-# The steps refine.py, edgescan.py and heights.py work on the lap named in the environment variable SOSNOVA_LAP.
-LAP = os.environ.get("SOSNOVA_LAP", "")
-
-
-def lap_file(stem: str, ext: str, lap: str | None = None) -> str:
-    return os.path.join(WORK, f"{stem}{LAP if lap is None else lap}.{ext}")

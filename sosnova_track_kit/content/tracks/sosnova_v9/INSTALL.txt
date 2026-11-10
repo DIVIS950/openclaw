@@ -1,0 +1,32 @@
+AUTODROM SOSNOVA v9.0 for Assetto Corsa
+=======================================
+
+INSTALL
+1. Delete older versions first, if you have them:
+      ...\assettocorsa\content\tracks\sosnova, sosnova_v2 ... sosnova_v6, sosnova_v7_race, sosnova_v7_standard, sosnova_v8_race, sosnova_v8_standard
+2. Copy the whole folder "sosnova_v9" into:
+      ...\Steam\steamapps\common\assettocorsa\content\tracks\
+   so that this file exists:
+      ...\content\tracks\sosnova_v9\sosnova_v9.kn5
+   (With Content Manager you can also just drag the zip onto its window.)
+3. Start the game and pick the track "Autodrom Sosnova v9.0".
+
+WHAT IT IS
+- The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
+  the road is 9 m wide everywhere, both white lines run parallel, and a 4 m grass verge runs along both sides.
+- Red and white kerbs on every corner. A gravel trap with a barrier behind it on the outside of every corner.
+- The other roads of the circuit are connected to the lap, with the same asphalt, white lines and kerbs: the
+  return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north
+  junction, the loop south-west of the start and the short link by the bridge. No road ends in the grass.
+- The big square, the start area and the paddock are clean paved areas behind the grass verge.
+- A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
+- Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
+- The position and the heights of the lap, the bridge, the buildings and the trees come from Czech state survey data.
+- The event barriers and slalom tyres are NOT in this version.
+
+OPTIONAL
+- Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
+
+DATA
+Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.

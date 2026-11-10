@@ -70,8 +70,7 @@ def racing_line(tr: Track, margin: float = 1.7, iters: int = 60) -> np.ndarray:
     return periodic_gauss(np.clip(off, lo, hi), 2.0)
 
 
-def write_ai(tr: Track, path: str, look=None) -> dict:
-    """look: surface lookup of the built model; the line is laid on it where this lap has no road mesh of its own."""
+def write_ai(tr: Track, path: str) -> dict:
     off = racing_line(tr)
     dense_i = np.arange(tr.n * 4 + 1) / 4.0
     dense_off = tr.interp(off, dense_i)
@@ -84,8 +83,6 @@ def write_ai(tr: Track, path: str, look=None) -> dict:
     st = np.interp(s, cum, dense_i)
     lat = tr.interp(off, st)
     p = tr.world(st, lat)
-    if look is not None:
-        p[:, 1] = look.ys(p[:, [0, 2]], p[:, 1])
     nxt, prv = np.roll(p, -1, axis=0), np.roll(p, 1, axis=0)
     fwd = nxt - prv
     fwd /= np.linalg.norm(fwd, axis=1, keepdims=True)
@@ -242,37 +239,30 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v8.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v9.0 for Assetto Corsa
 =======================================
-
-The zip holds TWO tracks. They are the same place with two different laps:
-   sosnova_v8_race       the route of the race on 14.11.2026
-   sosnova_v8_standard   the standard circuit, turns 1 to 12
 
 INSTALL
 1. Delete older versions first, if you have them:
-      ...\\assettocorsa\\content\\tracks\\sosnova, sosnova_v2, sosnova_v3, sosnova_v4, sosnova_v5, sosnova_v6, sosnova_v7_race, sosnova_v7_standard
-2. Copy BOTH folders "sosnova_v8_race" and "sosnova_v8_standard" into:
+      ...\\assettocorsa\\content\\tracks\\sosnova, sosnova_v2 ... sosnova_v6, sosnova_v7_race, sosnova_v7_standard, sosnova_v8_race, sosnova_v8_standard
+2. Copy the whole folder "sosnova_v9" into:
       ...\\Steam\\steamapps\\common\\assettocorsa\\content\\tracks\\
-   so that these files exist:
-      ...\\content\\tracks\\sosnova_v8_race\\sosnova_v8_race.kn5
-      ...\\content\\tracks\\sosnova_v8_standard\\sosnova_v8_standard.kn5
+   so that this file exists:
+      ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick "Autodrom Sosnova v8 - Race 14.11." or "Autodrom Sosnova v8 - Standard circuit".
+3. Start the game and pick the track "Autodrom Sosnova v9.0".
 
 WHAT IT IS
-- Autodrom Sosnova as the aerial photo shows it, for practice before a race.
-- Both laps start on the same straight and run anticlockwise. The race lap is 1764 m and goes under the green
-  bridge. The standard lap is 1667 m: turn 1, back on the return road, the infield loop, north, the big west
-  loop, and the south-west loop before the start straight.
-- The edges of both laps are the real asphalt edges, measured in the photo every metre. The first turn is
-  about 17 m wide.
-- It is finished as a racetrack: red and white kerbs on the tight corners, a gravel trap with a padded barrier
-  on the outside of the corners, white lines on both edges.
-- Where a lap crosses open asphalt, a row of red and white barricades and a solid line mark the route. Each of
-  the two tracks has its own barricades, so you always see which way to go.
-- Heights are the real ones from the Czech state survey. The site is nearly flat: 2.8 m between the highest
-  and the lowest point.
+- The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
+  the road is 9 m wide everywhere, both white lines run parallel, and a 4 m grass verge runs along both sides.
+- Red and white kerbs on every corner. A gravel trap with a barrier behind it on the outside of every corner.
+- The other roads of the circuit are connected to the lap, with the same asphalt, white lines and kerbs: the
+  return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north
+  junction, the loop south-west of the start and the short link by the bridge. No road ends in the grass.
+- The big square, the start area and the paddock are clean paved areas behind the grass verge.
+- A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
+- Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
+- The position and the heights of the lap, the bridge, the buildings and the trees come from Czech state survey data.
 - The event barriers and slalom tyres are NOT in this version.
 
 OPTIONAL
@@ -284,7 +274,7 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 """
 
 
-def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, name: str = "Autodrom Sosnová v7", lap_note: str = "") -> None:
+def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
     os.makedirs(os.path.join(out, "data"), exist_ok=True)
     os.makedirs(os.path.join(out, "ui"), exist_ok=True)
     os.makedirs(os.path.join(out, "extension"), exist_ok=True)
@@ -337,22 +327,23 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, name: str =
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": name,
+        "name": "Autodrom Sosnová v9.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic. Geometry from the Czech state orthophoto and lidar models "
                        "(ČÚZK): all asphalt of the complex, gravel run-offs, the green arch bridge, buildings with real heights, "
                        "barriers, pylons. Surfaces are photo-scanned materials and the trees are pictures of scanned 3D trees "
-                       "(Poly Haven, CC0). " + lap_note + " 16 grid slots, 16 pit boxes, AI line. Optional CSP grass and rain. "
+                       "(Poly Haven, CC0). The timed lap is the combined route of the 14.11.2026 event, anticlockwise from the "
+                       "start straight and under the bridge. 16 grid slots, 16 pit boxes, AI line. Optional CSP grass and rain. "
                        "Not affiliated with the circuit owner.",
         "tags": ["circuit", "czech", "sosnova", "bridge", "lidar", "orthophoto", "csp"],
         "geotags": ["50.65900", "14.53906"],
         "country": "Czech Republic",
         "city": "Sosnová (Česká Lípa)",
         "length": str(int(round(tr.lap))),
-        "width": "8-17",
+        "width": "9",
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "8.0",
+        "version": "9.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

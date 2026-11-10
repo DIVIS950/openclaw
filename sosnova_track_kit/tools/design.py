@@ -1,8 +1,11 @@
-"""How the surveyed circuit is finished.
+"""The racetrack design laid over the survey: what makes the place read as a circuit rather than a survey.
 
-From v6 the photo decides everything along the lap: the edges of the lap are the real asphalt edges
-(refine.py), kerbs exist only where the real circuit has a concrete edge strip and sand only where it has a
-sand run-off (edgescan.py). The rest of the circuit comes from the hand-traced layout in circuit.py.
+  * the lap has one constant width, so both white lines run parallel all the way round
+  * a grass verge of one width runs along both sides of the lap (except at the pit apron)
+  * gravel traps of one depth sit on the outside of every real corner
+  * the pit apron is a clean slab beside the start straight
+  * every other road and paved area of the original circuit comes from the hand-traced layout in circuit.py:
+    roads with one width along a smooth centre line, paved areas as clean polygons
 """
 from __future__ import annotations
 
@@ -16,95 +19,32 @@ from shapely.ops import unary_union
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from track import Track, cyclic_runs  # noqa: E402
 
-PIT_Z = (-36.0, 74.0)
+LAP_HALF = 4.5          # half width of the lap (m): 9 m of asphalt everywhere
+VERGE = 4.0             # grass strip along both sides of the lap (m)
+TRAP_R = 45.0           # corners tighter than this get a gravel trap on the outside
+TRAP_DEPTH = 11.0       # depth of a gravel trap (m)
+PIT_DEPTH = 20.0        # depth of the pit apron beside the start straight (m)
 
 
-def _bands(en, widths, n: int, bands: list, keep=None) -> list:
-    """Bands from the asphalt edge outwards with the depth measured in the photo, with tapered ends.
-    en(stations, lateral offset) gives east/north; widths: (left, right) half widths per station."""
-    out = []
-    for band in bands:
-        side, a, ln = band["side"], band["start"], band["length"]
-        if keep is not None and not keep[(a + ln // 2) % n]:
-            continue
-        st = (a + np.arange(ln)).astype(float)
-        full = np.array(band["depth"]) if "depth" in band else np.full(ln, band["width"])
-        depth = full * (np.clip(np.minimum(np.arange(ln), ln - 1 - np.arange(ln)) / 4.0, 0.15, 1.0) if "depth" in band else 1.0)
-        w = widths[0 if side > 0 else 1][(a + np.arange(ln)) % n]
-        p = Polygon(np.vstack([en(st, side * (w - 0.3)), en(st, side * (w + depth))[::-1]])).buffer(0)
-        if not p.is_empty:
-            out.append(p)
-    return out
+def verge(tr: Track, R: Polygon):
+    """Grass strip beside the lap; left open where the pit apron joins the start straight."""
+    v = R.buffer(VERGE).difference(R)
+    st = np.where(tr.in_pit_stretch())[0]
+    st = np.where(st > tr.n / 2, st - tr.n, st)
+    s = np.arange(st.min() + 3, st.max() - 2).astype(float)
+    inner, outer = tr.en(s, np.full_like(s, LAP_HALF - 0.05)), tr.en(s, np.full_like(s, LAP_HALF + VERGE + 0.5))
+    return v.difference(Polygon(np.vstack([inner, outer[::-1]])))
 
 
-def _std():
-    """The surveyed standard lap: centre line, normals, half widths, and which stations are its own road
-    (not shared with the race lap)."""
-    import json
-    from common import closed_frames, lap_file
-    cl = json.load(open(lap_file("centerline", "json", "_std"), encoding="utf-8"))
-    c, wl, wr = np.array(cl["en"]), np.array(cl["wl"]), np.array(cl["wr"])
-    _, nrm, _, _ = closed_frames(c)
-    n = len(c)
-
-    def en(st, d):
-        st = np.asarray(st, float)
-        a = np.floor(st).astype(int) % n
-        f = (st - np.floor(st))[:, None]
-        return (c[a] * (1 - f) + c[(a + 1) % n] * f) + (nrm[a] * (1 - f) + nrm[(a + 1) % n] * f) * np.asarray(d, float)[:, None]
-    return c, nrm, wl, wr, n, en, json.load(open(lap_file("edges", "json", "_std"), encoding="utf-8"))
-
-
-def std_branches(tr: Track):
-    """The roads of the standard circuit that the race lap does not use, as polygons between their real edges.
-    Returns (polygon, mask of the standard lap's stations that lie on them)."""
-    from scipy.spatial import cKDTree
-    c, nrm, wl, wr, n, _, _ = _std()
-    own = cKDTree(tr.c).query(c)[0] > 2.5
-    own = np.convolve(np.tile(own, 3), np.ones(29), "same")[n: 2 * n] > 0            # run on into the shared road
-    polys = []
-    for a, ln in cyclic_runs(own, 5, 5):
-        st = (a + np.arange(ln)) % n
-        polys.append(Polygon(np.vstack([c[st] + nrm[st] * wl[st, None], (c[st] - nrm[st] * wr[st, None])[::-1]])).buffer(0))
-    return unary_union(polys).buffer(0.2).buffer(-0.2), own
-
-
-def std_surface(tr: Track):
-    """The smooth road surface of the standard lap's own roads. Returns (polygon of those roads, points to
-    mesh them with, function east/north -> height m a.s.l.)."""
-    from scipy.spatial import cKDTree
-    from heights import Heights
-    c, nrm, wl, wr, n, en, _ = _std()
-    poly, own = std_branches(tr)
-    H = Heights("_std")
-    fine = np.arange(n * 4) / 4.0
-    tree = cKDTree(en(fine, np.zeros(len(fine))))
-
-    def height(p: np.ndarray) -> np.ndarray:
-        _, k = tree.query(p)
-        st = fine[k]
-        a = np.floor(st).astype(int) % n
-        lat = np.einsum("ij,ij->i", p - en(st, np.zeros(len(st))), nrm[a])
-        return H.road(st, lat)
-    st = np.where(own)[0][::2].astype(float)
-    pts = np.vstack([en(st, f * (wl if f > 0 else wr)[st.astype(int)]) for f in (-0.62, -0.25, 0.25, 0.62)])
-    return poly, pts, height
-
-
-def edge_bands(tr: Track, key: str):
-    """Sand run-offs ("sand"), concrete strips ("concrete") or concrete kerbs ("kerbs") along the laps, from
-    edges.json. The race lap gives sand and concrete strips (its kerbs are built by kerbs.py); the standard lap
-    adds whatever lies along its own roads."""
-    import json
-    import os
-    from common import WORK
-    out = []
-    if key != "kerbs":
-        data = json.load(open(os.path.join(WORK, "edges.json"), encoding="utf-8"))
-        out += _bands(tr.en, (tr.wl, tr.wr), tr.n, data.get(key, []))
-    c, nrm, wl, wr, n, en, data = _std()
-    out += _bands(en, (wl, wr), n, data.get(key, []), keep=std_branches(tr)[1])
-    return unary_union(out) if out else Polygon()
+def pit_apron(tr: Track) -> Polygon:
+    """The pit apron: a clean slab beside the start straight, with rounded corners."""
+    st = np.where(tr.in_pit_stretch())[0]
+    st = np.where(st > tr.n / 2, st - tr.n, st)
+    s = np.arange(st.min(), st.max() + 1).astype(float)
+    inner, outer = tr.en(s, np.full_like(s, LAP_HALF)), tr.en(s, np.full_like(s, LAP_HALF + PIT_DEPTH))
+    p = Polygon(np.vstack([inner, outer[::-1]]))
+    cut = Polygon(np.vstack([tr.en(s, np.full_like(s, LAP_HALF - 2.0)), tr.en(s, np.full_like(s, LAP_HALF + 3.0))[::-1]]))
+    return unary_union([p.buffer(-3.0).buffer(3.0), p.intersection(cut)]).buffer(0)       # round only the far corners
 
 
 def other_asphalt(tr: Track, R: Polygon):
@@ -115,68 +55,64 @@ def other_asphalt(tr: Track, R: Polygon):
     Returns (all asphalt, paved areas, roads [(centre line east/north, width m)], roads polygon, concrete pads)."""
     import circuit
     roads = [(en, w) for _, en, w in circuit.roads()]
-    roads_poly = unary_union([std_branches(tr)[0], circuit.roads_polygon()]).buffer(0)
-    pads = unary_union([circuit.areas("pad"), edge_bands(tr, "concrete")]).buffer(0)
-    paved = circuit.areas("apron")
+    roads_poly = circuit.roads_polygon()
+    clear = unary_union([verge(tr, R).buffer(0.05), roads_poly.buffer(1.0)])
+
+    def tidy(g):                                          # keep off the verge and off the roads; no slivers
+        g = g.difference(clear)
+        parts = [p.buffer(-1.2).buffer(1.2) for p in getattr(g, "geoms", [g]) if p.area > 60.0]
+        return unary_union([p for p in parts if not p.is_empty and p.area > 60.0]) if parts else Polygon()
+    pads = tidy(circuit.areas("pad"))
+    paved = unary_union([tidy(circuit.areas("apron").difference(pads.buffer(1.0))), pit_apron(tr)]).buffer(0)
     A = unary_union([paved, pads, roads_poly]).buffer(0.3).buffer(-0.3).difference(R)
     A = unary_union([p for p in getattr(A, "geoms", [A]) if p.area > 15.0]).buffer(0).simplify(0.1)
     return A, paved, roads, roads_poly, pads
 
 
-TRAP_R = 45.0           # corners tighter than this get a gravel trap on the outside
-TRAP_DEPTH = 9.0        # depth of a gravel trap (m)
-TRAP_GAP = 1.5          # grass between the asphalt edge and the gravel (m)
+def gravel_pockets(A):
+    """Gravel that belongs to the original circuit (not a trap of the lap); kept clear of the asphalt outline."""
+    import circuit
+    g = circuit.areas("gravel")
+    return g.difference(A.buffer(0.35)).buffer(-0.3).buffer(0.3) if not g.is_empty else g
 
 
-def _trap_runs(tr: Track):
-    """(side, stations, depth) of the gravel trap on the outside of every corner; nothing on an open side."""
+def gravel_traps(tr: Track, R: Polygon, avoid):
+    """One gravel trap on the outside of every corner, behind the verge. avoid: asphalt, buildings."""
+    traps = []
     for a, ln in cyclic_runs(np.abs(tr.k) > 1.0 / TRAP_R, 5, 8):
         side = -int(np.sign(tr.k[(a + ln // 2) % tr.n]))
-        st = np.arange(a - 6, a + ln + 16)
+        st = np.arange(a - 6, a + ln + 16).astype(float)
         m = len(st)
         ramp = np.clip(np.minimum(np.arange(m), m - 1 - np.arange(m)) / 9.0, 0, 1)
         depth = TRAP_DEPTH * ramp * ramp * (3 - 2 * ramp)
-        is_open = (tr.open_l if side > 0 else tr.open_r)[st % tr.n]
-        if is_open.mean() > 0.5:
-            continue
-        yield side, st, depth, (tr.wl if side > 0 else tr.wr)[st % tr.n]
-
-
-def gravel_traps(tr: Track):
-    traps = []
-    for side, st, depth, w in _trap_runs(tr):
         ok = depth > 0.8
         if ok.sum() < 6:
             continue
-        s_ = st[ok].astype(float)
-        p = Polygon(np.vstack([tr.en(s_, side * (w[ok] + TRAP_GAP)), tr.en(s_, side * (w[ok] + TRAP_GAP + depth[ok]))[::-1]])).buffer(0)
+        inner = tr.en(st[ok], np.full(ok.sum(), side * (LAP_HALF + VERGE)))
+        outer = tr.en(st[ok], side * (LAP_HALF + VERGE + depth[ok]))
+        p = Polygon(np.vstack([inner, outer[::-1]])).buffer(0)
         if not p.is_empty:
             traps.append(p)
-    return unary_union(traps) if traps else Polygon()
+    G = unary_union(traps).difference(unary_union([avoid.buffer(1.2), R.buffer(VERGE - 0.01)]))
+    G = G.buffer(-0.8).buffer(1.6).buffer(-0.8).difference(unary_union([avoid.buffer(1.0), R.buffer(VERGE - 0.01)])).simplify(0.2)
+    return unary_union([p for p in getattr(G, "geoms", [G]) if p.geom_type == "Polygon" and p.area > 60.0]).buffer(0)
 
 
 def trap_barriers(tr: Track, G) -> list[dict]:
-    """A padded barrier along the back of every gravel trap that was really built (east/north polylines)."""
-    from shapely import contains_xy
+    """A padded barrier along the back of every gravel trap (east/north polylines)."""
     out = []
-    for side, st, depth, w in _trap_runs(tr):
+    for a, ln in cyclic_runs(np.abs(tr.k) > 1.0 / TRAP_R, 5, 8):
+        side = -int(np.sign(tr.k[(a + ln // 2) % tr.n]))
+        st = np.arange(a - 6, a + ln + 16).astype(float)
+        m = len(st)
+        ramp = np.clip(np.minimum(np.arange(m), m - 1 - np.arange(m)) / 9.0, 0, 1)
+        depth = TRAP_DEPTH * ramp * ramp * (3 - 2 * ramp)
         ok = depth > 4.0
         if ok.sum() < 8:
             continue
-        s_ = st[ok].astype(float)
-        back = tr.en(s_, side * (w[ok] + TRAP_GAP + depth[ok] - 1.5))
-        if contains_xy(G, back[:, 0], back[:, 1]).mean() > 0.6:
-            out.append(dict(en=tr.en(s_, side * (w[ok] + TRAP_GAP + depth[ok] + 0.7)).round(2).tolist(), width=0.8, height=0.95))
+        line = tr.en(st[ok], side * (LAP_HALF + VERGE + depth[ok] + 0.7))
+        from shapely import contains_xy
+        back = tr.en(st[ok], side * (LAP_HALF + VERGE + depth[ok] - 1.5))
+        if contains_xy(G, back[:, 0], back[:, 1]).mean() > 0.7:                 # only where the trap was really built
+            out.append(dict(en=line.round(2).tolist(), width=0.8, height=0.95))
     return out
-
-
-def gravel(tr: Track, R: Polygon, A, avoid):
-    """Gravel: a trap on the outside of every corner, the sand run-offs measured in the photo and the pockets
-    traced in circuit.py. Kept clear of the asphalt outline so the two outlines never share an edge."""
-    import circuit
-    g = unary_union([gravel_traps(tr), edge_bands(tr, "sand"), circuit.areas("gravel")])
-    if g.is_empty:
-        return g
-    g = g.difference(unary_union([A.buffer(0.6), R.buffer(0.6), avoid.buffer(1.2)])).buffer(-0.8).buffer(1.1).buffer(-0.3).simplify(0.2)
-    g = g.difference(unary_union([A.buffer(0.35), R.buffer(0.35), avoid.buffer(1.0)]))
-    return unary_union([p for p in getattr(g, "geoms", [g]) if p.geom_type == "Polygon" and p.area > 40.0]).buffer(0)

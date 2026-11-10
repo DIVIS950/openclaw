@@ -10,10 +10,19 @@ from scipy.interpolate import splev, splprep
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
 
-# name, width (m), centre line, square end ("" / "end"). Roads here have one width. The roads of the standard
-# circuit (return road, link at the infield hairpin, north junction, south-west loop) are not listed: they come
-# from the surveyed standard lap with their real edges (stdlap.py, design.std_branches).
+# name, width (m), centre line, square end ("" / "end"). These are the roads of the circuit that the race lap does
+# not use. Each runs from the lap to the lap, so nothing ends in the grass. Same asphalt, lines and kerbs as the lap.
 ROADS = [
+    # from turn 1 back west on the return road and right into the infield loop
+    ("return", 9.0, [(187, -10.5), (170, -5.5), (155, -4.6), (140, -5.6), (120, -8.6), (100, -11.5), (80, -14), (62, -17.2), (51, -16.5),
+                     (42.5, -13), (36.5, -7), (33, 1), (31, 11)], ""),
+    # from the infield hairpin across to the east leg
+    ("hairpin_link", 9.0, [(112, 26.5), (120, 21.5), (128, 21), (136, 24), (143, 31), (147, 39), (146.3, 47.5)], ""),
+    # across the north junction
+    ("north_link", 9.0, [(101, 100.5), (92, 101.5), (82, 103.5), (73, 106.5), (67.8, 111), (65.6, 118)], ""),
+    # the loop south-west of the start straight
+    ("sw_loop", 9.0, [(-49.5, -14), (-53.5, -30), (-56.5, -42), (-57.5, -52), (-55, -63), (-47, -70.5), (-35, -72.5), (-23, -70), (-15, -62),
+                      (-12.5, -51), (-11.5, -43), (-7, -37.5), (2, -35.6), (12, -36.8)], ""),
     # the short link west of the bridge
     ("west_link", 7.0, [(-49.5, -4), (-41, -5), (-33, -8), (-28, -14.5), (-27, -23), (-26.5, -31)], ""),
 ]

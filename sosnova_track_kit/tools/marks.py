@@ -25,66 +25,19 @@ EDGE_IN, EDGE_W = 0.22, 0.15    # white edge line of the lap: distance from the 
 
 
 def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
-    """(side, stations) of every piece of white edge line on a real asphalt edge, plus the dashes along the pit
-    apron. The lines across open asphalt depend on the lap that is driven: see open_side_runs."""
+    """Both edges of the lap carry a white line all the way round: (side, stations) per piece. Along the pit
+    apron the left line is broken into dashes, so the way out of the pits reads as an exit."""
     n = tr.n
     out = []
-    for side, is_open, w in ((1, tr.open_l, tr.wl), (-1, tr.open_r, tr.wr)):
-        # no line where the edge swings sideways (the mouth of a junction): a line there would be a hook
-        swing = np.abs(np.roll(w, -1) - np.roll(w, 1)) / 2.0 > 0.14
-        swing = np.convolve(np.tile(swing, 3), np.ones(7), "same")[n: 2 * n] > 0
-        for a, ln in cyclic_runs(~is_open & ~swing, 6, 0):
-            out.append((side, a + np.arange(ln + 1)))
-    pit = np.where(tr.in_pit_stretch())[0]
-    pit = np.where(pit > n / 2, pit - n, pit)
-    for a in range(int(pit.min()), int(pit.max()) - 2, 6):                        # 3 m line, 3 m gap
+    pit = tr.in_pit_stretch()
+    for side in (1, -1):
+        solid = ~pit if side > 0 else np.ones(n, bool)
+        for a, ln in cyclic_runs(solid, 6, 0):
+            out.append((side, a + np.arange(ln + (0 if ln == n else 1) + (1 if ln == n else 0))))
+    dash = np.where(pit)[0]
+    dash = np.where(dash > n / 2, dash - n, dash)
+    for a in range(int(dash.min()), int(dash.max()) - 2, 6):                      # 3 m line, 3 m gap
         out.append((1, a + np.arange(4)))
-    return out
-
-
-def open_side_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
-    """(side, stations) where the lap runs beside open asphalt (a junction, the square, the start area), outside
-    the pit stretch. There the route is marked for the lap that is driven: a solid line and a row of barricades."""
-    out = []
-    for side, is_open in ((1, tr.open_l), (-1, tr.open_r)):
-        m = is_open & ~(tr.in_pit_stretch() if side > 0 else np.zeros(tr.n, bool))
-        out += [(side, a + np.arange(ln + 1)) for a, ln in cyclic_runs(m, 8, 3) if ln < tr.n]
-    return out
-
-
-def build_route_marks(tr: Track, lap: Track, parts: Parts, look_parts: Parts) -> dict:
-    """Solid white lines along the open sides of the lap that is driven. tr: the race lap (world frame and
-    ground heights); lap: the lap of this track folder; look_parts: the built model the lines are laid on."""
-    look = SurfaceLookup.from_parts(look_parts, ("1ROAD_trk", "1ROAD_x", "1APRON", "1GRASS_g", "1SAND"))
-    P, U, T, off, total = [], [], [], 0, 0
-    for side, st in open_side_runs(lap):
-        w = (lap.wl if side > 0 else lap.wr)[st % lap.n]
-        i = st.astype(float)
-        en = np.vstack([lap.en(i, side * (w - EDGE_IN)), lap.en(i, side * (w - EDGE_IN - EDGE_W))])
-        pos = tr.fr.world(en, tr.H.ground(en))
-        pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
-        m = len(st)
-        r = np.arange(m - 1)
-        P.append(pos)
-        U.append(np.vstack([np.column_stack([np.full(m, 0.2), i / 2.0]), np.column_stack([np.full(m, 0.8), i / 2.0])]))
-        T.append(np.concatenate([np.stack([r, r + m, r + m + 1], -1), np.stack([r, r + m + 1, r + 1], -1)]) + off)
-        off += len(pos)
-        total += m - 1
-    if P:
-        parts.surface("MARK_route", "paint", np.vstack(P), np.vstack(U), np.vstack(T), hint=UP, smooth=False, cast_shadows=False)
-    return dict(route_line_m=total)
-
-
-def barricade_lines(lap: Track) -> list[dict]:
-    """Rows of red and white barricades just outside the open sides of the lap (east/north polylines)."""
-    out = []
-    for side, st in open_side_runs(lap):
-        s_ = np.where(st % lap.n > lap.n / 2, st % lap.n - lap.n, st % lap.n)
-        st = st[~((s_ > -105) & (s_ < 80))]                       # none beside the grid, the hotlap start and the pit exit
-        if len(st) < 8 or np.diff(st).max() > 1:
-            continue
-        w = (lap.wl if side > 0 else lap.wr)[st % lap.n]
-        out.append(dict(en=lap.en(st.astype(float), side * (w + 1.0)).round(2).tolist(), width=0.5, height=0.85, material="barricade"))
     return out
 
 
@@ -111,7 +64,7 @@ def build_edge_lines(tr: Track, parts: Parts) -> dict:
 def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
     """asphalt, keep_out: shapely geometries in east/north."""
     data = json.load(open(os.path.join(WORK, "paint.json"), encoding="utf-8"))
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1ROAD_x", "1APRON", "1GRASS_g"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g"))
     stats = dict(lines=0, line_m=0.0, areas=0)
     from scipy.spatial import cKDTree
     edge_tree = cKDTree(np.vstack(edge_lines_en(tr)))
@@ -236,7 +189,7 @@ def build_start(tr: Track, parts: Parts, grid: list[tuple[float, float]], pits: 
 def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep_out, lap=None) -> dict:
     """White edge lines on the other roads: two parallel lines per road, the same distance from its centre.
     roads: [(centre line east/north, width m)]. No lines across broad aprons, the lap, or next to buildings."""
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1ROAD_x", "1APRON", "1GRASS_g", "1SAND"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1SAND"))
     off_limits = unary_union([aprons.buffer(-1.0), keep_out]) if not aprons.is_empty else keep_out
     if lap is not None:
         off_limits = unary_union([off_limits, lap.buffer(0.2)])
@@ -299,7 +252,7 @@ def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep
 
 def build_area_lines(tr: Track, parts: Parts, areas, asphalt, keep_out) -> dict:
     """A white line along the free edge of every paved area: drawn 0.3 m inside the outline wherever grass lies beyond it."""
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1ROAD_x", "1APRON", "1GRASS_g", "1SAND"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1SAND"))
     P, U, T, off, total = [], [], [], 0, 0.0
     for poly in getattr(areas, "geoms", [areas]):
         if poly.is_empty:

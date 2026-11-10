@@ -18,7 +18,7 @@ from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kn5  # noqa: E402
-from common import OUT, RACE_TRACK, TRACK  # noqa: E402
+from common import OUT, TRACK  # noqa: E402
 
 FAILS: list[str] = []
 
@@ -148,18 +148,14 @@ def main() -> None:
     ys = p[:, 1]
     grade = (np.roll(ys, -1) - ys) / step
     bump = np.abs(np.roll(grade, -1) - grade) / step
-    # the standard lap crosses from the race lap's road mesh onto its own roads at five places: a slight crease is allowed there
-    check(bump.max() < (0.006 if TRACK == RACE_TRACK else 0.035), f"road profile is smooth: max change of gradient {bump.max() * 100:.3f} % per metre, gradient {grade.min() * 100:.1f}..{grade.max() * 100:.1f} %")
+    check(bump.max() < 0.006, f"road profile is smooth: max change of gradient {bump.max() * 100:.3f} % per metre, gradient {grade.min() * 100:.1f}..{grade.max() * 100:.1f} %")
 
     print("bridge")
     deck = Surface([m for m in meshes if m["name"].startswith("1ROAD_bridge")])
     under = [(deck.at(q[0], q[2])[0], q[1]) for q in p]
     under = [(a, b) for a, b in under if a is not None]
-    if under:
-        check(len(under) >= 3 and min(a - b for a, b in under) > 3.8,
-              f"the lap passes under the bridge deck with {min(a - b for a, b in under):.1f} m between road and deck top ({len(under)} AI points)")
-    else:
-        check(TRACK != RACE_TRACK, "this lap does not pass under the bridge (the standard circuit goes round it)")
+    check(len(under) >= 3 and min(a - b for a, b in under) > 3.8,
+          f"the lap passes under the bridge deck with {min(a - b for a, b in under):.1f} m between road and deck top ({len(under)} AI points)")
     dv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith("1ROAD_bridge")]).astype(np.float64)
     ends = dv[np.argsort(dv[:, 1])[:6]]
     gaps = [abs(ground.at(q[0], q[2], q[1])[0] - q[1]) for q in ends if ground.at(q[0], q[2], q[1])[0] is not None]
@@ -184,8 +180,7 @@ def main() -> None:
         worst_h = max(worst_h, abs(pos[1] - y - 0.05))
         worst_ortho = max(worst_ortho, float(np.abs(m[:3, :3] @ m[:3, :3].T - np.eye(3)).max()), abs(float(np.linalg.det(m[:3, :3])) - 1))
         clear = min(clear, float(wall_tree.query(pos[[0, 2]])[0]))
-    # on the standard lap the racing line swings in from the south-west loop just where the hotlap car stands
-    check(worst_dot > (0.98 if TRACK == RACE_TRACK else 0.94), f"grid and hotlap cars face the direction of travel (worst angle to the racing line {np.degrees(np.arccos(min(worst_dot, 1.0))):.1f} deg)")
+    check(worst_dot > 0.98, f"grid and hotlap cars face the direction of travel (worst angle to the racing line {np.degrees(np.arccos(min(worst_dot, 1.0))):.1f} deg)")
     s0 = dummies["AC_START_0"]
     check(s0[2, 2] > 0.999 and abs(s0[2, 0]) < 0.03, f"AC_START_0 faces +Z, the start straight (facing = {np.round(s0[2, :3], 3).tolist()})")
     check(surf_ok and worst_h < 0.02, f"grid slots sit on the road, 5 cm above it (max error {worst_h * 1000:.0f} mm)")
@@ -221,7 +216,7 @@ def main() -> None:
     print("joins")
     from track import Track
     tr = Track()
-    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1APRON", "1SAND", "1ROAD_x"))]).astype(np.float64)
+    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1APRON", "1SAND"))]).astype(np.float64)
     gtree = cKDTree(gv)
     worst, tj, tj_gap = 0.0, 0, 0.0
     for side in (1, -1):
