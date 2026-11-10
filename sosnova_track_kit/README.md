@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v9.4)
+# Autodrom Sosnová for Assetto Corsa (v9.5)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v9.4 is
+## What v9.5 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -25,7 +25,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50. |
 | Connected roads | Five roads, 457 m, each from the lap to the lap, so none ends in the grass: the return road from turn 1 into the infield loop, the link at the infield hairpin, the link across the north junction, the loop south-west of the start (all 9 m wide) and the short link by the bridge (8 m). From 9.1 they are finished like the lap by the same rules: dark asphalt, two parallel white lines, 12 raised red and white kerbs (374 m) on the inside of their bends and the outside of tight exits, a 4 m grass verge on both sides, a gravel trap with a padded barrier on the outside of their bends, and rows of mesh vertices along them for an even surface. |
 | Turn 1 | From 9.2 the first turn has its real width, about 17 m. The owner drew the line he wanted on a render. The asphalt outside the 9 m lap is added up to one smooth outer curve (`circuit.t1_lane`): it follows the outer asphalt edge measured in the orthophoto and then sweeps into the north edge of the return road, as the painted limit of the real turn does. Same dark asphalt, a white line along the outer edge, a dashed line where that curve crosses the race route, the gravel trap and barrier moved out behind it. |
-| Race layout (9.3) | A tyre stack with a yellow top at each of the 33 yellow dots of the organiser's map (registered on the photo in the first version, `tr.cones_en`), with red and white tape along each row (131 m). Three rows form the chicane on the back straight, the others split the route on the open asphalt. A row of red and white barricades closes each of the 14 road mouths that are not part of the race route (179 m). The racing line is kept 1.4 m clear of every stack. |
+| Race layout (9.3, 9.5) | The 33 yellow dots of the organiser's map (registered on the photo, `tr.cones_en`) are grouped into 7 rows. Each row is a closed line: a tyre barrel with a yellow top at every dot, red and white plastic barriers between the barrels (26 pieces, 108 m) and red and white tape along the top (139 m). Three rows form the chicane on the back straight, the other four close the roads and areas the race does not use. Rows of barricades close the 10 remaining unused road mouths that no organiser row covers (124 m). The racing line is kept 1.4 m clear of every barrel. |
 | Timing | Start/finish gate at point 0 and one sector gate in the middle of the lap, each 14 m wide. The game times every lap and shows two sectors. |
 | Road surface (9.4) | The other roads have a smooth surface of their own, made like the lap's: a height profile along the centre line and a gentle cross-fall, smoothed along the road. Near the lap they continue the lap's own surface outwards. Worst change of gradient 1.6 % per metre, before 4 %. The lap itself is below 0.3 %. All asphalt has the same grip now. |
 | Junctions | Where a road joins the lap, the lap's kerb stops and its edge line turns into dashes across the mouth. |
@@ -36,7 +36,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 | Still from the survey | The green arch bridge, buildings with their heights and photo roofs, pylons, trees at measured heights, the terrain and the distant ground photo. |
 | Materials | Photo-scanned CC0 surfaces and pictures of scanned 3D trees from Poly Haven. |
 
-The positions of the tyre stacks come from the organiser's map. The barricades across the unused roads are my addition.
+The positions of the rows come from the organiser's map. What each row is made of (barrels, barriers, tape) follows the owner's request. The barricades across the remaining unused roads are an addition.
 
 ## Rebuilding
 
@@ -111,5 +111,6 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![Infield hairpin](previews/lap_0400.jpg)
 ![Turn 1 from the car](previews/lap_0130.jpg)
 ![The chicane on the back straight](previews/race_chicane.jpg)
+![The row that closes the infield link](previews/race_row_east.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![From above](previews/top.jpg)

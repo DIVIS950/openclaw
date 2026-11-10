@@ -1,10 +1,10 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 337,
- "vertices": 174986,
- "triangles": 186952,
- "kn5_mb": 24.44,
+ "meshes": 339,
+ "vertices": 176738,
+ "triangles": 187536,
+ "kn5_mb": 24.52,
  "ground": {
   "asphalt": 4384,
   "gravel": 3050,
@@ -49,9 +49,12 @@
  },
  "race": {
   "tyre_stacks": 33,
-  "tape_m": 131,
-  "road_blocks": 14,
-  "road_block_m": 179
+  "tape_m": 139,
+  "rows": 7,
+  "row_barriers": 26,
+  "row_barrier_m": 108,
+  "road_blocks": 10,
+  "road_block_m": 124
  },
  "dummies": 37,
  "ai": {

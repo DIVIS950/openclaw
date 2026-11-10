@@ -96,6 +96,8 @@ def main() -> None:
     # barricades across every road that is not part of the race route
     race = props.build_tyre_stacks(tr, parts)
     race.update(props.build_tape(tr, parts))
+    rows = props.build_tyre_walls(tr, parts, Polygon(), Polygon(), lines=props.race_barrier_lines(tr), min_len=1.0, anywhere=True)
+    race.update(rows=len(props.race_rows(tr)), row_barriers=rows["walls"], row_barrier_m=rows["metres"])
     blocks = props.build_tyre_walls(tr, parts, info["R"].buffer(0.8), Polygon(), lines=props.road_block_lines(tr, circuit.roads_polygon().buffer(0.3)))
     race.update(road_blocks=blocks["walls"], road_block_m=blocks["metres"])
     keep_out = unary_union([info["R"].buffer(design.VERGE + 3.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])

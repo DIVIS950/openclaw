@@ -65,7 +65,7 @@ def build_pit_wall(tr: Track, parts: Parts) -> None:
         box(parts, "1WALL_pitwall", "concrete", c, min(y[a], y[a + 1]) - 0.3, max(y[a], y[a + 1]) + 1.05, uv_scale=(3.0, 3.0), top_uv=3.0)
 
 
-def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list | None = None) -> dict:
+def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list | None = None, min_len: float = 6.0, anywhere: bool = False) -> dict:
     """Tyre barriers traced from the photo (work/tyre_walls.json; hand-made additions in source/features.json)."""
     given = lines
     lines = list(given) if given is not None else []
@@ -81,10 +81,10 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
         s = np.concatenate([[0], np.cumsum(seg)])
         m = max(2, int(round(s[-1] / 0.65)) + 1)
         q = np.column_stack([np.interp(np.linspace(0, s[-1], m), s, p[:, 0]), np.interp(np.linspace(0, s[-1], m), s, p[:, 1])])
-        ok = ~contains_xy(off, q[:, 0], q[:, 1]) & contains_xy(venue, q[:, 0], q[:, 1])
+        ok = np.ones(len(q), bool) if anywhere else ~contains_xy(off, q[:, 0], q[:, 1]) & contains_xy(venue, q[:, 0], q[:, 1])
         dd = np.diff(np.concatenate([[0], ok.astype(int), [0]]))
         for a0, a1 in zip(np.where(dd == 1)[0], np.where(dd == -1)[0]):
-            if (a1 - a0) * 0.65 >= 6.0:
+            if (a1 - a0) * 0.65 >= min_len:
                 pieces.append((line, q[a0:a1]))
     count, length = 0, 0.0
     for k, (line, q) in enumerate(pieces):
@@ -288,22 +288,62 @@ def build_tyre_stacks(tr: Track, parts: Parts) -> dict:
     return dict(tyre_stacks=len(tr.cones_en))
 
 
-def build_tape(tr: Track, parts: Parts, max_gap: float = 7.5) -> dict:
-    """Red and white barrier tape strung from tyre stack to tyre stack along each row (visual only)."""
+def race_rows(tr: Track, max_gap: float = 8.5) -> list[np.ndarray]:
+    """The yellow dots of the organiser's map grouped into rows: dots closer than max_gap belong to one row,
+    ordered along it. Each row is one closure of the race layout."""
     c = tr.cones_en
-    P, U, T, HN, off, total = [], [], [], [], 0, 0.0
-    for i in range(len(c)):
-        for j in range(i + 1, len(c)):
-            d = float(np.linalg.norm(c[i] - c[j]))
-            if d > max_gap:
+    n = len(c)
+    group = list(range(n))
+
+    def find(i):
+        while group[i] != i:
+            group[i] = group[group[i]]
+            i = group[i]
+        return i
+    for i in range(n):
+        for j in range(i + 1, n):
+            if np.linalg.norm(c[i] - c[j]) <= max_gap:
+                group[find(i)] = find(j)
+    rows = {}
+    for i in range(n):
+        rows.setdefault(find(i), []).append(i)
+    out = []
+    for ids in rows.values():
+        p = c[ids]
+        if len(p) > 1:
+            axis = np.linalg.svd(p - p.mean(0))[2][0]
+            p = p[np.argsort((p - p.mean(0)) @ axis)]
+        out.append(p)
+    return out
+
+
+def race_barrier_lines(tr: Track) -> list[dict]:
+    """Red and white plastic barriers that fill each row between its tyre barrels (east/north polylines)."""
+    out = []
+    for row in race_rows(tr):
+        for a, b in zip(row[:-1], row[1:]):
+            d = float(np.linalg.norm(b - a))
+            if d < 2.2:
                 continue
-            en = np.array([c[i], c[j]])
+            u = (b - a) / d
+            out.append(dict(en=[(a + u * 0.6).round(2).tolist(), (b - u * 0.6).round(2).tolist()], width=0.45, height=0.75, material="barricade"))
+    return out
+
+
+def build_tape(tr: Track, parts: Parts) -> dict:
+    """Red and white barrier tape strung from tyre barrel to tyre barrel along each row, above the barriers
+    (visual only)."""
+    P, U, T, HN, off, total = [], [], [], [], 0, 0.0
+    for row in race_rows(tr):
+        for a, b in zip(row[:-1], row[1:]):
+            d = float(np.linalg.norm(b - a))
+            en = np.array([a, b])
             g = tr.H.ground(en)
-            pos = np.vstack([tr.fr.world(en, g + 0.66), tr.fr.world(en, g + 0.80)])
+            pos = np.vstack([tr.fr.world(en, g + 0.80), tr.fr.world(en, g + 0.93)])
             P.append(pos)
             U.append(np.array([[0, 0.3], [d / 1.0, 0.3], [0, 0.6], [d / 1.0, 0.6]]))
             T.append(np.array([[0, 1, 3], [0, 3, 2]]) + off)
-            side = tr.fr.vec(np.array([[-(c[j] - c[i])[1], (c[j] - c[i])[0]]]) / d)[0]
+            side = tr.fr.vec(np.array([[-(b - a)[1], (b - a)[0]]]) / d)[0]
             HN += [(side[0], 0.0, side[1])] * 2
             off += 4
             total += d
@@ -323,6 +363,9 @@ def road_block_lines(tr: Track, mouths) -> list[dict]:
         beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
         m = contains_xy(mouths, beyond[:, 0], beyond[:, 1])
         for a, ln in cyclic_runs(m, 4, 2):
+            mid = tr.en(np.array([a + ln / 2.0]), np.array([side * (w[(a + ln // 2) % n] + 1.6)]))[0]
+            if len(tr.cones_en) and np.linalg.norm(tr.cones_en - mid, axis=1).min() < 16.0:
+                continue                                    # the organiser's own row already closes this road
             st = (a - 1 + np.arange(ln + 2)).astype(float)
             out.append(dict(en=tr.en(st, side * (w[(a - 1 + np.arange(ln + 2)) % n] + 1.6)).round(2).tolist(), width=0.5, height=0.85, material="barricade"))
     return out
