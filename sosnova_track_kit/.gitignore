@@ -12,4 +12,4 @@ source/work/*
 !source/work/edges_std.json
 source/previews_v2/
 __pycache__/
-content/tracks/sosnova_v7_standard/*.kn5
+content/tracks/sosnova_v8_standard/*.kn5

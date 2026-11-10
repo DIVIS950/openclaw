@@ -1,27 +1,43 @@
 {
- "track": "sosnova_v7_race",
+ "track": "sosnova_v8_race",
  "lap_m": 1764.1395761149456,
+ "route_marks": {
+  "sosnova_v8_race": {
+   "route_line_m": 523,
+   "walls": 16,
+   "metres": 483
+  },
+  "sosnova_v8_standard": {
+   "route_line_m": 359,
+   "walls": 12,
+   "metres": 310
+  }
+ },
  "standard": {
-  "track": "sosnova_v7_standard",
+  "track": "sosnova_v8_standard",
   "lap_m": 1666.8466008674643,
   "lap_s": 73.88
  },
- "meshes": 315,
- "vertices": 161790,
- "triangles": 177509,
- "kn5_mb": 23.76,
+ "meshes": 330,
+ "vertices": 170842,
+ "triangles": 179632,
+ "kn5_mb": 24.97,
  "ground": {
-  "asphalt": 15236,
-  "gravel": 1164,
-  "grass": 18140,
+  "asphalt": 7454,
+  "gravel": 4082,
+  "grass": 19393,
   "photo": 2137
  },
- "asphalt_m2": 38752,
- "gravel_m2": 1432,
+ "asphalt_m2": 38661,
+ "gravel_m2": 5967,
  "buildings": 45,
  "kerbs": {
-  "kerbs": 12,
-  "kerb_m": 225
+  "kerbs": 18,
+  "kerb_m": 441,
+  "standard_roads": {
+   "kerbs": 8,
+   "kerb_m": 214
+  }
  },
  "bridge": {
   "length": 53.70721553013151,
@@ -31,23 +47,23 @@
  },
  "pylons": 3,
  "paint": {
-  "edge_line_m": 2268,
+  "edge_line_m": 2118,
   "grid_boxes": 16,
   "pit_bays": 16,
   "other_roads": 1,
   "other_road_m": 42,
   "other_road_line_m": 61,
   "other_road_kerb_m": 29,
-  "area_line_m": 1647,
+  "area_line_m": 1627,
   "brake_boards": 14
  },
  "barriers": {
-  "walls": 53,
-  "metres": 692
+  "walls": 33,
+  "metres": 1088
  },
  "trees": {
-  "near": 2350,
-  "far": 552
+  "near": 2349,
+  "far": 550
  },
  "dummies": 37,
  "ai": {

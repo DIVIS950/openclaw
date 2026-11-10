@@ -16,8 +16,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
 SRC = os.path.join(KIT, "source")
 WORK = os.path.join(SRC, "work")
-TRACK = os.environ.get("SOSNOVA_TRACK", "sosnova_v7_race")       # the folder a step works on
-RACE_TRACK, STD_TRACK = "sosnova_v7_race", "sosnova_v7_standard"
+TRACK = os.environ.get("SOSNOVA_TRACK", "sosnova_v8_race")       # the folder a step works on
+RACE_TRACK, STD_TRACK = "sosnova_v8_race", "sosnova_v8_standard"
 OUT = os.path.join(KIT, "content", "tracks", TRACK)
 
 META = json.load(open(os.path.join(SRC, "cuzk", "meta.json"), encoding="utf-8"))

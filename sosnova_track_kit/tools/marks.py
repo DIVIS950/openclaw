@@ -25,9 +25,8 @@ EDGE_IN, EDGE_W = 0.22, 0.15    # white edge line of the lap: distance from the 
 
 
 def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
-    """(side, stations) of every piece of white edge line. A real asphalt edge carries a solid line. Where the
-    lap runs beside open asphalt (a junction, the square, the pit apron) the line is broken into dashes, so the
-    route stays readable without inventing an edge."""
+    """(side, stations) of every piece of white edge line on a real asphalt edge, plus the dashes along the pit
+    apron. The lines across open asphalt depend on the lap that is driven: see open_side_runs."""
     n = tr.n
     out = []
     for side, is_open, w in ((1, tr.open_l, tr.wl), (-1, tr.open_r, tr.wr)):
@@ -36,9 +35,56 @@ def edge_line_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
         swing = np.convolve(np.tile(swing, 3), np.ones(7), "same")[n: 2 * n] > 0
         for a, ln in cyclic_runs(~is_open & ~swing, 6, 0):
             out.append((side, a + np.arange(ln + 1)))
-        for a, ln in cyclic_runs(is_open & ~swing, 4, 0):
-            for k in range(a + 2, a + ln - 3, 6):                                 # 3 m line, 3 m gap
-                out.append((side, k + np.arange(4)))
+    pit = np.where(tr.in_pit_stretch())[0]
+    pit = np.where(pit > n / 2, pit - n, pit)
+    for a in range(int(pit.min()), int(pit.max()) - 2, 6):                        # 3 m line, 3 m gap
+        out.append((1, a + np.arange(4)))
+    return out
+
+
+def open_side_runs(tr: Track) -> list[tuple[int, np.ndarray]]:
+    """(side, stations) where the lap runs beside open asphalt (a junction, the square, the start area), outside
+    the pit stretch. There the route is marked for the lap that is driven: a solid line and a row of barricades."""
+    out = []
+    for side, is_open in ((1, tr.open_l), (-1, tr.open_r)):
+        m = is_open & ~(tr.in_pit_stretch() if side > 0 else np.zeros(tr.n, bool))
+        out += [(side, a + np.arange(ln + 1)) for a, ln in cyclic_runs(m, 8, 3) if ln < tr.n]
+    return out
+
+
+def build_route_marks(tr: Track, lap: Track, parts: Parts, look_parts: Parts) -> dict:
+    """Solid white lines along the open sides of the lap that is driven. tr: the race lap (world frame and
+    ground heights); lap: the lap of this track folder; look_parts: the built model the lines are laid on."""
+    look = SurfaceLookup.from_parts(look_parts, ("1ROAD_trk", "1ROAD_x", "1APRON", "1GRASS_g", "1SAND"))
+    P, U, T, off, total = [], [], [], 0, 0
+    for side, st in open_side_runs(lap):
+        w = (lap.wl if side > 0 else lap.wr)[st % lap.n]
+        i = st.astype(float)
+        en = np.vstack([lap.en(i, side * (w - EDGE_IN)), lap.en(i, side * (w - EDGE_IN - EDGE_W))])
+        pos = tr.fr.world(en, tr.H.ground(en))
+        pos[:, 1] = look.ys(pos[:, [0, 2]], pos[:, 1]) + LIFT
+        m = len(st)
+        r = np.arange(m - 1)
+        P.append(pos)
+        U.append(np.vstack([np.column_stack([np.full(m, 0.2), i / 2.0]), np.column_stack([np.full(m, 0.8), i / 2.0])]))
+        T.append(np.concatenate([np.stack([r, r + m, r + m + 1], -1), np.stack([r, r + m + 1, r + 1], -1)]) + off)
+        off += len(pos)
+        total += m - 1
+    if P:
+        parts.surface("MARK_route", "paint", np.vstack(P), np.vstack(U), np.vstack(T), hint=UP, smooth=False, cast_shadows=False)
+    return dict(route_line_m=total)
+
+
+def barricade_lines(lap: Track) -> list[dict]:
+    """Rows of red and white barricades just outside the open sides of the lap (east/north polylines)."""
+    out = []
+    for side, st in open_side_runs(lap):
+        s_ = np.where(st % lap.n > lap.n / 2, st % lap.n - lap.n, st % lap.n)
+        st = st[~((s_ > -105) & (s_ < 80))]                       # none beside the grid, the hotlap start and the pit exit
+        if len(st) < 8 or np.diff(st).max() > 1:
+            continue
+        w = (lap.wl if side > 0 else lap.wr)[st % lap.n]
+        out.append(dict(en=lap.en(st.astype(float), side * (w + 1.0)).round(2).tolist(), width=0.5, height=0.85, material="barricade"))
     return out
 
 
@@ -246,7 +292,7 @@ def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep
         order = np.lexsort((np.floor(cen[:, 2] / 100), np.floor(cen[:, 0] / 100)))
         parts.surface("MARK_roads", "paint", pos, np.vstack(U), tris[order], hint=UP, smooth=False, cast_shadows=False)
     if KP:
-        parts.surface("MARK_roadkerbs", "kerbc", np.vstack(KP), np.vstack(KU), np.vstack(KT), hint=UP, smooth=False, cast_shadows=False)
+        parts.surface("MARK_roadkerbs", "kerb", np.vstack(KP), np.vstack(KU), np.vstack(KT), hint=UP, smooth=False, cast_shadows=False)
     return dict(other_roads=len(roads), other_road_m=round(sum(float(np.linalg.norm(np.diff(l, axis=0), axis=1).sum()) for l, _ in roads)),
                 other_road_line_m=round(total), other_road_kerb_m=round(kerb_m))
 

@@ -61,23 +61,58 @@ def mask_polygons(mask: np.ndarray):
 
 
 class Registry:
-    """Vertex list without duplicates (coordinates rounded to 1 mm)."""
+    """Vertex list without duplicates: a point closer than MERGE to an existing one becomes that one, so two
+    outlines that nearly touch share vertices instead of leaving slivers for the triangulator."""
+    MERGE = 0.10
 
     def __init__(self):
         self.pts: list[tuple[float, float]] = []
-        self.idx: dict[tuple[int, int], int] = {}
+        self.cell: dict[tuple[int, int], list[int]] = {}
         self.fixed_h: dict[int, float] = {}
 
     def add(self, p, h=None) -> int:
-        key = (int(round(p[0] * 1000)), int(round(p[1] * 1000)))
-        i = self.idx.get(key)
+        cx, cy = int(np.floor(p[0] / self.MERGE)), int(np.floor(p[1] / self.MERGE))
+        best, i = self.MERGE, None
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for j in self.cell.get((cx + dx, cy + dy), ()):
+                    d = float(np.hypot(self.pts[j][0] - p[0], self.pts[j][1] - p[1]))
+                    if d < best:
+                        best, i = d, j
         if i is None:
             i = len(self.pts)
-            self.idx[key] = i
+            self.cell.setdefault((cx, cy), []).append(i)
             self.pts.append((float(p[0]), float(p[1])))
         if h is not None and i not in self.fixed_h:
             self.fixed_h[i] = float(h)
         return i
+
+
+def node_segments(pts: np.ndarray, segs: list[tuple[int, int]], tol: float = 0.04) -> np.ndarray:
+    """Split every segment at the vertices that lie on it, and drop empty and repeated segments."""
+    from shapely import STRtree
+    for _ in range(4):
+        segs = sorted({(min(a, b), max(a, b)) for a, b in segs if a != b})
+        lines = [LineString([pts[a], pts[b]]) for a, b in segs]
+        tree = STRtree(lines)
+        split: dict[int, list[int]] = {}
+        for i, p in enumerate(pts):
+            pt = Point(p)
+            for j in tree.query(pt.buffer(tol)):
+                if i not in segs[j] and lines[j].distance(pt) < tol:
+                    split.setdefault(int(j), []).append(i)
+        if not split:
+            break
+        out = []
+        for j, (a, b) in enumerate(segs):
+            if j not in split:
+                out.append((a, b))
+                continue
+            chain = sorted(set(split[j]), key=lambda i: lines[j].project(Point(pts[i])))
+            ids = [a, *chain, b]
+            out += list(zip(ids[:-1], ids[1:]))
+        segs = out
+    return np.array(sorted({(min(a, b), max(a, b)) for a, b in segs if a != b}), np.int32)
 
 
 def apron_chains(A, R: Polygon, edge_tree: cKDTree, edge_pts: np.ndarray):
@@ -194,7 +229,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         g = g[~contains_xy(R.buffer(0.5), g[:, 0], g[:, 1])]
         for p in g:
             reg.add(p)
-    data = dict(vertices=np.array(reg.pts), segments=np.array(segs, np.int32), holes=np.array([tr.c[0]]))
+    data = dict(vertices=np.array(reg.pts), segments=node_segments(np.array(reg.pts), segs), holes=np.array([tr.c[0]]))
     out = tri.triangulate(data, "pq22Y")
     V, T = out["vertices"], out["triangles"]
     assert len(V) >= len(reg.pts) and np.allclose(V[: len(reg.pts)], np.array(reg.pts), atol=1e-6)

@@ -50,6 +50,8 @@ MATERIALS = [
     M("roofphoto", "roof_photo.jpg", specular=0.05),
     M("paint", "paint.jpg", specular=0.12, specular_exp=30),
     M("kerbc", "kerbc.jpg", specular=0.06, specular_exp=20),
+    M("kerb", "kerb.jpg", specular=0.10, specular_exp=30),
+    M("barricade", "barricade.jpg", specular=0.18, specular_exp=40),
     M("concrete", "concrete.jpg"),
     M("building", "building.jpg"),
     M("garage", "garage.jpg"),
@@ -68,6 +70,8 @@ MATERIALS = [
 def main() -> None:
     t0 = time.time()
     tr = Track()
+    tr_std = Track("_std")
+    tr_std.fr = tr.fr                                           # one world for both laps
     parts = Parts()
     ribbon.build_road(tr, parts, layout.racing_line(tr))
     foot = props.build_buildings(tr, parts)
@@ -75,6 +79,7 @@ def main() -> None:
     ground.build_far(tr, parts, info)
     asphalt = unary_union([info["R"], info["A"]])
     kerb_info = kerbs.build_kerbs(tr, parts)
+    kerb_info["standard_roads"] = kerbs.build_kerbs(tr_std, parts, own=design.std_branches(tr)[1])
     paint = marks.build_edge_lines(tr, parts)
     pit_boxes = [(d.pos[0], d.pos[2], d.facing) for d in layout.make_dummies(tr)[0] if d.name.startswith("AC_PIT_")]
     paint.update(marks.build_start(tr, parts, layout.grid_slots(), pit_boxes))
@@ -89,7 +94,8 @@ def main() -> None:
     props.build_pit_wall(tr, parts)
     # barriers: the tyre walls traced from the photo, and the walls of the original circuit
     traced = json.load(open(os.path.join(WORK, "tyre_walls.json"), encoding="utf-8"))["tyre_walls"]
-    barriers = traced + [dict(b, material="concrete") for b in circuit.BARRIERS]
+    long_enough = lambda w: float(np.linalg.norm(np.diff(np.array(w["en"]), axis=0), axis=1).sum()) >= 12.0
+    barriers = [w for w in traced if long_enough(w)] + design.trap_barriers(tr, info["G"]) + [dict(b, material="concrete") for b in circuit.BARRIERS]
     walls = props.build_tyre_walls(tr, parts, info["R"].buffer(1.2), asphalt, lines=barriers)
     keep_out = unary_union([info["R"].buffer(5.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
@@ -99,28 +105,27 @@ def main() -> None:
     meshes = parts.meshes()
     # two track folders share one model: the race route of 14.11.2026 and the standard circuit
     edges = np.vstack([tr.fr.xz(tr.edge_en(1)), tr.fr.xz(tr.edge_en(-1))])
-    tr_std = Track("_std")
-    tr_std.fr = tr.fr                                           # one world for both laps
-    laps = ((RACE_TRACK, tr, edges, "Autodrom Sosnová v7 - Race 14.11.",
+    laps = ((RACE_TRACK, tr, edges, "Autodrom Sosnová v8 - Race 14.11.",
              "The timed lap is the route of the 14.11.2026 event, anticlockwise from the start straight and under the bridge."),
-            (STD_TRACK, tr_std, np.vstack([tr.fr.xz(tr_std.edge_en(1)), tr.fr.xz(tr_std.edge_en(-1))]), "Autodrom Sosnová v7 - Standard circuit",
+            (STD_TRACK, tr_std, np.vstack([tr.fr.xz(tr_std.edge_en(1)), tr.fr.xz(tr_std.edge_en(-1))]), "Autodrom Sosnová v8 - Standard circuit",
              "The timed lap is the standard circuit, turns 1 to 12, anticlockwise."))
-    ais = {}
+    ais, route = {}, {}
     for folder, lap_tr, bounds, name, note in laps:
         out = os.path.join(os.path.dirname(OUT), folder)
         os.makedirs(os.path.join(out, "ai"), exist_ok=True)
         kn5_path = os.path.join(out, f"{folder}.kn5")
-        if folder == RACE_TRACK:
-            kn5.write(kn5_path, folder, tex, MATERIALS, meshes, dummies)
-        else:
-            shutil.copyfile(os.path.join(os.path.dirname(OUT), RACE_TRACK, f"{RACE_TRACK}.kn5"), kn5_path)
+        # each track marks its own route across the open asphalt: solid lines and rows of barricades
+        own = Parts()
+        route[folder] = marks.build_route_marks(tr, lap_tr, own, parts)
+        route[folder].update(props.build_tyre_walls(tr, own, ground.ribbon_polygon(lap_tr).buffer(0.7), Polygon(), lines=marks.barricade_lines(lap_tr)))
+        kn5.write(kn5_path, folder, tex, MATERIALS, meshes + own.meshes(), dummies)
         look = None if folder == RACE_TRACK else SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1ROAD_x", "1APRON"))
         ais[folder] = layout.write_ai(lap_tr, os.path.join(out, "ai", "fast_lane.ai"), look)
         layout.write_data(lap_tr, out, ais[folder], bounds, name=name, lap_note=note)
     ai = ais[RACE_TRACK]
     kn5_path = os.path.join(os.path.dirname(OUT), RACE_TRACK, f"{RACE_TRACK}.kn5")
     summary = dict(
-        track=RACE_TRACK, lap_m=tr.lap, standard=dict(track=STD_TRACK, lap_m=tr_std.lap, lap_s=round(ais[STD_TRACK]['lap_s'], 2)), meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
+        track=RACE_TRACK, lap_m=tr.lap, route_marks=route, standard=dict(track=STD_TRACK, lap_m=tr_std.lap, lap_s=round(ais[STD_TRACK]['lap_s'], 2)), meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),
         ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), kerbs=kerb_info, bridge=span, pylons=pylons, paint=paint, barriers=walls,
         trees=trees, dummies=len(dummies),

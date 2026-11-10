@@ -116,19 +116,67 @@ def other_asphalt(tr: Track, R: Polygon):
     import circuit
     roads = [(en, w) for _, en, w in circuit.roads()]
     roads_poly = unary_union([std_branches(tr)[0], circuit.roads_polygon()]).buffer(0)
-    pads = unary_union([circuit.areas("pad"), edge_bands(tr, "concrete"), edge_bands(tr, "kerbs").difference(roads_poly)]).buffer(0)
+    pads = unary_union([circuit.areas("pad"), edge_bands(tr, "concrete")]).buffer(0)
     paved = circuit.areas("apron")
     A = unary_union([paved, pads, roads_poly]).buffer(0.3).buffer(-0.3).difference(R)
     A = unary_union([p for p in getattr(A, "geoms", [A]) if p.area > 15.0]).buffer(0).simplify(0.1)
     return A, paved, roads, roads_poly, pads
 
 
+TRAP_R = 45.0           # corners tighter than this get a gravel trap on the outside
+TRAP_DEPTH = 9.0        # depth of a gravel trap (m)
+TRAP_GAP = 1.5          # grass between the asphalt edge and the gravel (m)
+
+
+def _trap_runs(tr: Track):
+    """(side, stations, depth) of the gravel trap on the outside of every corner; nothing on an open side."""
+    for a, ln in cyclic_runs(np.abs(tr.k) > 1.0 / TRAP_R, 5, 8):
+        side = -int(np.sign(tr.k[(a + ln // 2) % tr.n]))
+        st = np.arange(a - 6, a + ln + 16)
+        m = len(st)
+        ramp = np.clip(np.minimum(np.arange(m), m - 1 - np.arange(m)) / 9.0, 0, 1)
+        depth = TRAP_DEPTH * ramp * ramp * (3 - 2 * ramp)
+        is_open = (tr.open_l if side > 0 else tr.open_r)[st % tr.n]
+        if is_open.mean() > 0.5:
+            continue
+        yield side, st, depth, (tr.wl if side > 0 else tr.wr)[st % tr.n]
+
+
+def gravel_traps(tr: Track):
+    traps = []
+    for side, st, depth, w in _trap_runs(tr):
+        ok = depth > 0.8
+        if ok.sum() < 6:
+            continue
+        s_ = st[ok].astype(float)
+        p = Polygon(np.vstack([tr.en(s_, side * (w[ok] + TRAP_GAP)), tr.en(s_, side * (w[ok] + TRAP_GAP + depth[ok]))[::-1]])).buffer(0)
+        if not p.is_empty:
+            traps.append(p)
+    return unary_union(traps) if traps else Polygon()
+
+
+def trap_barriers(tr: Track, G) -> list[dict]:
+    """A padded barrier along the back of every gravel trap that was really built (east/north polylines)."""
+    from shapely import contains_xy
+    out = []
+    for side, st, depth, w in _trap_runs(tr):
+        ok = depth > 4.0
+        if ok.sum() < 8:
+            continue
+        s_ = st[ok].astype(float)
+        back = tr.en(s_, side * (w[ok] + TRAP_GAP + depth[ok] - 1.5))
+        if contains_xy(G, back[:, 0], back[:, 1]).mean() > 0.6:
+            out.append(dict(en=tr.en(s_, side * (w[ok] + TRAP_GAP + depth[ok] + 0.7)).round(2).tolist(), width=0.8, height=0.95))
+    return out
+
+
 def gravel(tr: Track, R: Polygon, A, avoid):
-    """Real sand and gravel: the run-offs measured in the photo and the pockets traced in circuit.py.
-    Kept clear of the asphalt outline so the two outlines never share an edge."""
+    """Gravel: a trap on the outside of every corner, the sand run-offs measured in the photo and the pockets
+    traced in circuit.py. Kept clear of the asphalt outline so the two outlines never share an edge."""
     import circuit
-    g = unary_union([edge_bands(tr, "sand"), circuit.areas("gravel")])
+    g = unary_union([gravel_traps(tr), edge_bands(tr, "sand"), circuit.areas("gravel")])
     if g.is_empty:
         return g
-    g = g.difference(unary_union([A.buffer(0.35), R.buffer(0.35), avoid.buffer(1.0)])).buffer(-0.3).buffer(0.3).simplify(0.15)
-    return unary_union([p for p in getattr(g, "geoms", [g]) if p.geom_type == "Polygon" and p.area > 25.0]).buffer(0)
+    g = g.difference(unary_union([A.buffer(0.6), R.buffer(0.6), avoid.buffer(1.2)])).buffer(-0.8).buffer(1.1).buffer(-0.3).simplify(0.2)
+    g = g.difference(unary_union([A.buffer(0.35), R.buffer(0.35), avoid.buffer(1.0)]))
+    return unary_union([p for p in getattr(g, "geoms", [g]) if p.geom_type == "Polygon" and p.area > 40.0]).buffer(0)

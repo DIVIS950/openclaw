@@ -1,35 +1,35 @@
-# Autodrom Sosnová for Assetto Corsa (v7.0)
+# Autodrom Sosnová for Assetto Corsa (v8.0)
 
 Two drivable Assetto Corsa (2014) tracks of Autodrom Sosnová near Česká Lípa, Czech Republic. They are the same
 place and the same model with two different laps.
 
 | Track folder | Lap | Length |
 | --- | --- | --- |
-| `sosnova_v7_race` | The route of the race on 14.11.2026, under the green bridge | 1764 m |
-| `sosnova_v7_standard` | The standard circuit, turns 1 to 12 | 1667 m |
+| `sosnova_v8_race` | The route of the race on 14.11.2026, under the green bridge | 1764 m |
+| `sosnova_v8_standard` | The standard circuit, turns 1 to 12 | 1667 m |
 
-**Download:** [`download/sosnova_v7.zip`](download/sosnova_v7.zip) holds both folders. Install notes are in
-[`content/tracks/sosnova_v7_race/INSTALL.txt`](content/tracks/sosnova_v7_race/INSTALL.txt). Delete older
-`sosnova*` folders from `content/tracks` first. The model of the standard track is a copy of the race model. It is in
-the zip but not stored a second time under `content/`.
+**Download:** [`download/sosnova_v8.zip`](download/sosnova_v8.zip) holds both folders. Install notes are in
+[`content/tracks/sosnova_v8_race/INSTALL.txt`](content/tracks/sosnova_v8_race/INSTALL.txt). Delete older
+`sosnova*` folders from `content/tracks` first. The two models differ only in their route lines and barricades. The standard
+model is in the zip but not stored under `content/`.
 
-## What v7.0 is
+## What v8.0 is
 
-The circuit as the aerial photo shows it, for practice before a race. The race route lies inside the standard
-circuit and shares most of its asphalt with it. Version 6 measured the edges of the race lap in the photo but
-drew the other roads of the standard circuit by hand with one width. In v7 the standard circuit is a second
-surveyed lap (`stdlap.py`), so the return road, the link at the infield hairpin, the north junction and the
-south-west loop have their real edges too, and the standard circuit can be driven as its own timed lap.
+The real circuit shape from the aerial photo, finished as a racetrack. Version 5 had the racetrack finish but
+a designed road of one width. Versions 6 and 7 had the real edges but the owner found them messy: no kerbs, no
+structure, no barricades. Version 8 keeps the real geometry of 6 and 7 (real edges of both laps, the 17 m wide
+first turn, the standard circuit as a second lap) and puts the finish back.
 
 | Part | How it is made |
 | --- | --- |
 | Lap position and height | The route of the 14.11.2026 event on the real asphalt (`refine.py`), 1764 m anticlockwise. Heights from the lidar terrain model as a smooth surface. The site is nearly flat: 2.8 m between the highest and lowest point. The terrain model and the newer surface model agree along the lap to 5 cm. |
 | Road edges | The real asphalt edges, measured in the photo at every metre and smoothed over 4 m. Width 7.8 to 18.2 m, 11.3 m on average, 17.6 m in the first turn. |
 | Open sides | Where no edge lies within 13 m (a junction, the square, the start area) the lap keeps a 5 m lane and the surrounding asphalt comes from `circuit.py`. This is 27 % of the left side and 9 % of the right side. |
-| Lines | A solid white line on every real edge. Dashes where the lap crosses open asphalt. No line where an edge swings into a junction. |
-| Kerbs | Only where the real circuit has them (`edgescan.py`): 12 flat strips of pale concrete, 221 m. The photo shows no red and white kerbs anywhere on the lap. |
-| Sand | Only where the photo shows it: 4 run-offs, 143 m along the lap, plus the pocket inside the first turn. |
-| Barriers | The tyre walls traced from the photo, cut where they would cross asphalt, and the paddock wall. |
+| Lines | A solid white line on every real edge. Where a lap crosses open asphalt, the track folder of that lap adds a solid line there too. |
+| Kerbs | Red and white, 1 m wide, raised: on the inside of corners tighter than 30 m radius, on the outside of the exit of corners tighter than 15 m, and where the photo shows a wide edge strip. 18 on the race lap (441 m), 8 more on the standard circuit's own roads. Gentle bends have none. |
+| Gravel traps | On the outside of every corner tighter than 45 m radius where there is grass, 9 m deep, with a padded barrier along the back. Plus the sand the photo shows. 5,970 m² in total. |
+| Barriers | Padded barriers behind the traps, the long tyre walls traced from the photo, the paddock wall: 33 barriers, 1088 m. |
+| Barricades | Rows of red and white barricades 1 m outside the lap wherever it crosses open asphalt, so the route is channelled: 483 m on the race track, 310 m on the standard track. They differ between the two track folders, which is why each folder has its own model. None stand beside the grid and the pit exit. |
 | Standard circuit | Put together from the surveyed race line and four hand-traced links, then moved onto the asphalt and measured like the race lap. Its own roads are polygons between their real edges with a smooth surface of their own. 13 concrete kerbs and 4 sand run-offs were found along it. |
 | Rest of the place | Hand-traced in `circuit.py` and checked against the surveyed asphalt: the big square, the start area, the junctions, the wide outside of the first turn, the link by the bridge, the paddock and the white concrete inside the first turn. |
 | Start | Chequered band, 16 grid boxes, start lights on a gantry, brake boards 150/100/50, 16 pit bays on the start area. These are additions for the game. |
@@ -56,9 +56,9 @@ SOSNOVA_LAP=_std python3 refine.py && SOSNOVA_LAP=_std python3 edgescan.py
 python3 heights.py         # smooth road surface and blended ground
 SOSNOVA_LAP=_std python3 heights.py
 python3 mkbuildings.py     # building footprints and heights
-python3 build.py           # writes content/tracks/sosnova_v7_race and sosnova_v7_standard
+python3 build.py           # writes content/tracks/sosnova_v8_race and sosnova_v8_standard
 python3 check.py           # validates the files the game will load
-SOSNOVA_TRACK=sosnova_v7_standard python3 check.py
+SOSNOVA_TRACK=sosnova_v8_standard python3 check.py
 python3 render.py          # check renders from the spawn points, along the lap and at the bridge
 ```
 
@@ -91,7 +91,7 @@ is stored here or used as a texture.
 - The track was validated by reading back the built files and by renders. It was not run inside the game here.
 - The standard lap's own roads lie on the ground mesh, not on a road mesh of their own. Where the standard lap leaves or joins the race lap (five places) the surface has a slight crease, up to 2.8 % change of gradient per metre. The race lap stays below 0.3 %.
 - The lap edges follow the photo to about 0.5 m. The other roads and paved areas are traced by eye to about 1 m.
-- The photo shows few painted lines. The white edge lines are an addition, as on the resurfaced circuit.
+- Kerbs, gravel traps, their barriers, the barricades and the white lines are a racetrack finish, not a copy of the photo. The photo shows flat concrete edge strips at some corners and sand at two bends.
 - The orthophoto is the current state survey edition. Anything changed on site after it was flown is not in the track.
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
@@ -102,15 +102,16 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 
 ## Check renders
 
-Rendered from the built `sosnova_v7_race.kn5` with `tools/render.py`.
+Rendered from the built `sosnova_v8_race.kn5` with `tools/render.py`.
 
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
 ![First turn from the air](previews/air_east.jpg)
 ![In the first turn](previews/lap_0130.jpg)
-![Start area, return road and infield loop](previews/air_start.jpg)
-![South-west loop](previews/air_sw.jpg)
+![Start area and infield](previews/air_start.jpg)
+![The square with the route barricades](previews/air_plaza.jpg)
+![Race route across the square](previews/lap_0650.jpg)
+![Infield hairpin](previews/lap_0400.jpg)
+![Standard circuit: the south-west loop](previews/std_air_sw.jpg)
 ![Standard circuit: on the return road](previews/std_return.jpg)
-![Standard circuit: turn 2 into the infield loop](previews/std_turn2.jpg)
-![Standard circuit: the south-west loop](previews/std_swloop.jpg)
 ![From above](previews/top.jpg)

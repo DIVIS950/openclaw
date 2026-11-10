@@ -349,6 +349,19 @@ def kerb_concrete() -> np.ndarray:
     return a
 
 
+def barricade() -> np.ndarray:
+    """Plastic road barricades: 2 m red, 2 m white along (u), darker foot and a seam every metre."""
+    a = np.zeros((128, 512, 3), np.float32)
+    a[:, :256] = (198, 34, 30)
+    a[:, 256:] = (232, 230, 224)
+    shade = np.linspace(1.0, 0.78, 128)[:, None, None]
+    a *= shade
+    for x in range(0, 512, 128):
+        a[:, x: x + 3] *= 0.55
+    a[:10] *= 1.06
+    return np.clip(a, 0, 255)
+
+
 def lights() -> np.ndarray:
     """Start light panel: five pairs of lamps on a black board, 4:1."""
     from PIL import ImageDraw
@@ -395,6 +408,8 @@ def build_static() -> dict[str, bytes]:
         "hall.jpg": _jpg(wall("hall"), 90),
         "paint.jpg": _jpg(paint()),
         "kerbc.jpg": _jpg(kerb_concrete(), 90),
+        "kerb.jpg": _jpg(kerb(), 90),
+        "barricade.jpg": _jpg(barricade(), 90),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
         "softwall.jpg": _jpg(softwall()),
         "arch.jpg": _jpg(arch()),
