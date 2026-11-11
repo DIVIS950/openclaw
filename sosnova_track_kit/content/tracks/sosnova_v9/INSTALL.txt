@@ -1,4 +1,4 @@
-AUTODROM SOSNOVA v9.7 for Assetto Corsa
+AUTODROM SOSNOVA v10.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -9,7 +9,7 @@ INSTALL
    so that this file exists:
       ...\content\tracks\sosnova_v9\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v9.7".
+3. Start the game and pick the track "Autodrom Sosnova v10.0".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
@@ -26,12 +26,12 @@ WHAT IT IS
 - A rubbered racing line, chequered start line, 16 grid boxes, start lights, a pit apron with 16 painted bays, brake boards.
 - Real materials: asphalt, grass, gravel and walls are photo scans of real surfaces, the trees are pictures of scanned trees.
 - The position and the heights of the lap, the bridge, the buildings and the trees come from Czech state survey data.
-- Race layout of 14.11.2026: every row of yellow dots on the organiser's map is a closed line. A tyre barrel
-  with a yellow top stands at each dot (33), red and white barriers fill the gaps between them, and red and white
-  tape runs along the top. Three rows make the chicane on the back straight. The others close the roads and
-  areas the race does not use. Barricades close the remaining unused roads.
-- So that you always see where to go: a long barrier line stands on the left after turn 1, from the infield
-  loop down to the return road, and white arrows are painted on the road before every junction.
+- Race layout of 14.11.2026: every row of yellow dots on the organiser's map is a closed line of tyre stacks
+  with yellow soft bags between them, as the circuit uses them, and a thin tape on top. Three rows make the chicane
+  on the back straight. Green and yellow padded barriers close the other unused roads. Orange cones stand on the
+  edge of the route at every junction.
+- Realistic look, taken from photos of the real place: coarse, patchy asphalt, uneven grass with a worn dirt edge
+  beside the road, weathered kerbs and lines, wire fences on the walls.
 - Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game
   times every lap and shows two sector times.
 

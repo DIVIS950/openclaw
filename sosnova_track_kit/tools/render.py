@@ -140,7 +140,7 @@ def read_ai():
 def setup(scene):
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
-    scene.cycles.samples = 20
+    scene.cycles.samples = 28
     scene.cycles.max_bounces = 3
     scene.cycles.transparent_max_bounces = 12
     try:
@@ -148,21 +148,58 @@ def setup(scene):
     except Exception:
         pass
     scene.render.resolution_x, scene.render.resolution_y = 1280, 720
-    scene.view_settings.view_transform = "Standard"
+    for vt in ("Filmic", "AgX", "Standard"):                   # a photographic tone curve, where this Blender has one
+        try:
+            scene.view_settings.view_transform = vt
+            break
+        except TypeError:
+            continue
+    try:
+        scene.view_settings.look = "Medium High Contrast" if scene.view_settings.view_transform == "Filmic" else "AgX - Medium High Contrast"
+    except TypeError:
+        pass
+    # daylight: a physical sky for the ambient light and the horizon haze, and a sun lamp from the south-west
+    to_sun = np.array([0.45, 0.75, -0.48]) / np.linalg.norm([0.45, 0.75, -0.48])
     world = bpy.data.worlds.new("sky")
     scene.world = world
     world.use_nodes = True
-    bg = world.node_tree.nodes["Background"]
-    bg.inputs[0].default_value = (0.50, 0.68, 0.95, 1.0)
-    bg.inputs[1].default_value = 1.1
+    nt = world.node_tree
+    bg = nt.nodes["Background"]
+    sky = nt.nodes.new("ShaderNodeTexSky")
+    ok = False
+    for kind in ("MULTIPLE_SCATTERING", "NISHITA", "SINGLE_SCATTERING", "HOSEK_WILKIE"):
+        try:
+            sky.sky_type = kind
+            ok = True
+            break
+        except TypeError:
+            continue
+    sun_bl = Vector(to_bl(to_sun)).normalized()
+    for attr, val in (("sun_disc", False), ("sun_elevation", float(np.arcsin(sun_bl.z))), ("sun_rotation", float(np.arctan2(sun_bl.x, sun_bl.y))),
+                      ("air_density", 1.6), ("aerosol_density", 2.2), ("dust_density", 2.2), ("ozone_density", 1.0), ("altitude", 250.0)):
+        try:
+            setattr(sky, attr, val)
+        except (AttributeError, TypeError):
+            pass
+    try:
+        sky.sun_direction = sun_bl
+        sky.turbidity = 3.5
+    except (AttributeError, TypeError):
+        pass
+    if ok:
+        nt.links.new(sky.outputs[0], bg.inputs[0])
+        bg.inputs[1].default_value = 0.17 if sky.sky_type != "HOSEK_WILKIE" else 1.0
+    else:
+        bg.inputs[0].default_value = (0.50, 0.68, 0.95, 1.0)
+        bg.inputs[1].default_value = 1.1
     sun = bpy.data.lights.new("sun", "SUN")
-    sun.energy = 3.6
-    sun.angle = np.radians(1.0)
+    sun.energy = 4.6
+    sun.color = (1.0, 0.96, 0.88)
+    sun.angle = np.radians(1.2)
     so = bpy.data.objects.new("sun", sun)
     scene.collection.objects.link(so)
-    # sun from the south-west, 45 degrees up (AC direction to the sun, converted)
-    to_sun = Vector(to_bl(np.array([0.45, 0.75, -0.48]))).normalized()
-    so.rotation_euler = to_sun.to_track_quat("Z", "Y").to_euler()
+    so.rotation_euler = sun_bl.to_track_quat("Z", "Y").to_euler()
+    scene.view_settings.exposure = -0.15
     cam_data = bpy.data.cameras.new("cam")
     cam_data.clip_start, cam_data.clip_end = 0.2, 6000
     cam = bpy.data.objects.new("cam", cam_data)

@@ -205,6 +205,16 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     seen = cKDTree(np.array(reg.pts))
     for p in rows[contains_xy(A.buffer(-0.7), rows[:, 0], rows[:, 1]) & (seen.query(rows)[0] > 0.9)]:
         reg.add(p)
+    # 3c. a row of vertices 1 m outside the other asphalt, so a narrow worn strip can run along it as along the lap
+    ring = A.buffer(1.0)
+    seen = cKDTree(np.array(reg.pts))
+    for g_ in getattr(ring, "geoms", [ring]):
+        for r_ in [g_.exterior, *g_.interiors]:
+            k_ = max(4, int(r_.length / 1.6))
+            pts_ = np.array([r_.interpolate(j / k_, normalized=True).coords[0] for j in range(k_)])
+            ok_ = ~contains_xy(unary_union([R.buffer(1.3), A.buffer(0.5), G.buffer(0.6)]), pts_[:, 0], pts_[:, 1]) & (seen.query(pts_)[0] > 0.7)
+            for p in pts_[ok_]:
+                reg.add(p)
     # 3b. gravel trap outlines: closed rings that touch nothing else
     for poly in getattr(G, "geoms", [G]):
         if poly.is_empty:
@@ -299,6 +309,11 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     gravel = ~apron & contains_xy(G, cen[:, 0], cen[:, 1]) if not G.is_empty else np.zeros(len(T), bool)
     near = contains_xy(zone, cen[:, 0], cen[:, 1]) & ~apron & ~gravel
     far = ~apron & ~gravel & ~near
+    # the worn strip: grass triangles that lie wholly within 1.35 m of asphalt
+    from shapely import distance as _d, points as _p
+    dv = _d(_p(V), unary_union([R, A]))
+    worn = near & (dv[T].max(1) <= 1.35)
+    near = near & ~worn
     # roads of the circuit carry the same dark asphalt as the lap, paved areas the lighter apron asphalt, pads concrete
     kind = np.where(contains_xy(road_part, cen[:, 0], cen[:, 1]), 0, np.where(contains_xy(pad_part, cen[:, 0], cen[:, 1]), 2, 1))
     # geometry
@@ -310,7 +325,8 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     plan = pos[:, [0, 2]]
     layers = ((apron & (kind == 0), "1APRON_r", "road", plan / TILE_M["road"]), (apron & (kind == 1), "1APRON_a", "apron", plan / TILE_M["apron"]),
               (apron & (kind == 2), "1APRON_c", "pad", plan / TILE_M["pad"]), (gravel, "1SAND_s", "gravel", plan / TILE_M["gravel"]),
-              (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (far, "1GRASS_p", "photo", site_uv(V)))
+              (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (worn, "1GRASS_w", "shoulder", plan / TILE_M["shoulder"]),
+              (far, "1GRASS_p", "photo", site_uv(V)))
     for sel, prefix, mat, uv in layers:
         for tid in np.unique(tile_id[sel]):
             t = T[sel & (tile_id == tid)]
@@ -323,9 +339,9 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
-                cls=np.where(apron, 1, np.where(gravel, 4, np.where(near, 2, 3))))
+                cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn, 2, 3))))
     return info
 
 

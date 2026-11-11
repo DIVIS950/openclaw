@@ -1,5 +1,5 @@
 {
-  "name": "Autodrom Sosnová v9.7",
+  "name": "Autodrom Sosnová v10.0",
   "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the race of 14.11.2026. The lap (1764 m, anticlockwise, under the green bridge) is the route of that race. Tyre barrels, red and white barriers and tape stand where the organiser's map shows them, with a chicane on the back straight and arrows before every junction. Red and white kerbs, gravel traps, padded barriers, 16 grid slots, 16 pit boxes, AI line, lap timing with two sectors. Position and heights from Czech state survey data (ČÚZK), materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
   "tags": [
     "circuit",
@@ -21,6 +21,6 @@
   "pitboxes": "16",
   "run": "anticlockwise",
   "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-  "version": "9.7",
+  "version": "10.0",
   "url": ""
 }

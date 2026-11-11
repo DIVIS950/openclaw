@@ -41,9 +41,15 @@ def _png(a: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
-def paint(n: int = 128) -> np.ndarray:
-    g = 222 + fnoise(n, 2, 12, 31) * 6 - np.clip(fnoise(n, 3, 20, 32) - 1.6, 0, 2) * 40
-    return np.stack([g, g, g * 0.985], -1)
+def paint(n: int = 256) -> np.ndarray:
+    """Road paint after a few seasons: off-white, thinner towards its edges, with the asphalt showing through in
+    specks and scuffs."""
+    g = 208 + fnoise(n, 3, 24, 31) * 7
+    worn = np.clip(fnoise(n, 2, 9, 32) * 0.6 + fnoise(n, 10, 60, 33) * 0.7 - 0.95, 0, 1.4) / 1.4
+    edge = np.abs(np.linspace(-1, 1, n))[None, :] ** 6                 # u runs across the line
+    worn = np.clip(worn + edge * np.clip(fnoise(n, 3, 16, 34) + 0.6, 0, 1), 0, 1)
+    g = g * (1 - worn) + 70 * worn
+    return np.clip(np.stack([g, g * 0.995, g * 0.97], -1), 0, 255)
 
 
 def _blob_mask(n, centres, radii, seed, rough=0.22):
@@ -274,8 +280,8 @@ def pylon() -> np.ndarray:
 
 
 ASSETS = os.path.join(SRC, "assets")
-GRASS_MEAN = (78.0, 98.0, 44.0)                 # the grass tile and the distant ground photo share this colour
-TILE_M = {"road": 8.0, "apron": 8.0, "pad": 6.0, "grass": 10.0, "gravel": 4.0}     # metres covered by one texture
+GRASS_MEAN = (84.0, 97.0, 50.0)                 # the grass tile and the distant ground photo share this colour
+TILE_M = {"road": 24.0, "apron": 24.0, "pad": 6.0, "grass": 40.0, "gravel": 4.0, "shoulder": 6.0}     # metres covered by one texture
 
 
 def scan(name: str, target, px: int, repeat: int = 1, desat: float = 0.0, patchy: float = 0.0, seed: int = 0) -> np.ndarray:
@@ -293,6 +299,63 @@ def scan(name: str, target, px: int, repeat: int = 1, desat: float = 0.0, patchy
         n = a.shape[0]
         a = a * (1 + patchy * (0.6 * fnoise(n, n / 6, n, seed + 1) + 0.4 * fnoise(n, n / 16, n / 5, seed + 2)))[..., None]
     return a
+
+
+def natural(name: str, target, px: int, repeat: int, desat: float = 0.0, seed: int = 0, vary: float = 0.08, patches: int = 0,
+            tint=None, tint_amount: float = 0.0) -> np.ndarray:
+    """A scanned surface as it looks outdoors over a large area: the scan is tiled into one big texture and then
+    broken up the way weather and use break up a real surface. vary: light/dark drift at three scales. patches:
+    rectangular repairs with a sealed joint (asphalt). tint: a second colour that takes over in slow patches
+    (dry grass, dust). All of it is periodic, so the big tile still repeats without a seam."""
+    a = scan(name, target, px, repeat=repeat, desat=desat)
+    n = a.shape[0]
+    drift = 0.50 * fnoise(n, n / 3.0, n, seed + 1) + 0.33 * fnoise(n, n / 12, n / 3.5, seed + 2) + 0.17 * fnoise(n, n / 60, n / 14, seed + 3)
+    a = a * (1 + vary * drift)[..., None]
+    if tint is not None:
+        m = np.clip(0.5 + 0.9 * fnoise(n, n / 5.0, n / 1.2, seed + 4) + 0.35 * fnoise(n, n / 30, n / 8, seed + 5), 0, 1)[..., None] * tint_amount
+        lum = a.mean(-1, keepdims=True) / max(float(np.mean(target)), 1.0)
+        a = a * (1 - m) + np.asarray(tint, np.float32) * lum * m
+    rng = np.random.default_rng(seed + 9)
+    for _ in range(patches):                                   # repairs: a rectangle of slightly different asphalt
+        w, h = int(rng.uniform(0.05, 0.22) * n), int(rng.uniform(0.04, 0.16) * n)
+        x0, y0 = int(rng.uniform(0, n - w - 8)) + 4, int(rng.uniform(0, n - h - 8)) + 4
+        a[y0: y0 + h, x0: x0 + w] *= rng.uniform(0.88, 1.09)
+        for sl in ((slice(y0, y0 + 3), slice(x0, x0 + w)), (slice(y0 + h - 3, y0 + h), slice(x0, x0 + w)),
+                   (slice(y0, y0 + h), slice(x0, x0 + 3)), (slice(y0, y0 + h), slice(x0 + w - 3, x0 + w))):
+            a[sl] *= 0.72                                       # the sealed joint
+    return np.clip(a, 0, 255)
+
+
+def shoulder() -> np.ndarray:
+    """The worn strip where asphalt meets grass: dry grass, bare soil and grit (6 m tile)."""
+    n = 1024
+    g = scan("grass_ground.jpg", (104, 104, 62), n, repeat=2)
+    soil = scan("gravel_floor_02.jpg", (104, 96, 80), n, repeat=2)
+    m = np.clip(0.45 + 0.8 * fnoise(n, n / 14, n / 3, 911) + 0.4 * fnoise(n, n / 60, n / 16, 912), 0, 1)[..., None]
+    return np.clip(g * (1 - m) + soil * m, 0, 255)
+
+
+def bags() -> np.ndarray:
+    """Yellow soft barrier bags as used at Sosnova: four bags along 4 m (u), with folds, seams and dirt at the foot."""
+    h, w = 256, 1024
+    a = np.full((h, w, 3), (206, 170, 34), np.float32)
+    a *= (1 + 0.07 * fnoise(1024, 40, 300, 77)[:h, :w] + 0.04 * fnoise(1024, 6, 30, 78)[:h, :w])[..., None]
+    yy = np.linspace(0, 1, h)[:, None, None]
+    a *= 0.80 + 0.28 * np.sin(np.pi * np.clip(yy, 0, 1)) ** 0.6       # rounded: darker towards top edge and foot
+    a[-36:] = a[-36:] * 0.72 + 14                                     # dirt at the foot
+    for x in range(0, w, 256):                                        # the gap between two bags
+        a[:, x: x + 7] *= 0.38
+        a[:, x + 7: x + 16] *= 0.8
+    return np.clip(a, 0, 255)
+
+
+def cone() -> np.ndarray:
+    """Traffic cone: orange with one white band (v runs up the cone)."""
+    a = np.full((128, 64, 3), (226, 92, 22), np.float32)
+    a[44:74] = (232, 230, 222)
+    a[:10] = (40, 40, 42)
+    a *= (1 + 0.05 * fnoise(128, 4, 30, 55)[:, :64])[..., None]
+    return np.clip(a[::-1], 0, 255)
 
 
 def wall(kind: str) -> np.ndarray:
@@ -325,17 +388,22 @@ def wall(kind: str) -> np.ndarray:
 
 
 def kerb() -> np.ndarray:
-    """Painted kerb blocks on real concrete: one tile is 2 m along (v): 1 m red, 1 m white."""
+    """Kerb blocks with old paint on real concrete: one tile is 2 m along (v): 1 m red, 1 m white. The paint is
+    faded and scuffed, with tyre rubber dragged along it and dirt in the joints."""
     base = scan("gravel_concrete_03.jpg", 128, 512)
     grain = (base.mean(-1, keepdims=True) / 128.0)[:, :128]
     a = np.zeros((512, 128, 3), np.float32)
-    a[:256] = (176, 30, 28)
-    a[256:] = (222, 220, 212)
-    a = a * (0.55 + 0.45 * grain)
-    for row in (0, 256):                                      # joints between the blocks
-        a[row: row + 4] *= 0.6
-        a[row - 4 if row else 508: row if row else 512] *= 0.6
-    return a
+    a[:256] = (146, 40, 36)
+    a[256:] = (198, 196, 186)
+    a = a * (0.50 + 0.50 * grain)
+    wear = np.clip(fnoise(512, 3, 20, 61)[:, :128] * 0.7 + fnoise(512, 20, 120, 62)[:, :128] * 0.6 - 0.8, 0, 1)[..., None]
+    a = a * (1 - 0.55 * wear) + base[:, :128] * 0.9 * (0.55 * wear)        # bare concrete where the paint is gone
+    rubber = np.clip(fnoise(512, 6, 300, 63, aniso=14.0)[:, :128] - 0.9, 0, 1.2)[..., None] / 1.2
+    a = a * (1 - 0.6 * rubber) + 22 * 0.6 * rubber                           # dark streaks along the kerb
+    for row in (0, 256):                                                    # joints between the blocks
+        a[row: row + 5] *= 0.5
+        a[row - 5 if row else 507: row if row else 512] *= 0.5
+    return np.clip(a, 0, 255)
 
 
 def barricade() -> np.ndarray:
@@ -356,8 +424,8 @@ def tyres() -> np.ndarray:
     a += rng.normal(0, 3.0, a.shape)
     for k in range(4):
         y0 = 256 - (k + 1) * 64
-        if k == 3:
-            a[y0: y0 + 64] = np.array((232, 196, 34), np.float32) + rng.normal(0, 4.0, (64, 128, 3))
+        a[y0: y0 + 64] *= rng.uniform(0.85, 1.2)                # tyres of different age
+        a[y0 + 20: y0 + 44] += 5                                # the sidewall bulge catches the light
         a[y0: y0 + 5] *= 0.45                                  # the gap between two tyres
         a[y0 + 59: y0 + 64] *= 0.6
         for x in range(0, 128, 16):                            # tread blocks
@@ -394,17 +462,20 @@ def boards() -> np.ndarray:
 
 def build_static() -> dict[str, bytes]:
     out = {
-        "road.jpg": _jpg(scan("asphalt_track.jpg", 50, 2048, repeat=4, desat=0.6, patchy=0.03, seed=301), 90),
-        "apron.jpg": _jpg(scan("asphalt_pit_lane.jpg", 72, 2048, repeat=4, desat=0.65, patchy=0.07, seed=311), 90),
-        "road_g1.jpg": _jpg(scan("asphalt_track.jpg", 47.0, 2048, repeat=4, desat=0.7, patchy=0.03, seed=301), 88),
-        "road_g2.jpg": _jpg(scan("asphalt_track.jpg", 43.5, 2048, repeat=4, desat=0.8, patchy=0.03, seed=301), 88),
-        "road_g3.jpg": _jpg(scan("asphalt_track.jpg", 40.5, 2048, repeat=4, desat=0.9, patchy=0.03, seed=301), 88),
+        "road.jpg": _jpg(natural("asphalt_track.jpg", (49, 50, 53), 2048, 12, desat=0.5, seed=301, vary=0.075, patches=7), 90),
+        "apron.jpg": _jpg(natural("asphalt_pit_lane.jpg", (72, 72, 73), 2048, 12, desat=0.6, seed=311, vary=0.10, patches=12), 90),
+        "road_g1.jpg": _jpg(natural("asphalt_track.jpg", (46.5, 47.5, 50), 2048, 12, desat=0.6, seed=301, vary=0.075, patches=7), 88),
+        "road_g2.jpg": _jpg(natural("asphalt_track.jpg", (43.5, 44, 46.5), 2048, 12, desat=0.7, seed=301, vary=0.075, patches=7), 88),
+        "road_g3.jpg": _jpg(natural("asphalt_track.jpg", (40.5, 41, 43), 2048, 12, desat=0.8, seed=301, vary=0.075, patches=7), 88),
         "lights.jpg": _jpg(lights(), 92),
         "metal.jpg": _jpg(np.stack([(62 + fnoise(64, 2, 16, 131) * 3) * c for c in (1.0, 1.0, 1.05)], -1)),
         "boards.jpg": _jpg(boards(), 92),
         "pad.jpg": _jpg(scan("asphalt_06.jpg", 122, 1024, repeat=2, patchy=0.05, seed=321), 90),
-        "grass.jpg": _jpg(scan("grass_ground.jpg", GRASS_MEAN, 2048, repeat=4, patchy=0.13, seed=331), 90),
-        "gravel.jpg": _jpg(scan("gravel_floor_02.jpg", (150, 146, 134), 1024, repeat=2, patchy=0.05, seed=341), 90),
+        "grass.jpg": _jpg(natural("grass_ground.jpg", GRASS_MEAN, 2048, 12, seed=331, vary=0.15, tint=(118, 112, 62), tint_amount=0.55), 90),
+        "shoulder.jpg": _jpg(shoulder(), 88),
+        "bags.jpg": _jpg(bags(), 90),
+        "cone.jpg": _jpg(cone(), 90),
+        "gravel.jpg": _jpg(scan("gravel_floor_02.jpg", (138, 132, 118), 1024, repeat=2, patchy=0.09, seed=341), 90),
         "concrete.jpg": _jpg(scan("gravel_concrete_03.jpg", 132, 1024), 90),
         "building.jpg": _jpg(wall("building"), 90),
         "garage.jpg": _jpg(wall("garage"), 90),

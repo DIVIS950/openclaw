@@ -44,6 +44,9 @@ MATERIALS = [
     M("pad", "pad.jpg", specular=0.06, specular_exp=20),
     M("gravel", "gravel.jpg", specular=0.0),
     M("grass", "grass.jpg", specular=0.0),
+    M("shoulder", "shoulder.jpg", specular=0.0),
+    M("bags", "bags.jpg", specular=0.05),
+    M("cone", "cone.jpg", specular=0.15, specular_exp=30),
     M("photo", "ground_photo.jpg", specular=0.0),
     M("photofar", "ground_far.jpg", specular=0.0),
     M("roofphoto", "roof_photo.jpg", specular=0.05),
@@ -95,7 +98,11 @@ def main() -> None:
     # race equipment of 14.11.2026: tyre stacks at the organiser's yellow dots, tape along each row, and a row of
     # barricades across every road that is not part of the race route
     race = props.build_tyre_stacks(tr, parts)
-    race.update(marks.build_arrows(tr, parts))
+    race.update(props.build_cones(tr, parts, circuit.roads_polygon().buffer(0.3)))
+    # wire fences on the pit wall and the paddock wall
+    zs = np.arange(-6.0, 111.1, 3.0)
+    pit_wall = tr.fr.o + (-7.7) * tr.fr.l + zs[:, None] * tr.fr.f
+    race.update(props.build_fences(tr, parts, [(pit_wall, 1.05)] + [(bb["en"], bb["height"]) for bb in circuit.BARRIERS]))
     race.update(props.build_tape(tr, parts))
     rows = props.build_tyre_walls(tr, parts, Polygon(), Polygon(), lines=props.race_barrier_lines(tr), min_len=1.0, anywhere=True)
     race.update(rows=len(props.race_rows(tr)), row_barriers=rows["walls"], row_barrier_m=rows["metres"])

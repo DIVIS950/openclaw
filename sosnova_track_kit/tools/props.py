@@ -326,7 +326,7 @@ def race_barrier_lines(tr: Track) -> list[dict]:
             if d < 2.2:
                 continue
             u = (b - a) / d
-            out.append(dict(en=[(a + u * 0.6).round(2).tolist(), (b - u * 0.6).round(2).tolist()], width=0.45, height=0.75, material="barricade"))
+            out.append(dict(en=[(a + u * 0.55).round(2).tolist(), (b - u * 0.55).round(2).tolist()], width=0.62, height=0.52, material="bags"))
     return out
 
 
@@ -339,7 +339,7 @@ def build_tape(tr: Track, parts: Parts) -> dict:
             d = float(np.linalg.norm(b - a))
             en = np.array([a, b])
             g = tr.H.ground(en)
-            pos = np.vstack([tr.fr.world(en, g + 0.80), tr.fr.world(en, g + 0.93)])
+            pos = np.vstack([tr.fr.world(en, g + 0.80), tr.fr.world(en, g + 0.87)])
             P.append(pos)
             U.append(np.array([[0, 0.3], [d / 1.0, 0.3], [0, 0.6], [d / 1.0, 0.6]]))
             T.append(np.array([[0, 1, 3], [0, 3, 2]]) + off)
@@ -367,5 +367,66 @@ def road_block_lines(tr: Track, mouths) -> list[dict]:
             if len(tr.cones_en) and np.linalg.norm(tr.cones_en - mid, axis=1).min() < 16.0:
                 continue                                    # the organiser's own row already closes this road
             st = (a - 1 + np.arange(ln + 2)).astype(float)
-            out.append(dict(en=tr.en(st, side * (w[(a - 1 + np.arange(ln + 2)) % n] + 1.6)).round(2).tolist(), width=0.5, height=0.85, material="barricade"))
+            out.append(dict(en=tr.en(st, side * (w[(a - 1 + np.arange(ln + 2)) % n] + 1.6)).round(2).tolist(), width=0.8, height=0.95))
     return out
+
+
+def build_cones(tr: Track, parts: Parts, mouths) -> dict:
+    """Orange traffic cones on the edge of the lap wherever another road joins it, one every 3 m, so the way of
+    the race route is plain to see. They are for the eye only: a car passes through them. mouths: roads polygon."""
+    n = tr.n
+    SEG = 8
+    ang = np.linspace(0, 2 * np.pi, SEG + 1)
+    ring = np.column_stack([np.cos(ang), np.sin(ang)])
+    P, U, T, HN, off, count = [], [], [], [], 0, 0
+    for side in (1, -1):
+        w = tr.wl if side > 0 else tr.wr
+        beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
+        m = contains_xy(mouths, beyond[:, 0], beyond[:, 1])
+        if side > 0:
+            m &= ~tr.in_pit_stretch()
+        for st in np.where(m)[0][::3]:
+            c = tr.en(np.array([float(st)]), np.array([side * (w[st] + 0.25)]))[0]
+            g = float(tr.h(np.array([float(st)]), np.array([side * w[st]]))[0])
+            base = tr.fr.world(c[None, :] + ring * 0.15, np.full(SEG + 1, g))
+            tip = tr.fr.world(c[None, :] + ring * 0.025, np.full(SEG + 1, g + 0.52))
+            out = tr.fr.vec(ring)
+            n3 = np.column_stack([out[:, 0], np.full(SEG + 1, 0.3), out[:, 1]])
+            P.append(np.vstack([base, tip]))
+            U.append(np.vstack([np.column_stack([ang / (2 * np.pi), np.zeros(SEG + 1)]), np.column_stack([ang / (2 * np.pi), np.ones(SEG + 1)])]))
+            r = np.arange(SEG)
+            mid = n3[r] + n3[r + 1]
+            HN.append(np.vstack([mid, mid]))
+            T.append(np.concatenate([np.stack([r, r + SEG + 1, r + SEG + 2], -1), np.stack([r, r + SEG + 2, r + 1], -1)]) + off)
+            off += 2 * (SEG + 1)
+            count += 1
+    if P:
+        parts.surface("CONES_route", "cone", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.vstack(HN), smooth=True)
+    return dict(cones=count)
+
+
+def build_fences(tr: Track, parts: Parts, lines: list) -> dict:
+    """Wire mesh fences on top of the walls, as around the real paddock and pits (for the eye only).
+    lines: [(east/north polyline, height of the wall under it)]."""
+    P, U, T, HN, off, total = [], [], [], [], 0, 0.0
+    for en, base_h in lines:
+        en = np.asarray(en, float)
+        seg = np.linalg.norm(np.diff(en, axis=0), axis=1)
+        s = np.concatenate([[0], np.cumsum(seg)])
+        m = max(2, int(s[-1] / 2.5) + 1)
+        q = np.column_stack([np.interp(np.linspace(0, s[-1], m), s, en[:, 0]), np.interp(np.linspace(0, s[-1], m), s, en[:, 1])])
+        g = tr.H.ground(q)
+        pos = np.vstack([tr.fr.world(q, g + base_h), tr.fr.world(q, g + base_h + 1.7)])
+        u = np.linspace(0, s[-1], m) / 2.5
+        P.append(pos)
+        U.append(np.vstack([np.column_stack([u, np.zeros(m)]), np.column_stack([u, np.ones(m)])]))
+        r = np.arange(m - 1)
+        T.append(np.concatenate([np.stack([r, r + 1, r + m + 1], -1), np.stack([r, r + m + 1, r + m], -1)]) + off)
+        d = np.gradient(q, axis=0)
+        nrm = tr.fr.vec(np.column_stack([-d[:, 1], d[:, 0]]) / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9))
+        HN.append(np.tile(np.column_stack([nrm[:-1, 0], np.zeros(m - 1), nrm[:-1, 1]]), (2, 1)))
+        off += 2 * m
+        total += float(s[-1])
+    if P:
+        parts.surface("FENCE_walls", "fence", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.vstack(HN), smooth=False, double_sided=True, cast_shadows=False)
+    return dict(fence_m=round(total))
