@@ -94,7 +94,7 @@ is stored here or used as a texture.
 - The real circuit has flat grey concrete kerbs, not red and white ones, and few painted lines. The red and white kerbs and the edge lines stay because the owner asked for them. They are weathered so they do not look new.
 - The preview pictures are renders with their own sky and light. The game lights the track itself, so it will look different there.
 - The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. The grass tiles are about 7 cm per pixel and look soft from close up.
-- The model is 48 MB now, mostly the 63 lap textures and 31 grass tiles. Uncompressed they need roughly 0.7 GB of graphics memory.
+- The model is 48 MB now, mostly the 63 lap textures and 26 grass tiles. Uncompressed they need roughly 0.7 GB of graphics memory.
 - The ground mesh builder merges outline points closer than 10 cm and splits segments at vertices lying on them.
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
