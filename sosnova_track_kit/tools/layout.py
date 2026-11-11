@@ -243,7 +243,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v10.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v11.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -254,7 +254,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v10.0".
+3. Start the game and pick the track "Autodrom Sosnova v11.0".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
@@ -275,6 +275,8 @@ WHAT IT IS
   with yellow soft bags between them, as the circuit uses them, and a thin tape on top. Three rows make the chicane
   on the back straight. Green and yellow padded barriers close the other unused roads. Orange cones stand on the
   edge of the route at every junction.
+- Rebuilt from the real aerial photo: every 28 m of the lap has its own picture of the real asphalt there, with its
+  real patches and marks, and the grass around the track has the real colours and patterns of the place.
 - Realistic look, taken from photos of the real place: coarse, patchy asphalt, uneven grass with a worn dirt edge
   beside the road, weathered kerbs and lines, wire fences on the walls.
 - Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game
@@ -342,7 +344,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v10.0",
+        "name": "Autodrom Sosnová v11.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the race of 14.11.2026. The lap (1764 m, "
                        "anticlockwise, under the green bridge) is the route of that race. Tyre barrels, red and white barriers and "
                        "tape stand where the organiser's map shows them, with a chicane on the back straight and arrows before "
@@ -358,7 +360,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "10.0",
+        "version": "11.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

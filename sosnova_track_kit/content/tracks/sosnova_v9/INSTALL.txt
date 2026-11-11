@@ -1,4 +1,4 @@
-AUTODROM SOSNOVA v10.0 for Assetto Corsa
+AUTODROM SOSNOVA v11.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -9,7 +9,7 @@ INSTALL
    so that this file exists:
       ...\content\tracks\sosnova_v9\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v10.0".
+3. Start the game and pick the track "Autodrom Sosnova v11.0".
 
 WHAT IT IS
 - The lap of Autodrom Sosnova (1764 m, anticlockwise, under the green bridge), redesigned as a clean racetrack:
@@ -30,6 +30,8 @@ WHAT IT IS
   with yellow soft bags between them, as the circuit uses them, and a thin tape on top. Three rows make the chicane
   on the back straight. Green and yellow padded barriers close the other unused roads. Orange cones stand on the
   edge of the route at every junction.
+- Rebuilt from the real aerial photo: every 28 m of the lap has its own picture of the real asphalt there, with its
+  real patches and marks, and the grass around the track has the real colours and patterns of the place.
 - Realistic look, taken from photos of the real place: coarse, patchy asphalt, uneven grass with a worn dirt edge
   beside the road, weathered kerbs and lines, wire fences on the walls.
 - Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game

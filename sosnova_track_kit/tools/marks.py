@@ -73,7 +73,7 @@ def build_edge_lines(tr: Track, parts: Parts) -> dict:
 def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
     """asphalt, keep_out: shapely geometries in east/north."""
     data = json.load(open(os.path.join(WORK, "paint.json"), encoding="utf-8"))
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1GRASS_v"))
     stats = dict(lines=0, line_m=0.0, areas=0)
     from scipy.spatial import cKDTree
     edge_tree = cKDTree(np.vstack(edge_lines_en(tr)))
@@ -198,7 +198,7 @@ def build_start(tr: Track, parts: Parts, grid: list[tuple[float, float]], pits: 
 def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep_out, lap=None) -> dict:
     """White edge lines on the other roads: two parallel lines per road, the same distance from its centre.
     roads: [(centre line east/north, width m)]. No lines across broad aprons, the lap, or next to buildings."""
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1SAND"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1GRASS_v", "1SAND"))
     off_limits = unary_union([aprons.buffer(-1.0), keep_out]) if not aprons.is_empty else keep_out
     if lap is not None:
         off_limits = unary_union([off_limits, lap.buffer(0.2)])
@@ -261,7 +261,7 @@ def build_road_lines(tr: Track, parts: Parts, roads: list, asphalt, aprons, keep
 
 def build_area_lines(tr: Track, parts: Parts, areas, asphalt, keep_out) -> dict:
     """A white line along the free edge of every paved area: drawn 0.3 m inside the outline wherever grass lies beyond it."""
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1SAND"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1GRASS_v", "1SAND"))
     P, U, T, off, total = [], [], [], 0, 0.0
     for poly in getattr(areas, "geoms", [areas]):
         if poly.is_empty:
@@ -308,7 +308,7 @@ def build_area_lines(tr: Track, parts: Parts, areas, asphalt, keep_out) -> dict:
 def build_turn1_limit(tr: Track, parts: Parts, outer: np.ndarray, lap) -> dict:
     """The outer limit of the real turn 1 where it crosses the race lap: a dashed white line, so the sweep of the
     turn into the return road can be seen but the race route stays open."""
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1GRASS_v"))
     d = np.gradient(outer, axis=0)
     d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
     nrm = np.column_stack([-d[:, 1], d[:, 0]])

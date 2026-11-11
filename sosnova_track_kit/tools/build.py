@@ -73,7 +73,7 @@ def main() -> None:
     t0 = time.time()
     tr = Track()
     parts = Parts()
-    ribbon.build_road(tr, parts, layout.racing_line(tr))
+    lap_tex, lap_mats = ribbon.build_road(tr, parts, layout.racing_line(tr))
     foot = props.build_buildings(tr, parts)
     info = ground.build_ground(tr, parts, unary_union(foot))
     ground.build_far(tr, parts, info)
@@ -111,13 +111,20 @@ def main() -> None:
     keep_out = unary_union([info["R"].buffer(design.VERGE + 3.0), info["A"].buffer(4.0), info["G"].buffer(2.0), *[f.buffer(2.0) for f in foot]])
     trees = props.build_trees(tr, parts, keep_out)
     tex = textures.build_static()
-    tex.update(photo.build(info["covered"], textures.GRASS_MEAN))
+    tex.update(photo.build(info["covered"], textures.GRASS_MEAN, blend_m=0.5))      # the near grass is photo too: no fade
+    for name in ("road_g1.jpg", "road_g2.jpg", "road_g3.jpg"):                      # the racing line is baked into the lap textures
+        tex.pop(name, None)
+    tex.update(lap_tex)
+    tex.update(info["photo_tex"])
+    materials = [m for m in MATERIALS if not m.name.startswith("road_g")]
+    materials += [M(n_, n_ + ".jpg", specular=0.10, specular_exp=30) for n_ in lap_mats]
+    materials += [M(n_, n_ + ".jpg", specular=0.0) for n_ in info["photo_mats"]]
     dummies, dinfo = layout.make_dummies(tr)
     meshes = parts.meshes()
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(os.path.join(OUT, "ai"), exist_ok=True)
     kn5_path = os.path.join(OUT, f"{TRACK}.kn5")
-    kn5.write(kn5_path, TRACK, tex, MATERIALS, meshes, dummies)
+    kn5.write(kn5_path, TRACK, tex, materials, meshes, dummies)
     ai = layout.write_ai(tr, os.path.join(OUT, "ai", "fast_lane.ai"))
     edges = np.vstack([tr.fr.xz(tr.edge_en(1)), tr.fr.xz(tr.edge_en(-1))])
     layout.write_data(tr, OUT, ai, edges)

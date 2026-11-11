@@ -70,7 +70,7 @@ def build_road_kerbs(tr: Track, parts: Parts, asphalt) -> dict:
     """The same raised red and white kerbs on the other roads of the circuit, by the same rule as on the lap:
     inside of every bend tighter than INSIDE_R, outside of the exit of bends tighter than EXIT_R. They stand on
     the built ground. asphalt: the lap and all other asphalt; no kerb where it would lie on asphalt."""
-    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1SAND"))
+    look = SurfaceLookup.from_parts(parts, ("1ROAD_trk", "1APRON", "1GRASS_g", "1GRASS_w", "1GRASS_v", "1SAND"))
     count, total = 0, 0.0
     for road in circuit.road_frames():
         q, nrm, half, k = road["en"], road["nrm"], road["half"], road["k"]

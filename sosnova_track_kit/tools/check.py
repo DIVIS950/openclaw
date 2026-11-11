@@ -216,7 +216,7 @@ def main() -> None:
     print("joins")
     from track import Track
     tr = Track()
-    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1GRASS_w", "1APRON", "1SAND"))]).astype(np.float64)
+    gv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1GRASS_g", "1GRASS_w", "1GRASS_v", "1APRON", "1SAND"))]).astype(np.float64)
     gtree = cKDTree(gv)
     worst, tj, tj_gap = 0.0, 0, 0.0
     for side in (1, -1):

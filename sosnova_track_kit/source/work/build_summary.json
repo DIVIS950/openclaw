@@ -1,16 +1,17 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 363,
- "vertices": 184937,
- "triangles": 191264,
- "kn5_mb": 22.12,
+ "meshes": 384,
+ "vertices": 177910,
+ "triangles": 193230,
+ "kn5_mb": 48.11,
  "ground": {
-  "asphalt": 4231,
-  "gravel": 3070,
-  "grass": 13546,
-  "shoulder": 10075,
-  "photo": 2132
+  "asphalt": 4223,
+  "gravel": 3062,
+  "grass": 8969,
+  "shoulder": 10048,
+  "verge": 6587,
+  "photo": 2131
  },
  "asphalt_m2": 32181,
  "gravel_m2": 8978,

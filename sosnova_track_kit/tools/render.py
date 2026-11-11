@@ -176,7 +176,7 @@ def setup(scene):
             continue
     sun_bl = Vector(to_bl(to_sun)).normalized()
     for attr, val in (("sun_disc", False), ("sun_elevation", float(np.arcsin(sun_bl.z))), ("sun_rotation", float(np.arctan2(sun_bl.x, sun_bl.y))),
-                      ("air_density", 1.6), ("aerosol_density", 2.2), ("dust_density", 2.2), ("ozone_density", 1.0), ("altitude", 250.0)):
+                      ("air_density", 1.0), ("aerosol_density", 1.0), ("dust_density", 1.0), ("ozone_density", 1.0), ("altitude", 250.0)):
         try:
             setattr(sky, attr, val)
         except (AttributeError, TypeError):

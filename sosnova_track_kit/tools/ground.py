@@ -205,11 +205,11 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     seen = cKDTree(np.array(reg.pts))
     for p in rows[contains_xy(A.buffer(-0.7), rows[:, 0], rows[:, 1]) & (seen.query(rows)[0] > 0.9)]:
         reg.add(p)
-    # 3c. a row of vertices 1 m outside the other asphalt, so a narrow worn strip can run along it as along the lap
-    ring = A.buffer(1.0)
+    # 3c. a row of vertices 1 m outside the other asphalt and 4 m outside the lap: the worn strip and the mown verge end there
+    ring = unary_union([A.buffer(1.0).boundary, R.buffer(4.0).boundary])
     seen = cKDTree(np.array(reg.pts))
     for g_ in getattr(ring, "geoms", [ring]):
-        for r_ in [g_.exterior, *g_.interiors]:
+        for r_ in [g_]:
             k_ = max(4, int(r_.length / 1.6))
             pts_ = np.array([r_.interpolate(j / k_, normalized=True).coords[0] for j in range(k_)])
             ok_ = ~contains_xy(unary_union([R.buffer(1.3), A.buffer(0.5), G.buffer(0.6)]), pts_[:, 0], pts_[:, 1]) & (seen.query(pts_)[0] > 0.7)
@@ -314,6 +314,9 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     dv = _d(_p(V), unary_union([R, A]))
     worn = near & (dv[T].max(1) <= 1.35)
     near = near & ~worn
+    # the mown verge beside the lap keeps the close-up grass scan; beyond it the grass is the photo
+    verge = near & (_d(_p(V), R)[T].max(1) <= 4.35)
+    near = near & ~verge
     # roads of the circuit carry the same dark asphalt as the lap, paved areas the lighter apron asphalt, pads concrete
     kind = np.where(contains_xy(road_part, cen[:, 0], cen[:, 1]), 0, np.where(contains_xy(pad_part, cen[:, 0], cen[:, 1]), 2, 1))
     # geometry
@@ -325,12 +328,21 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     plan = pos[:, [0, 2]]
     layers = ((apron & (kind == 0), "1APRON_r", "road", plan / TILE_M["road"]), (apron & (kind == 1), "1APRON_a", "apron", plan / TILE_M["apron"]),
               (apron & (kind == 2), "1APRON_c", "pad", plan / TILE_M["pad"]), (gravel, "1SAND_s", "gravel", plan / TILE_M["gravel"]),
-              (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (worn, "1GRASS_w", "shoulder", plan / TILE_M["shoulder"]),
+              (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (worn, "1GRASS_w", "shoulder", plan / TILE_M["shoulder"]), (verge, "1GRASS_v", "grass", plan / TILE_M["grass"]),
               (far, "1GRASS_p", "photo", site_uv(V)))
+    import realtex
+    photo_tex, photo_mats = {}, []
     for sel, prefix, mat, uv in layers:
         for tid in np.unique(tile_id[sel]):
             t = T[sel & (tile_id == tid)]
             ids, inv = np.unique(t, return_inverse=True)
+            if prefix == "1GRASS_g":                             # the real grass of this tile, from the aerial photo
+                e0, n0 = (tid // 100) * TILE - HALF_E, (tid % 100) * TILE - HALF_N
+                name = f"g{tid:04d}"
+                photo_tex[name + ".jpg"] = realtex.grass_tile(e0, n0, TILE)
+                photo_mats.append(name)
+                parts.add(f"{prefix}{tid:04d}", name, pos[ids], nrm[ids], realtex.grass_uv(e0, n0, TILE, V[ids]), inv.reshape(-1, 3), cast_shadows=False)
+                continue
             parts.add(f"{prefix}{tid:04d}", mat, pos[ids], nrm[ids], uv[ids], inv.reshape(-1, 3), cast_shadows=False)
     # raster of everything that carries tiled textures (the photo is faded into grass next to it)
     covered = np.zeros((int(2 * HALF_N / MASK_GSD), int(2 * HALF_E / MASK_GSD)), np.uint8)
@@ -338,10 +350,10 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     cv2.fillPoly(covered, [np.round(px[t]).astype(np.int32) for t in T[~far]], 1)
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
-    info = dict(R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
+    info = dict(photo_tex=photo_tex, photo_mats=photo_mats, R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
-                cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn, 2, 3))))
+                cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn | verge, 2, 3))))
     return info
 
 

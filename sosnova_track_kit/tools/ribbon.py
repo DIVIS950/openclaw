@@ -24,9 +24,10 @@ def columns(tr: Track, i: np.ndarray) -> np.ndarray:
     return np.stack([-wr + (wl + wr) * f for f in np.linspace(0, 1, COLS)], axis=1)
 
 
-def build_road(tr: Track, parts: Parts, line_offset: np.ndarray) -> None:
-    """line_offset: lateral position of the racing line per station (m, + = left). Where the cars run the
-    asphalt is darker, in three gentle steps, as rubber builds up on a real circuit."""
+def build_road(tr: Track, parts: Parts, line_offset: np.ndarray):
+    """The lap, cut into pieces of 28 m. Each piece carries its own texture, baked from the aerial photo of
+    exactly that piece of road (realtex.lap_textures). Returns (textures, material names)."""
+    import realtex
     n = tr.n
     i = np.arange(n + 1) % n
     D = columns(tr, i)
@@ -34,26 +35,16 @@ def build_road(tr: Track, parts: Parts, line_offset: np.ndarray) -> None:
     hgt = tr.H.z[i][:, None] + tr.H.camber[i][:, None] * D
     pos = tr.fr.world(en.reshape(-1, 2), hgt.ravel())
     cols = D.shape[1]
-    # smooth normals from the closed grid (rows 0..n-1), then copied to the duplicate closing row
     tri_all = wind_up(pos, grid_tris(n + 1, cols))
     nrm = vertex_normals(pos, tri_all).reshape(n + 1, cols, 3)
     seam = nrm[0] + nrm[n]
     nrm[0] = nrm[n] = seam / np.linalg.norm(seam, axis=1, keepdims=True)
     nrm = nrm.reshape(-1, 3)
-    uv = pos[:, [0, 2]] / TILE_M["road"]
-    mid = (D[:-1, :-1] + D[:-1, 1:] + D[1:, :-1] + D[1:, 1:]) / 4                      # lateral centre of every quad
-    off = (line_offset[i[:-1]] + line_offset[i[1:]]) / 2
-    busy = 0.8 + 0.2 * np.clip(np.abs(tr.k[i[:-1]]) * 40.0, 0, 1)                      # more rubber in the corners
-    rubber = np.exp(-0.5 * ((mid - off[:, None]) / GROOVE_SIGMA) ** 2) * busy[:, None]
-    level = np.digitize(rubber, [0.25, 0.5, 0.75])                                     # 0 = clean .. 3 = darkest
-    for k, a in enumerate(range(0, n, CHUNK)):
-        b = min(n, a + CHUNK)
-        r = (np.arange(a, b)[:, None] * cols + np.arange(cols - 1)[None, :]).ravel()
-        lv = level[a:b].ravel()
-        for g in range(4):
-            q = r[lv == g]
-            if len(q) == 0:
-                continue
-            t = wind_up(pos, np.concatenate([np.stack([q, q + 1, q + cols + 1], -1), np.stack([q, q + cols + 1, q + cols], -1)]))
-            ids, inv = np.unique(t, return_inverse=True)
-            parts.add(f"1ROAD_trk_{k:02d}_{g}", "road" if g == 0 else f"road_g{g}", pos[ids], nrm[ids], uv[ids], inv.reshape(-1, 3), cast_shadows=False)
+    tex, chunks = realtex.lap_textures(tr, line_offset)
+    for k, (a, b, name) in enumerate(chunks):
+        rows = np.arange(a, b + 1)                                   # station b is row b (row n duplicates row 0)
+        ids = (rows[:, None] * cols + np.arange(cols)[None, :]).ravel()
+        uv = realtex.lap_uv(a, b, np.repeat(rows.astype(float), cols), D[rows].ravel())
+        t = wind_up(pos[ids], grid_tris(len(rows), cols))
+        parts.add(f"1ROAD_trk_{k:02d}", name, pos[ids], nrm[ids], uv, t, cast_shadows=False)
+    return tex, [name for _, _, name in chunks]

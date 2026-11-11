@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v10.0)
+# Autodrom Sosnová for Assetto Corsa (v11.0)
 
 A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká Lípa, Czech Republic.
 
@@ -6,7 +6,7 @@ A drivable Assetto Corsa (2014) track based on Autodrom Sosnová near Česká L�
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first.
 
-## What v10.0 is
+## What v11.0 is
 
 The clean racetrack of version 5, with every other road of the circuit connected to it. Versions 6 to 8 tried
 to follow the aerial photo edge by edge. The owner found them messy and pointed at a picture of the version 5
@@ -16,6 +16,7 @@ lap does not use are traced by hand (`tools/circuit.py`) and each runs from the 
 
 | Part | How it is made |
 | --- | --- |
+| Rebuilt from the aerial photo (11.0) | The owner asked for a remake from scratch, realistic, a copy of the real place. The route stays, because he had called it perfect. What you see was rebuilt around the 12.5 cm aerial photo (`tools/realtex.py`). The lap is cut into 63 pieces of 28 m and each piece has its own texture: the light and dark pattern of the real asphalt at that spot comes from the photo, the grain from a close-up asphalt scan, and the rubbered racing line is baked on top. The grass beyond the mown verge is one texture per 90 m ground tile with the real colours and patterns of the photo and scanned grass grain. Places where the photo shows no clean asphalt or grass (paint, cars, buildings, the bridge and its shadow) are filled from their surroundings. A 4 m mown verge beside the lap keeps the close-up grass scan so it stays sharp. |
 | Realistic look (10.0) | The owner found 9.7 not realistic, unfinished and too playful. The look was redone from the 2026 track-day photos of the real place. Asphalt and grass are big tiles (24 m and 40 m) of the scans, broken up by slow light and dark drift, repair patches with sealed joints, and dry patches in the grass, so no small tile repeats. A worn strip of dry grass and soil runs along all asphalt. Kerb paint and line paint are faded and scuffed, the lines are 12 cm wide. Wire fences stand on the pit wall and the paddock wall (205 m). The race rows are tyre stacks with yellow soft bags between them, as the circuit uses them. Closed roads have green and yellow padded barriers. 50 orange cones on the edge of the route at junctions replace the painted arrows. The preview renderer uses a physical sky, a warm sun and a photographic tone curve. |
 | Lap position and height | From the survey: the route of the 14.11.2026 event moved onto the real asphalt (`refine.py`), 1764 m anticlockwise, heights from the lidar terrain model as a smooth analytic surface. |
 | Road | 9 m wide everywhere. White lines on both edges, parallel all the way round, dashed along the pit apron. A rubbered racing line in three gentle steps of darker asphalt. |
@@ -92,6 +93,8 @@ is stored here or used as a texture.
 - `check.py` runs 47 checks from 9.4. Ten new ones cover each connected road (paved over its whole width, even), the road kerbs, the barricades (clear of the lap), every tyre stack (on the ground, racing line and free road width past it).
 - The real circuit has flat grey concrete kerbs, not red and white ones, and few painted lines. The red and white kerbs and the edge lines stay because the owner asked for them. They are weathered so they do not look new.
 - The preview pictures are renders with their own sky and light. The game lights the track itself, so it will look different there.
+- The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. The grass tiles are about 7 cm per pixel and look soft from close up.
+- The model is 48 MB now, mostly the 63 lap textures and 31 grass tiles. Uncompressed they need roughly 0.7 GB of graphics memory.
 - The ground mesh builder merges outline points closer than 10 cm and splits segments at vertices lying on them.
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
@@ -108,12 +111,10 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
 ![Turn 1 from the car](previews/lap_0130.jpg)
-![Turn 1 and the barrier line](previews/air_east.jpg)
-![The barrier line on the east leg](previews/race_row_east.jpg)
+![Turn 1 from the air](previews/air_east.jpg)
 ![The chicane on the back straight](previews/race_chicane.jpg)
 ![Infield hairpin](previews/lap_0400.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![Start area and infield](previews/air_start.jpg)
 ![The big square](previews/air_plaza.jpg)
-![South-west loop](previews/air_sw.jpg)
 ![From above](previews/top.jpg)
