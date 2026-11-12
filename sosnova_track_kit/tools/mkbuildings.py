@@ -35,6 +35,81 @@ PIT_COMPLEX = [
 EXTRA = [(5.3, 34.6, 6.2, 3.6, -14.0, 2.7, "hut")]
 
 
+def _axes(en: np.ndarray):
+    c = en.mean(0)
+    e0, e1 = en[1] - en[0], en[2] - en[1]
+    l0, l1 = float(np.linalg.norm(e0)), float(np.linalg.norm(e1))
+    (u, lu), (v, lv) = ((e0 / l0, l0), (e1 / l1, l1)) if l0 >= l1 else ((e1 / l1, l1), (e0 / l0, l0))
+    return c, u, lu, v, lv
+
+
+def _heights(ndsm: np.ndarray, p: np.ndarray) -> np.ndarray:
+    px, py = (p[..., 0] + HALF_E) / 0.5 - 0.5, (HALF_N - p[..., 1]) / 0.5 - 0.5
+    return cv2.remap(ndsm.astype(np.float32), px.astype(np.float32), py.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+
+def refine_rect(en: np.ndarray, ndsm: np.ndarray) -> np.ndarray:
+    """Move the sides of a footprint to where the surface model puts the walls. The model smears a wall over about
+    3 m, evenly to both sides, so the wall stands where the height passes half of the roof height."""
+    en = np.asarray(en, float)
+    c, u, lu, v, lv = _axes(en)
+    ext = {}
+    for name, a, la, b, lb in (("u", u, lu, v, lv), ("v", v, lv, u, lu)):
+        t = np.arange(-la / 2 - 3.0, la / 2 + 3.0 + 1e-6, 0.25)
+        w = np.arange(-lb / 4, lb / 4 + 1e-6, 0.5)                    # the middle half of the other direction
+        prof = np.median(_heights(ndsm, c + t[:, None, None] * a + w[None, :, None] * b), axis=1)
+        top = float(np.median(prof[prof > 0.6 * prof.max()])) if prof.max() > 1.5 else 0.0
+        on = np.where(prof > 0.5 * top)[0]
+        if top < 1.5 or len(on) < 8:
+            return en
+        ext[name] = (float(t[on[0]]), float(t[on[-1]]))
+    (u0, u1), (v0, v1) = ext["u"], ext["v"]
+    if not (0.6 * lu <= u1 - u0 <= 1.25 * lu and 0.6 * lv <= v1 - v0 <= 1.25 * lv):
+        return en
+    return np.array([c + u0 * u + v0 * v, c + u1 * u + v0 * v, c + u1 * u + v1 * v, c + u0 * u + v1 * v])
+
+
+def roof_shape(en: np.ndarray, ndsm: np.ndarray, height: float) -> dict:
+    """The shape of a roof, read from the laser-scanned surface model (0.5 m grid of heights above the ground).
+
+    The heights inside the footprint, 2 m in from the walls where the model is smeared, are averaged along the long
+    side of the building, which leaves the profile across it. A profile with a peak in the middle is a gable roof
+    (ridge along the building), a tilted one is a single-pitch roof, anything else is flat. Returns heights above
+    the ground: one per corner of the footprint, and the ridge (two end points east/north and its height) for a
+    gable roof."""
+    en = np.asarray(en, float)
+    c, u, lu, v, lv = _axes(en)
+    flat = dict(type="flat", corner_h=[round(height, 2)] * 4)
+    if lv < 10.0 or lu < 10.0:                                          # too small to tell a pitch from the smear of the model
+        return flat
+    us = np.arange(-lu / 2 + 2.5, lu / 2 - 2.5 + 1e-6, 0.5)
+    vs = np.arange(-lv / 2 + 2.0, lv / 2 - 2.0 + 1e-6, 0.5)
+    h = _heights(ndsm, c + us[:, None, None] * u + vs[None, :, None] * v)
+    pv = np.median(h, axis=0)                                           # profile across the building
+    k = len(pv)
+    if np.median(pv) < 2.2:                                             # the model does not show this building
+        return flat
+    if k < 6 or pv.min() < 0.6 * np.median(pv):                         # a lower part or a yard inside the footprint
+        return dict(type="flat", corner_h=[round(float(np.median(pv)), 2)] * 4)
+    q = max(1, k // 5)
+    lo, hi, mid = float(pv[:q].mean()), float(pv[-q:].mean()), float(pv[k // 2 - 1: k // 2 + 2].mean())
+    peak, tilt = mid - (lo + hi) / 2, hi - lo
+    corner_v = (en - c) @ v
+    if peak > 0.35 and peak > 0.7 * abs(tilt):
+        half = vs < 0
+        left, right = np.polyfit(vs[half], pv[half], 1), np.polyfit(vs[~half], pv[~half], 1)
+        ridge = max(float(np.polyval(left, 0) + np.polyval(right, 0)) / 2, float(pv.max()))
+        eave = float(np.polyval(left, -lv / 2) + np.polyval(right, lv / 2)) / 2
+        if 0.5 <= ridge - eave <= 0.7 * lv / 2 and eave >= 2.2:
+            return dict(type="gable", corner_h=[round(eave, 2)] * 4, ridge_h=round(ridge, 2),
+                        ridge_en=[(c - u * lu / 2).round(2).tolist(), (c + u * lu / 2).round(2).tolist()])
+    if abs(tilt) > 0.6:
+        hh = np.polyval(np.polyfit(vs, pv, 1), corner_v)
+        if np.ptp(hh) <= max(3.0, 0.35 * lv) and hh.min() >= 2.2:
+            return dict(type="shed", corner_h=[round(float(x), 2) for x in hh])
+    return dict(type="flat", corner_h=[round(float(np.median(pv)), 2)] * 4)
+
+
 def main() -> None:
     tr = Track()
     fr = tr.fr
@@ -81,8 +156,23 @@ def main() -> None:
         if any(m.contains(Point(c)) for m in manual) or Polygon(en).distance(Polygon(tr.edge_en(-1))) < 0.5 and Polygon(tr.edge_en(-1)).contains(Point(c)) and Polygon(en).distance(Polygon(tr.edge_en(1)).exterior) < 2:
             continue
         out.append(dict(en=en.round(2).tolist(), height=round(height, 1), style="hall" if area > 250 else "building"))
+    moved = 0
+    for k_, b in enumerate(out):
+        if k_ >= len(PIT_COMPLEX) + len(EXTRA):                         # the hand-measured footprints stay
+            new = refine_rect(np.array(b["en"]), ndsm)
+            moved += int(np.abs(new - np.array(b["en"])).max() > 0.5)
+            b["en"] = new.round(2).tolist()
+        b["roof"] = roof_shape(np.array(b["en"]), ndsm, b["height"])
+        b["height"] = round(float(b["roof"].get("ridge_h", max(b["roof"]["corner_h"]))), 2)
+    print("footprints moved to the walls of the surface model:", moved)
     json.dump(out, open(os.path.join(SRC, "buildings.json"), "w"), indent=1)
+    kinds = [b["roof"]["type"] for b in out]
     print(len(out), "buildings; heights", sorted(b["height"] for b in out))
+    print("roofs:", {k: kinds.count(k) for k in ("gable", "shed", "flat")})
+    for b in out:
+        if b["roof"]["type"] != "flat":
+            r = b["roof"]
+            print("  %-5s at (%4.0f, %4.0f): eave %s, ridge %s" % (r["type"], *np.mean(b["en"], 0), sorted(set(r["corner_h"])), r.get("ridge_h", "-")))
 
 
 if __name__ == "__main__":

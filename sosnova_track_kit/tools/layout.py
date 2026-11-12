@@ -246,7 +246,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v12.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v13.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -257,7 +257,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v12.0".
+3. Start the game and pick the track "Autodrom Sosnova v13.0".
 
 WHAT IT IS
 - Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
@@ -279,7 +279,10 @@ WHAT IT IS
   with yellow soft bags between them and a thin tape on top. Three rows make the chicane on the back straight.
   Where the route crosses open asphalt, orange cones mark both sides of it.
 - Chequered start line, 16 grid boxes, start lights, 16 pit boxes on the wide asphalt beside the start straight.
-- The heights of the track, the bridge, the buildings and the trees come from Czech state survey data.
+- The whole place comes from the laser scan of the Czech state survey, not only the road:
+  the landscape has its real banks, ditches and mounds; every building has its measured footprint, height and
+  roof shape with its own piece of the aerial photo on the roof; the trees stand at their measured heights; the
+  motorway viaduct behind the west loop is there.
 - Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game
   times every lap and shows two sector times.
 
@@ -345,10 +348,10 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v12.0",
+        "name": "Autodrom Sosnová v13.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real "
                        "outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand "
-                       "run-offs and tyre walls. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race "
+                       "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race "
                        "of 14.11.2026, with tyre stacks, bags and tape where the organiser's map shows them and a chicane on the "
                        "back straight. 16 grid slots, 16 pit boxes, AI line, lap timing with two sectors. Data: ČÚZK (CC BY 4.0), "
                        "materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
@@ -361,7 +364,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "12.0",
+        "version": "13.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

@@ -253,7 +253,8 @@ def main() -> None:
         en = np.array([[float(e), float(n)]])
         return tr.fr.world(en, tr.H.ground(en))[0] + up * h
     for name, eye, tgt in (("air_start", (45, -125, 70), (65, -22)), ("air_plaza", (-75, 15, 60), (12, 76)), ("air_east", (235, -75, 60), (150, -8)),
-                           ("air_sw", (-105, -115, 50), (-33, -42)), ("air_paddock", (-190, -60, 70), (-70, 0))):
+                           ("air_sw", (-105, -115, 50), (-33, -42)), ("air_paddock", (-190, -60, 70), (-70, 0)),
+                           ("air_west", (-120, 40, 40), (-290, 215)), ("air_halls", (70, -95, 75), (0, -215)), ("air_land", (300, 250, 120), (40, 60))):
         shots.append((name, at(*eye), at(*tgt, 0.0), 60))
     for name, eye, tgt, fov in shots:
         if wanted and name not in wanted:

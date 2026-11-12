@@ -233,19 +233,33 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         rect += [(x0 + (x1 - x0) * k / m, y0 + (y1 - y0) * k / m) for k in range(m)]
     rect_ids = [reg.add(p) for p in rect]
     segs += [(rect_ids[k], rect_ids[(k + 1) % len(rect_ids)]) for k in range(len(rect_ids))]
-    # 5. scattered interior vertices: 6 m grid near the track, 16 m grid elsewhere
+    # 5. scattered interior vertices: a 4 m grid near the track and an 8 m grid over the rest of the site, fine
+    #    enough to carry the banks, ditches and mounds of the scanned terrain
     keep_off = cKDTree(np.array(reg.pts))
     rng = np.random.default_rng(7)
-    for step, inside in ((6.0, True), (16.0, False)):
+    for step, inside in ((4.0, True), (8.0, False)):
         gx, gy = np.meshgrid(np.arange(-HALF_E + step / 2, HALF_E, step), np.arange(-HALF_N + step / 2, HALF_N, step))
         g = np.column_stack([gx.ravel(), gy.ravel()]) + rng.uniform(-0.2, 0.2, (gx.size, 2)) * step
         in_zone = contains_xy(zone, g[:, 0], g[:, 1])
         g = g[in_zone if inside else ~in_zone]
         g = g[(np.abs(g[:, 0]) < HALF_E - 5) & (np.abs(g[:, 1]) < HALF_N - 5)]
-        g = g[keep_off.query(g)[0] > (2.5 if inside else 7.0)]
+        g = g[keep_off.query(g)[0] > (1.8 if inside else 3.6)]
         g = g[~contains_xy(R.buffer(0.5), g[:, 0], g[:, 1])]
         for p in g:
             reg.add(p)
+    # 5b. where the terrain is not smooth (banks, ditches, the edges of mounds) a 2.5 m grid on top, so the mesh keeps
+    #     the shape of the scanned ground and does not cut across it
+    from scipy import ndimage as ndi
+    gr = tr.H.g.a
+    rough = np.abs(gr - ndi.gaussian_filter(gr, 3.0 / tr.H.g.gsd))
+    gx, gy = np.meshgrid(np.arange(-HALF_E + 6, HALF_E - 6, 2.5), np.arange(-HALF_N + 6, HALF_N - 6, 2.5))
+    g = np.column_stack([gx.ravel(), gy.ravel()]) + rng.uniform(-0.3, 0.3, (gx.size, 2))
+    g = g[rough[np.clip(((HALF_N - g[:, 1]) / tr.H.g.gsd).astype(int), 0, gr.shape[0] - 1), np.clip(((g[:, 0] + HALF_E) / tr.H.g.gsd).astype(int), 0, gr.shape[1] - 1)] > 0.10]
+    g = g[~contains_xy(asph.buffer(1.5), g[:, 0], g[:, 1])]
+    g = g[cKDTree(np.array(reg.pts)).query(g)[0] > 1.6]
+    for p in g:
+        reg.add(p)
+    relief_pts = len(g)
     data = dict(vertices=np.array(reg.pts), segments=node_segments(np.array(reg.pts), segs), holes=np.array([tr.c[0]]))
     out = tri.triangulate(data, "pq22Y")
     V, T = out["vertices"], out["triangles"]
@@ -378,7 +392,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(photo_tex=photo_tex, photo_mats=photo_mats, R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]),
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), relief_points=relief_pts, roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]),
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn | verge, 2, 3))))
     return info
@@ -387,7 +401,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
 def build_far(tr: Track, parts: Parts, info: dict) -> None:
     """Terrain around the site (2.5 x 2 km) from the 4 m DEM, plus a tree line on its rim."""
     fe, fn = META_FAR["half_m"]
-    step = 50.0
+    step = 25.0
     gx, gy = np.meshgrid(np.linspace(-fe, fe, int(2 * fe / step) + 1), np.linspace(-fn, fn, int(2 * fn / step) + 1))
     g = np.column_stack([gx.ravel(), gy.ravel()])
     g = g[(np.abs(g[:, 0]) > HALF_E + 12) | (np.abs(g[:, 1]) > HALF_N + 12)]

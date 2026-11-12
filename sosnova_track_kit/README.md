@@ -1,13 +1,28 @@
-# Autodrom Sosnová for Assetto Corsa (v12.0)
+# Autodrom Sosnová for Assetto Corsa (v13.0)
 
 A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
 
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v12.0".
+"Autodrom Sosnová v13.0".
 
-## What v12.0 is
+## What v13.0 is
+
+Version 13 answers the owner's request to scan the whole place, landscape and buildings included. The road was
+already the real one (version 12, below). Now everything around it comes from the airborne laser scan of the Czech
+state survey as well:
+
+| Part | How it is made |
+| --- | --- |
+| Landscape | `tools/heights.py`. Away from the paving the ground is the laser-scanned terrain model (DMR 5G, 1 m) itself, smoothed only by 0.7 m against its noise: banks, ditches and mounds are there. Within 3 m of any paving the ground stays the even surface that carries the road; by 12 m it is all terrain. The ground mesh is a 4 m grid near the track and 8 m over the rest of the site, with a 2.5 m grid on top wherever the terrain is not smooth (8,500 extra points). `check.py` compares the built ground with the terrain model at 6,500 points away from the paving: 7 cm rms, 99 % within 28 cm. The far terrain (2.5 x 2 km) has a 25 m grid now. |
+| Buildings | `tools/mkbuildings.py`. The footprints are moved to where the surface model (DMP 1G, 0.5 m) puts the walls, and every roof gets the shape the model shows: the heights inside the footprint are averaged along the building and the profile across it decides between flat, single-pitch and gable. 45 buildings: 4 gable roofs, 4 single-pitch, 37 flat. Each roof carries its own piece of the aerial photo. `check.py` compares the roof heights with the surface model: 36 cm median difference. |
+| Motorway viaduct | The deck behind the west loop, read row by row from the surface model: 146 m inside the site, 16 m wide, up to 12 m above the ground, on 5 piers, with the photo of the carriageway on top. |
+| Trees | As before: every tree stands where the canopy model shows one, at its measured height (2,349 near the track, 550 further out). |
+
+What a laser scan from the air cannot give is listed under Limits.
+
+## The road: what v12.0 did
 
 The owner asked for the exact original track, with the surface of version 11 and with barriers, started from
 scratch. So the designed racetrack of versions 9 to 11 (one 9 m road, grass verges, red and white kerbs, gravel
@@ -27,7 +42,7 @@ Czech state survey.
 | Around the track | The grass tiles keep the real photo away from the asphalt: the paddock, the yards, paths and bare earth look as they are. Only within 4 m of the asphalt the photo is filled with grass colour, so paint and cars do not bleed into the verge. |
 | Race layout | Unchanged from 9.5 and 9.6: tyre stacks at the organiser's 33 yellow dots and at 8 points of the line the owner drew, yellow bags and tape along the 7 rows. Cones now stand every 8 m on both sides of the lap strip where it crosses open asphalt (91 cones), so the route can be seen across the big square. |
 | Heights | The lap is a smooth analytic surface fitted to the lidar terrain (range 2.8 m). The asphalt beside it continues the plane of the lap for 1.5 m and turns into the terrain over the next 4.5 m. Small bumps of the terrain model are relaxed. |
-| Still from the survey | The green arch bridge, buildings with their heights and photo roofs, pylons, trees at measured heights, the terrain and the distant ground photo. |
+| Still from the survey | The green arch bridge, the pylons and the distant ground photo. |
 
 ## Rebuilding
 
@@ -73,7 +88,7 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 46 checks) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 49 checks) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
@@ -94,7 +109,11 @@ is stored here or used as a texture.
   close up the grass tiles (10 cm per pixel) look soft.
 - The model is large: 63 lap textures, the squares of asphalt and 26 grass tiles. Uncompressed they need roughly
   1 GB of graphics memory.
-- Buildings are simple boxes with photo roofs, trees are flat pictures.
+- The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
+  and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
+  generic textures, not the real doors, windows and signs. Trees are flat pictures at the measured places and heights.
+- The surface model smears a wall over about 3 m, so a roof pitch is only read on buildings at least 10 m wide.
+- The viaduct ends at the edge of the surveyed site (290 m north of the centre).
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
 
 ## Data and licence
@@ -107,6 +126,9 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 
 ![Views of the track](previews/preview_sheet.jpg)
+![The landscape from the north-east](previews/air_land.jpg)
+![The buildings south of the track](previews/air_halls.jpg)
+![The west loop and the motorway viaduct](previews/air_west.jpg)
 ![From above, north up](previews/top_north.jpg)
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)

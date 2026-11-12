@@ -42,18 +42,114 @@ def box(parts: Parts, group: str, material: str, corners_xz: np.ndarray, y0: flo
 
 
 def build_buildings(tr: Track, parts: Parts) -> list[Polygon]:
-    """Walls by type; every roof shows its own piece of the aerial photo."""
+    """Walls by type; every roof shows its own piece of the aerial photo. The roof has the shape that the laser-scanned
+    surface model shows (mkbuildings.roof_shape): flat, single-pitch or gable."""
     foot = []
     blds = json.load(open(os.path.join(SRC, "buildings.json"), encoding="utf-8"))
     for k, b in enumerate(blds):
         en = np.array(b["en"])
-        base = float(tr.H.ground(en).min()) - tr.fr.ref
-        wall_h = min(b["height"], 4.0) if b["style"] == "garage" else 4.0
-        box(parts, f"1WALL_bld{k:02d}", WALL_MATERIAL[b["style"]], tr.fr.xz(en), base - 0.5, base + b["height"],
-            uv_scale=(8.0, wall_h if b["height"] < 5.0 else b["height"] / max(1, round(b["height"] / 4.0))),
-            top_material="roofphoto", top_uv=site_uv(en))
+        gnd = tr.H.ground(en) - tr.fr.ref
+        base = float(gnd.min())
+        roof = b.get("roof", dict(type="flat"))
+        group, mat = f"1WALL_bld{k:02d}", WALL_MATERIAL[b["style"]]
+        vs = (min(b["height"], 4.0) if b["style"] == "garage" else 4.0) if b["height"] < 5.0 else b["height"] / max(1, round(b["height"] / 4.0))
         foot.append(Polygon(en))
+        if roof["type"] == "flat":
+            box(parts, group, mat, tr.fr.xz(en), base - 0.5, base + b["height"], uv_scale=(8.0, vs), top_material="roofphoto", top_uv=site_uv(en))
+            continue
+        xz, y0 = tr.fr.xz(en), base - 0.5
+        top = base + np.array(roof["corner_h"], float)                 # height of the eave at each corner
+        centre = xz.mean(0)
+        ridge = np.array(roof["ridge_en"], float) if "ridge_en" in roof else None
+        r_xz, r_y = (tr.fr.xz(ridge), base + roof["ridge_h"]) if ridge is not None else (None, None)
+        perim = 0.0
+        for i in range(4):
+            j_ = (i + 1) % 4
+            a, c_, ya, yb = xz[i], xz[j_], top[i], top[j_]
+            ln = float(np.linalg.norm(c_ - a))
+            reps = max(1.0, round(ln / 8.0))
+            out = (a + c_) / 2 - centre
+            pos = [(a[0], y0, a[1]), (c_[0], y0, c_[1]), (c_[0], yb, c_[1]), (a[0], ya, a[1])]
+            uv = [(perim, 0.0), (perim + reps, 0.0), (perim + reps, (yb - y0) / vs), (perim, (ya - y0) / vs)]
+            tris = [(0, 1, 2), (0, 2, 3)]
+            if ridge is not None:
+                mid_en = (en[i] + en[j_]) / 2
+                e_ = int(np.argmin(np.linalg.norm(ridge - mid_en, axis=1)))
+                if np.linalg.norm(ridge[e_] - mid_en) < 0.6:               # a gable end: the wall runs up to the ridge
+                    pos.append((r_xz[e_][0], r_y, r_xz[e_][1]))
+                    uv.append((perim + reps / 2, (r_y - y0) / vs))
+                    tris.append((3, 2, 4))
+                else:                                                       # a long side: one plane of the roof above it
+                    ra, rb = (0, 1) if np.linalg.norm(ridge[0] - en[i]) < np.linalg.norm(ridge[1] - en[i]) else (1, 0)
+                    rp = np.array([(a[0], ya, a[1]), (c_[0], yb, c_[1]), (r_xz[rb][0], r_y, r_xz[rb][1]), (r_xz[ra][0], r_y, r_xz[ra][1])])
+                    parts.surface(group, "roofphoto", rp, site_uv(np.array([en[i], en[j_], ridge[rb], ridge[ra]])), [(0, 1, 2), (0, 2, 3)], hint=UP, smooth=False)
+            parts.surface(group, mat, np.array(pos), np.array(uv), tris, hint=(out[0], 0.0, out[1]), smooth=False)
+            perim += reps
+        if ridge is None:                                                   # single pitch: one sloping plane
+            rp = np.array([(xz[i][0], top[i], xz[i][1]) for i in range(4)])
+            parts.surface(group, "roofphoto", rp, site_uv(en), [(0, 1, 2), (0, 2, 3)], hint=UP, smooth=False)
     return foot
+
+
+def build_viaduct(tr: Track, parts: Parts) -> dict:
+    """The motorway viaduct in the north-west corner of the site, 60 m behind the west loop. The laser-scanned surface
+    model shows its deck: about 15 m wide and 8 to 11 m above the ground. Position, width and height are read from
+    the model row by row and smoothed; the deck carries its piece of the aerial photo."""
+    from PIL import Image
+    sv = np.load(os.path.join(WORK, "survey.npz"))
+    ndsm = sv["ndsm"]
+    dsm = np.asarray(Image.open(os.path.join(SRC, "cuzk", "dsm.tif")), np.float64)
+    rows = []
+    for north in np.arange(138.0, HALF_N - 1.0, 2.0):
+        r = int((HALF_N - north) / 0.5)
+        on = np.where(ndsm[r, :160] > 3.0)[0]
+        if len(on) == 0:
+            continue
+        for run in np.split(on, np.where(np.diff(on) > 2)[0] + 1):
+            w = (run[-1] - run[0]) * 0.5
+            if 9.0 <= w <= 21.0:
+                rows.append((north, (run[0] + run[-1]) * 0.25 - HALF_E, w, float(np.median(dsm[r, run]))))
+    rows = np.array(rows)
+    if len(rows) < 20:
+        return dict(viaduct_m=0)
+    keep = np.ones(len(rows), bool)
+    for _ in range(4):                                                  # the deck is the long, nearly straight run
+        line = np.polyfit(rows[keep, 0], rows[keep, 1], 2)
+        keep = np.abs(rows[:, 1] - np.polyval(line, rows[:, 0])) < 5.0
+    rows = rows[keep]
+    north = np.arange(rows[:, 0].min(), rows[:, 0].max() + 0.1, 4.0)
+    east = np.polyval(np.polyfit(rows[:, 0], rows[:, 1], 2), north)
+    width = float(np.median(rows[:, 2]))
+    top = np.polyval(np.polyfit(rows[:, 0], rows[:, 3], 2), north)
+    c = np.column_stack([east, north])
+    d = np.gradient(c, axis=0)
+    d /= np.linalg.norm(d, axis=1, keepdims=True)
+    nrm = np.column_stack([-d[:, 1], d[:, 0]])
+    left, right = c + nrm * width / 2, c - nrm * width / 2
+    m = len(c)
+    r = np.arange(m - 1)
+    quads = np.concatenate([np.stack([r, r + m, r + m + 1], -1), np.stack([r, r + m + 1, r + 1], -1)])
+    DEPTH = 1.5
+    s_ = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(c, axis=0), axis=1))])
+    parts.surface("SCENE_viaduct", "roofphoto", np.vstack([tr.fr.world(left, top), tr.fr.world(right, top)]), np.vstack([site_uv(left), site_uv(right)]), quads, hint=UP, cast_shadows=True)
+    parts.surface("SCENE_viaduct", "concrete", np.vstack([tr.fr.world(left, top - DEPTH), tr.fr.world(right, top - DEPTH)]),
+                  np.vstack([np.column_stack([s_ / 4, np.zeros(m)]), np.column_stack([s_ / 4, np.full(m, width / 4)])]), quads, hint=-UP)
+    for edge, sign in ((left, 1.0), (right, -1.0)):                      # the two faces of the deck
+        o = tr.fr.vec(nrm * sign)
+        hint = np.column_stack([o[:, 0], np.zeros(m), o[:, 1]])
+        parts.surface("SCENE_viaduct", "concrete", np.vstack([tr.fr.world(edge, top - DEPTH), tr.fr.world(edge, top + 0.9)]),
+                      np.vstack([np.column_stack([s_ / 4, np.zeros(m)]), np.column_stack([s_ / 4, np.full(m, 0.6)])]), quads,
+                      hint=np.vstack([hint[:-1], hint[:-1]]), smooth=False)
+    piers = 0
+    for k in range(2, m - 1, 8):                                         # a pier every 32 m
+        ax, ay = d[k] * 0.9, nrm[k] * (width / 2 - 2.5)
+        corners = np.array([c[k] - ax - ay, c[k] + ax - ay, c[k] + ax + ay, c[k] - ax + ay])
+        g = float(tr.H.ground(corners).min()) - tr.fr.ref
+        if top[k] - tr.fr.ref - DEPTH - g > 1.0:
+            box(parts, "SCENE_viaduct_piers", "concrete", tr.fr.xz(corners), g - 0.5, float(top[k]) - tr.fr.ref - DEPTH, uv_scale=(4.0, 4.0), top_uv=4.0)
+            piers += 1
+    return dict(viaduct_m=int(round(s_[-1])), viaduct_width_m=round(width, 1), viaduct_piers=piers,
+                viaduct_above_ground_m=round(float(np.max(top - tr.H.ground(c))), 1))
 
 
 def pit_wall_line(tr: Track) -> np.ndarray:

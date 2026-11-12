@@ -308,6 +308,47 @@ def main() -> None:
     check(len(lines) >= 15 and found >= 0.93 * need, f"the tyre walls and barriers of the photo are built ({len(lines)} barriers, {found} of {need} m found in the model)")
     conc = [m for m in meshes if m["name"].startswith(("1APRON_c", "1APRON_w"))]
     check(len(conc) >= 5 and int(tr.kerb_l.sum() + tr.kerb_r.sum()) > 150, f"the concrete strips and the white pad are part of the surface ({len(conc)} meshes, {int(tr.kerb_l.sum() + tr.kerb_r.sum())} m of strip beside the lap)")
+    print("landscape and buildings")
+    from heights import load_dem
+    from scipy import ndimage as _ndi
+    from common import HALF_E as _HE, HALF_N as _HN, SRC as _SRC, WORK as _WORK
+    dem = load_dem(os.path.join(_SRC, "cuzk", "dem.tif"))                # the laser-scanned terrain, 1 m
+    land = Surface([m for m in meshes if m["name"].startswith(("1GRASS_g", "1GRASS_w", "1GRASS_v", "1GRASS_p", "1SAND"))])
+    rng = np.random.default_rng(5)
+    q = np.column_stack([rng.uniform(-_HE + 12, _HE - 12, 9000), rng.uniform(-_HN + 12, _HN - 12, 9000)])
+    q = q[_dist(_points(q), real) > 15.0]
+    foot_all = [np.array(b_["en"]) for b_ in json.load(open(os.path.join(_SRC, "buildings.json"), encoding="utf-8"))]
+    from shapely.geometry import Polygon as _Poly
+    from shapely.ops import unary_union as _union
+    q = q[~_inside(_union([_Poly(f_).buffer(2.0) for f_ in foot_all]), q[:, 0], q[:, 1])]
+    truth = _ndi.map_coordinates(dem, [(_HN - q[:, 1]) - 0.5, (q[:, 0] + _HE) - 0.5], order=1, mode="nearest") - tr.fr.ref
+    got = np.array([np.nan if y is None else y for y, _ in (land.at(x, z) for x, z in tr.fr.xz(q))])
+    err = (got - truth)[np.isfinite(got)]
+    check(len(err) > 3000 and float(np.sqrt(np.mean(err ** 2))) < 0.25 and float(np.percentile(np.abs(err), 99)) < 0.9,
+          f"the landscape is the laser-scanned terrain ({len(err)} points away from the paving: rms difference {np.sqrt(np.mean(err ** 2)) * 100:.0f} cm, 99 % within {np.percentile(np.abs(err), 99) * 100:.0f} cm)")
+    blds = json.load(open(os.path.join(_SRC, "buildings.json"), encoding="utf-8"))
+    ndsm = np.load(os.path.join(_WORK, "survey.npz"))["ndsm"]
+    tops = Surface([m for m in meshes if m["name"].startswith("1WALL_bld")])
+    diff, shaped, missing = [], 0, 0
+    for b_ in blds:
+        en_ = np.array(b_["en"])
+        shaped += b_.get("roof", {}).get("type", "flat") != "flat"
+        c_ = en_.mean(0)
+        inner = c_ + (en_ - c_) * 0.45                                    # four points well inside the roof
+        for e_, n_ in inner:
+            y_roof = tops.at(*tr.fr.xz(np.array([[e_, n_]]))[0])[0]
+            y_gnd = float(tr.H.ground(np.array([[e_, n_]]))[0]) - tr.fr.ref
+            h_model = float(ndsm[int((_HN - n_) / 0.5), int((e_ + _HE) / 0.5)])
+            if y_roof is None:
+                missing += 1
+            elif h_model > 2.0:                                           # where the surface model shows the building
+                diff.append((y_roof - y_gnd) - h_model)
+    diff = np.array(diff)
+    check(missing == 0 and len(diff) > 100 and float(np.median(np.abs(diff))) < 0.6,
+          f"every building has a roof at the height of the laser-scanned surface model ({len(blds)} buildings, {shaped} with a pitched roof; median difference {np.median(np.abs(diff)) * 100:.0f} cm at {len(diff)} points)")
+    via = [m for m in meshes if m["name"].startswith("SCENE_viaduct")]
+    vv = np.vstack([m["vertices"]["pos"] for m in via]).astype(np.float64) if via else np.zeros((0, 3))
+    check(len(via) >= 2 and float(np.ptp(vv[:, 0])) > 100, f"the motorway viaduct is built ({len(via)} meshes, {np.ptp(vv[:, 0]) if len(vv) else 0:.0f} m long, deck up to {vv[:, 1].max() if len(vv) else 0:.1f} m above the start line)")
     lap_poly = ground.ribbon_polygon(tr)
     to_en = lambda v: tr.fr.o + v[:, [0]] * tr.fr.l + v[:, [2]] * tr.fr.f
     blocks = [m for m in meshes if m["name"].startswith("1WALL") and m["name"].endswith("barricade")]

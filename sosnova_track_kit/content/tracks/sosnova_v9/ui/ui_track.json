@@ -1,6 +1,6 @@
 {
-  "name": "Autodrom Sosnová v12.0",
-  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand run-offs and tyre walls. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race of 14.11.2026, with tyre stacks, bags and tape where the organiser's map shows them and a chicane on the back straight. 16 grid slots, 16 pit boxes, AI line, lap timing with two sectors. Data: ČÚZK (CC BY 4.0), materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
+  "name": "Autodrom Sosnová v13.0",
+  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race of 14.11.2026, with tyre stacks, bags and tape where the organiser's map shows them and a chicane on the back straight. 16 grid slots, 16 pit boxes, AI line, lap timing with two sectors. Data: ČÚZK (CC BY 4.0), materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
   "tags": [
     "circuit",
     "czech",
@@ -21,6 +21,6 @@
   "pitboxes": "16",
   "run": "anticlockwise",
   "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-  "version": "12.0",
+  "version": "13.0",
   "url": ""
 }

@@ -26,7 +26,8 @@ Z_SIGMA = 9.0        # smoothing of the centre profile along the lap (m)
 CAMBER_SIGMA = 12.0  # smoothing of the cross-fall along the lap (m)
 CAMBER_MAX = 0.035   # cross-fall clamp (3.5 %)
 FADE_M = 25.0        # distance over which the ground returns to the raw terrain
-DEM_SIGMA = 3.5      # terrain smoothing for the ground (m)
+DEM_SIGMA = 3.5      # terrain smoothing for the ground beside the paving (m)
+RELIEF_SIGMA = 0.7   # terrain smoothing for the landscape away from the paving (m): just the 0.1 m noise of the model
 EDGE_MARGIN = 2.0    # the ground keeps the plane of the road this far beyond the road edge (m)
 
 
@@ -134,6 +135,25 @@ def main() -> None:
         smooth = ndi.gaussian_filter(ground, 5.0 / G_GSD)
         ground = np.where(inside2, ground, ground * (1 - w) + smooth * w)
     print(f"ground raster {cols}x{rows} at {G_GSD} m; road/terrain correction rms {np.sqrt(np.mean(delta[inside2] ** 2)):.3f} m, max {np.abs(delta).max():.3f} m")
+    # ---- the landscape: away from the paving the ground is the laser-scanned terrain itself (banks, ditches, mounds),
+    # only lightly smoothed. Within 3 m of any paving it stays the even surface made above; by 12 m it is all terrain
+    paved = inside2.copy()
+    try:
+        import cv2
+        import realmap
+        P = realmap.asphalt()
+        m_ = np.zeros((rows, cols), np.uint8)
+        for g_ in getattr(P, "geoms", [P]):
+            for k_, ring in enumerate([g_.exterior, *g_.interiors]):
+                xy = np.array(ring.coords)
+                cv2.fillPoly(m_, [np.round(np.column_stack([(xy[:, 0] + HALF_E) / G_GSD, (HALF_N - xy[:, 1]) / G_GSD])).astype(np.int32)], 1 if k_ == 0 else 0)
+        paved |= m_ > 0
+    except (AssertionError, ImportError):
+        pass                                                           # realmap.py has not run yet: the lap alone counts
+    relief = Raster(ndi.gaussian_filter(raw, RELIEF_SIGMA), HALF_E, HALF_N, 1.0).sample(pts).reshape(rows, cols)
+    wgt = smoothstep((ndi.distance_transform_edt(~paved) * G_GSD - 3.0) / 9.0)
+    print(f"landscape: terrain detail restored beyond 3 m from the paving; largest change {np.abs((relief - ground) * wgt).max():.2f} m, rms {np.sqrt(np.mean(((relief - ground) * wgt) ** 2)):.3f} m")
+    ground = ground * (1 - wgt) + relief * wgt
 
     far = ndi.gaussian_filter(load_dem(os.path.join(SRC, "cuzk_far", "dem.tif")), 1.0)
     np.savez_compressed(os.path.join(WORK, "heights.npz"), z=z, camber=camber, ground=ground.astype(np.float32),

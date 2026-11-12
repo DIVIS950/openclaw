@@ -89,6 +89,7 @@ def main() -> None:
     paint["brake_boards"] = props.build_brake_boards(tr, parts)
     span = bridge.build_bridge(tr, parts, info["R"].buffer(1.5))
     pylons = props.build_pylons(tr, parts)
+    scenery = props.build_viaduct(tr, parts)
     # the real barriers: tyre walls where the photo shows them, the pit wall, the paddock wall
     pit_wall = props.pit_wall_line(tr)
     barriers = realmap.walls() + [dict(en=pit_wall.tolist(), width=0.3, height=1.05, material="concrete")] + [dict(b, material="concrete") for b in circuit.BARRIERS]
@@ -127,11 +128,11 @@ def main() -> None:
     summary = dict(
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),
-        ground=info["tris"], asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), bridge=span, pylons=pylons, paint=paint, barriers=walls,
+        ground=dict(info["tris"], relief_points=info["relief_points"]), asphalt_m2=round(info["apron_area"] + info["R"].area), gravel_m2=round(info["gravel_area"]), buildings=len(foot), bridge=span, pylons=pylons, paint=paint, barriers=walls,
         real=dict(lap_width_m=[round(float((tr.wl + tr.wr).min()), 2), round(float((tr.wl + tr.wr).mean()), 2), round(float((tr.wl + tr.wr).max()), 2)],
                   concrete_m2=round(info["pads"].area), concrete_strip_beside_lap_m=int(tr.kerb_l.sum() + tr.kerb_r.sum()),
                   open_side_m=int(tr.open_l.sum() + tr.open_r.sum()), asphalt_squares=info["asphalt_squares"], lap_textures=len(lap_mats)),
-        trees=trees, race=race, dummies=len(dummies),
+        trees=trees, race=race, scenery=scenery, dummies=len(dummies),
         ai={k: (round(v, 2) if isinstance(v, float) else v) for k, v in ai.items() if k not in ("line", "speed")},
         frame=tr.fr.to_json(), sector_station=dinfo["sector_station"],
     )
