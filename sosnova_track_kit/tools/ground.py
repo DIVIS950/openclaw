@@ -153,17 +153,18 @@ def apron_chains(A, R: Polygon, edge_tree: cKDTree, edge_pts: np.ndarray):
 
 def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     """avoid: shapely geometry of the building footprints (no gravel there)."""
-    import design
+    import realmap
     R = ribbon_polygon(tr)
-    verge = design.verge(tr, R)
-    A, aprons, roads, roads_poly, pads = design.other_asphalt(tr, R)
+    A = realmap.others(R)                                              # the real asphalt beside the lap strip
+    pads = realmap.pads().intersection(A)
+    pads = unary_union([g for g in getattr(pads, "geoms", [pads]) if g.geom_type == "Polygon" and g.area > 20.0]) if not pads.is_empty else Polygon()
+    aprons, roads, roads_poly = A.difference(pads), [], Polygon()
+    asph = unary_union([R, A])
     site = box(-HALF_E, -HALF_N, HALF_E, HALF_N)
-    zone = unary_union([R, A]).buffer(ZONE_M).intersection(site.buffer(-6.0))
+    zone = asph.buffer(ZONE_M).intersection(site.buffer(-6.0))
     zone = unary_union([Polygon(g.exterior) for g in getattr(zone, "geoms", [zone])])   # no photo islands in the infield
-    G = design.gravel_traps(tr, R, unary_union([A, avoid]))
-    G = unary_union([G.difference(roads_poly.buffer(design.VERGE - 0.01)), design.road_gravel(R, unary_union([A, avoid])), design.gravel_pockets(A)]).buffer(0)
-    G = unary_union([p.buffer(-0.5).buffer(0.5) for p in getattr(G, "geoms", [G]) if p.area > 60.0]).buffer(0)
-    G = unary_union([p for p in getattr(G, "geoms", [G]) if p.geom_type == "Polygon" and p.area > 60.0]).buffer(0)
+    G = realmap.sand().difference(unary_union([asph.buffer(0.35), avoid.buffer(1.0)])).simplify(0.2)        # the real sand run-offs
+    G = unary_union([p for p in getattr(G, "geoms", [G]) if p.geom_type == "Polygon" and p.area > 40.0]).buffer(0)
     reg = Registry()
     segs: list[tuple[int, int]] = []
     # 1. road edges: exact vertices and heights of the road mesh
@@ -184,9 +185,8 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         chain_pts += list(ch)
     chain_lines = MultiLineString([LineString(ch) for ch in chains if len(ch) > 1]) if chains else None
     # 2b. seams inside the asphalt, where a road or a concrete pad meets the lighter apron: mesh edges follow them
-    road_part = roads_poly.simplify(0.05).intersection(A)
-    pad_part = pads.simplify(0.05).difference(roads_poly.simplify(0.05)).intersection(A)
-    seams = unary_union([road_part.boundary, pad_part.boundary]).difference(A.boundary.buffer(0.3))
+    pad_part = pads.simplify(0.05).intersection(A)
+    seams = pad_part.boundary.difference(A.boundary.buffer(0.3))
     for ln in getattr(seams, "geoms", [seams]):
         if ln.is_empty or ln.geom_type != "LineString" or ln.length < 1.0:
             continue
@@ -198,15 +198,17 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         for p, hh in zip(tr.shoulder_en(side), tr.shoulder_h(side)):
             if edge_tree.query(p)[0] > SHOULDER * 0.8 and (chain_lines is None or chain_lines.distance(Point(p)) > 0.3):
                 reg.add(p, hh)
-    # 3a. rows of vertices along the other roads, so their surface is as even as the lap
-    import circuit
-    rows = np.vstack([f["en"][::4] + f["nrm"][::4] * (f["half"] * g_) for f in circuit.road_frames() for g_ in (-0.55, 0.0, 0.55)])
-    rows = np.vstack([rows, circuit.t1_lane()[2]])
+    # 3a. a 3 m lattice of vertices inside the asphalt beside the lap: an even surface, and triangles small enough
+    #     to stay inside the texture of their square
+    gy_, gx_ = np.meshgrid(np.arange(-HALF_N, HALF_N, 2.6), np.arange(-HALF_E, HALF_E, 3.0), indexing="ij")
+    gx_ = gx_ + (np.arange(gx_.shape[0]) % 2)[:, None] * 1.5
+    rows = np.column_stack([gx_.ravel(), gy_.ravel()])
+    rows = rows[contains_xy(A.buffer(-1.0), rows[:, 0], rows[:, 1])]
     seen = cKDTree(np.array(reg.pts))
-    for p in rows[contains_xy(A.buffer(-0.7), rows[:, 0], rows[:, 1]) & (seen.query(rows)[0] > 0.9)]:
+    for p in rows[seen.query(rows)[0] > 1.3]:
         reg.add(p)
     # 3c. a row of vertices 1 m outside the other asphalt and 4 m outside the lap: the worn strip and the mown verge end there
-    ring = unary_union([A.buffer(1.0).boundary, R.buffer(4.0).boundary])
+    ring = unary_union([asph.buffer(1.0).boundary, asph.buffer(4.0).boundary])
     seen = cKDTree(np.array(reg.pts))
     for g_ in getattr(ring, "geoms", [ring]):
         for r_ in [g_]:
@@ -252,29 +254,11 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     Hh = tr.H.ground(V)
     for i, hh in reg.fixed_h.items():
         Hh[i] = hh
-    # the other roads take a smooth surface of their own. Near the lap they continue the lap's own surface (its
-    # height profile and cross-fall carried outwards), so a road leaves the lap without a crease
-    from shapely import distance as _dist, points as _points
-    road_h = design.road_surface(tr)
-    lap_tree = cKDTree(tr.c)
-
-    def lap_h(p: np.ndarray) -> np.ndarray:
-        _, k = lap_tree.query(p)
-        return tr.H.road(k.astype(float), np.einsum("ij,ij->i", p - tr.c[k], tr.nrm[k]))
-    free_all = np.array([i for i in range(len(V)) if i not in reg.fixed_h])
-    on_road = free_all[contains_xy(circuit.roads_polygon().buffer(0.5), V[free_all, 0], V[free_all, 1])]
-    if len(on_road):
-        wgt = np.clip((_dist(_points(V[on_road]), R) - 0.3) / 8.0, 0, 1)
-        wgt = wgt * wgt * (3 - 2 * wgt)
-        Hh[on_road] = lap_h(V[on_road]) * (1 - wgt) + road_h(V[on_road]) * wgt
-    wide = np.setdiff1d(free_all[contains_xy(circuit.areas("road").buffer(0.3), V[free_all, 0], V[free_all, 1])], on_road)
-    if len(wide):                                                  # the outside of turn 1 lies in the plane of the lap
-        wgt = np.clip((_dist(_points(V[wide]), R) - 5.0) / 5.0, 0, 1)
-        wgt = wgt * wgt * (3 - 2 * wgt)
-        Hh[wide] = lap_h(V[wide]) * (1 - wgt) + Hh[wide] * wgt
     # vertices that the triangulator put on a road edge between two road vertices take the height of that edge
     from shapely import distance, line_locate_point, points
     free = np.array([i for i in range(len(V)) if i not in reg.fixed_h])
+    pinned = np.zeros(len(V), bool)
+    pinned[list(reg.fixed_h)] = True
     for side in (1, -1):
         e, h = tr.edge_en(side), tr.edge_h(side)
         ring = LineString(np.vstack([e, e[:1]]))
@@ -282,6 +266,32 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         pts = points(V[free])
         on = distance(pts, ring) < 0.003
         Hh[free[on]] = np.interp(line_locate_point(ring, pts[on]), cum, np.concatenate([h, h[:1]]))
+        pinned[free[on]] = True
+    # the asphalt beside the lap: the terrain model carries small bumps (and artefacts beside the overpass) that a
+    # paved surface does not have. Relax its vertices towards their neighbours; the lap's own vertices stay put
+    relax = contains_xy(A.buffer(0.3), V[:, 0], V[:, 1]) & ~pinned
+    if relax.any():
+        # right beside the lap strip the asphalt lies in the plane of the lap (its height and cross-fall carried
+        # outwards); from 1.5 m to 6 m out it turns into the terrain
+        from shapely import distance as _dist, points as _points
+        lap_tree = cKDTree(tr.c)
+        ids = np.where(relax)[0]
+        _, kc = lap_tree.query(V[ids])
+        plane = tr.H.road(kc.astype(float), np.einsum("ij,ij->i", V[ids] - tr.c[kc], tr.nrm[kc]))
+        dr = _dist(_points(V[ids]), R)
+        wgt = np.clip((dr - 1.5) / 4.5, 0, 1)
+        wgt = wgt * wgt * (3 - 2 * wgt)
+        Hh[ids] = plane * (1 - wgt) + Hh[ids] * wgt
+        pinned[ids[dr < 1.5]] = True
+        relax = relax & ~pinned
+        ee = np.vstack([T[:, [0, 1]], T[:, [1, 2]], T[:, [2, 0]]])
+        ee = np.vstack([ee, ee[:, ::-1]])
+        W_ = coo_matrix((np.ones(len(ee)), (ee[:, 0], ee[:, 1])), shape=(len(V), len(V))).tocsr()
+        W_.data[:] = 1.0
+        deg = np.maximum(np.asarray(W_.sum(1)).ravel(), 1.0)
+        for _ in range(24):
+            avg = W_.dot(Hh) / deg
+            Hh[relax] += 0.5 * (avg[relax] - Hh[relax])
     # drop degenerate slivers
     e1, e2 = V[T[:, 1]] - V[T[:, 0]], V[T[:, 2]] - V[T[:, 0]]
     T = T[np.abs(e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]) > 2e-5]
@@ -315,10 +325,13 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     worn = near & (dv[T].max(1) <= 1.35)
     near = near & ~worn
     # the mown verge beside the lap keeps the close-up grass scan; beyond it the grass is the photo
-    verge = near & (_d(_p(V), R)[T].max(1) <= 4.35)
+    verge = near & (dv[T].max(1) <= 4.35)
     near = near & ~verge
     # roads of the circuit carry the same dark asphalt as the lap, paved areas the lighter apron asphalt, pads concrete
-    kind = np.where(contains_xy(road_part, cen[:, 0], cen[:, 1]), 0, np.where(contains_xy(pad_part, cen[:, 0], cen[:, 1]), 2, 1))
+    kind = np.where(contains_xy(pad_part, cen[:, 0], cen[:, 1]), 2, 1) if not pad_part.is_empty else np.ones(len(T), int)
+    big = realmap.white().buffer(0.3)                                                                     # the white pad of the hairpin
+    if not big.is_empty:
+        kind = np.where((kind == 2) & contains_xy(big, cen[:, 0], cen[:, 1]), 3, kind)
     # geometry
     pos = tr.fr.world(V, Hh)
     T = wind_up(pos, T)
@@ -326,12 +339,26 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     tile = np.floor((cen + [HALF_E, HALF_N]) / TILE).astype(int)
     tile_id = tile[:, 0] * 100 + tile[:, 1]
     plan = pos[:, [0, 2]]
-    layers = ((apron & (kind == 0), "1APRON_r", "road", plan / TILE_M["road"]), (apron & (kind == 1), "1APRON_a", "apron", plan / TILE_M["apron"]),
-              (apron & (kind == 2), "1APRON_c", "pad", plan / TILE_M["pad"]), (gravel, "1SAND_s", "gravel", plan / TILE_M["gravel"]),
+    layers = ((apron & (kind == 2), "1APRON_c", "pad", plan / TILE_M["pad"]), (apron & (kind == 3), "1APRON_w", "padwhite", plan / TILE_M["pad"]), (gravel, "1SAND_s", "gravel", plan / TILE_M["gravel"]),
               (near, "1GRASS_g", "grass", plan / TILE_M["grass"]), (worn, "1GRASS_w", "shoulder", plan / TILE_M["shoulder"]), (verge, "1GRASS_v", "grass", plan / TILE_M["grass"]),
               (far, "1GRASS_p", "photo", site_uv(V)))
     import realtex
     photo_tex, photo_mats = {}, []
+    # the asphalt beside the lap: one texture per 40 m square, baked from the photo of that square
+    sel = apron & (kind == 1)
+    sq = np.floor((cen + [HALF_E, HALF_N]) / realtex.ASPH_TILE).astype(int)
+    sq_id = sq[:, 0] * 100 + sq[:, 1]
+    reach = 0.0
+    for aid in np.unique(sq_id[sel]):
+        t = T[sel & (sq_id == aid)]
+        ids, inv = np.unique(t, return_inverse=True)
+        e0, n0 = (aid // 100) * realtex.ASPH_TILE - HALF_E, (aid % 100) * realtex.ASPH_TILE - HALF_N
+        reach = max(reach, float(np.max(np.maximum(np.abs(V[ids, 0] - (e0 + realtex.ASPH_TILE / 2)), np.abs(V[ids, 1] - (n0 + realtex.ASPH_TILE / 2))))) - realtex.ASPH_TILE / 2)
+        name = f"a{aid:04d}"
+        photo_tex[name + ".jpg"] = realtex.asphalt_tile(e0, n0)
+        photo_mats.append(name)
+        parts.add(f"1APRON_a{aid:04d}", name, pos[ids], nrm[ids], realtex.asphalt_uv(e0, n0, V[ids]), inv.reshape(-1, 3), cast_shadows=False)
+    assert reach < realtex.ASPH_MARGIN - 0.05, f"an asphalt triangle reaches {reach:.2f} m out of its square"
     for sel, prefix, mat, uv in layers:
         for tid in np.unique(tile_id[sel]):
             t = T[sel & (tile_id == tid)]
@@ -351,7 +378,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(photo_tex=photo_tex, photo_mats=photo_mats, R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge,
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]),
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn | verge, 2, 3))))
     return info

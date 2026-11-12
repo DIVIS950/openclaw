@@ -25,6 +25,10 @@ class Track:
         self.k = np.array(cl["curv"])
         self.wl, self.wr = np.array(cl["wl"]), np.array(cl["wr"])
         self.open_l, self.open_r = np.array(cl["open_l"], bool), np.array(cl["open_r"], bool)
+        # a concrete strip (the real kind of kerb here) lies beside the lap on that side
+        self.kerb_l, self.kerb_r = np.array(cl.get("kerb_l", [False] * self.n), bool), np.array(cl.get("kerb_r", [False] * self.n), bool)
+        # ... concrete of any width (a strip, or the white pad of the hairpin)
+        self.conc_l, self.conc_r = np.array(cl.get("conc_l", [False] * self.n), bool), np.array(cl.get("conc_r", [False] * self.n), bool)
         self.H = Heights()
         self.fr = Frame(cl["sf_en"], cl["fwd_en"], float(self.H.z[0]))
         import circuit

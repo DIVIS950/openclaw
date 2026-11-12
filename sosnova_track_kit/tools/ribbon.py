@@ -14,7 +14,7 @@ from track import Parts, Track, grid_tris, vertex_normals, wind_up  # noqa: E402
 CHUNK = 125                       # stations per road mesh
 
 
-COLS = 27                          # road columns: about 0.4 m apart, fine enough to carry the racing line
+COLS = 33                          # road columns: 0.3 to 0.6 m apart on the real widths
 GROOVE_SIGMA = 1.15                # half width of the rubbered line (m)
 
 
@@ -41,10 +41,10 @@ def build_road(tr: Track, parts: Parts, line_offset: np.ndarray):
     nrm[0] = nrm[n] = seam / np.linalg.norm(seam, axis=1, keepdims=True)
     nrm = nrm.reshape(-1, 3)
     tex, chunks = realtex.lap_textures(tr, line_offset)
-    for k, (a, b, name) in enumerate(chunks):
+    for k, (a, b, name, half) in enumerate(chunks):
         rows = np.arange(a, b + 1)                                   # station b is row b (row n duplicates row 0)
         ids = (rows[:, None] * cols + np.arange(cols)[None, :]).ravel()
-        uv = realtex.lap_uv(a, b, np.repeat(rows.astype(float), cols), D[rows].ravel())
+        uv = realtex.lap_uv(a, b, half, np.repeat(rows.astype(float), cols), D[rows].ravel())
         t = wind_up(pos[ids], grid_tris(len(rows), cols))
         parts.add(f"1ROAD_trk_{k:02d}", name, pos[ids], nrm[ids], uv, t, cast_shadows=False)
-    return tex, [name for _, _, name in chunks]
+    return tex, [c[2] for c in chunks]

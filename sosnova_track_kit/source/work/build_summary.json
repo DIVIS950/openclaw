@@ -1,74 +1,75 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 384,
- "vertices": 177910,
- "triangles": 193230,
- "kn5_mb": 48.11,
+ "meshes": 362,
+ "vertices": 172525,
+ "triangles": 203156,
+ "kn5_mb": 47.29,
  "ground": {
-  "asphalt": 4223,
-  "gravel": 3062,
-  "grass": 8969,
-  "shoulder": 10048,
-  "verge": 6587,
-  "photo": 2131
+  "asphalt": 10089,
+  "gravel": 1245,
+  "grass": 8500,
+  "shoulder": 8997,
+  "verge": 8243,
+  "photo": 2174
  },
- "asphalt_m2": 32181,
- "gravel_m2": 8978,
+ "asphalt_m2": 32070,
+ "gravel_m2": 1697,
  "buildings": 45,
- "kerbs": {
-  "kerbs": 25,
-  "kerb_m": 1049,
-  "road_kerbs": 12,
-  "road_kerb_m": 374
- },
  "bridge": {
   "length": 53.70721553013151,
   "peak": 5.199809348051539,
   "clearance": 3.8176919542442533,
-  "max_grade": 0.3139419088915929
+  "max_grade": 0.31925242809415977
  },
  "pylons": 3,
  "paint": {
-  "edge_line_m": 3354,
+  "edge_line_m": 2537,
   "grid_boxes": 16,
   "pit_bays": 16,
-  "other_roads": 5,
-  "other_road_m": 457,
-  "other_road_line_m": 677,
-  "other_road_kerb_m": 206,
-  "turn1_limit_m": 21,
-  "area_line_m": 1561,
-  "brake_boards": 14
+  "lines": 74,
+  "line_m": 1925,
+  "areas": 20,
+  "brake_boards": 13
  },
  "barriers": {
-  "walls": 10,
-  "metres": 595
+  "walls": 20,
+  "metres": 475
+ },
+ "real": {
+  "lap_width_m": [
+   6.29,
+   11.22,
+   20.13
+  ],
+  "concrete_m2": 957,
+  "concrete_strip_beside_lap_m": 303,
+  "open_side_m": 1239,
+  "asphalt_squares": 40,
+  "lap_textures": 63
  },
  "trees": {
-  "near": 2349,
-  "far": 550
+  "near": 2350,
+  "far": 552
  },
  "race": {
   "tyre_stacks": 41,
-  "cones": 50,
-  "fence_m": 205,
+  "cones": 91,
+  "fence_m": 178,
   "tape_m": 184,
   "rows": 7,
   "row_barriers": 34,
-  "row_barrier_m": 146,
-  "road_blocks": 10,
-  "road_block_m": 124
+  "row_barrier_m": 146
  },
  "dummies": 37,
  "ai": {
-  "points": 1689,
-  "length": 1689.0,
-  "lap_s": 79.39,
-  "v_min": 29.61,
-  "v_max": 142.57,
-  "off_min": -2.8,
-  "off_max": 2.8
+  "points": 1694,
+  "length": 1694.45,
+  "lap_s": 84.62,
+  "v_min": 29.03,
+  "v_max": 137.62,
+  "off_min": -4.44,
+  "off_max": 7.68
  },
  "frame": {
   "origin_en": [
@@ -79,7 +80,7 @@
    0.9900655078949834,
    -0.14060686354744148
   ],
-  "ref_h": 255.4444144964859
+  "ref_h": 255.43798600374055
  },
  "sector_station": 882.0
 }

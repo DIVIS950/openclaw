@@ -56,13 +56,13 @@ def build_buildings(tr: Track, parts: Parts) -> list[Polygon]:
     return foot
 
 
-def build_pit_wall(tr: Track, parts: Parts) -> None:
-    """Low concrete wall between the start straight and the pit buildings (measured on the photo: x = -7.7 m)."""
-    z = np.arange(-6.0, 111.0, 3.0)
-    y = tr.h(z, np.full_like(z, -7.7)) - tr.fr.ref
-    for a in range(len(z) - 1):
-        c = np.array([(-7.85, z[a]), (-7.55, z[a]), (-7.55, z[a + 1]), (-7.85, z[a + 1])])
-        box(parts, "1WALL_pitwall", "concrete", c, min(y[a], y[a + 1]) - 0.3, max(y[a], y[a + 1]) + 1.05, uv_scale=(3.0, 3.0), top_uv=3.0)
+def pit_wall_line(tr: Track) -> np.ndarray:
+    """The low concrete wall between the start straight and the pit buildings: 1.1 m outside the real asphalt edge
+    (east/north points)."""
+    from scipy.ndimage import gaussian_filter1d
+    st = np.arange(-6, 112, 2)
+    w = gaussian_filter1d(np.tile(tr.wr, 3), 6.0)[tr.n + st]
+    return tr.en(st.astype(float), -(w + 1.1))
 
 
 def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list | None = None, min_len: float = 6.0, anywhere: bool = False) -> dict:
@@ -352,28 +352,9 @@ def build_tape(tr: Track, parts: Parts) -> dict:
     return dict(tape_m=round(total))
 
 
-def road_block_lines(tr: Track, mouths) -> list[dict]:
-    """A row of red and white barricades across every road that joins the lap, 1.6 m outside the lap's edge, so
-    the race route is the only way through. mouths: polygon of the roads (east/north)."""
-    from track import cyclic_runs
-    out = []
-    n = tr.n
-    for side in (1, -1):
-        w = tr.wl if side > 0 else tr.wr
-        beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
-        m = contains_xy(mouths, beyond[:, 0], beyond[:, 1])
-        for a, ln in cyclic_runs(m, 4, 2):
-            mid = tr.en(np.array([a + ln / 2.0]), np.array([side * (w[(a + ln // 2) % n] + 1.6)]))[0]
-            if len(tr.cones_en) and np.linalg.norm(tr.cones_en - mid, axis=1).min() < 16.0:
-                continue                                    # the organiser's own row already closes this road
-            st = (a - 1 + np.arange(ln + 2)).astype(float)
-            out.append(dict(en=tr.en(st, side * (w[(a - 1 + np.arange(ln + 2)) % n] + 1.6)).round(2).tolist(), width=0.8, height=0.95))
-    return out
-
-
-def build_cones(tr: Track, parts: Parts, mouths) -> dict:
-    """Orange traffic cones on the edge of the lap wherever another road joins it, one every 3 m, so the way of
-    the race route is plain to see. They are for the eye only: a car passes through them. mouths: roads polygon."""
+def build_cones(tr: Track, parts: Parts) -> dict:
+    """Orange traffic cones along the lap wherever it crosses open asphalt (junctions, the plaza), one every 8 m, so
+    the way of the race route is plain to see. They are for the eye only: a car passes through them."""
     n = tr.n
     SEG = 8
     ang = np.linspace(0, 2 * np.pi, SEG + 1)
@@ -381,11 +362,10 @@ def build_cones(tr: Track, parts: Parts, mouths) -> dict:
     P, U, T, HN, off, count = [], [], [], [], 0, 0
     for side in (1, -1):
         w = tr.wl if side > 0 else tr.wr
-        beyond = tr.en(np.arange(n).astype(float), side * (w + 1.2))
-        m = contains_xy(mouths, beyond[:, 0], beyond[:, 1])
+        m = (tr.open_l & ~tr.conc_l) if side > 0 else (tr.open_r & ~tr.conc_r)
         if side > 0:
-            m &= ~tr.in_pit_stretch()
-        for st in np.where(m)[0][::3]:
+            m = m & ~tr.in_pit_stretch()
+        for st in np.where(m)[0][::8]:
             c = tr.en(np.array([float(st)]), np.array([side * (w[st] + 0.25)]))[0]
             g = float(tr.h(np.array([float(st)]), np.array([side * w[st]]))[0])
             base = tr.fr.world(c[None, :] + ring * 0.15, np.full(SEG + 1, g))

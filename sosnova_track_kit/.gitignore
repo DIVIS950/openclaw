@@ -3,6 +3,11 @@ source/cuzk_far/ortho.png
 source/work/*
 !source/work/centerline.json
 !source/work/centerline_route.json
+!source/work/realmap_asphalt.wkb
+!source/work/realmap_pads.wkb
+!source/work/realmap_sand.wkb
+!source/work/realmap_white.wkb
+!source/work/realmap_boxes.json
 !source/work/build_summary.json
 !source/work/paint.json
 !source/work/tyre_walls.json

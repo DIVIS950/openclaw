@@ -247,8 +247,7 @@ def main() -> None:
     shots.append(("bridge_side", mid + np.array([-side[0] * 38, 9.0, -side[1] * 38]) + np.array([12.0, 0, 0]), mid + up * 2.0, 55))
     foot = tr.fr.world(bg.point(np.array([-9.0, 14.0]), np.array([0.0, 0.0])), tr.H.ground(bg.point(np.array([-9.0, 14.0]), np.array([0.0, 0.0]))))
     shots.append(("bridge_ramp", foot[0] + up * 1.1, foot[1] + up * 4.0, 75))
-    # the original circuit outside the lap: from the air, and from a car on each of its roads
-    import circuit
+    # the circuit from the air
 
     def at(e, n, h):
         en = np.array([[float(e), float(n)]])
@@ -256,11 +255,6 @@ def main() -> None:
     for name, eye, tgt in (("air_start", (45, -125, 70), (65, -22)), ("air_plaza", (-75, 15, 60), (12, 76)), ("air_east", (235, -75, 60), (150, -8)),
                            ("air_sw", (-105, -115, 50), (-33, -42)), ("air_paddock", (-190, -60, 70), (-70, 0))):
         shots.append((name, at(*eye), at(*tgt, 0.0), 60))
-    for rname, en, _w in circuit.roads():
-        for frac in (0.12, 0.5):
-            i = int(frac * len(en))
-            j = min(len(en) - 1, i + 28)
-            shots.append((f"road_{rname}_{int(frac * 100):02d}", at(*en[i], 1.05), at(*en[j], 0.5), 75))
     for name, eye, tgt, fov in shots:
         if wanted and name not in wanted:
             continue
@@ -281,6 +275,18 @@ def main() -> None:
         scene.render.filepath = os.path.join(PREV, "top.png")
         bpy.ops.render.render(write_still=True)
         print("rendered top", flush=True)
+    if not wanted or "top_north" in wanted:
+        # the circuit from straight above with north up, the way a map or a satellite picture shows it
+        import math
+        cam.data.type = "ORTHO"
+        cam.data.ortho_scale = 500
+        cam.location = Vector(to_bl(np.array([77.6, 900.0, -93.3])))
+        turn = math.radians(8.08)
+        cam.rotation_euler = Matrix(((math.cos(turn), -math.sin(turn), 0), (math.sin(turn), math.cos(turn), 0), (0, 0, 1))).to_euler()
+        scene.render.resolution_x, scene.render.resolution_y = 1500, 1000
+        scene.render.filepath = os.path.join(PREV, "top_north.png")
+        bpy.ops.render.render(write_still=True)
+        print("rendered top_north", flush=True)
 
 
 if __name__ == "__main__":

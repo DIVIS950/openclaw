@@ -91,7 +91,7 @@ def main() -> None:
     wr = np.clip(-a - EDGE_GAP, MIN_HALF - 0.4, MAX_HALF)
     wl = periodic_gauss(ndi.minimum_filter1d(wl, 5, mode="wrap"), 2.0)
     wr = periodic_gauss(ndi.minimum_filter1d(wr, 5, mode="wrap"), 2.0)
-    # the racetrack design: one width all the way round (design.LAP_HALF), open only where the pit apron joins
+    # provisional widths: realmap.py replaces them with the real ones, measured against the outline of the asphalt
     fit = float(np.mean((wl >= 4.4) & (wr >= 4.4)))
     wl = np.full(len(c), 4.5)
     wr = np.full(len(c), 4.5)

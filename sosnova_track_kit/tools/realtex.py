@@ -27,11 +27,13 @@ from common import HALF_E, HALF_N, SITE_HALF, SRC, WORK  # noqa: E402
 
 GSD = 0.125
 LAP_CHUNK = 28                    # stations (metres) of road per lap texture: 1764 m = 63 textures
-LAP_PX = (2048, 512)              # rows (along), columns (across)
+LAP_PX = (1536, 512)              # rows (along, 2 cm per pixel), columns (across); twice the columns where the road is wide
 LAP_MARGIN = (1.0, 0.3)           # texture overlap beyond the mesh along and across (m), so filtering never wraps
-LAP_HALF = 4.5
+ASPH_TILE = 40.0                  # the asphalt beside the lap is cut into squares of this size (m), one texture each
+ASPH_PX = 1024
+ASPH_MARGIN = 3.0                 # a triangle may reach this far out of its square (m)
 GROOVE_SIGMA = 1.15
-GRASS_PX = 1536                   # pixels per grass tile
+GRASS_PX = 1024                   # pixels per grass tile: 10 cm per pixel, what the photo holds
 GRASS_MARGIN = 9.0                # a ground triangle may reach this far out of its tile (m)
 
 _cache: dict = {}
@@ -73,14 +75,17 @@ def lap_textures(tr, line_offset: np.ndarray):
     ratio, ok = _ortho()
     grain = textures.scan("asphalt_track.jpg", (49.0, 50.0, 53.0), 384, repeat=1, desat=0.5)        # 5.6 m of scanned asphalt
     grain_m = 5.6
-    fine = 1 + 0.035 * textures.fnoise(512, 2, 5, 771)
-    H, W = LAP_PX
+    H = LAP_PX[0]
     out, chunks = {}, []
     busy_all = 0.8 + 0.2 * np.clip(np.abs(tr.k) * 40.0, 0, 1)
     for k, a in enumerate(range(0, tr.n, LAP_CHUNK)):
         b = min(tr.n, a + LAP_CHUNK)
+        st = np.arange(a, b + 1) % tr.n
+        half = float(max(tr.wl[st].max(), tr.wr[st].max())) + LAP_MARGIN[1]            # this piece's own width
+        W = LAP_PX[1] * (2 if half > 8.0 else 1)
+        fine = 1 + 0.035 * textures.fnoise(W, 2, 5, 771)
         s = (a - LAP_MARGIN[0]) + (b - a + 2 * LAP_MARGIN[0]) * (np.arange(H) + 0.5) / H
-        d = -(LAP_HALF + LAP_MARGIN[1]) + 2 * (LAP_HALF + LAP_MARGIN[1]) * (np.arange(W) + 0.5) / W
+        d = -half + 2 * half * (np.arange(W) + 0.5) / W
         ss, dd = np.meshgrid(s, d, indexing="ij")
         en = tr.en(ss.ravel(), dd.ravel()).reshape(H, W, 2)
         r = _sample(ratio, en)
@@ -93,22 +98,54 @@ def lap_textures(tr, line_offset: np.ndarray):
         gx = ((dd % grain_m) / grain_m * 384).astype(np.float32)
         gy = ((ss % grain_m) / grain_m * 384).astype(np.float32)
         tex = cv2.remap(grain, gx, gy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
-        tex = tex * np.tile(fine, (H // 512, 1))[..., None] * macro[..., None]
+        tex = tex * np.tile(fine, (H // W + 1, 1))[:H, :, None] * macro[..., None]
         off = tr.interp(line_offset, ss.ravel()).reshape(H, W)
         busy = tr.interp(busy_all, ss.ravel()).reshape(H, W)
         tex *= (1 - 0.17 * np.exp(-0.5 * ((dd - off) / GROOVE_SIGMA) ** 2) * busy)[..., None]     # rubber on the racing line
-        tex *= (1 + 0.07 * np.clip((np.abs(dd) - (LAP_HALF - 0.55)) / 0.5, 0, 1))[..., None]       # dust along the edges
+        # dust along the edges, only where the asphalt really ends there
+        wl_, wr_ = tr.interp(tr.wl, ss.ravel()).reshape(H, W), tr.interp(tr.wr, ss.ravel()).reshape(H, W)
+        cl_, cr_ = tr.interp(1.0 - tr.open_l.astype(float), ss.ravel()).reshape(H, W), tr.interp(1.0 - tr.open_r.astype(float), ss.ravel()).reshape(H, W)
+        tex *= (1 + 0.07 * cl_ * np.clip((dd - (wl_ - 0.55)) / 0.5, 0, 1) + 0.07 * cr_ * np.clip((-dd - (wr_ - 0.55)) / 0.5, 0, 1))[..., None]
         name = f"lap{k:02d}"
         out[name + ".jpg"] = _jpg(tex, 86)
-        chunks.append((a, b, name))
+        chunks.append((a, b, name, half))
     return out, chunks
 
 
-def lap_uv(a: int, b: int, station: np.ndarray, lateral: np.ndarray) -> np.ndarray:
-    """Texture coordinates (v upwards) of points of the lap chunk a..b."""
-    u = (lateral + LAP_HALF + LAP_MARGIN[1]) / (2 * (LAP_HALF + LAP_MARGIN[1]))
+def lap_uv(a: int, b: int, half: float, station: np.ndarray, lateral: np.ndarray) -> np.ndarray:
+    """Texture coordinates (v upwards) of points of the lap chunk a..b whose texture reaches `half` m to each side."""
+    u = (lateral + half) / (2 * half)
     v = 1.0 - (station - (a - LAP_MARGIN[0])) / (b - a + 2 * LAP_MARGIN[0])
     return np.column_stack([u, v])
+
+
+def asphalt_tile(e0: float, n0: float) -> bytes:
+    """Texture of the asphalt in the square whose south-west corner is (e0, n0): the real light and dark of the
+    photo over the same scanned grain as the lap, so the two meet without a step."""
+    ratio, ok = _ortho()
+    if "grain" not in _cache:
+        _cache["grain"] = textures.scan("asphalt_track.jpg", (49.0, 50.0, 53.0), 384, repeat=1, desat=0.5)
+    grain, grain_m = _cache["grain"], 5.6
+    ext = ASPH_TILE + 2 * ASPH_MARGIN
+    t = (np.arange(ASPH_PX) + 0.5) / ASPH_PX
+    ee, nn = np.meshgrid(e0 - ASPH_MARGIN + ext * t, n0 + ASPH_TILE + ASPH_MARGIN - ext * t)
+    en = np.stack([ee, nn], -1)
+    r, v = _sample(ratio, en), _sample(ok, en)
+    sig = 22 * (ASPH_PX / ext) / (LAP_PX[0] / (LAP_CHUNK + 2 * LAP_MARGIN[0]))          # the same reach in metres as on the lap
+    num, den = cv2.GaussianBlur(r * v, (0, 0), sig), cv2.GaussianBlur(v, (0, 0), sig)
+    fill = np.where(den > 0.03, num / np.maximum(den, 1e-4), 1.0)
+    r = cv2.GaussianBlur(r * v + fill * (1 - v), (0, 0), 1.0)
+    macro = 1 + 0.95 * (np.clip(r, 0.66, 1.45) - 1)
+    gx = ((ee % grain_m) / grain_m * 384).astype(np.float32)
+    gy = ((nn % grain_m) / grain_m * 384).astype(np.float32)
+    tex = cv2.remap(grain, gx, gy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+    tex = tex * (1 + 0.035 * textures.fnoise(ASPH_PX, 2, 5, 771))[..., None] * macro[..., None]
+    return _jpg(tex, 86)
+
+
+def asphalt_uv(e0: float, n0: float, en: np.ndarray) -> np.ndarray:
+    ext = ASPH_TILE + 2 * ASPH_MARGIN
+    return np.column_stack([(en[:, 0] - e0 + ASPH_MARGIN) / ext, (en[:, 1] - n0 + ASPH_MARGIN) / ext])
 
 
 def _grass_canvas():
@@ -119,13 +156,27 @@ def _grass_canvas():
         w = photo.classes(rgb)
         toned, _ = photo.tone(rgb, w)
         toned = toned * photo.DETAIL_MEAN
+        toned = np.clip(toned + w[..., 2:3] * rgb * 0.16, 0, 1)        # straw, sand and bare earth keep their light, warm colour
         veg = cv2.GaussianBlur((w[..., 1] > 0.6).astype(np.float32), (0, 0), 1.2)
         sig = 3.5 / (2 * SITE_HALF / n)
         num = cv2.GaussianBlur(toned * veg[..., None], (0, 0), sig)
         den = cv2.GaussianBlur(veg, (0, 0), sig)[..., None]
         base = np.array(textures.GRASS_MEAN, np.float32) / 255.0
         fill = np.where(den > 0.03, num / np.maximum(den, 1e-4), base)
-        out = toned * veg[..., None] + fill * (1 - veg[..., None])
+        # only beside the asphalt of the circuit: there the photo's road edge, paint and cars must not bleed into
+        # the grass. Further away the photo stays as it is: the paddock, the yards, paths and bare earth are real
+        import realmap
+        from shapely.geometry import Polygon as _Pg
+        near = np.zeros((n, n), np.uint8)
+        P_ = realmap.asphalt().buffer(4.0)
+        for g_ in getattr(P_, "geoms", [P_]):
+            for k_, ring in enumerate([g_.exterior, *g_.interiors]):
+                xy = np.array(ring.coords)
+                px = np.round(np.column_stack([(xy[:, 0] + SITE_HALF) / (2 * SITE_HALF) * n, (SITE_HALF - xy[:, 1]) / (2 * SITE_HALF) * n])).astype(np.int32)
+                cv2.fillPoly(near, [px], 1 if k_ == 0 else 0)
+        near = cv2.GaussianBlur(near.astype(np.float32), (0, 0), 6.0)[..., None]
+        keep = 1 - (1 - veg[..., None]) * near
+        out = toned * keep + fill * (1 - keep)
         lum = out.mean(-1, keepdims=True)
         out = out * np.clip(lum, 0.5 * base.mean(), None) / np.maximum(lum, 1e-4)        # tree shadows stay, but not black
         _cache["grass"] = (out * 255.0).astype(np.float32)

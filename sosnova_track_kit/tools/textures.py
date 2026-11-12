@@ -470,12 +470,13 @@ def build_static() -> dict[str, bytes]:
         "lights.jpg": _jpg(lights(), 92),
         "metal.jpg": _jpg(np.stack([(62 + fnoise(64, 2, 16, 131) * 3) * c for c in (1.0, 1.0, 1.05)], -1)),
         "boards.jpg": _jpg(boards(), 92),
-        "pad.jpg": _jpg(scan("asphalt_06.jpg", 122, 1024, repeat=2, patchy=0.05, seed=321), 90),
+        "pad.jpg": _jpg(scan("gravel_concrete_03.jpg", 150, 1024, repeat=2, patchy=0.04, seed=321), 90),          # the concrete strips
+        "padwhite.jpg": _jpg(128 + (scan("gravel_concrete_03.jpg", 128, 1024, repeat=2, patchy=0.03, seed=322) - 128) * 0.45 + 78, 90),  # the white pad
         "grass.jpg": _jpg(natural("grass_ground.jpg", GRASS_MEAN, 2048, 12, seed=331, vary=0.15, tint=(118, 112, 62), tint_amount=0.55), 90),
         "shoulder.jpg": _jpg(shoulder(), 88),
         "bags.jpg": _jpg(bags(), 90),
         "cone.jpg": _jpg(cone(), 90),
-        "gravel.jpg": _jpg(scan("gravel_floor_02.jpg", (138, 132, 118), 1024, repeat=2, patchy=0.09, seed=341), 90),
+        "gravel.jpg": _jpg(scan("gravel_floor_02.jpg", (172, 161, 136), 1024, repeat=2, patchy=0.09, seed=341), 90),        # the pale sand of the run-offs
         "concrete.jpg": _jpg(scan("gravel_concrete_03.jpg", 132, 1024), 90),
         "building.jpg": _jpg(wall("building"), 90),
         "garage.jpg": _jpg(wall("garage"), 90),

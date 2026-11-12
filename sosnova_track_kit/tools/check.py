@@ -241,26 +241,73 @@ def main() -> None:
     check(worst < 0.001, f"every road edge vertex is shared with the ground mesh (max gap {worst * 1000:.2f} mm)")
     check(tj_gap < 0.001, f"ground vertices lying on a road edge between road vertices are at edge height ({tj} vertices, max gap {tj_gap * 1000:.2f} mm)")
 
-    print("other roads and race equipment")
-    import circuit
+    print("the real circuit")
     import ground
+    import realmap
     from shapely import contains_xy as _inside, distance as _dist, points as _points
+    from shapely.geometry import LineString as _Line
     from track import Track
     tr = Track()
     drive = Surface([m for m in meshes if m["name"].startswith(("1ROAD_trk", "1APRON"))])
-    for f in circuit.road_frames():
-        worst, holes = 0.0, 0
-        for g in (-0.6, 0.0, 0.6):
-            xz = tr.fr.xz(f["en"][::2] + f["nrm"][::2] * (f["half"] * g))          # every metre
-            hit = [drive.at(x, z) for x, z in xz]
-            holes += sum(y is None for y, _ in hit[4:-4])                           # the last metres lie under the lap
-            y = np.array([np.nan if v is None else v for v, _ in hit])
-            bump = np.nan_to_num(np.abs(np.diff(np.diff(y))))
-            worst = max(worst, float(bump.max()))
-        # the lap itself stays below 0.6 %; a road that leaves the cambered lap may crease a little more
-        check(holes == 0 and worst < 0.02, f"road '{f['name']}' is paved over its whole width and even (holes {holes}, max change of gradient {worst * 100:.2f} % per metre)")
-    road_kerbs = [m for m in meshes if m["name"].startswith("1KERB_r")]
-    check(len(road_kerbs) >= 8, f"the other roads carry raised kerbs ({len(road_kerbs)})")
+    real = realmap.asphalt()
+    # 1. what is paved in the model is what is paved in the photo: a point every 1.5 m over the whole circuit
+    x0, y0, x1, y1 = real.bounds
+    gx, gy = np.meshgrid(np.arange(x0 - 6, x1 + 6, 1.5), np.arange(y0 - 6, y1 + 6, 1.5))
+    g = np.column_stack([gx.ravel(), gy.ravel()])
+    g = g[_dist(_points(g), real.boundary) > 0.6]                    # not on the outline itself
+    want = _inside(real, g[:, 0], g[:, 1])
+    hit = [drive.at(x, z) for x, z in tr.fr.xz(g)]
+    have = np.array([y is not None for y, _ in hit])
+    check(bool((want == have).mean() > 0.998), f"the paved surface of the model is the paved surface of the photo ({int(want.sum())} of {len(g)} points paved, {int((want != have).sum())} differ)")
+    # 2. the widths of the lap are the real ones
+    wid = tr.wl + tr.wr
+    shut = ~tr.open_l & ~tr.open_r
+    check(bool(wid.min() > 5.5 and wid.max() < 27.0 and shut.sum() > 300),
+          f"the lap has its real widths: {wid.min():.1f} to {wid.max():.1f} m (mean {wid.mean():.1f} m); {int(shut.sum())} m lie between two real edges")
+    # 3. where the asphalt runs on beside the lap strip there is no step and no gap
+    step_, gaps_, open_m = 0.0, 0, 0
+    for side, is_open, w in ((1, tr.open_l, tr.wl), (-1, tr.open_r, tr.wr)):
+        st = np.where(is_open)[0].astype(float)
+        far = tr.en(st, side * (w[st.astype(int)] + 1.2))
+        st = st[_inside(real, far[:, 0], far[:, 1])]                 # where the asphalt really carries on for more than a metre
+        q = tr.fr.xz(tr.en(st, side * (w[st.astype(int)] + 0.35)))
+        on = tr.h(st, side * w[st.astype(int)]) - tr.fr.ref
+        open_m = open_m + len(st)
+        for (x, z), y0_ in zip(q, on):
+            y, _ = drive.at(x, z, y0_)
+            if y is None:
+                gaps_ += 1
+            else:
+                step_ = max(step_, abs(y - y0_))
+    check(gaps_ <= 0.01 * open_m and step_ < 0.03, f"the asphalt beside the lap carries on at the same height ({open_m} m of open side, largest difference 35 cm out {step_ * 1000:.0f} mm; {gaps_} m where a strip thinner than 40 cm is left out)")
+    # 4. the asphalt beside the lap is even
+    ys = np.array([np.nan if y is None else y for y, _ in hit]).reshape(gx.shape) if len(g) == gx.size else None
+    apr = Surface([m for m in meshes if m["name"].startswith("1APRON")])
+    rough = 0.0
+    for row in np.arange(y0, y1, 3.0):
+        xs = np.arange(x0, x1, 1.0)
+        q = np.column_stack([xs, np.full(len(xs), row)])
+        yy = np.array([np.nan if v is None else v for v, _ in (apr.at(x, z) for x, z in tr.fr.xz(q))])
+        d2 = np.abs(np.diff(np.diff(yy)))
+        if np.isfinite(d2).any():
+            rough = max(rough, float(np.nanmax(d2)))
+    # where two cambered pieces of the lap lie side by side, the asphalt between them has a crease like a road crown:
+    # at most twice the camber limit of 3.5 %. Anything sharper would be a step
+    check(rough < 0.06, f"the asphalt beside the lap has no steps (largest change of gradient {rough * 100:.2f} % per metre, a crease like a road crown; the lap itself stays below 0.6)")
+    # 5. the real barriers stand where the photo shows them, and none on the asphalt
+    lines = realmap.walls()
+    off = real.buffer(0.8)
+    need, found = 0, 0
+    for w_ in lines:
+        ln = _Line(w_["en"])
+        q = np.array([ln.interpolate(d_).coords[0] for d_ in np.arange(0.5, ln.length, 1.0)])
+        q = q[~_inside(off, q[:, 0], q[:, 1])]
+        if len(q):
+            need += len(q)
+            found += int((wall_tree.query(tr.fr.xz(q))[0] < 1.3).sum())
+    check(len(lines) >= 15 and found >= 0.93 * need, f"the tyre walls and barriers of the photo are built ({len(lines)} barriers, {found} of {need} m found in the model)")
+    conc = [m for m in meshes if m["name"].startswith(("1APRON_c", "1APRON_w"))]
+    check(len(conc) >= 5 and int(tr.kerb_l.sum() + tr.kerb_r.sum()) > 150, f"the concrete strips and the white pad are part of the surface ({len(conc)} meshes, {int(tr.kerb_l.sum() + tr.kerb_r.sum())} m of strip beside the lap)")
     lap_poly = ground.ribbon_polygon(tr)
     to_en = lambda v: tr.fr.o + v[:, [0]] * tr.fr.l + v[:, [2]] * tr.fr.f
     blocks = [m for m in meshes if m["name"].startswith("1WALL") and m["name"].endswith("barricade")]
