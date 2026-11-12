@@ -264,6 +264,12 @@ def main() -> None:
     shut = ~tr.open_l & ~tr.open_r
     check(bool(wid.min() > 5.5 and wid.max() < 27.0 and shut.sum() > 300),
           f"the lap has its real widths: {wid.min():.1f} to {wid.max():.1f} m (mean {wid.mean():.1f} m); {int(shut.sum())} m lie between two real edges")
+    # 2b. the real edges of the lap are even lines: no wobble against the centre line from one metre to the next
+    wob = 0.0
+    for w_, shut_ in ((tr.wl, ~tr.open_l | tr.conc_l), (tr.wr, ~tr.open_r | tr.conc_r)):
+        d2_ = np.abs(np.roll(w_, -1) - 2 * w_ + np.roll(w_, 1))
+        wob = max(wob, float(d2_[shut_].max()))
+    check(wob < 0.10, f"the edges of the lap are even lines (largest bend of an edge against the centre line {wob * 100:.1f} cm from one metre to the next)")
     # 3. where the asphalt runs on beside the lap strip there is no step and no gap
     step_, gaps_, open_m = 0.0, 0, 0
     for side, is_open, w in ((1, tr.open_l, tr.wl), (-1, tr.open_r, tr.wr)):

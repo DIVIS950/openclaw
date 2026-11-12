@@ -59,6 +59,23 @@ def build_edge_lines(tr: Track, parts: Parts) -> dict:
     return dict(edge_line_m=total)
 
 
+def straighten(q: np.ndarray) -> np.ndarray:
+    """A traced line as it was painted: straight if it stays within 25 cm of the straight line between its ends,
+    otherwise an even curve through it."""
+    import realmap
+    a, b = q[0], q[-1]
+    d = b - a
+    ln = float(np.linalg.norm(d))
+    if ln > 1e-6:
+        off = np.abs((q[:, 0] - a[0]) * d[1] - (q[:, 1] - a[1]) * d[0]) / ln
+        if off.max() < 0.25:
+            return a + (b - a) * np.linspace(0, 1, len(q))[:, None]
+    g = realmap._smooth_line(q, 2.0, 0.6)
+    cum = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(g, axis=0), axis=1))])
+    t = np.linspace(0, cum[-1], len(q))
+    return np.column_stack([np.interp(t, cum, g[:, 0]), np.interp(t, cum, g[:, 1])])
+
+
 def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
     """asphalt, keep_out: shapely geometries in east/north."""
     data = json.load(open(os.path.join(WORK, "paint.json"), encoding="utf-8"))
@@ -84,8 +101,10 @@ def build_marks(tr: Track, parts: Parts, asphalt, keep_out) -> dict:
         m = max(2, int(np.ceil(cum[-1] / 0.6)) + 1)
         s = np.linspace(0, cum[-1], m)
         q = np.column_stack([np.interp(s, cum, p[:, 0]), np.interp(s, cum, p[:, 1])])
+        if not line.get("box"):                                      # a painted line is an even curve, not the wiggle of its tracing
+            q = straighten(q)
         inside = contains_xy(asphalt, q[:, 0], q[:, 1]) & ~contains_xy(keep_out, q[:, 0], q[:, 1])
-        if inside.mean() < 0.7 or (not line.get("box") and ((edge_tree.query(q)[0] < 1.3).mean() > 0.5 or cum[-1] < 2.5)):
+        if inside.mean() < 0.7 or (not line.get("box") and ((edge_tree.query(q)[0] < 2.2).mean() > 0.5 or cum[-1] < 2.5)):
             continue                                                               # off the asphalt, a copy of an edge line, or a speck
         stats["areas"] += int(bool(line.get("box")))
         d = np.gradient(q, axis=0)

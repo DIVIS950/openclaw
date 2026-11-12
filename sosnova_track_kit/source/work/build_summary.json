@@ -1,52 +1,52 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 365,
- "vertices": 194389,
- "triangles": 243150,
- "kn5_mb": 48.49,
+ "meshes": 356,
+ "vertices": 181958,
+ "triangles": 238836,
+ "kn5_mb": 46.3,
  "ground": {
-  "asphalt": 10110,
-  "gravel": 1229,
-  "grass": 15575,
-  "shoulder": 8985,
-  "verge": 8224,
-  "photo": 23801,
-  "relief_points": 8486
+  "asphalt": 9816,
+  "gravel": 1190,
+  "grass": 15530,
+  "shoulder": 9017,
+  "verge": 8205,
+  "photo": 23826,
+  "relief_points": 8483
  },
- "asphalt_m2": 32070,
- "gravel_m2": 1697,
+ "asphalt_m2": 32084,
+ "gravel_m2": 1674,
  "buildings": 45,
  "bridge": {
   "length": 53.70721553013151,
   "peak": 5.199809348051539,
-  "clearance": 3.8176919542442533,
-  "max_grade": 0.32002619592122983
+  "clearance": 3.6908683579924286,
+  "max_grade": 0.31920224929538676
  },
  "pylons": 3,
  "paint": {
-  "edge_line_m": 2537,
+  "edge_line_m": 2588,
   "grid_boxes": 16,
   "pit_bays": 16,
-  "lines": 74,
-  "line_m": 1925,
-  "areas": 20,
-  "brake_boards": 13
+  "lines": 60,
+  "line_m": 681,
+  "areas": 9,
+  "brake_boards": 14
  },
  "barriers": {
-  "walls": 20,
-  "metres": 475
+  "walls": 22,
+  "metres": 482
  },
  "real": {
   "lap_width_m": [
-   6.29,
-   11.22,
-   20.13
+   7.46,
+   11.37,
+   20.06
   ],
-  "concrete_m2": 957,
-  "concrete_strip_beside_lap_m": 303,
-  "open_side_m": 1239,
-  "asphalt_squares": 40,
+  "concrete_m2": 999,
+  "concrete_strip_beside_lap_m": 345,
+  "open_side_m": 1257,
+  "asphalt_squares": 32,
   "lap_textures": 63
  },
  "trees": {
@@ -55,7 +55,7 @@
  },
  "race": {
   "tyre_stacks": 41,
-  "cones": 91,
+  "cones": 90,
   "fence_m": 178,
   "tape_m": 184,
   "rows": 7,
@@ -70,13 +70,13 @@
  },
  "dummies": 37,
  "ai": {
-  "points": 1694,
-  "length": 1694.45,
-  "lap_s": 84.62,
-  "v_min": 29.03,
-  "v_max": 137.62,
-  "off_min": -4.44,
-  "off_max": 7.68
+  "points": 1690,
+  "length": 1689.94,
+  "lap_s": 82.43,
+  "v_min": 30.47,
+  "v_max": 138.92,
+  "off_min": -4.75,
+  "off_max": 7.56
  },
  "frame": {
   "origin_en": [
@@ -87,7 +87,7 @@
    0.9900655078949834,
    -0.14060686354744148
   ],
-  "ref_h": 255.43798600374055
+  "ref_h": 255.4379443931686
  },
  "sector_station": 882.0
 }

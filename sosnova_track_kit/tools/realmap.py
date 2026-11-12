@@ -67,12 +67,32 @@ def _to_polys(mask: np.ndarray):
     return unary_union(out)
 
 
-def _smooth(ring, step: float = 0.5, sigma_m: float = 1.6) -> np.ndarray:
-    """A ring of the outline without the wiggle of the 25 cm mask: resampled and smoothed along its length."""
+def _smooth(ring, step: float = 0.5, sigma_m: float = 1.6, flat: bool = False) -> np.ndarray:
+    """A ring of the outline without the wiggle of the 25 cm mask: resampled and smoothed along its length.
+    flat: use the filter 2G - GG instead of the plain Gaussian G. It takes out the same wiggle but leaves bends
+    of a few metres radius where they are, so a strong smoothing does not pull corners inwards."""
     from scipy.ndimage import gaussian_filter1d
     k = max(12, int(ring.length / step))
     xy = np.array([ring.interpolate(j / k, normalized=True).coords[0] for j in range(k)])
-    return gaussian_filter1d(xy, sigma_m / step, axis=0, mode="wrap")
+    sig = min(sigma_m / step, k / 12.0)                              # a small island keeps its shape
+    g = gaussian_filter1d(xy, sig, axis=0, mode="wrap")
+    return 2 * g - gaussian_filter1d(g, sig, axis=0, mode="wrap") if flat else g
+
+
+def _smooth_line(pts, sigma_m: float = 1.5, step: float = 0.5) -> np.ndarray:
+    """An open traced line (paint, a tyre wall) without its wiggle. Both ends stay where they are."""
+    from scipy.ndimage import gaussian_filter1d
+    p = np.asarray(pts, float)
+    cum = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(p, axis=0), axis=1))])
+    if cum[-1] < 4 * step:
+        return p
+    t = np.linspace(0, cum[-1], max(5, int(cum[-1] / step) + 1))
+    q = np.column_stack([np.interp(t, cum, p[:, 0]), np.interp(t, cum, p[:, 1])])
+    sig = min(sigma_m / step, len(q) / 6.0)
+    g = gaussian_filter1d(q, sig, axis=0, mode="nearest")
+    g = 2 * g - gaussian_filter1d(g, sig, axis=0, mode="nearest")
+    fade = np.clip(np.minimum(t, cum[-1] - t) / max(2 * sigma_m, 1e-6), 0, 1)[:, None]      # the ends are fixed points
+    return q * (1 - fade) + g * fade
 
 
 def _mask() -> np.ndarray:
@@ -121,8 +141,9 @@ def paint_areas(P0):
         fill = float((bright[y0:y1, x0:x1][m > 0] > 1.12).mean()) if m.any() else 0.0
         if fill >= 0.55:
             strips.append(g.buffer(0.25).buffer(-0.25))
-        elif g.area > 3.0:
-            boxes.append(np.array(g.exterior.coords).round(2).tolist())
+        elif g.area > 3.0:                                           # a painted box is a rectangle: draw it as one
+            r_ = cv2.boxPoints(cv2.minAreaRect(np.array(g.exterior.coords, np.float32)))
+            boxes.append(np.vstack([r_, r_[:1]]).round(2).tolist())
     return (unary_union(strips) if strips else Polygon()), boxes
 
 
@@ -186,7 +207,7 @@ def compute():
     strips = unary_union([strips, pale_concrete(P)])
     P = unary_union([P, strips.buffer(0.2)]).buffer(0.3).buffer(-0.3)                # the concrete strips are paved too
     P = max(getattr(P, "geoms", [P]), key=lambda g: g.area)
-    P = Polygon(_smooth(P.exterior, sigma_m=1.0), [_smooth(h, sigma_m=1.0) for h in P.interiors if Polygon(h).area >= 45.0]).buffer(0)
+    P = Polygon(_smooth(P.exterior, sigma_m=EDGE_SIGMA, flat=True), [_smooth(h, sigma_m=EDGE_SIGMA, flat=True) for h in P.interiors if Polygon(h).area >= 45.0]).buffer(0)
     P = max(getattr(P, "geoms", [P]), key=lambda g: g.area)                          # one even edge, strips included
     return P.simplify(0.05), strips, boxes
 
@@ -242,12 +263,14 @@ def walls() -> list[dict]:
         ln = LineString(w["en"])
         if ln.length < 7.0 or not region.contains(ln) or ln.distance(hand) < 3.5:
             continue
-        out.append(dict(en=w["en"], width=max(1.2, float(w.get("width", 1.3))), height=0.9, material="tyres"))
+        out.append(dict(en=_smooth_line(w["en"], 2.0).round(2).tolist(), width=max(1.2, float(w.get("width", 1.3))), height=0.9, material="tyres"))
     return out
 
 
 SAND_BRIGHT = 1.07      # sand is brighter than this (asphalt = 1); dry grass is darker
 SAND_AT = [(-200, -55), (-232, 95), (207, -35), (197, -62), (-30, 200), (25, 195)]      # the real sand run-offs (a point in each)
+EDGE_SIGMA = 3.0        # smoothing of the finished outline along its length (m): wiggles shorter than about 10 m go
+WIDTH_SIGMA = 5.0       # smoothing of the lap's half widths along the lap (m): its edges run parallel to the centre line
 UNDER_BRIDGE_HALF = 4.8  # half width of the road where it passes under the overpass (m)
 CAP = 16.0              # a side with asphalt further out than this is open: the lap runs across a paved area there
 OPEN_HALF = 5.5         # half width of the lap's own strip on an open side (m)
@@ -276,26 +299,101 @@ def lap_widths(P=None, C=None) -> dict:
                     pts = np.array([q for g in getattr(hit, "geoms", [hit]) for q in g.coords])
                     dist[k, i] = float(np.linalg.norm(pts - c[i], axis=1).min())
         return dist
+    from scipy.ndimage import median_filter
+
+    def clean(v, runs, sigma):
+        """Median then Gaussian along each run of stations (a run is a stretch with a real edge on that side)."""
+        o = v.copy()
+        for a, ln in runs:
+            idx = (a + np.arange(ln)) % n
+            if ln >= 8:
+                o[idx] = gaussian_filter1d(median_filter(v[idx], 7, mode="nearest"), sigma, mode="nearest")
+        return o
+
+    def runs_of(mask):
+        if mask.all():
+            return [(0, n)]
+        z = int(np.argmin(mask))
+        r = np.roll(mask, -z)
+        dd = np.diff(np.concatenate([[0], r.astype(int), [0]]))
+        return [((int(a) + z) % n, int(b - a)) for a, b in zip(np.where(dd == 1)[0], np.where(dd == -1)[0])]
+
     dist, paved = reach(Pa.boundary), reach(P.boundary)
     out = {}
     for k, key in enumerate(("l", "r")):
         d = np.maximum(dist[k], 2.5)
-        w = np.where(d > CAP, OPEN_HALF, d)
+        real = d <= CAP                                                # the asphalt ends within reach on this side
+        ds = np.minimum(clean(d, runs_of(real), WIDTH_SIGMA), d + 0.35)   # the edge as a clean line; never far outside the real one
+        w = np.where(real, ds, OPEN_HALF)
         for _ in range(2):                                             # lower envelope with a slope limit, both ways round
             for i in range(2 * n):
                 w[i % n] = min(w[i % n], w[(i - 1) % n] + SLOPE)
             for i in range(2 * n, 0, -1):
                 w[i % n] = min(w[i % n], w[(i + 1) % n] + SLOPE)
-        w = np.minimum(gaussian_filter1d(w, 2.5, mode="wrap"), d)
+        w = np.minimum(gaussian_filter1d(w, 2.5, mode="wrap"), ds)
+        closed = real & (ds - w < 0.3)                                 # the strip's edge is the (cleaned) real edge
+        # one last pass, with nothing after it that could put a kink back: the edge is an even line. Where that
+        # takes it a few decimetres past the real edge, the paving is drawn to the line (corridor)
+        w = gaussian_filter1d(w, 3.0, mode="wrap")
+        band = np.where(closed, np.clip(paved[k] - d, 0, 30), 0.0)     # concrete beyond the asphalt edge
+        has = closed & (band > 0.45)
+        has = np.array([has[(i - 2) % n] or has[i] or has[(i + 2) % n] for i in range(n)]) & closed      # bridge gaps of 2 m
+        bs = np.where(has, clean(band, runs_of(has), 4.0), 0.0)
+        kerb = has & (bs <= 4.0)                                        # a concrete strip (the real kind of kerb)
+        for a, ln in runs_of(kerb):                                    # strips shorter than 5 m are noise; taper the ends
+            idx = (a + np.arange(ln)) % n
+            if ln < 5:
+                kerb[idx], has[idx], bs[idx] = False, False, 0.0
+            else:
+                bs[idx] = np.minimum(bs[idx], 0.25 + 0.5 * np.minimum(np.arange(ln), ln - 1 - np.arange(ln)))
         out["w" + key] = w
-        out["open_" + key] = (np.maximum(paved[k], 2.5) - w) > 0.6        # asphalt or concrete carries on beyond the strip
-        out["conc_" + key] = out["open_" + key] & ((d - w) <= 0.6)                               # ... concrete does
-        out["kerb_" + key] = out["conc_" + key] & ((paved[k] - w) <= 4.0)                        # ... a concrete strip does
+        out["band_" + key] = np.where(kerb, bs, 0.0)
+        out["conc_" + key] = has                                       # concrete beside the lap (a strip, or the white pad)
+        out["kerb_" + key] = kerb
+        out["open_" + key] = ~closed | has                             # asphalt or concrete carries on beyond the strip
+        out["closed_" + key] = closed
     cl.update(wl=out["wl"].round(3).tolist(), wr=out["wr"].round(3).tolist(), open_l=out["open_l"].tolist(), open_r=out["open_r"].tolist(),
               kerb_l=out["kerb_l"].tolist(), kerb_r=out["kerb_r"].tolist(), conc_l=out["conc_l"].tolist(), conc_r=out["conc_r"].tolist(),
               edge_l=(c + nrm * out["wl"][:, None]).round(3).tolist(), edge_r=(c - nrm * out["wr"][:, None]).round(3).tolist())
     json.dump(cl, open(path, "w", encoding="utf-8"))
+    out.update(c=c, nrm=nrm, runs_of=runs_of)
     return out
+
+
+def corridor(P, C, Wt, w: dict):
+    """Rebuild the paving along the lap from the cleaned widths, so that every real edge of the lap is one even line:
+    the lap strip, a concrete strip of even width where the photo shows one, and nothing outside them for 3.5 m.
+    Returns (outline, concrete, white concrete)."""
+    c, nrm, n, runs_of = w["c"], w["nrm"], len(w["c"]), w["runs_of"]
+
+    def band(a, ln, sgn, inner, outer):
+        if ln < 2:
+            return Polygon()
+        idx = (a + np.arange(ln + 1)) % n if ln < n else np.arange(n + 1) % n
+        lo, hi = c[idx] + sgn * nrm[idx] * inner[idx, None], c[idx] + sgn * nrm[idx] * outer[idx, None]
+        return Polygon(np.vstack([lo, hi[::-1]])).buffer(0)
+
+    left, right = Polygon(c + nrm * w["wl"][:, None]), Polygon(c - nrm * w["wr"][:, None])
+    big, small = (left, right) if left.area > right.area else (right, left)
+    R = Polygon(big.exterior.coords, [small.exterior.coords]).buffer(0)
+    cut, strips, fill = [], [], []
+    for sgn, key in ((1.0, "l"), (-1.0, "r")):
+        wid, bs, closed, kerb, conc = w["w" + key], w["band_" + key], w["closed_" + key], w["kerb_" + key], w["conc_" + key]
+        wide = conc & ~kerb                                            # the white pad: only its edge to the lap is redrawn
+        for a, ln in runs_of(closed & ~wide):
+            cut.append(band(a, ln - 1, sgn, wid - 0.02, wid + bs + 3.5))
+        for a, ln in runs_of(kerb):
+            strips.append(band(a, ln - 1, sgn, wid - 0.02, wid + bs))
+        for a, ln in runs_of(wide):
+            fill.append(band(a, ln - 1, sgn, wid - 0.02, wid + 1.5))
+    cut = unary_union(cut).difference(R.buffer(0.01)) if cut else Polygon()
+    strips, fill = (unary_union(strips) if strips else Polygon()), (unary_union(fill) if fill else Polygon())
+    P2 = unary_union([P.difference(cut), R, strips, fill]).buffer(0.12).buffer(-0.12)
+    P2 = max(getattr(P2, "geoms", [P2]), key=lambda g: g.area)
+    P2 = Polygon(P2.exterior, [h for h in P2.interiors if Polygon(h).area >= 30.0])
+    C2 = unary_union([C.difference(cut), strips, fill]).difference(R.buffer(-0.01)).intersection(P2)
+    W2 = unary_union([Wt.difference(cut), fill.intersection(Wt.buffer(2.5))]).difference(R.buffer(-0.01)).intersection(P2) if not Wt.is_empty else Wt
+    return P2, C2, W2
 
 
 def others(R):
@@ -308,15 +406,26 @@ def others(R):
 if __name__ == "__main__":
     P, strips, boxes_ = compute()
     C, S, Wt = compute_extras(P, strips)
+    raw = P
+    w = lap_widths(P, C)
+    P, C, Wt = corridor(P, C, Wt, w)
+    S = S.difference(P.buffer(0.4))
     for name, g in (("asphalt", P), ("pads", C), ("sand", S), ("white", Wt)):
         open(os.path.join(WORK, f"realmap_{name}.wkb"), "wb").write(wkb.dumps(g))
     json.dump(dict(boxes=boxes_), open(os.path.join(WORK, "realmap_boxes.json"), "w"))
     print("concrete strips %.0f m2, painted boxes %d" % (strips.area, len(boxes_)))
     print("concrete %.0f m2 in %d pieces, sand %.0f m2 in %d pieces" % (C.area, len(getattr(C, "geoms", [C])), S.area, len(getattr(S, "geoms", [S]))))
     print("asphalt %.0f m2, outline %.0f m, %d islands" % (P.area, P.length, len(P.interiors)))
-    w = lap_widths(P, C)
+    rim = P.boundary
+    q = np.array([rim.interpolate(t_).coords[0] for t_ in np.arange(0, rim.length, 2.0)])
+    from shapely import distance as _dist, points as _pts
+    dev = _dist(_pts(q), raw.boundary)
+    print("clean edge against the smoothed outline of the photo: median %.2f m, 95 %% within %.2f m" % (np.median(dev), np.percentile(dev, 95)))
     print("lap: left %.2f..%.2f m, right %.2f..%.2f m, mean width %.2f m, open left %d m, open right %d m, concrete strip beside the lap %d m" % (
         w["wl"].min(), w["wl"].max(), w["wr"].min(), w["wr"].max(), float(np.mean(w["wl"] + w["wr"])), w["open_l"].sum(), w["open_r"].sum(),
         w["kerb_l"].sum() + w["kerb_r"].sum()))
+    for key in ("wl", "wr"):
+        dw = np.abs(np.diff(np.concatenate([w[key], w[key][:1]])))
+        print("  %s: change of half width along the lap, median %.3f, 95 %% below %.3f m per m" % (key, np.median(dw), np.percentile(dw, 95)))
     print("barriers: %d, %.0f m" % (len(walls()), sum(LineString(b["en"]).length for b in walls())))
 
