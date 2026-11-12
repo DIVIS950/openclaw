@@ -355,6 +355,13 @@ def main() -> None:
     via = [m for m in meshes if m["name"].startswith("SCENE_viaduct")]
     vv = np.vstack([m["vertices"]["pos"] for m in via]).astype(np.float64) if via else np.zeros((0, 3))
     check(len(via) >= 2 and float(np.ptp(vv[:, 0])) > 100, f"the motorway viaduct is built ({len(via)} meshes, {np.ptp(vv[:, 0]) if len(vv) else 0:.0f} m long, deck up to {vv[:, 1].max() if len(vv) else 0:.1f} m above the start line)")
+    solid_ = [m for m in meshes if m["name"].startswith("TREE3D")]
+    stacks_ = [m for m in meshes if m["name"].startswith("TYRES_stacks")]
+    n_solid = sum(len(m["indices"]) // 3 for m in solid_)
+    n_stack = sum(len(m["indices"]) // 3 for m in stacks_) // 16                # 16 side triangles per stack
+    lat_ = [m_ for m_ in k["materials"] if m_["name"] == "lattice"]
+    check(n_solid > 100000 and n_stack > 600 and len(lat_) == 1,
+          f"the scenery is solid: trees with trunk and body ({n_solid} triangles), tyre walls of {n_stack} round stacks, lattice pylons")
     lap_poly = ground.ribbon_polygon(tr)
     to_en = lambda v: tr.fr.o + v[:, [0]] * tr.fr.l + v[:, [2]] * tr.fr.f
     blocks = [m for m in meshes if m["name"].startswith("1WALL") and m["name"].endswith("barricade")]

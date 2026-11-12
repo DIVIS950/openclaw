@@ -1,10 +1,10 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 356,
- "vertices": 179594,
- "triangles": 238048,
- "kn5_mb": 46.19,
+ "meshes": 391,
+ "vertices": 495313,
+ "triangles": 472568,
+ "kn5_mb": 61.58,
  "ground": {
   "asphalt": 9816,
   "gravel": 1190,
@@ -35,7 +35,9 @@
  },
  "barriers": {
   "walls": 22,
-  "metres": 482
+  "metres": 482,
+  "tyre_wall_stacks": 1091,
+  "tyre_wall_triangles": 43640
  },
  "real": {
   "lap_width_m": [
@@ -51,12 +53,15 @@
  },
  "trees": {
   "near": 2349,
-  "far": 550
+  "far": 560,
+  "solid_trees": 2349,
+  "solid_tree_triangles": 181980
  },
  "race": {
   "tyre_stacks": 41,
   "cones": 90,
   "fence_m": 178,
+  "fence_posts": 72,
   "tape_m": 184,
   "rows": 7,
   "row_barriers": 34,

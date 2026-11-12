@@ -22,8 +22,8 @@ WALL_MATERIAL = {"garage": "garage", "building": "building", "hall": "hall", "hu
 
 
 def box(parts: Parts, group: str, material: str, corners_xz: np.ndarray, y0: float, y1: float, uv_scale=(8.0, 4.0),
-        top_material: str | None = None, top_uv: np.ndarray | float = 6.0, **kw) -> None:
-    """Extruded footprint (convex, any winding) with walls and a flat top."""
+        top_material: str | None = None, top_uv: np.ndarray | float = 6.0, top: bool = True, **kw) -> None:
+    """Extruded footprint (convex, any winding) with walls and a flat top (top=False: walls only)."""
     c = np.asarray(corners_xz, float)
     centre = c.mean(0)
     perim = 0.0
@@ -35,6 +35,8 @@ def box(parts: Parts, group: str, material: str, corners_xz: np.ndarray, y0: flo
         parts.quad(group, material, p, (perim, 0.0, perim + reps, (y1 - y0) / uv_scale[1]),
                    hint=(mid[0], 0.0, mid[1]), smooth=False, **kw)
         perim += reps
+    if not top:
+        return
     top = np.array([(p[0], y1, p[1]) for p in c])
     tris = [(0, k, k + 1) for k in range(1, len(c) - 1)]
     uv = c / top_uv if np.isscalar(top_uv) else np.asarray(top_uv, float)
@@ -55,7 +57,27 @@ def build_buildings(tr: Track, parts: Parts) -> list[Polygon]:
         vs = (min(b["height"], 4.0) if b["style"] == "garage" else 4.0) if b["height"] < 5.0 else b["height"] / max(1, round(b["height"] / 4.0))
         foot.append(Polygon(en))
         if roof["type"] == "flat":
-            box(parts, group, mat, tr.fr.xz(en), base - 0.5, base + b["height"], uv_scale=(8.0, vs), top_material="roofphoto", top_uv=site_uv(en))
+            sides = np.linalg.norm(np.roll(en, -1, axis=0) - en, axis=1)
+            if b["height"] < 3.4 or sides.min() < 6.0 or len(en) != 4:
+                box(parts, group, mat, tr.fr.xz(en), base - 0.5, base + b["height"], uv_scale=(8.0, vs), top_material="roofphoto", top_uv=site_uv(en))
+                continue
+            # a flat roof lies behind a parapet: the walls rise 35 cm above it
+            PAR, TH = 0.35, 0.30
+            xz, ytop = tr.fr.xz(en), base + b["height"]
+            box(parts, group, mat, xz, base - 0.5, ytop + PAR, uv_scale=(8.0, vs), top=False)
+            c_en = en.mean(0)
+            pull = (c_en - en) / np.linalg.norm(c_en - en, axis=1, keepdims=True) * TH * 1.4
+            en_in = en + pull
+            xz_in = tr.fr.xz(en_in)
+            parts.surface(group, "roofphoto", np.array([(p[0], ytop, p[1]) for p in xz_in]), site_uv(en_in), [(0, 1, 2), (0, 2, 3)], hint=UP, smooth=False)
+            cen = xz.mean(0)
+            for i in range(4):
+                j_ = (i + 1) % 4
+                rim = [(xz[i][0], ytop + PAR, xz[i][1]), (xz[j_][0], ytop + PAR, xz[j_][1]), (xz_in[j_][0], ytop + PAR, xz_in[j_][1]), (xz_in[i][0], ytop + PAR, xz_in[i][1])]
+                parts.quad(group, "concrete", rim, (0.0, 0.0, sides[i] / 3.0, 0.1), hint=UP, smooth=False)
+                inward = cen - (xz_in[i] + xz_in[j_]) / 2
+                face = [(xz_in[i][0], ytop, xz_in[i][1]), (xz_in[j_][0], ytop, xz_in[j_][1]), (xz_in[j_][0], ytop + PAR, xz_in[j_][1]), (xz_in[i][0], ytop + PAR, xz_in[i][1])]
+                parts.quad(group, "concrete", face, (0.0, 0.0, sides[i] / 3.0, 0.12), hint=(inward[0], 0.0, inward[1]), smooth=False)
             continue
         xz, y0 = tr.fr.xz(en), base - 0.5
         top = base + np.array(roof["corner_h"], float)                 # height of the eave at each corner
@@ -183,14 +205,21 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
             if (a1 - a0) * 0.65 >= min_len:
                 pieces.append((line, q[a0:a1]))
     count, length = 0, 0.0
+    stacks_q, stacks_w = [], []
     for k, (line, q) in enumerate(pieces):
         m = len(q)
         s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(q, axis=0), axis=1))])
         mat = line.get("material", "softwall")
+        tyre_wall = mat == "tyres"
+        if tyre_wall:                         # round stacks are what you see; a plain dark core inside them is what a car hits
+            stacks_q.append(q), stacks_w.append(line.get("width", 1.3))
+            mat = "tyredark"
         d = np.gradient(q, axis=0)
         d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
         nrm = np.column_stack([-d[:, 1], d[:, 0]])
         half, h = line.get("width", 0.7) / 2, line.get("height", 0.9)
+        if tyre_wall:
+            half, h = max(0.2, half - 0.14), 0.74
         g = tr.H.ground(q)
         u = np.linspace(0, s[-1], m) / 4.0
         name = f"1WALL_barrier{k // 8:02d}" if mat == "softwall" else f"1WALL_wall{k // 8:02d}"
@@ -213,26 +242,31 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
             dd = tr.fr.vec(d[e][None])[0] * (-1 if e == 0 else 1)
             parts.quad(name, mat, [a, b, b + UP * (h + 0.2), a + UP * (h + 0.2)], (0.02, 0, 0.2, 1), hint=(dd[0], 0.0, dd[1]), smooth=False)
         count, length = count + 1, length + float(s[-1])
-    return dict(walls=count, metres=round(length))
+    out = dict(walls=count, metres=round(length))
+    if stacks_q:
+        import solid
+        out.update(solid.build_tyre_stacks(tr, parts, stacks_q, stacks_w))
+    return out
 
 
-def _billboards(parts: Parts, group: str, material: str, cells: list[dict], pos: np.ndarray, height: np.ndarray, rng) -> None:
-    """Two crossed, double-sided pictures of a real tree per tree; normals point up so both sides are lit alike."""
+def _billboards(parts: Parts, group: str, material: str, cells: list[dict], pos: np.ndarray, height: np.ndarray, rng, planes: int = 2):
+    """Crossed, double-sided pictures of a real tree per tree; normals point up so both sides are lit alike.
+    Near the track there are three of them, 60 degrees apart, around a solid body (solid.build_trees)."""
     m = len(pos)
     if m == 0:
-        return
+        return np.zeros(0)
     pick = rng.integers(0, len(cells), m)
     u0 = np.array([c["u0"] for c in cells])[pick] + 0.003
     u1 = np.array([c["u1"] for c in cells])[pick] - 0.003
     width = height * np.array([c["aspect"] for c in cells])[pick]
     yaw = rng.uniform(0, np.pi, m)
     P, U, T = [], [], []
-    for k, cross in enumerate((0.0, np.pi / 2)):
+    for k, cross in enumerate(np.arange(planes) * np.pi / planes):
         dx, dz = np.cos(yaw + cross) * width * 0.5, np.sin(yaw + cross) * width * 0.5
         a = pos + np.column_stack([-dx, np.full(m, -0.25), -dz])
         b = pos + np.column_stack([dx, np.full(m, -0.25), dz])
         quad = np.stack([a, b, b + UP * height[:, None], a + UP * height[:, None]], 1)
-        ua, ub = (u0, u1) if k == 0 else (u1, u0)                    # the second picture is mirrored
+        ua, ub = (u0, u1) if k % 2 == 0 else (u1, u0)                # every other picture is mirrored
         uv = np.stack([np.column_stack([ua, np.full(m, 0.004)]), np.column_stack([ub, np.full(m, 0.004)]),
                        np.column_stack([ub, np.full(m, 0.996)]), np.column_stack([ua, np.full(m, 0.996)])], 1)
         base = len(P) * 4 * m + np.arange(m)[:, None] * 4
@@ -242,6 +276,7 @@ def _billboards(parts: Parts, group: str, material: str, cells: list[dict], pos:
     cen = P[T].mean(1)
     order = np.lexsort((np.floor(cen[:, 2] / 120), np.floor(cen[:, 0] / 120)))
     parts.add(group, material, P, np.tile(UP, (len(P), 1)), U, T[order], cast_shadows=True)
+    return width
 
 
 def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
@@ -259,8 +294,11 @@ def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
     cells = json.load(open(os.path.join(SRC, "assets", "trees.json"), encoding="utf-8"))
     pos = tr.fr.world(g, tr.H.ground(g))
     low = h < 9.0                                                     # low canopy is broadleaf scrub, the rest conifers
-    _billboards(parts, "TREES_conifer", "treeconifer", cells["conifer"], pos[~low], h[~low], rng)
-    _billboards(parts, "TREES_leaf", "treeleaf", cells["leaf"], pos[low], h[low], rng)
+    wc = _billboards(parts, "TREES_conifer", "treeconifer", cells["conifer"], pos[~low], h[~low], rng, planes=3)
+    wl = _billboards(parts, "TREES_leaf", "treeleaf", cells["leaf"], pos[low], h[low], rng, planes=3)
+    import solid                                                      # a trunk and a body with volume inside the pictures
+    solid3d = solid.build_trees(parts, np.vstack([pos[~low], pos[low]]), np.concatenate([h[~low], h[low]]),
+                                np.concatenate([np.ones((~low).sum(), bool), np.zeros(low.sum(), bool)]), np.concatenate([wc, wl]), rng)
     # forests around the site, from the wide photo (1 m/px)
     far = np.asarray(Image.open(os.path.join(SRC, "cuzk_far", "ortho.png")).convert("RGB"), np.float32) / 255.0
     far = ndi.uniform_filter(far, size=(3, 3, 1))
@@ -279,7 +317,7 @@ def build_trees(tr: Track, parts: Parts, keep_out) -> dict:
     fh = rng.uniform(17, 25, len(f))
     fpos = tr.fr.world(f, tr.H.far_ground(f))
     _billboards(parts, "TREES_far", "treeconifer", cells["conifer"], fpos, fh, rng)
-    return dict(near=len(g), far=len(f))
+    return dict(near=len(g), far=len(f), **solid3d)
 
 
 # power pylons standing in the infield north of the bridge, read from the photo: (east, north, height m)
@@ -289,11 +327,8 @@ PYLONS = [(-17.0, 108.0, 31.0), (-16.0, 127.0, 32.0), (-16.0, 147.0, 32.0)]
 def build_pylons(tr: Track, parts: Parts) -> int:
     for k, (e, n, h) in enumerate(PYLONS):
         en = np.array([[e, n]])
-        base = tr.fr.world(en, tr.H.ground(en))[0]
-        for ang in (0.0, np.pi / 2):
-            d = np.array([np.cos(ang + 0.3), 0.0, np.sin(ang + 0.3)]) * h / 4.0      # the texture cell is half as wide as tall
-            p = [base - d - UP * 0.2, base + d - UP * 0.2, base + d + UP * h, base - d + UP * h]
-            parts.quad("1WALL_pylons", "pylon", p, (0.0, 0.0, 1.0, 1.0), hint=np.cross(d, UP), smooth=False, double_sided=True)
+        import solid
+        solid.build_pylon(tr, parts, e, n, h)
     return len(PYLONS)
 
 
@@ -505,4 +540,15 @@ def build_fences(tr: Track, parts: Parts, lines: list) -> dict:
         total += float(s[-1])
     if P:
         parts.surface("FENCE_walls", "fence", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.vstack(HN), smooth=False, double_sided=True, cast_shadows=False)
-    return dict(fence_m=round(total))
+    posts = 0
+    for en, base_h in lines:                                           # a steel post every 2.5 m
+        en = np.asarray(en, float)
+        s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(en, axis=0), axis=1))])
+        m = max(2, int(s[-1] / 2.5) + 1)
+        q = np.column_stack([np.interp(np.linspace(0, s[-1], m), s, en[:, 0]), np.interp(np.linspace(0, s[-1], m), s, en[:, 1])])
+        g = tr.H.ground(q) - tr.fr.ref
+        for (x, z), y in zip(tr.fr.xz(q), g):
+            c = np.array([(x - 0.04, z - 0.04), (x + 0.04, z - 0.04), (x + 0.04, z + 0.04), (x - 0.04, z + 0.04)])
+            box(parts, "FENCE_posts", "metal", c, y + base_h - 0.1, y + base_h + 1.78, uv_scale=(1.0, 1.0), top_uv=1.0)
+            posts += 1
+    return dict(fence_m=round(total), fence_posts=posts)

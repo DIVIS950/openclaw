@@ -1,13 +1,29 @@
-# Autodrom Sosnová for Assetto Corsa (v13.1)
+# Autodrom Sosnová for Assetto Corsa (v14.0)
 
 A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
 
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v13.1".
+"Autodrom Sosnová v14.0".
 
-## What v13.1 is
+## What v14.0 is
+
+The owner called 13.1 perfect and asked for everything in 3D. The track, its edges and its surface are unchanged.
+What was a flat picture or a plain box is now a solid body (`tools/solid.py`):
+
+| Part | How it is made |
+| --- | --- |
+| Trees | Each of the 2,349 trees near the track has a trunk (a tapering six-sided column) and a canopy with volume: four overlapping cones for a conifer, two uneven rounded bodies for a broadleaf tree, 180,000 triangles in all. Three crossed pictures of the real tree (two before) stand around the body and give it its fine outline. Trees beyond the site keep two crossed pictures. |
+| Tyre walls | The 22 real tyre walls are rows of single round stacks, four tyres high, each with its hole, two rows deep where the wall is wide: 1,091 stacks. A plain dark core inside the stacks is what a car hits, so the collision shape stays simple. |
+| Power pylons | Square lattice towers that narrow to the top, with three pairs of cross-arms and the red and white marking, instead of two crossed pictures. |
+| Fences | A steel post every 2.5 m (72 posts). |
+| Flat roofs | On buildings at least 6 m wide the walls rise 35 cm above the roof as a parapet. |
+| Grass | The Custom Shaders Patch settings now name the real grass materials, so its 3D grass grows on all the grass of the circuit, and its rain on all the asphalt. Without the patch the grass is a flat photo texture. |
+
+The model has 473,000 triangles now (243,000 before).
+
+## Clean lines: what v13.1 did
 
 Version 13.1 answers "too wobbly, make it a more perfect line". The outline of version 12 came from a 25 cm mask
 and kept its wiggle: the edge of the lap moved against the centre line by up to 36 cm from one metre to the next.
@@ -104,7 +120,7 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 50 checks) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 51 checks) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
@@ -129,7 +145,8 @@ is stored here or used as a texture.
   1 GB of graphics memory.
 - The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
   and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
-  generic textures, not the real doors, windows and signs. Trees are flat pictures at the measured places and heights.
+  generic textures, not the real doors, windows and signs. Trees have generic bodies of the right height, not the shape of each real tree.
+- Cars, tyre heaps and bushes that the aerial photo shows on the ground are still flat pictures on the ground.
 - The surface model smears a wall over about 3 m, so a roof pitch is only read on buildings at least 10 m wide.
 - The viaduct ends at the edge of the surveyed site (290 m north of the centre).
 - Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
@@ -144,6 +161,9 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 
 ![Views of the track](previews/preview_sheet.jpg)
+![Trees and pylons in 3D](previews/lap_1450.jpg)
+![Round tyre stacks](previews/lap_0215.jpg)
+![The overpass](previews/bridge_side.jpg)
 ![Clean edge and concrete strip](previews/lap_0320.jpg)
 ![Infield hairpin edge](previews/lap_0480.jpg)
 ![West loop](previews/lap_1300.jpg)

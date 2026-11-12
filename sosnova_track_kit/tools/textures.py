@@ -460,6 +460,52 @@ def boards() -> np.ndarray:
     return np.asarray(im, np.float32)
 
 
+def foliage(kind: str) -> np.ndarray:
+    """The body of a tree seen from outside: clumps of needles or leaves with dark gaps between them, in the colours
+    of the tree pictures. v runs up the tree: darker inside and below, lighter at the tips."""
+    n = 256
+    base = np.array((52.0, 64.0, 38.0) if kind == "conifer" else (76.0, 92.0, 56.0))
+    clump = fnoise(n, 6, 28, 401 if kind == "conifer" else 411, aniso=0.6 if kind == "conifer" else 1.0)
+    fine = fnoise(n, 2, 6, 402 if kind == "conifer" else 412)
+    lum = 1.0 + 0.30 * np.clip(clump, -1.6, 1.6) / 1.6 + 0.16 * fine
+    lum *= (0.82 + 0.3 * np.linspace(1, 0, n))[:, None]                 # image rows run from the tip (top) down
+    gaps = np.clip(0.5 - clump, 0, 1) ** 2 * 0.5
+    a = base[None, None, :] * (lum * (1 - gaps))[..., None]
+    a[..., 0] += 6 * np.clip(fine, 0, 2)                                  # a trace of yellow in the lit tips
+    return np.clip(a, 0, 255)
+
+
+def bark() -> np.ndarray:
+    n = 128
+    ridges = fnoise(n, 3, 40, 421, aniso=0.12)                           # long vertical ridges
+    a = np.array((74.0, 62.0, 50.0))[None, None, :] * (1.0 + 0.28 * ridges + 0.08 * fnoise(n, 2, 5, 422))[..., None]
+    return np.clip(a, 0, 255)
+
+
+def lattice() -> np.ndarray:
+    """One storey of a lattice pylon, RGBA: legs, a cross of braces and a girder. Bottom half grey steel, top half
+    with the red and white aviation marking (the two halves are used for the lower and the upper storeys)."""
+    from PIL import ImageDraw
+    w, h = 128, 256
+    im = Image.new("RGBA", (w, h), (128, 132, 136, 0))
+    d = ImageDraw.Draw(im)
+    for k, col in enumerate(((128, 132, 136, 255), (128, 132, 136, 255))):
+        y0, y1 = k * h // 2, (k + 1) * h // 2 - 1
+        for x in (3, w - 4):
+            d.line([(x, y0), (x, y1)], fill=col, width=7)
+        d.line([(3, y0), (w - 4, y1)], fill=col, width=4)
+        d.line([(w - 4, y0), (3, y1)], fill=col, width=4)
+        d.line([(0, y1 - 1), (w, y1 - 1)], fill=col, width=4)
+    a = np.asarray(im, np.float32).copy()
+    upper = np.zeros((h, w), bool)
+    upper[: h // 2] = True                                               # image top = v 0.5 .. 1
+    solid = a[..., 3] > 0
+    red = ((np.arange(h) // 22) % 2 == 0)[:, None] & upper & solid
+    a[red] = (196, 40, 34, 255)
+    a[upper & solid & ~red] = (232, 232, 228, 255)
+    return a
+
+
 def build_static() -> dict[str, bytes]:
     out = {
         "road.jpg": _jpg(natural("asphalt_track.jpg", (49, 50, 53), 2048, 12, desat=0.5, seed=301, vary=0.075, patches=7), 90),
@@ -485,6 +531,11 @@ def build_static() -> dict[str, bytes]:
         "kerb.jpg": _jpg(kerb(), 90),
         "barricade.jpg": _jpg(barricade(), 90),
         "tyres.jpg": _jpg(tyres(), 90),
+        "tyredark.jpg": _jpg(np.full((16, 16, 3), (9.0, 9.0, 10.0)) + fnoise(16, 2, 8, 431)[..., None] * 1.5, 90),      # the inside of a tyre stack
+        "foliage_c.jpg": _jpg(foliage("conifer"), 90),
+        "foliage_l.jpg": _jpg(foliage("leaf"), 90),
+        "bark.jpg": _jpg(bark(), 90),
+        "lattice.png": _png(lattice()),
         "hut.jpg": _jpg(np.stack([(96 + fnoise(256, 2, 20, 271, aniso=8) * 9) * c for c in (1.0, 0.82, 0.62)], -1)),
         "softwall.jpg": _jpg(softwall()),
         "arch.jpg": _jpg(arch()),

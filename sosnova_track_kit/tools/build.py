@@ -54,6 +54,11 @@ MATERIALS = [
     M("kerb", "kerb.jpg", specular=0.10, specular_exp=30),
     M("barricade", "barricade.jpg", specular=0.18, specular_exp=40),
     M("tyres", "tyres.jpg", specular=0.05),
+    M("tyredark", "tyredark.jpg", specular=0.0),
+    M("foliagec", "foliage_c.jpg", ambient=0.75, diffuse=0.5, specular=0.0),
+    M("foliagel", "foliage_l.jpg", ambient=0.75, diffuse=0.5, specular=0.0),
+    M("bark", "bark.jpg", specular=0.0),
+    M("lattice", "lattice.png", shader="ksPerPixelAT", alpha_tested=True, specular=0.08),
     M("concrete", "concrete.jpg"),
     M("building", "building.jpg"),
     M("garage", "garage.jpg"),
@@ -124,7 +129,7 @@ def main() -> None:
     kn5.write(kn5_path, TRACK, tex, materials, meshes, dummies)
     ai = layout.write_ai(tr, os.path.join(OUT, "ai", "fast_lane.ai"))
     edges = np.vstack([tr.fr.xz(tr.edge_en(1)), tr.fr.xz(tr.edge_en(-1))])
-    layout.write_data(tr, OUT, ai, edges)
+    layout.write_data(tr, OUT, ai, edges, [m.name for m in materials])
     summary = dict(
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),

@@ -232,21 +232,21 @@ EXT_CONFIG = """; Custom Shaders Patch settings (optional; the track also runs w
 DESCRIPTION = Autodrom Sosnova
 
 [GRASS_FX]
-GRASS_MATERIALS = grass
-OCCLUDING_MATERIALS = road, road_g1, road_g2, road_g3, apron, pad, gravel, paint, kerb, concrete, building, garage, hall, hut, softwall, arch, roofphoto
+GRASS_MATERIALS = {grass}
+OCCLUDING_MATERIALS = {hard}, paint, concrete, building, garage, hall, hut, softwall, arch, roofphoto, tyres, bags
 SHAPE_SIZE = 0.8, 1.0
 SHAPE_TIDY = 0.4
 
 [RAIN_FX]
-PUDDLES_MATERIALS = road, road_g1, road_g2, road_g3, apron, pad
-SOAKING_MATERIALS = road, road_g1, road_g2, road_g3, apron, pad, gravel, grass, photo, photofar, concrete
+PUDDLES_MATERIALS = {asphalt}
+SOAKING_MATERIALS = {hard}, {grass}, photo, photofar, concrete
 SMOOTH_MATERIALS = hall, garage, paint
 ROUGH_MATERIALS = softwall, gravel
 LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v13.1 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v14.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -257,7 +257,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v13.1".
+3. Start the game and pick the track "Autodrom Sosnova v14.0".
 
 WHAT IT IS
 - Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
@@ -275,6 +275,9 @@ WHAT IT IS
   wall along the pit buildings and the wall of the paddock.
 - The painted lines and start boxes of the real asphalt are traced from the photo. A white line runs along every
   real edge of the lap.
+- Everything stands in 3D: every tree near the track has a trunk and a body with volume inside the pictures of
+  the real tree; the tyre walls are rows of single round stacks; the power pylons are lattice towers with arms;
+  the fences have posts; flat roofs lie behind a parapet. With Custom Shaders Patch the grass is 3D as well.
 - Clean lines: the edges of the lap run as even curves beside the centre line, the concrete strips have one even
   width, painted lines are straight where they were painted straight, start boxes are true rectangles.
 - Race layout of 14.11.2026: every row of yellow dots on the organiser's map is a closed line of tyre stacks
@@ -297,13 +300,17 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 """
 
 
-def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
+def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: list[str] | None = None) -> None:
     os.makedirs(os.path.join(out, "data"), exist_ok=True)
     os.makedirs(os.path.join(out, "ui"), exist_ok=True)
     os.makedirs(os.path.join(out, "extension"), exist_ok=True)
     open(os.path.join(out, "data", "surfaces.ini"), "w", newline="\r\n").write(SURFACES)
     open(os.path.join(out, "INSTALL.txt"), "w", newline="\r\n").write(INSTALL)
-    open(os.path.join(out, "extension", "ext_config.ini"), "w", newline="\r\n").write(EXT_CONFIG)
+    names = sorted(materials or [])
+    asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit())]
+    grass = ["grass"] + [m for m in names if m[:1] == "g" and m[1:].isdigit()]      # not the worn strip beside the asphalt
+    cfg = EXT_CONFIG.format(grass=", ".join(grass), asphalt=", ".join(asphalt + ["pad", "padwhite"]), hard=", ".join(asphalt + ["pad", "padwhite", "gravel"]))
+    open(os.path.join(out, "extension", "ext_config.ini"), "w", newline="\r\n").write(cfg)
     # the start straight points 8 degrees south of east, i.e. world +Z; the sun stands in the south-west
     open(os.path.join(out, "data", "lighting.ini"), "w", newline="\r\n").write("[LIGHTING]\nSUN_PITCH_ANGLE=48\nSUN_HEADING_ANGLE=35\n")
     # map: 1 px per metre, x to the right, z down
@@ -350,7 +357,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v13.1",
+        "name": "Autodrom Sosnová v14.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real "
                        "outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand "
                        "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race "
@@ -366,7 +373,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray) -> None:
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "13.1",
+        "version": "14.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
