@@ -2,9 +2,9 @@
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
  "meshes": 356,
- "vertices": 181958,
- "triangles": 238836,
- "kn5_mb": 46.3,
+ "vertices": 179594,
+ "triangles": 238048,
+ "kn5_mb": 46.19,
  "ground": {
   "asphalt": 9816,
   "gravel": 1190,
@@ -28,9 +28,9 @@
   "edge_line_m": 2588,
   "grid_boxes": 16,
   "pit_bays": 16,
-  "lines": 60,
-  "line_m": 681,
-  "areas": 9,
+  "lines": 54,
+  "line_m": 447,
+  "areas": 3,
   "brake_boards": 14
  },
  "barriers": {

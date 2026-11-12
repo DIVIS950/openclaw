@@ -142,8 +142,11 @@ def paint_areas(P0):
         if fill >= 0.55:
             strips.append(g.buffer(0.25).buffer(-0.25))
         elif g.area > 3.0:                                           # a painted box is a rectangle: draw it as one
-            r_ = cv2.boxPoints(cv2.minAreaRect(np.array(g.exterior.coords, np.float32)))
-            boxes.append(np.vstack([r_, r_[:1]]).round(2).tolist())
+            rect = cv2.minAreaRect(np.array(g.exterior.coords, np.float32))
+            if g.area >= 0.45 * rect[1][0] * rect[1][1] and 2.0 <= min(rect[1]) and max(rect[1]) <= 40.0:
+                r_ = cv2.boxPoints(rect)
+                boxes.append(np.vstack([r_, r_[:1]]).round(2).tolist())
+            # anything else that is bright only along its rim is the trace of a line or an edge, not a box
     return (unary_union(strips) if strips else Polygon()), boxes
 
 
