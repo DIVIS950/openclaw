@@ -260,3 +260,46 @@ def grass_tile(e0: float, n0: float, size: float) -> bytes:
 def grass_uv(e0: float, n0: float, size: float, en: np.ndarray) -> np.ndarray:
     ext = size + 2 * GRASS_MARGIN
     return np.column_stack([(en[:, 0] - e0 + GRASS_MARGIN) / ext, (en[:, 1] - n0 + GRASS_MARGIN) / ext])
+
+
+KERB_PX = (1024, 128)             # rows (along), columns (across) of a kerb strip texture
+KERB_REACH = 4.3                  # the texture covers this far outside the edge of the lap (m)
+KERB_MARGIN = (3.0, 0.3)          # overlap beyond the piece along and across (m)
+
+
+def kerb_texture(tr, a: int, b: int, side: int) -> bytes:
+    """The concrete strip outside one edge of the lap between stations a and b (side +1 = left), with the look the
+    photo shows there: bare concrete, painted white blocks, dirt. Brightness comes from the photo relative to the
+    strip's own average, the grain from a close-up scan of concrete."""
+    if "rgb" not in _cache:
+        Image.MAX_IMAGE_PIXELS = None
+        rgb = np.asarray(Image.open(os.path.join(SRC, "cuzk", "ortho.png")).convert("RGB"), np.float32) / 255.0
+        _cache["rgb"] = cv2.GaussianBlur(rgb.mean(-1), (0, 0), 0.6)
+    lum = _cache["rgb"]
+    H, W = KERB_PX
+    s = (a - KERB_MARGIN[0]) + (b - a + 2 * KERB_MARGIN[0]) * (np.arange(H) + 0.5) / H
+    o = -KERB_MARGIN[1] + (KERB_REACH + 2 * KERB_MARGIN[1]) * (np.arange(W) + 0.5) / W
+    ss, oo = np.meshgrid(s, o, indexing="ij")
+    wid = tr.interp(tr.wl if side > 0 else tr.wr, ss.ravel()).reshape(H, W)
+    en = tr.en(ss.ravel(), (side * (wid + oo)).ravel()).reshape(H, W, 2)
+    r = _sample(lum, en)
+    core = (oo > 0.2) & (oo < 0.6)
+    ref = float(np.median(r[core]))
+    macro = np.clip(r / max(ref, 1e-3), 0.55, 1.55)
+    if "concrete" not in _cache:
+        g = textures.scan("gravel_concrete_03.jpg", 150.0, 512, repeat=1)
+        _cache["concrete"] = (g / g.reshape(-1, 3).mean(0)).astype(np.float32)             # grain around 1
+    gm = 3.0
+    gx = ((oo % gm) / gm * 512).astype(np.float32)
+    gy = ((ss % gm) / gm * 512).astype(np.float32)
+    grain = cv2.remap(_cache["concrete"], gx, gy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+    tex = np.array([150.0, 149.0, 145.0]) * (0.55 + 0.45 * grain) * macro[..., None]
+    return _jpg(tex, 84)
+
+
+def kerb_uv(tr, a: int, b: int, side: int, station: np.ndarray, lateral: np.ndarray) -> np.ndarray:
+    """Texture coordinates (v upwards) of points beside the lap: station (may be fractional), lateral offset (+ left)."""
+    wid = tr.interp(tr.wl if side > 0 else tr.wr, station)
+    u = (side * lateral - wid + KERB_MARGIN[1]) / (KERB_REACH + 2 * KERB_MARGIN[1])
+    v = 1.0 - (station - (a - KERB_MARGIN[0])) / (b - a + 2 * KERB_MARGIN[0])
+    return np.column_stack([u, v])

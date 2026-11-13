@@ -125,7 +125,7 @@ def apron_chains(A, R: Polygon, edge_tree: cKDTree, edge_pts: np.ndarray):
             if len(xy) < 3:
                 continue
             from shapely import distance, points
-            on = distance(points(xy), rb) < 0.6
+            on = distance(points(xy), rb) < 0.25                      # a kerb strip is 0.45 m wide at the least: its outer edge is not "on" the road edge
             m = len(xy)
             if on.all():
                 continue
@@ -155,9 +155,9 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     """avoid: shapely geometry of the building footprints (no gravel there)."""
     import realmap
     R = ribbon_polygon(tr)
-    A = realmap.others(R)                                              # the real asphalt beside the lap strip
+    A = realmap.others(R).segmentize(1.0)                              # the real asphalt beside the lap strip; a vertex every metre
     pads = realmap.pads().intersection(A)
-    pads = unary_union([g for g in getattr(pads, "geoms", [pads]) if g.geom_type == "Polygon" and g.area > 20.0]) if not pads.is_empty else Polygon()
+    pads = unary_union([g for g in getattr(pads, "geoms", [pads]) if g.geom_type == "Polygon" and g.area > 2.0]) if not pads.is_empty else Polygon()
     aprons, roads, roads_poly = A.difference(pads), [], Polygon()
     asph = unary_union([R, A])
     site = box(-HALF_E, -HALF_N, HALF_E, HALF_N)
@@ -190,7 +190,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     for ln in getattr(seams, "geoms", [seams]):
         if ln.is_empty or ln.geom_type != "LineString" or ln.length < 1.0:
             continue
-        ids = [reg.add(p) for p in ln.segmentize(2.0).coords]
+        ids = [reg.add(p) for p in ln.segmentize(1.0).coords]
         segs += [(a, b) for a, b in zip(ids[:-1], ids[1:]) if a != b]
         chain_pts += [tuple(p) for p in ln.coords]
     # 3. verge: one row of vertices 1.2 m outside each edge, in the plane of the road
@@ -359,6 +359,50 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     import realtex
     photo_tex, photo_mats = {}, []
     # the asphalt beside the lap: one texture per 40 m square, baked from the photo of that square
+    # the concrete strips beside the lap: one texture per 28 m of edge, baked from the photo of that strip
+    fine = np.arange(tr.n * 4) / 4.0
+    ftree = cKDTree(tr.en(fine, np.zeros(len(fine))))
+
+    def lap_coords(p):
+        st = fine[ftree.query(p)[1]]
+        nr = tr.interp(tr.nrm, st)
+        nr = nr / np.linalg.norm(nr, axis=1, keepdims=True)
+        return st, np.einsum("ij,ij->i", p - tr.en(st, np.zeros(len(st))), nr)
+    strip_tris = 0
+    cand = np.where(apron & (kind == 2))[0]
+    if len(cand):
+        st_c, lat_c = lap_coords(cen[cand])
+        side_c = np.where(lat_c > 0, 1, -1)
+        i_c = np.round(st_c).astype(int) % tr.n
+        wid_c = np.where(side_c > 0, tr.wl[i_c], tr.wr[i_c])
+        from scipy.ndimage import maximum_filter1d
+        flag = {1: maximum_filter1d(tr.kerb_l.astype(np.uint8), 5, mode="wrap") > 0, -1: maximum_filter1d(tr.kerb_r.astype(np.uint8), 5, mode="wrap") > 0}
+        on = np.where(side_c > 0, flag[1][i_c], flag[-1][i_c]) & (np.abs(lat_c) > wid_c - 0.15) & (np.abs(lat_c) < wid_c + realtex.KERB_REACH)
+        chunk_c = (np.floor(st_c).astype(int) % tr.n) // realtex.LAP_CHUNK
+        for side_ in (1, -1):
+            for ck in np.unique(chunk_c[on & (side_c == side_)]):
+                a_, b_ = int(ck) * realtex.LAP_CHUNK, min(tr.n, (int(ck) + 1) * realtex.LAP_CHUNK)
+                tri_ids = cand[on & (side_c == side_) & (chunk_c == ck)]
+                ids, inv = np.unique(T[tri_ids], return_inverse=True)
+                st_v, lat_v = lap_coords(V[ids])
+                mid = (a_ + b_) / 2.0                                  # stations wrap around at the start line
+                st_v = np.where(st_v - mid > tr.n / 2, st_v - tr.n, np.where(mid - st_v > tr.n / 2, st_v + tr.n, st_v))
+                uv_ = realtex.kerb_uv(tr, a_, b_, side_, st_v, lat_v)
+                tri_uv = uv_[inv.reshape(-1, 3)]
+                good = ((tri_uv > 0.004) & (tri_uv < 0.996)).all(axis=(1, 2))        # a triangle that leaves the texture stays plain concrete
+                if not good.any():
+                    continue
+                keep = tri_ids[good]
+                ids, inv = np.unique(T[keep], return_inverse=True)
+                st_v, lat_v = lap_coords(V[ids])
+                st_v = np.where(st_v - mid > tr.n / 2, st_v - tr.n, np.where(mid - st_v > tr.n / 2, st_v + tr.n, st_v))
+                name = f"k{'l' if side_ > 0 else 'r'}{int(ck):02d}"
+                photo_tex[name + ".jpg"] = realtex.kerb_texture(tr, a_, b_, side_)
+                photo_mats.append(name)
+                parts.add(f"1APRON_{name}", name, pos[ids], nrm[ids], realtex.kerb_uv(tr, a_, b_, side_, st_v, lat_v), inv.reshape(-1, 3), cast_shadows=False)
+                kind[keep] = 4
+                strip_tris += len(keep)
+    layers = tuple((apron & (kind == 2), *l_[1:]) if l_[1] == "1APRON_c" else l_ for l_ in layers)     # what is left of the plain concrete
     sel = apron & (kind == 1)
     sq = np.floor((cen + [HALF_E, HALF_N]) / realtex.ASPH_TILE).astype(int)
     sq_id = sq[:, 0] * 100 + sq[:, 1]
@@ -392,7 +436,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(photo_tex=photo_tex, photo_mats=photo_mats, R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), relief_points=relief_pts, roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]),
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), relief_points=relief_pts, roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]), strip_textures=len([m_ for m_ in photo_mats if m_.startswith("k")]), strip_triangles=strip_tris,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn | verge, 2, 3))))
     return info

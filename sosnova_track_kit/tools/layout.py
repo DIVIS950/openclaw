@@ -246,7 +246,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v15.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v15.1 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -257,7 +257,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v15.0".
+3. Start the game and pick the track "Autodrom Sosnova v15.1".
 
 WHAT IT IS
 - Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
@@ -275,6 +275,9 @@ WHAT IT IS
   wall along the pit buildings and the wall of the paddock.
 - The painted lines and start boxes of the real asphalt are traced from the photo. A white line runs along every
   real edge of the lap.
+- How exact it is: the edges of the road are right to about 20 cm, the heights to about 10 to 20 cm. The data is
+  an aerial photo and an airborne laser scan; nothing public is finer. It is not exact to the millimetre.
+- The concrete kerb strips are complete and look as they do in the photo, with their white painted blocks.
 - A closer look: the asphalt has the neutral dark grey of the real track, the grain of its stones, tyre marks,
   fine cracks and the seam between the paved lanes. Advertising boards stand in front of the tyre walls. The
   yellow soft bags are single rounded bags.
@@ -310,7 +313,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
     open(os.path.join(out, "data", "surfaces.ini"), "w", newline="\r\n").write(SURFACES)
     open(os.path.join(out, "INSTALL.txt"), "w", newline="\r\n").write(INSTALL)
     names = sorted(materials or [])
-    asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit())]
+    asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit()) or (m[:2] in ("kl", "kr") and m[2:].isdigit())]
     grass = ["grass"] + [m for m in names if m[:1] == "g" and m[1:].isdigit()]      # not the worn strip beside the asphalt
     cfg = EXT_CONFIG.format(grass=", ".join(grass), asphalt=", ".join(asphalt + ["pad", "padwhite"]), hard=", ".join(asphalt + ["pad", "padwhite", "gravel"]))
     open(os.path.join(out, "extension", "ext_config.ini"), "w", newline="\r\n").write(cfg)
@@ -360,7 +363,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v15.0",
+        "name": "Autodrom Sosnová v15.1",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real "
                        "outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand "
                        "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race "
@@ -376,7 +379,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "15.0",
+        "version": "15.1",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

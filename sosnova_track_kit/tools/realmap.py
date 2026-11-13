@@ -280,6 +280,43 @@ OPEN_HALF = 5.5         # half width of the lap's own strip on an open side (m)
 SLOPE = 0.30            # the strip's edge leaves a real edge that turns away at no more than this (m per m)
 
 
+def _concrete_beyond(c: np.ndarray, nrm: np.ndarray, sgn: float, w: np.ndarray) -> np.ndarray:
+    """Width (m) of the pale concrete right outside the edge of the lap, read from the 12.5 cm photo along the normal
+    of every station. Concrete is brighter than the asphalt beside it, has no green in it and is not as warm as bare
+    earth. The 25 cm mask misses many of these strips, or only finds parts of them."""
+    from PIL import Image
+    from common import SRC
+    if "photo" not in _cache:
+        Image.MAX_IMAGE_PIXELS = None
+        rgb = np.asarray(Image.open(os.path.join(SRC, "cuzk", "ortho.png")).convert("RGB"), np.float32) / 255.0
+        _cache["photo"] = cv2.GaussianBlur(rgb, (0, 0), 0.7)
+    rgb = _cache["photo"]
+    START, STEP = 0.20, 0.05                                          # the first 20 cm are the blur of the edge itself
+
+    def at(t):
+        en = c[:, None, :] + sgn * nrm[:, None, :] * (w[:, None] + t[None, :])[..., None]
+        mx, my = ((en[..., 0] + HALF_E) / 0.125 - 0.5).astype(np.float32), ((HALF_N - en[..., 1]) / 0.125 - 0.5).astype(np.float32)
+        return cv2.remap(rgb, mx, my, cv2.INTER_LINEAR)
+    a, b = at(np.arange(-1.5, -0.39, 0.05)), at(np.arange(START, 4.51, STEP))
+    lum0 = np.median(a.mean(-1), 1)
+    warm0 = np.median((a[..., 0] - a[..., 2]) / np.maximum(a.mean(-1), 1e-3), 1)
+    lum = b.mean(-1)
+    warm = (b[..., 0] - b[..., 2]) / np.maximum(lum, 1e-3) - warm0[:, None]
+    green = b[..., 1] - (b[..., 0] + b[..., 2]) / 2
+    ok = (green < 0.035) & (lum > 1.06 * lum0[:, None]) & (warm > 0.02) & (warm < 0.17)
+    run = np.where(ok.all(1), ok.shape[1], np.argmin(ok, 1))          # samples of concrete before the first that is not
+    seen = np.where(run >= 3, START + run * STEP, 0.0)
+    # kerbs of painted blocks: every other block is as dark as asphalt. Within 3 m of a block that was seen, the
+    # strip reaches as far as the ground is neither grass nor bare earth
+    from scipy.ndimage import maximum_filter1d
+    hard = (green < 0.035) & (warm < 0.17)
+    reach = np.where(hard.all(1), hard.shape[1], np.argmin(hard, 1))
+    reach = np.where(reach >= 3, START + reach * STEP, 0.0)
+    near = maximum_filter1d((seen > 0.45).astype(np.uint8), 7, mode="wrap") > 0
+    width = maximum_filter1d(np.where(seen > 0.45, seen, 0.0), 7, mode="wrap")       # the width of the blocks seen nearby
+    return np.where(near, np.maximum(seen, np.minimum(reach, width + 0.15)), seen)
+
+
 def lap_widths(P=None, C=None, Wt=None) -> dict:
     """Half widths of the lap from the real outline: the distance from the centre line to the asphalt edge on each
     side. Where the asphalt runs on (junctions, the plaza) the lap keeps a strip of its own. Writes centerline.json."""
@@ -338,7 +375,17 @@ def lap_widths(P=None, C=None, Wt=None) -> dict:
         # one last pass, with nothing after it that could put a kink back: the edge is an even line. Where that
         # takes it a few decimetres past the real edge, the paving is drawn to the line (corridor)
         w = gaussian_filter1d(w, 3.0, mode="wrap")
-        band = np.where(closed, np.clip(paved[k] - d, 0, 30), 0.0)     # concrete beyond the asphalt edge
+        band = np.where(closed, np.clip(paved[k] - d, 0, 30), 0.0)     # concrete beyond the asphalt edge, from the mask
+        seen = median_filter(_concrete_beyond(c, nrm, 1.0 if key == "l" else -1.0, w), 5, mode="wrap")      # ... and from the photo
+        # under the overpass the photo shows its deck (pale concrete) and its shadow, not the ground: nothing is read there
+        import bridge_geom as bg
+        from shapely import contains_xy as _within
+        hidden = unary_union([Polygon(bg.footprint(grow=2.0)), Polygon(bg.shadow_polygon()).buffer(1.5)])
+        for reach_ in (0.4, 1.2):
+            probe = c + (1.0 if key == "l" else -1.0) * nrm * (w + reach_)[:, None]
+            seen = np.where(_within(hidden, probe[:, 0], probe[:, 1]), 0.0, seen)
+        out["seen_" + key] = int(((seen > 0.45) & closed & (band <= 0.45)).sum())
+        band = np.where(closed & (band <= 4.0), np.maximum(band, seen), band)
         has = closed & (band > 0.45)
         has = np.array([has[(i - 2) % n] or has[i] or has[(i + 2) % n] for i in range(n)]) & closed      # bridge gaps of 2 m
         bs = np.where(has, clean(band, runs_of(has), 4.0), 0.0)
@@ -352,7 +399,8 @@ def lap_widths(P=None, C=None, Wt=None) -> dict:
             if ln < 5:
                 kerb[idx], has[idx], bs[idx] = False, False, 0.0
             else:
-                bs[idx] = np.minimum(bs[idx], 0.25 + 0.5 * np.minimum(np.arange(ln), ln - 1 - np.arange(ln)))
+                # a kerb is at least 60 cm wide (one row of blocks); thinner pieces would break up into slivers
+                bs[idx] = np.minimum(np.maximum(bs[idx], 0.6), 0.45 + 0.5 * np.minimum(np.arange(ln), ln - 1 - np.arange(ln)))
         out["w" + key] = w
         out["band_" + key] = np.where(kerb, bs, 0.0)
         out["conc_" + key] = has                                       # concrete beside the lap (a strip, or the white pad)
@@ -431,6 +479,7 @@ if __name__ == "__main__":
     print("lap: left %.2f..%.2f m, right %.2f..%.2f m, mean width %.2f m, open left %d m, open right %d m, concrete strip beside the lap %d m" % (
         w["wl"].min(), w["wl"].max(), w["wr"].min(), w["wr"].max(), float(np.mean(w["wl"] + w["wr"])), w["open_l"].sum(), w["open_r"].sum(),
         w["kerb_l"].sum() + w["kerb_r"].sum()))
+    print("concrete strip found only in the 12.5 cm photo: %d m left, %d m right" % (w["seen_l"], w["seen_r"]))
     for key in ("wl", "wr"):
         dw = np.abs(np.diff(np.concatenate([w[key], w[key][:1]])))
         print("  %s: change of half width along the lap, median %.3f, 95 %% below %.3f m per m" % (key, np.median(dw), np.percentile(dw, 95)))

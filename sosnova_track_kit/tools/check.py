@@ -312,7 +312,19 @@ def main() -> None:
             need += len(q)
             found += int((wall_tree.query(tr.fr.xz(q))[0] < 1.3).sum())
     check(len(lines) >= 15 and found >= 0.93 * need, f"the tyre walls and barriers of the photo are built ({len(lines)} barriers, {found} of {need} m found in the model)")
-    conc = [m for m in meshes if m["name"].startswith(("1APRON_c", "1APRON_w"))]
+    conc = [m for m in meshes if m["name"].startswith(("1APRON_c", "1APRON_w", "1APRON_k"))]
+    # the kerb strips read from the 12.5 cm photo are really there: concrete 30 cm outside the edge of the lap
+    csurf = Surface(conc)
+    k_tot = k_hit = 0
+    for side, w_, kerb_ in ((1, tr.wl, tr.kerb_l), (-1, tr.wr, tr.kerb_r)):
+        inner_ = kerb_ & np.roll(kerb_, 1) & np.roll(kerb_, -1)          # a strip ends on its first and last station
+        st_ = np.where(inner_)[0].astype(float)
+        for x_, z_ in tr.fr.xz(tr.en(st_, side * (w_[st_.astype(int)] + 0.3))):
+            k_tot += 1
+            k_hit += csurf.at(x_, z_)[0] is not None
+    k_photo = sum(len(m["indices"]) // 3 for m in meshes if m["name"].startswith("1APRON_k"))
+    check(k_tot > 600 and k_hit >= 0.98 * k_tot and k_photo > 1500,
+          f"the concrete kerb strips of the photo are built ({k_hit} of {k_tot} m of strip have concrete 30 cm outside the edge; {k_photo} triangles carry the look of the photo)")
     check(len(conc) >= 5 and int(tr.kerb_l.sum() + tr.kerb_r.sum()) > 150, f"the concrete strips and the white pad are part of the surface ({len(conc)} meshes, {int(tr.kerb_l.sum() + tr.kerb_r.sum())} m of strip beside the lap)")
     print("landscape and buildings")
     from heights import load_dem

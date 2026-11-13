@@ -1,13 +1,41 @@
-# Autodrom Sosnová for Assetto Corsa (v15.0)
+# Autodrom Sosnová for Assetto Corsa (v15.1)
 
 A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
 
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v15.0".
+"Autodrom Sosnová v15.1".
 
-## What v15.0 is
+## What v15.1 is
+
+The owner asked whether the track is exact to the millimetre, and to make it so if not. It is not, and it cannot be
+made so from the data that exists. Version 15.1 says how exact it is, and makes it more exact where the data allowed.
+
+**How exact the track is**
+
+| What | How exact | Why not better |
+| --- | --- | --- |
+| Position of the road edges | about 20 cm | The aerial photo is 12.5 cm per pixel and placed on the map to about 20 cm. Two independent ways of reading the asphalt edge from it (where the green starts, where the grey ends) differ by 25 cm in the median, because dirt and grass lie over the real edge. |
+| Heights of the road | about 10 to 20 cm in absolute terms; the shape of the slopes is better than that | The terrain comes from an airborne laser scan with a stated accuracy of 18 cm and about one point per square metre. The road surface is fitted to it with 2 cm of residual. |
+| Buildings and trees | 0.5 to 1 m in plan, about 0.4 m in height | The surface model has a 0.5 m grid and smears walls over about 3 m. |
+| Look of the surfaces | drawn at 1.5 to 4 cm per pixel | This is drawing detail, not survey accuracy. |
+
+Millimetre accuracy needs a laser scan made on the ground at the circuit (the way the official tracks of racing
+simulators are made). No such scan of Sosnová is public.
+
+**What 15.1 made more exact**
+
+| Part | What changed |
+| --- | --- |
+| Concrete kerb strips | They were read from a 25 cm mask and two thirds of them were missing. Now each station of the lap reads the 12.5 cm photo along its normal (`realmap._concrete_beyond`): pale, colourless ground right outside the asphalt is concrete, as far as it reaches; kerbs of painted blocks (every other block as dark as asphalt) are followed as long as the ground is neither grass nor bare earth. 916 m of strip now, 330 m before. Under the overpass nothing is read. A kerb is at least 60 cm wide. |
+| Look of the strips | Each strip carries the look the photo shows there (`realtex.kerb_texture`): bare concrete, the white painted blocks, dirt. One texture per 28 m of edge and side, 63 in all. |
+| Narrow strips | Two rules lost narrow strips: pieces of concrete under 20 m2 were drawn as asphalt, and an outline closer than 60 cm to the road edge was taken for the road edge itself, which turned 218 m of strip into grass. Both are fixed (2 m2, 25 cm). A new check asks for concrete 30 cm outside the edge at every station of every strip: 824 of 824. |
+
+The edge of the asphalt itself was measured against the photo and left where it was: the model edge has no bias
+(median difference 4 cm on the left, 1 cm on the right), and the remaining scatter is the scatter of the photo.
+
+## A closer look: what v15.0 did
 
 The owner asked for many more rounds, down to centimetre detail and as realistic as it can get. Version 15 is the
 result of two rounds of looking at close-up renders next to the 2026 photos of the real track and fixing what did not
@@ -140,7 +168,7 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 52 checks) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 53 checks) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
@@ -161,7 +189,7 @@ is stored here or used as a texture.
   look different there.
 - The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. From
   close up the grass tiles (10 cm per pixel) look soft.
-- The model is large (72 MB, 475,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
+- The model is large (74 MB, 489,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
   Uncompressed they need roughly 1 GB of graphics memory.
 - The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
   and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
