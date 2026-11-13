@@ -188,12 +188,12 @@ def setup(scene):
         pass
     if ok:
         nt.links.new(sky.outputs[0], bg.inputs[0])
-        bg.inputs[1].default_value = 0.17 if sky.sky_type != "HOSEK_WILKIE" else 1.0
+        bg.inputs[1].default_value = 0.11 if sky.sky_type != "HOSEK_WILKIE" else 1.0
     else:
         bg.inputs[0].default_value = (0.50, 0.68, 0.95, 1.0)
         bg.inputs[1].default_value = 1.1
     sun = bpy.data.lights.new("sun", "SUN")
-    sun.energy = 4.6
+    sun.energy = 5.6
     sun.color = (1.0, 0.96, 0.88)
     sun.angle = np.radians(1.2)
     so = bpy.data.objects.new("sun", sun)

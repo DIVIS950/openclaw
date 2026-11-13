@@ -189,3 +189,54 @@ def build_pylon(tr: Track, parts: Parts, e: float, n: float, h: float, yaw: floa
                 parts.quad("1WALL_pylons", "lattice", quad, (0.0, 0.0, 2.0, 0.5), hint=(ay[0] * side, 0.0, ay[1] * side), smooth=False, double_sided=True)
             parts.quad("1WALL_pylons", "metal", [(tip[0] - 0.06, yy - 1.4, tip[1]), (tip[0] + 0.06, yy - 1.4, tip[1]), (tip[0] + 0.06, yy, tip[1]), (tip[0] - 0.06, yy, tip[1])],
                        (0, 0, 1, 1), hint=(ay[0], 0.0, ay[1]), smooth=False, double_sided=True)      # insulator string
+
+
+def build_bags(tr: Track, parts: Parts, lines: list[np.ndarray], seed: int = 17) -> dict:
+    """The yellow soft barrier bags of Sosnova as single bodies: each about a metre long, with a rounded back and
+    pinched ends, standing in a row with a small gap. lines: east/north polylines (two or more points)."""
+    rng = np.random.default_rng(seed)
+    # cross-section of a bag: (distance from its middle, height) from one foot over the top to the other
+    sec = np.array([(-0.31, 0.0), (-0.32, 0.30), (-0.25, 0.46), (-0.10, 0.53), (0.10, 0.53), (0.25, 0.46), (0.32, 0.30), (0.31, 0.0)])
+    v = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(sec, axis=0), axis=1))])
+    v = 0.14 + 0.86 * (1 - np.abs(v / v[-1] * 2 - 1))                   # texture v: foot at the bottom, the back at the top
+    stations = np.array([0.0, 0.07, 0.5, 0.93, 1.0])                     # along the bag
+    squeeze = np.array([0.72, 1.0, 1.03, 1.0, 0.72])                     # pinched ends
+    body = Soup()
+    count = 0
+    for q in lines:
+        q = np.asarray(q, float)
+        cum = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(q, axis=0), axis=1))])
+        n = int(cum[-1] // 1.0)
+        if n < 1:
+            continue
+        length = cum[-1] / n
+        for k in range(n):
+            a = np.array([np.interp(k * length + 0.03, cum, q[:, 0]), np.interp(k * length + 0.03, cum, q[:, 1])])
+            b = np.array([np.interp((k + 1) * length - 0.03, cum, q[:, 0]), np.interp((k + 1) * length - 0.03, cum, q[:, 1])])
+            d = (b - a) / max(np.linalg.norm(b - a), 1e-9)
+            nrm = np.array([-d[1], d[0]])
+            off = rng.normal(0, 0.025)                                  # no row of bags is perfectly straight
+            hk = rng.uniform(0.94, 1.05)
+            rows, uvs = [], []
+            u0 = rng.integers(0, 4) * 0.25
+            for t, sq in zip(stations, squeeze):
+                c = a + (b - a) * t + nrm * off
+                en = c[None, :] + nrm[None, :] * sec[:, :1] * sq
+                g = tr.H.ground(c[None, :])[0] - tr.fr.ref
+                xz = tr.fr.xz(en)
+                rows.append(np.column_stack([xz[:, 0], g - 0.03 + sec[:, 1] * hk * (0.9 if sq < 1 else 1.0), xz[:, 1]]))
+                uvs.append(np.column_stack([np.full(len(sec), u0 + 0.02 + 0.21 * t), v]))
+            pos = np.vstack(rows)
+            m = len(sec)
+            tris = []
+            for j in range(len(stations) - 1):
+                i = np.arange(m - 1)
+                p0, p1 = j * m, (j + 1) * m
+                tris += [np.stack([p0 + i, p0 + i + 1, p1 + i + 1], -1), np.stack([p0 + i, p1 + i + 1, p1 + i], -1)]
+            for p0 in (0, (len(stations) - 1) * m):                      # the two ends
+                tris.append(np.stack([np.full(m - 2, p0), p0 + np.arange(1, m - 1), p0 + np.arange(2, m)], -1))
+            mid = pos.mean(0)
+            body.add(pos, np.vstack(uvs), np.concatenate(tris), (mid[0], mid[1] - 0.25, mid[2]))
+            count += 1
+    n_tri = body.flush(parts, "1WALL_bags", "bags", cast_shadows=True)
+    return dict(bags=count, bag_triangles=int(n_tri))

@@ -362,6 +362,9 @@ def main() -> None:
     lat_ = [m_ for m_ in k["materials"] if m_["name"] == "lattice"]
     check(n_solid > 100000 and n_stack > 600 and len(lat_) == 1,
           f"the scenery is solid: trees with trunk and body ({n_solid} triangles), tyre walls of {n_stack} round stacks, lattice pylons")
+    boards_ = sum(len(m["indices"]) // 3 for m in meshes if m["name"].startswith("BANNER_boards") and m["name"].endswith("banner"))
+    bags_ = [m for m in meshes if m["name"].startswith("1WALL_bags")]
+    check(boards_ >= 60 and len(bags_) >= 1, f"advertising boards stand at the barriers ({boards_ // 2}) and the soft bags are single bodies ({sum(len(m['indices']) // 3 for m in bags_)} triangles)")
     lap_poly = ground.ribbon_polygon(tr)
     to_en = lambda v: tr.fr.o + v[:, [0]] * tr.fr.l + v[:, [2]] * tr.fr.f
     blocks = [m for m in meshes if m["name"].startswith("1WALL") and m["name"].endswith("barricade")]

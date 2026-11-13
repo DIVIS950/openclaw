@@ -506,6 +506,53 @@ def lattice() -> np.ndarray:
     return a
 
 
+def banners() -> np.ndarray:
+    """Advertising boards as they stand along the real barriers: six boards side by side (u), each 3 m by 0.95 m.
+    The designs are made up: colour fields, stripes, chevrons and the name of the place. No real brand is shown."""
+    from PIL import ImageDraw, ImageFont
+    cw, ch = 384, 128
+    im = Image.new("RGB", (cw * 6, ch), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    try:
+        font = ImageFont.load_default(size=54)
+        small = ImageFont.load_default(size=34)
+    except TypeError:                                                  # an older Pillow: the small built-in font
+        font = small = ImageFont.load_default()
+
+    def text(k, s, fill, f=None, dy=0):
+        f = f or font
+        box = d.textbbox((0, 0), s, font=f)
+        d.text((k * cw + (cw - (box[2] - box[0])) / 2, (ch - (box[3] - box[1])) / 2 - box[1] + dy), s, fill=fill, font=f)
+    blue, green, yellow, dark, white, red = (22, 62, 140), (20, 120, 70), (236, 196, 28), (24, 26, 30), (240, 240, 236), (186, 36, 30)
+    d.rectangle([0, 0, cw - 1, ch], fill=blue)
+    text(0, "SOSNOVÁ", white)
+    d.rectangle([cw, 0, 2 * cw - 1, ch], fill=green)
+    d.rectangle([cw, ch - 22, 2 * cw - 1, ch], fill=white)
+    text(1, "AUTODROM", white, dy=-8)
+    d.rectangle([2 * cw, 0, 3 * cw - 1, ch], fill=white)
+    for x in range(-ch, cw, 64):                                       # green chevrons
+        d.polygon([(2 * cw + x, ch), (2 * cw + x + 32, ch), (2 * cw + x + 32 + ch // 2, ch // 2), (2 * cw + x + 32, 0), (2 * cw + x, 0), (2 * cw + x + ch // 2, ch // 2)], fill=green)
+    d.rectangle([2 * cw, 0, 2 * cw + 3, ch], fill=white)
+    d.rectangle([3 * cw, 0, 4 * cw - 1, ch], fill=yellow)
+    text(3, "SOSNOVÁ", dark)
+    d.rectangle([4 * cw, 0, 5 * cw - 1, ch], fill=white)
+    d.rectangle([4 * cw, 0, 5 * cw - 1, 26], fill=blue)
+    d.rectangle([4 * cw, ch - 26, 5 * cw - 1, ch], fill=blue)
+    text(4, "AUTODROM", blue, small)
+    d.rectangle([5 * cw, 0, 6 * cw - 1, ch], fill=dark)
+    d.rectangle([5 * cw + 20, 48, 6 * cw - 20, 80], fill=red)
+    text(5, "14.11.2026", white, small)
+    a = np.asarray(im, np.float32)
+    for k in range(6):                                                 # the frame of each board
+        a[:, k * cw: k * cw + 3] *= 0.55
+        a[:, (k + 1) * cw - 3: (k + 1) * cw] *= 0.55
+    a[:4] *= 0.6
+    a[-6:] *= 0.5                                                      # dirt at the foot
+    dirt = np.clip(fnoise(512, 8, 80, 451)[: ch, :], -1.5, 1.5)
+    a *= (0.93 + 0.05 * np.tile(dirt, (1, cw * 6 // 512 + 1))[:, : cw * 6])[..., None]
+    return np.clip(a, 0, 255)
+
+
 def build_static() -> dict[str, bytes]:
     out = {
         "road.jpg": _jpg(natural("asphalt_track.jpg", (49, 50, 53), 2048, 12, desat=0.5, seed=301, vary=0.075, patches=7), 90),
@@ -531,6 +578,7 @@ def build_static() -> dict[str, bytes]:
         "kerb.jpg": _jpg(kerb(), 90),
         "barricade.jpg": _jpg(barricade(), 90),
         "tyres.jpg": _jpg(tyres(), 90),
+        "banner.jpg": _jpg(banners(), 92),
         "tyredark.jpg": _jpg(np.full((16, 16, 3), (9.0, 9.0, 10.0)) + fnoise(16, 2, 8, 431)[..., None] * 1.5, 90),      # the inside of a tyre stack
         "foliage_c.jpg": _jpg(foliage("conifer"), 90),
         "foliage_l.jpg": _jpg(foliage("leaf"), 90),

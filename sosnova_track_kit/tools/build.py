@@ -55,6 +55,7 @@ MATERIALS = [
     M("barricade", "barricade.jpg", specular=0.18, specular_exp=40),
     M("tyres", "tyres.jpg", specular=0.05),
     M("tyredark", "tyredark.jpg", specular=0.0),
+    M("banner", "banner.jpg", specular=0.12, specular_exp=30),
     M("foliagec", "foliage_c.jpg", ambient=0.75, diffuse=0.5, specular=0.0),
     M("foliagel", "foliage_l.jpg", ambient=0.75, diffuse=0.5, specular=0.0),
     M("bark", "bark.jpg", specular=0.0),
@@ -99,6 +100,7 @@ def main() -> None:
     pit_wall = props.pit_wall_line(tr)
     barriers = realmap.walls() + [dict(en=pit_wall.tolist(), width=0.3, height=1.05, material="concrete")] + [dict(b, material="concrete") for b in circuit.BARRIERS]
     walls = props.build_tyre_walls(tr, parts, info["R"].buffer(0.3), asphalt, lines=barriers)
+    walls.update(props.build_banners(tr, parts, [b_ for b_ in barriers if b_.get("material") == "tyres"], asphalt))
     # race equipment of 14.11.2026: tyre stacks at the organiser's yellow dots, bags and tape along each row, and
     # cones along the lap wherever it crosses open asphalt
     race = props.build_tyre_stacks(tr, parts)

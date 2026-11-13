@@ -1,4 +1,4 @@
-AUTODROM SOSNOVA v14.0 for Assetto Corsa
+AUTODROM SOSNOVA v15.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -9,7 +9,7 @@ INSTALL
    so that this file exists:
       ...\content\tracks\sosnova_v9\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v14.0".
+3. Start the game and pick the track "Autodrom Sosnova v15.0".
 
 WHAT IT IS
 - Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
@@ -27,6 +27,9 @@ WHAT IT IS
   wall along the pit buildings and the wall of the paddock.
 - The painted lines and start boxes of the real asphalt are traced from the photo. A white line runs along every
   real edge of the lap.
+- A closer look: the asphalt has the neutral dark grey of the real track, the grain of its stones, tyre marks,
+  fine cracks and the seam between the paved lanes. Advertising boards stand in front of the tyre walls. The
+  yellow soft bags are single rounded bags.
 - Everything stands in 3D: every tree near the track has a trunk and a body with volume inside the pictures of
   the real tree; the tyre walls are rows of single round stacks; the power pylons are lattice towers with arms;
   the fences have posts; flat roofs lie behind a parapet. With Custom Shaders Patch the grass is 3D as well.

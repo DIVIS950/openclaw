@@ -1,13 +1,33 @@
-# Autodrom Sosnová for Assetto Corsa (v14.0)
+# Autodrom Sosnová for Assetto Corsa (v15.0)
 
 A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
 
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v14.0".
+"Autodrom Sosnová v15.0".
 
-## What v14.0 is
+## What v15.0 is
+
+The owner asked for many more rounds, down to centimetre detail and as realistic as it can get. Version 15 is the
+result of two rounds of looking at close-up renders next to the 2026 photos of the real track and fixing what did not
+hold up. The shape of the track is unchanged.
+
+| Part | What changed |
+| --- | --- |
+| Asphalt | It was too dark, too blue and too smooth. Now (`tools/realtex.py`): the neutral dark grey of the resurfaced track, a grain tile of 1.5 cm per pixel with the light stones of the aggregate and the pits between them, the light and dark of the photo a little stronger and sharper, single tyre marks (pairs of dark lines a car width apart, more of them where the lap turns), the seam where the two paved lanes meet, and fine cracks (few on the lap, more on the older asphalt beside it). |
+| Advertising boards | 56 boards of 3 m by 0.95 m on legs in front of the tyre walls, facing the lap, as on the real circuit. The designs are made up (colour fields, chevrons, the name of the place and the date of the race); no real brand is shown. |
+| Soft bags | The yellow bags of the race rows are single rounded bodies with pinched ends and small gaps (`solid.build_bags`), not one long block. |
+| Motorway viaduct | Starts where the deck is 1.5 m above the ground (3 m before) and has an abutment wall at each end. |
+| White pad of turn 1 | One body all the way; its narrow tail is no longer cut into a separate strip with a step. |
+| Not done | Parked cars as 3D cars: finding them in the photo automatically missed most of them and marked grass, so they stay as they are in the photo. |
+
+**Centimetre detail, honestly.** The data behind this track is an aerial photo of 12.5 cm per pixel and an airborne
+laser scan of about one point per square metre. The textures are drawn at 1.5 to 2 cm per pixel, but the positions
+behind them are good to about 25 cm. Real centimetre accuracy needs a laser scan from the ground or a drone survey
+of the circuit, which is not public.
+
+## Everything in 3D: what v14.0 did
 
 The owner called 13.1 perfect and asked for everything in 3D. The track, its edges and its surface are unchanged.
 What was a flat picture or a plain box is now a solid body (`tools/solid.py`):
@@ -120,7 +140,7 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 51 checks) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 52 checks) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
@@ -141,8 +161,8 @@ is stored here or used as a texture.
   look different there.
 - The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. From
   close up the grass tiles (10 cm per pixel) look soft.
-- The model is large: 63 lap textures, the squares of asphalt and 26 grass tiles. Uncompressed they need roughly
-  1 GB of graphics memory.
+- The model is large (72 MB, 475,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
+  Uncompressed they need roughly 1 GB of graphics memory.
 - The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
   and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
   generic textures, not the real doors, windows and signs. Trees have generic bodies of the right height, not the shape of each real tree.
@@ -161,6 +181,7 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 
 ![Views of the track](previews/preview_sheet.jpg)
+![Asphalt with tyre marks](previews/lap_0060.jpg)
 ![Trees and pylons in 3D](previews/lap_1450.jpg)
 ![Round tyre stacks](previews/lap_0215.jpg)
 ![The overpass](previews/bridge_side.jpg)

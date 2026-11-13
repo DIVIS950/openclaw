@@ -280,7 +280,7 @@ OPEN_HALF = 5.5         # half width of the lap's own strip on an open side (m)
 SLOPE = 0.30            # the strip's edge leaves a real edge that turns away at no more than this (m per m)
 
 
-def lap_widths(P=None, C=None) -> dict:
+def lap_widths(P=None, C=None, Wt=None) -> dict:
     """Half widths of the lap from the real outline: the distance from the centre line to the asphalt edge on each
     side. Where the asphalt runs on (junctions, the plaza) the lap keeps a strip of its own. Writes centerline.json."""
     from scipy.ndimage import gaussian_filter1d
@@ -343,6 +343,10 @@ def lap_widths(P=None, C=None) -> dict:
         has = np.array([has[(i - 2) % n] or has[i] or has[(i + 2) % n] for i in range(n)]) & closed      # bridge gaps of 2 m
         bs = np.where(has, clean(band, runs_of(has), 4.0), 0.0)
         kerb = has & (bs <= 4.0)                                        # a concrete strip (the real kind of kerb)
+        if Wt is not None and not Wt.is_empty:                          # the white pad is one body, also where it tapers
+            from shapely import contains_xy as _in
+            probe = c + (1.0 if key == "l" else -1.0) * nrm * (w + 0.8)[:, None]
+            kerb &= ~_in(Wt.buffer(0.6), probe[:, 0], probe[:, 1])
         for a, ln in runs_of(kerb):                                    # strips shorter than 5 m are noise; taper the ends
             idx = (a + np.arange(ln)) % n
             if ln < 5:
@@ -410,7 +414,7 @@ if __name__ == "__main__":
     P, strips, boxes_ = compute()
     C, S, Wt = compute_extras(P, strips)
     raw = P
-    w = lap_widths(P, C)
+    w = lap_widths(P, C, Wt)
     P, C, Wt = corridor(P, C, Wt, w)
     S = S.difference(P.buffer(0.4))
     for name, g in (("asphalt", P), ("pads", C), ("sand", S), ("white", Wt)):

@@ -1,20 +1,20 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 391,
- "vertices": 495313,
- "triangles": 472568,
- "kn5_mb": 61.58,
+ "meshes": 389,
+ "vertices": 497897,
+ "triangles": 480310,
+ "kn5_mb": 72.24,
  "ground": {
-  "asphalt": 9816,
-  "gravel": 1190,
-  "grass": 15530,
-  "shoulder": 9017,
-  "verge": 8205,
+  "asphalt": 9823,
+  "gravel": 1192,
+  "grass": 15524,
+  "shoulder": 8959,
+  "verge": 8168,
   "photo": 23826,
   "relief_points": 8483
  },
- "asphalt_m2": 32084,
+ "asphalt_m2": 32100,
  "gravel_m2": 1674,
  "buildings": 45,
  "bridge": {
@@ -37,7 +37,8 @@
   "walls": 22,
   "metres": 482,
   "tyre_wall_stacks": 1091,
-  "tyre_wall_triangles": 43640
+  "tyre_wall_triangles": 43640,
+  "banners": 56
  },
  "real": {
   "lap_width_m": [
@@ -45,8 +46,8 @@
    11.37,
    20.06
   ],
-  "concrete_m2": 999,
-  "concrete_strip_beside_lap_m": 345,
+  "concrete_m2": 1016,
+  "concrete_strip_beside_lap_m": 330,
   "open_side_m": 1257,
   "asphalt_squares": 32,
   "lap_textures": 63
@@ -68,8 +69,8 @@
   "row_barrier_m": 146
  },
  "scenery": {
-  "viaduct_m": 146,
-  "viaduct_width_m": 16.0,
+  "viaduct_m": 150,
+  "viaduct_width_m": 16.8,
   "viaduct_piers": 5,
   "viaduct_above_ground_m": 12.1
  },

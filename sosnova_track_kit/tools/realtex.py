@@ -70,11 +70,46 @@ def _sample(img: np.ndarray, en: np.ndarray, interp=cv2.INTER_LINEAR) -> np.ndar
     return cv2.remap(img, mx, my, interp, borderMode=cv2.BORDER_REFLECT)
 
 
+ASPHALT = (58.0, 57.0, 55.0)        # the dark, neutral grey of the resurfaced track in the 2026 photos
+GRAIN_PX, GRAIN_M = 512, 7.68       # the grain tile: 1.5 cm per pixel
+
+
+def _grain() -> np.ndarray:
+    """Close-up asphalt: the scan, with its contrast raised to what one sees from a car, the light stones of the
+    aggregate and the dark pits between them."""
+    if "grain" not in _cache:
+        g = textures.scan("asphalt_track.jpg", ASPHALT, GRAIN_PX, repeat=1, desat=0.6)
+        mean = g.reshape(-1, 3).mean(0)
+        g = mean + (g - mean) * 1.9
+        rng = np.random.default_rng(91)
+        stones = (rng.random((GRAIN_PX, GRAIN_PX)) < 0.014).astype(np.float32) * rng.uniform(18, 52, (GRAIN_PX, GRAIN_PX))
+        pits = (rng.random((GRAIN_PX, GRAIN_PX)) < 0.010).astype(np.float32) * rng.uniform(10, 22, (GRAIN_PX, GRAIN_PX))
+        # wrap-around blur, so the tile still repeats without a seam
+        blur = lambda a, sg: np.real(np.fft.ifft2(np.fft.fft2(a) * np.exp(-2 * (np.pi * sg) ** 2 * (np.fft.fftfreq(GRAIN_PX)[:, None] ** 2 + np.fft.fftfreq(GRAIN_PX)[None, :] ** 2))))  # noqa: E731
+        g = g + (blur(stones, 0.55) * 2.2)[..., None] * np.array([1.0, 0.98, 0.93]) - (blur(pits, 0.6) * 2.0)[..., None]
+        _cache["grain"] = np.clip(g, 4, 250).astype(np.float32)
+    return _cache["grain"]
+
+
+def _cracks(shape: tuple[int, int], px_per_m: tuple[float, float], count: int, rng, long_m=(2.0, 9.0)) -> np.ndarray:
+    """Fine cracks as a darkening mask (0 = none). shape: rows, columns; px_per_m: along rows, along columns."""
+    m = np.zeros(shape, np.float32)
+    for _ in range(count):
+        length = rng.uniform(*long_m)
+        ang = rng.choice([0.0, np.pi / 2]) + rng.normal(0, 0.35)          # mostly along or across
+        n = max(4, int(length / 0.25))
+        step = np.column_stack([np.cos(ang + np.cumsum(rng.normal(0, 0.22, n))), np.sin(ang + np.cumsum(rng.normal(0, 0.22, n)))]) * 0.25
+        pts = np.array([rng.uniform(0, shape[1] / px_per_m[1]), rng.uniform(0, shape[0] / px_per_m[0])]) + np.cumsum(step, axis=0)
+        pix = np.round(pts * [px_per_m[1], px_per_m[0]]).astype(np.int32)
+        cv2.polylines(m, [pix], False, float(rng.uniform(0.25, 0.5)), 1, cv2.LINE_AA)
+    return cv2.GaussianBlur(m, (0, 0), 0.5)
+
+
 def lap_textures(tr, line_offset: np.ndarray):
     """Returns ({file name: jpeg}, [(first station, last station, material name)])."""
     ratio, ok = _ortho()
-    grain = textures.scan("asphalt_track.jpg", (49.0, 50.0, 53.0), 384, repeat=1, desat=0.5)        # 5.6 m of scanned asphalt
-    grain_m = 5.6
+    grain, grain_m = _grain(), GRAIN_M
+    centre_all = (tr.wl - tr.wr) / 2                                    # the middle of the road: where the two paved lanes meet
     H = LAP_PX[0]
     out, chunks = {}, []
     busy_all = 0.8 + 0.2 * np.clip(np.abs(tr.k) * 40.0, 0, 1)
@@ -93,21 +128,39 @@ def lap_textures(tr, line_offset: np.ndarray):
         # where the photo shows no clean asphalt, take the look of the asphalt around it
         num, den = cv2.GaussianBlur(r * v, (0, 0), 22), cv2.GaussianBlur(v, (0, 0), 22)
         fill = np.where(den > 0.03, num / np.maximum(den, 1e-4), 1.0)
-        r = cv2.GaussianBlur(r * v + fill * (1 - v), (0, 0), 1.6)
-        macro = 1 + 0.95 * (np.clip(r, 0.66, 1.45) - 1)
-        gx = ((dd % grain_m) / grain_m * 384).astype(np.float32)
-        gy = ((ss % grain_m) / grain_m * 384).astype(np.float32)
+        r = cv2.GaussianBlur(r * v + fill * (1 - v), (0, 0), 1.1)
+        macro = 1 + 1.05 * (np.clip(r, 0.62, 1.5) - 1)
+        gx = ((dd % grain_m) / grain_m * GRAIN_PX).astype(np.float32)
+        gy = ((ss % grain_m) / grain_m * GRAIN_PX).astype(np.float32)
         tex = cv2.remap(grain, gx, gy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
         tex = tex * np.tile(fine, (H // W + 1, 1))[:H, :, None] * macro[..., None]
         off = tr.interp(line_offset, ss.ravel()).reshape(H, W)
         busy = tr.interp(busy_all, ss.ravel()).reshape(H, W)
         tex *= (1 - 0.17 * np.exp(-0.5 * ((dd - off) / GROOVE_SIGMA) ** 2) * busy)[..., None]     # rubber on the racing line
+        # single tyre marks: pairs of dark lines a car width apart, where cars brake and turn. They begin and end
+        # inside this piece of road
+        rng = np.random.default_rng(7000 + k)
+        turn = float(np.clip(np.abs(tr.k[st]).max() * 30.0, 0, 1))
+        for _ in range(rng.poisson(1.2 + 3.0 * turn)):
+            length = rng.uniform(5.0, min(20.0, b - a - 2.0))
+            s0 = rng.uniform(a + 0.5, b - 0.5 - length)
+            lat0 = float(tr.interp(line_offset, np.array([s0 + length / 2]))[0]) + rng.normal(0, 1.1)
+            drift = rng.normal(0, 0.035)
+            t_ = (ss - s0) / length
+            body = np.clip(np.minimum(t_, 1 - t_) * 6.0, 0, 1) * ((t_ > 0) & (t_ < 1))
+            core = dd - (lat0 + drift * (ss - s0))
+            mark = np.exp(-0.5 * ((core - 0.76) / 0.085) ** 2) + np.exp(-0.5 * ((core + 0.76) / 0.085) ** 2)
+            tex *= (1 - rng.uniform(0.10, 0.26) * body * mark)[..., None]
+        # the seam where the two paved lanes meet, and a few fine cracks
+        mid = tr.interp(centre_all, ss.ravel()).reshape(H, W) + 0.05 * np.sin(ss * 0.21)
+        tex *= (1 - 0.08 * np.exp(-0.5 * ((dd - mid) / 0.035) ** 2))[..., None]
+        tex *= (1 - _cracks((H, W), (H / (b - a + 2 * LAP_MARGIN[0]), W / (2 * half)), int(rng.poisson(1.0)), rng))[..., None]
         # dust along the edges, only where the asphalt really ends there
         wl_, wr_ = tr.interp(tr.wl, ss.ravel()).reshape(H, W), tr.interp(tr.wr, ss.ravel()).reshape(H, W)
         cl_, cr_ = tr.interp(1.0 - tr.open_l.astype(float), ss.ravel()).reshape(H, W), tr.interp(1.0 - tr.open_r.astype(float), ss.ravel()).reshape(H, W)
         tex *= (1 + 0.07 * cl_ * np.clip((dd - (wl_ - 0.55)) / 0.5, 0, 1) + 0.07 * cr_ * np.clip((-dd - (wr_ - 0.55)) / 0.5, 0, 1))[..., None]
         name = f"lap{k:02d}"
-        out[name + ".jpg"] = _jpg(tex, 86)
+        out[name + ".jpg"] = _jpg(tex, 80)
         chunks.append((a, b, name, half))
     return out, chunks
 
@@ -123,9 +176,7 @@ def asphalt_tile(e0: float, n0: float) -> bytes:
     """Texture of the asphalt in the square whose south-west corner is (e0, n0): the real light and dark of the
     photo over the same scanned grain as the lap, so the two meet without a step."""
     ratio, ok = _ortho()
-    if "grain" not in _cache:
-        _cache["grain"] = textures.scan("asphalt_track.jpg", (49.0, 50.0, 53.0), 384, repeat=1, desat=0.5)
-    grain, grain_m = _cache["grain"], 5.6
+    grain, grain_m = _grain(), GRAIN_M
     ext = ASPH_TILE + 2 * ASPH_MARGIN
     t = (np.arange(ASPH_PX) + 0.5) / ASPH_PX
     ee, nn = np.meshgrid(e0 - ASPH_MARGIN + ext * t, n0 + ASPH_TILE + ASPH_MARGIN - ext * t)
@@ -134,13 +185,15 @@ def asphalt_tile(e0: float, n0: float) -> bytes:
     sig = 22 * (ASPH_PX / ext) / (LAP_PX[0] / (LAP_CHUNK + 2 * LAP_MARGIN[0]))          # the same reach in metres as on the lap
     num, den = cv2.GaussianBlur(r * v, (0, 0), sig), cv2.GaussianBlur(v, (0, 0), sig)
     fill = np.where(den > 0.03, num / np.maximum(den, 1e-4), 1.0)
-    r = cv2.GaussianBlur(r * v + fill * (1 - v), (0, 0), 1.0)
-    macro = 1 + 0.95 * (np.clip(r, 0.66, 1.45) - 1)
-    gx = ((ee % grain_m) / grain_m * 384).astype(np.float32)
-    gy = ((nn % grain_m) / grain_m * 384).astype(np.float32)
+    r = cv2.GaussianBlur(r * v + fill * (1 - v), (0, 0), 0.8)
+    macro = 1 + 1.05 * (np.clip(r, 0.62, 1.5) - 1)
+    gx = ((ee % grain_m) / grain_m * GRAIN_PX).astype(np.float32)
+    gy = ((nn % grain_m) / grain_m * GRAIN_PX).astype(np.float32)
     tex = cv2.remap(grain, gx, gy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
     tex = tex * (1 + 0.035 * textures.fnoise(ASPH_PX, 2, 5, 771))[..., None] * macro[..., None]
-    return _jpg(tex, 86)
+    rng = np.random.default_rng(int(abs(e0) * 131 + abs(n0) * 17) + 5)     # the older asphalt beside the lap has more cracks
+    tex *= (1 - _cracks((ASPH_PX, ASPH_PX), (ASPH_PX / ext, ASPH_PX / ext), int(rng.poisson(5.0)), rng, long_m=(3.0, 14.0)))[..., None]
+    return _jpg(tex, 80)
 
 
 def asphalt_uv(e0: float, n0: float, en: np.ndarray) -> np.ndarray:

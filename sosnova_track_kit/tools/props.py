@@ -113,6 +113,54 @@ def build_buildings(tr: Track, parts: Parts) -> list[Polygon]:
     return foot
 
 
+def build_banners(tr: Track, parts: Parts, walls: list[dict], asphalt) -> dict:
+    """Advertising boards in front of the tyre walls, on the side that faces the lap, as on the real circuit: boards
+    of 3 m by 0.95 m on two legs, about two out of three places taken. For the eye only."""
+    from shapely.geometry import LineString, Point
+    rng = np.random.default_rng(23)
+    lap = LineString(np.vstack([tr.c, tr.c[:1]]))
+    PANEL, H_, GAP = 3.0, 0.95, 0.15
+    count = 0
+    for wall in walls:
+        q = np.asarray(wall["en"], float)
+        cum = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(q, axis=0), axis=1))])
+        if cum[-1] < 9.0:
+            continue
+        half = wall.get("width", 1.3) / 2 + 0.22
+        for s0 in np.arange(0.4, cum[-1] - PANEL - 0.3, PANEL + GAP):
+            if rng.random() > 0.66:
+                continue
+            a = np.array([np.interp(s0, cum, q[:, 0]), np.interp(s0, cum, q[:, 1])])
+            b = np.array([np.interp(s0 + PANEL, cum, q[:, 0]), np.interp(s0 + PANEL, cum, q[:, 1])])
+            d = (b - a) / max(np.linalg.norm(b - a), 1e-9)
+            n = np.array([-d[1], d[0]])
+            mid = (a + b) / 2
+            if lap.distance(Point(mid + n)) > lap.distance(Point(mid - n)):
+                n = -n                                                 # towards the lap
+            if lap.distance(Point(mid)) > 30.0:
+                continue                                               # nobody on the lap would see it
+            a, b = a + n * half, b + n * half
+            if asphalt.buffer(0.3).intersects(LineString([a, b])):
+                continue
+            g = tr.H.ground(np.array([a, b])) - tr.fr.ref
+            xa, xb = tr.fr.xz(np.array([a, b]))
+            k = int(rng.integers(0, 6))
+            y0 = float(g.max()) + 0.12
+            quad = [(xa[0], y0, xa[1]), (xb[0], y0, xb[1]), (xb[0], y0 + H_, xb[1]), (xa[0], y0 + H_, xa[1])]
+            nn = tr.fr.vec(n[None, :])[0]
+            flip = np.cross(np.array([xb[0] - xa[0], 0.0, xb[1] - xa[1]]), UP) @ np.array([nn[0], 0.0, nn[1]]) < 0
+            u0, u1 = (k / 6.0, (k + 1) / 6.0) if not flip else ((k + 1) / 6.0, k / 6.0)       # readable from the lap
+            parts.quad("BANNER_boards", "banner", quad, (u0, 0.0, u1, 1.0), hint=(nn[0], 0.0, nn[1]), smooth=False, cast_shadows=True)
+            back = [quad[1], quad[0], quad[3], quad[2]]
+            parts.quad("BANNER_boards", "concrete", back, (0.0, 0.0, 1.0, 0.3), hint=(-nn[0], 0.0, -nn[1]), smooth=False)
+            for p_, gy in ((xa, g[0]), (xb, g[1])):                    # two legs
+                dd = tr.fr.vec(d[None, :])[0] * 0.03
+                leg = [(p_[0] - dd[0], gy - 0.1, p_[1] - dd[1]), (p_[0] + dd[0], gy - 0.1, p_[1] + dd[1]), (p_[0] + dd[0], y0, p_[1] + dd[1]), (p_[0] - dd[0], y0, p_[1] - dd[1])]
+                parts.quad("BANNER_boards", "metal", leg, (0, 0, 1, 1), hint=(nn[0], 0.0, nn[1]), smooth=False, double_sided=True)
+            count += 1
+    return dict(banners=count)
+
+
 def build_viaduct(tr: Track, parts: Parts) -> dict:
     """The motorway viaduct in the north-west corner of the site, 60 m behind the west loop. The laser-scanned surface
     model shows its deck: about 15 m wide and 8 to 11 m above the ground. Position, width and height are read from
@@ -124,7 +172,7 @@ def build_viaduct(tr: Track, parts: Parts) -> dict:
     rows = []
     for north in np.arange(138.0, HALF_N - 1.0, 2.0):
         r = int((HALF_N - north) / 0.5)
-        on = np.where(ndsm[r, :160] > 3.0)[0]
+        on = np.where(ndsm[r, :160] > 1.5)[0]
         if len(on) == 0:
             continue
         for run in np.split(on, np.where(np.diff(on) > 2)[0] + 1):
@@ -162,6 +210,12 @@ def build_viaduct(tr: Track, parts: Parts) -> dict:
         parts.surface("SCENE_viaduct", "concrete", np.vstack([tr.fr.world(edge, top - DEPTH), tr.fr.world(edge, top + 0.9)]),
                       np.vstack([np.column_stack([s_ / 4, np.zeros(m)]), np.column_stack([s_ / 4, np.full(m, 0.6)])]), quads,
                       hint=np.vstack([hint[:-1], hint[:-1]]), smooth=False)
+    for e_ in (0, m - 1):                                               # an abutment wall closes each end of the deck
+        g_ = float(tr.H.ground(c[e_][None, :])[0])
+        lo = np.array([tr.fr.world(left[e_][None], np.array([g_ - 0.5]))[0], tr.fr.world(right[e_][None], np.array([g_ - 0.5]))[0]])
+        hi = np.array([tr.fr.world(right[e_][None], np.array([top[e_] + 0.9]))[0], tr.fr.world(left[e_][None], np.array([top[e_] + 0.9]))[0]])
+        out_ = tr.fr.vec((d[e_] * (-1.0 if e_ == 0 else 1.0))[None, :])[0]
+        parts.quad("SCENE_viaduct", "concrete", [lo[0], lo[1], hi[0], hi[1]], (0.0, 0.0, width / 4, (top[e_] - g_) / 4), hint=(out_[0], 0.0, out_[1]), smooth=False)
     piers = 0
     for k in range(2, m - 1, 8):                                         # a pier every 32 m
         ax, ay = d[k] * 0.9, nrm[k] * (width / 2 - 2.5)
@@ -205,8 +259,12 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
             if (a1 - a0) * 0.65 >= min_len:
                 pieces.append((line, q[a0:a1]))
     count, length = 0, 0.0
-    stacks_q, stacks_w = [], []
+    stacks_q, stacks_w, bag_q = [], [], []
     for k, (line, q) in enumerate(pieces):
+        if line.get("material") == "bags":                            # soft bags are single bodies, not one long block
+            bag_q.append(q)
+            count, length = count + 1, length + float(np.linalg.norm(np.diff(q, axis=0), axis=1).sum())
+            continue
         m = len(q)
         s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(q, axis=0), axis=1))])
         mat = line.get("material", "softwall")
@@ -246,6 +304,9 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
     if stacks_q:
         import solid
         out.update(solid.build_tyre_stacks(tr, parts, stacks_q, stacks_w))
+    if bag_q:
+        import solid
+        out.update(solid.build_bags(tr, parts, bag_q))
     return out
 
 

@@ -246,7 +246,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v14.0 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v15.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -257,7 +257,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v14.0".
+3. Start the game and pick the track "Autodrom Sosnova v15.0".
 
 WHAT IT IS
 - Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
@@ -275,6 +275,9 @@ WHAT IT IS
   wall along the pit buildings and the wall of the paddock.
 - The painted lines and start boxes of the real asphalt are traced from the photo. A white line runs along every
   real edge of the lap.
+- A closer look: the asphalt has the neutral dark grey of the real track, the grain of its stones, tyre marks,
+  fine cracks and the seam between the paved lanes. Advertising boards stand in front of the tyre walls. The
+  yellow soft bags are single rounded bags.
 - Everything stands in 3D: every tree near the track has a trunk and a body with volume inside the pictures of
   the real tree; the tyre walls are rows of single round stacks; the power pylons are lattice towers with arms;
   the fences have posts; flat roofs lie behind a parapet. With Custom Shaders Patch the grass is 3D as well.
@@ -357,7 +360,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v14.0",
+        "name": "Autodrom Sosnová v15.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real "
                        "outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand "
                        "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race "
@@ -373,7 +376,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "14.0",
+        "version": "15.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
