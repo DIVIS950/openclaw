@@ -1,0 +1,24 @@
+{
+  "name": "Autodrom Sosnová v16.0",
+  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The original circuit with nothing added: no race set-up, every road open. The AI line (1764 m, anticlockwise) takes the long route under the green bridge. 16 grid slots, 16 pit boxes, lap timing at the start line. Data: ČÚZK (CC BY 4.0), materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
+  "tags": [
+    "circuit",
+    "czech",
+    "sosnova",
+    "bridge",
+    "csp"
+  ],
+  "geotags": [
+    "50.65900",
+    "14.53906"
+  ],
+  "country": "Czech Republic",
+  "city": "Sosnová (Česká Lípa)",
+  "length": "1764",
+  "width": "7-20",
+  "pitboxes": "16",
+  "run": "anticlockwise",
+  "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
+  "version": "16.0",
+  "url": ""
+}

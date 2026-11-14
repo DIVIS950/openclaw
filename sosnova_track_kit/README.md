@@ -1,0 +1,246 @@
+# Autodrom Sosnová for Assetto Corsa (v16.0)
+
+A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
+
+**Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
+[`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
+folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
+"Autodrom Sosnová v16.0".
+
+## What v16.0 is
+
+The owner asked for the original whole track with nothing added, and detailed. Up to 15.1 the kit was set up for the
+race of 14.11.2026. Version 16 is the circuit as it stands on an ordinary day.
+
+| Part | What changed |
+| --- | --- |
+| Nothing added | `RACE_LAYOUT = False` in `tools/common.py` switches the race set-up off: no tyre stacks at the organiser's dots, no bags, no tape, no cones, no chicane. The code stays; setting it to `True` builds the race layout again. The board with the date of the race has another design. |
+| The whole track | Every road of the circuit is open. `ROAD` and `APRON` have the same grip (they already had). The sector gate is gone, so the game counts a lap at the start line whichever route is driven; with a sector gate on one route, a lap on any other route would not count. The AI line and the lap textures still follow the 1764 m route under the green bridge. |
+| Asphalt beside the long route | 1536 px per 40 m square (3 cm per pixel) in place of 1024, so the other roads are as fine as the long route. |
+| All concrete | The concrete that is not a strip beside the long route (the kerbs of the other roads, the painted skid pad on the big square) gets the brightness of the photo too (`realtex.concrete_tile`), 24 squares. |
+| Kerbs of the other roads | `realmap.outline_kerbs` reads the 12.5 cm photo outwards from every metre of the asphalt outline that is not an edge of the long route. It found only 6 m more: the 25 cm mask had already caught these kerbs. |
+
+Version 15.1 with the race layout stays available at its commit (5a37b33).
+
+## How exact it is: what v15.1 did
+
+The owner asked whether the track is exact to the millimetre, and to make it so if not. It is not, and it cannot be
+made so from the data that exists. Version 15.1 says how exact it is, and makes it more exact where the data allowed.
+
+**How exact the track is**
+
+| What | How exact | Why not better |
+| --- | --- | --- |
+| Position of the road edges | about 20 cm | The aerial photo is 12.5 cm per pixel and placed on the map to about 20 cm. Two independent ways of reading the asphalt edge from it (where the green starts, where the grey ends) differ by 25 cm in the median, because dirt and grass lie over the real edge. |
+| Heights of the road | about 10 to 20 cm in absolute terms; the shape of the slopes is better than that | The terrain comes from an airborne laser scan with a stated accuracy of 18 cm and about one point per square metre. The road surface is fitted to it with 2 cm of residual. |
+| Buildings and trees | 0.5 to 1 m in plan, about 0.4 m in height | The surface model has a 0.5 m grid and smears walls over about 3 m. |
+| Look of the surfaces | drawn at 1.5 to 4 cm per pixel | This is drawing detail, not survey accuracy. |
+
+Millimetre accuracy needs a laser scan made on the ground at the circuit (the way the official tracks of racing
+simulators are made). No such scan of Sosnová is public.
+
+**What 15.1 made more exact**
+
+| Part | What changed |
+| --- | --- |
+| Concrete kerb strips | They were read from a 25 cm mask and two thirds of them were missing. Now each station of the lap reads the 12.5 cm photo along its normal (`realmap._concrete_beyond`): pale, colourless ground right outside the asphalt is concrete, as far as it reaches; kerbs of painted blocks (every other block as dark as asphalt) are followed as long as the ground is neither grass nor bare earth. 916 m of strip now, 330 m before. Under the overpass nothing is read. A kerb is at least 60 cm wide. |
+| Look of the strips | Each strip carries the look the photo shows there (`realtex.kerb_texture`): bare concrete, the white painted blocks, dirt. One texture per 28 m of edge and side, 63 in all. |
+| Narrow strips | Two rules lost narrow strips: pieces of concrete under 20 m2 were drawn as asphalt, and an outline closer than 60 cm to the road edge was taken for the road edge itself, which turned 218 m of strip into grass. Both are fixed (2 m2, 25 cm). A new check asks for concrete 30 cm outside the edge at every station of every strip: 824 of 824. |
+
+The edge of the asphalt itself was measured against the photo and left where it was: the model edge has no bias
+(median difference 4 cm on the left, 1 cm on the right), and the remaining scatter is the scatter of the photo.
+
+## A closer look: what v15.0 did
+
+The owner asked for many more rounds, down to centimetre detail and as realistic as it can get. Version 15 is the
+result of two rounds of looking at close-up renders next to the 2026 photos of the real track and fixing what did not
+hold up. The shape of the track is unchanged.
+
+| Part | What changed |
+| --- | --- |
+| Asphalt | It was too dark, too blue and too smooth. Now (`tools/realtex.py`): the neutral dark grey of the resurfaced track, a grain tile of 1.5 cm per pixel with the light stones of the aggregate and the pits between them, the light and dark of the photo a little stronger and sharper, single tyre marks (pairs of dark lines a car width apart, more of them where the lap turns), the seam where the two paved lanes meet, and fine cracks (few on the lap, more on the older asphalt beside it). |
+| Advertising boards | 56 boards of 3 m by 0.95 m on legs in front of the tyre walls, facing the lap, as on the real circuit. The designs are made up (colour fields, chevrons, the name of the place and the date of the race); no real brand is shown. |
+| Soft bags | The yellow bags of the race rows are single rounded bodies with pinched ends and small gaps (`solid.build_bags`), not one long block. |
+| Motorway viaduct | Starts where the deck is 1.5 m above the ground (3 m before) and has an abutment wall at each end. |
+| White pad of turn 1 | One body all the way; its narrow tail is no longer cut into a separate strip with a step. |
+| Not done | Parked cars as 3D cars: finding them in the photo automatically missed most of them and marked grass, so they stay as they are in the photo. |
+
+**Centimetre detail, honestly.** The data behind this track is an aerial photo of 12.5 cm per pixel and an airborne
+laser scan of about one point per square metre. The textures are drawn at 1.5 to 2 cm per pixel, but the positions
+behind them are good to about 25 cm. Real centimetre accuracy needs a laser scan from the ground or a drone survey
+of the circuit, which is not public.
+
+## Everything in 3D: what v14.0 did
+
+The owner called 13.1 perfect and asked for everything in 3D. The track, its edges and its surface are unchanged.
+What was a flat picture or a plain box is now a solid body (`tools/solid.py`):
+
+| Part | How it is made |
+| --- | --- |
+| Trees | Each of the 2,349 trees near the track has a trunk (a tapering six-sided column) and a canopy with volume: four overlapping cones for a conifer, two uneven rounded bodies for a broadleaf tree, 180,000 triangles in all. Three crossed pictures of the real tree (two before) stand around the body and give it its fine outline. Trees beyond the site keep two crossed pictures. |
+| Tyre walls | The 22 real tyre walls are rows of single round stacks, four tyres high, each with its hole, two rows deep where the wall is wide: 1,091 stacks. A plain dark core inside the stacks is what a car hits, so the collision shape stays simple. |
+| Power pylons | Square lattice towers that narrow to the top, with three pairs of cross-arms and the red and white marking, instead of two crossed pictures. |
+| Fences | A steel post every 2.5 m (72 posts). |
+| Flat roofs | On buildings at least 6 m wide the walls rise 35 cm above the roof as a parapet. |
+| Grass | The Custom Shaders Patch settings now name the real grass materials, so its 3D grass grows on all the grass of the circuit, and its rain on all the asphalt. Without the patch the grass is a flat photo texture. |
+
+The model has 473,000 triangles now (243,000 before).
+
+## Clean lines: what v13.1 did
+
+Version 13.1 answers "too wobbly, make it a more perfect line". The outline of version 12 came from a 25 cm mask
+and kept its wiggle: the edge of the lap moved against the centre line by up to 36 cm from one metre to the next.
+Now (`tools/realmap.py`):
+
+| Part | How it is made |
+| --- | --- |
+| Edges of the lap | The distance from the centre line to the real asphalt edge is cleaned along the lap (median over 7 m, then a 5 m Gaussian, per stretch with a real edge), and smoothed once more at the end with nothing after it that could put a kink back. The largest bend of an edge against the centre line is now 6.7 cm from one metre to the next; the median is 0.4 cm. |
+| Paving beside a real edge | Rebuilt from those widths (`corridor`): the lap strip, a concrete strip of one even width where the photo shows one, and nothing else for 3.5 m outside. So the asphalt ends exactly on the clean line. |
+| The rest of the outline | Smoothed over 3 m along its length with a filter that does not pull corners inwards (2G - GG instead of a plain Gaussian). |
+| Paint | A traced line that stays within 25 cm of the straight line between its ends is drawn straight, any other as an even curve. A traced outline counts as a painted box only if it fills a rectangle at least 2 m wide; it is then drawn as a true rectangle (3 boxes). Lines that repeat the edge line within 2.2 m are left out. |
+| Tyre walls | The traced lines are smoothed, with their ends fixed. |
+
+The clean edge stays close to the photo: 95 % of it within 0.5 m of the smoothed outline of the mask, median 3 cm.
+
+## Landscape and buildings: what v13.0 did
+
+Version 13 answers the owner's request to scan the whole place, landscape and buildings included. The road was
+already the real one (version 12, below). Now everything around it comes from the airborne laser scan of the Czech
+state survey as well:
+
+| Part | How it is made |
+| --- | --- |
+| Landscape | `tools/heights.py`. Away from the paving the ground is the laser-scanned terrain model (DMR 5G, 1 m) itself, smoothed only by 0.7 m against its noise: banks, ditches and mounds are there. Within 3 m of any paving the ground stays the even surface that carries the road; by 12 m it is all terrain. The ground mesh is a 4 m grid near the track and 8 m over the rest of the site, with a 2.5 m grid on top wherever the terrain is not smooth (8,500 extra points). `check.py` compares the built ground with the terrain model at 6,500 points away from the paving: 7 cm rms, 99 % within 28 cm. The far terrain (2.5 x 2 km) has a 25 m grid now. |
+| Buildings | `tools/mkbuildings.py`. The footprints are moved to where the surface model (DMP 1G, 0.5 m) puts the walls, and every roof gets the shape the model shows: the heights inside the footprint are averaged along the building and the profile across it decides between flat, single-pitch and gable. 45 buildings: 4 gable roofs, 4 single-pitch, 37 flat. Each roof carries its own piece of the aerial photo. `check.py` compares the roof heights with the surface model: 36 cm median difference. |
+| Motorway viaduct | The deck behind the west loop, read row by row from the surface model: 146 m inside the site, 16 m wide, up to 12 m above the ground, on 5 piers, with the photo of the carriageway on top. |
+| Trees | As before: every tree stands where the canopy model shows one, at its measured height (2,349 near the track, 550 further out). |
+
+What a laser scan from the air cannot give is listed under Limits.
+
+## The road: what v12.0 did
+
+The owner asked for the exact original track, with the surface of version 11 and with barriers, started from
+scratch. So the designed racetrack of versions 9 to 11 (one 9 m road, grass verges, red and white kerbs, gravel
+traps on every corner) is gone. Version 12 takes the shape of everything from the 12.5 cm aerial photo of the
+Czech state survey.
+
+| Part | How it is made |
+| --- | --- |
+| The paved outline | `tools/realmap.py`. The hard-surface mask of the photo is cut to the circuit (a loose hand-traced boundary), cleaned of cars, paint and shadows, and its edge is smoothed over 1.6 m, once more after the concrete strips are added. The result is one outline of everything that is paved: 32,200 m2 with 13 grass islands. `check.py` compares the built surface with it at 55,000 points; one differs. |
+| The lap | The route of the race of 14.11.2026, 1764 m anticlockwise, under the green bridge. Its half widths are the distance from the centre line to the real asphalt edge on each side: 7.5 m wide at the narrowest, 20.1 m in turn 1, 11.4 m on average. Where the asphalt runs on (junctions, the big square, the start area) the lap keeps a strip of its own, 5.5 m to that side, and the rest is the asphalt beside it. |
+| Surface of the lap | As in 11.0: one texture for every 28 m, baked from the photo of exactly that piece (light and dark pattern of the real asphalt), over a close-up scan of asphalt, with the rubbered line on top. Wide pieces get a wider texture. |
+| Surface beside the lap | New: the asphalt off the lap is cut into 40 m squares, each with its own texture baked the same way from the photo. The lap strip and the asphalt beside it meet in the same plane (largest difference 12 mm at 35 cm out). |
+| Concrete | The real kerbs of Sosnová are flat strips of grey concrete along the asphalt edge. They are found in the photo (bright patches traced by `paint.py`, and pale colourless ground right outside the asphalt edge) and built as part of the surface, 960 m2 with the white pad on the inside of turn 1. Physical surface `APRON`. There are no red and white kerbs any more. |
+| Sand | Only where the photo shows it: outside turn 1 and at both ends of the west loop, 1,700 m2. Physical surface `SAND`. |
+| Barriers | The tyre walls traced from the photo, plus three hand-traced lines where the tracing left gaps (the wall along the east side, the white barrier and the tyres outside turn 1): 27 lines, 475 m built. With the wall along the pit buildings and the paddock wall, both with a wire fence. |
+| Paint | The lines and start boxes of the real asphalt, traced from the photo (54 lines, 3 boxes). A white line runs along every real edge of the lap. It stops 2 m short of the places where the asphalt runs on. |
+| Around the track | The grass tiles keep the real photo away from the asphalt: the paddock, the yards, paths and bare earth look as they are. Only within 4 m of the asphalt the photo is filled with grass colour, so paint and cars do not bleed into the verge. |
+| Race layout (off since 16.0) | From 9.5 and 9.6: tyre stacks at the organiser's 33 yellow dots and at 8 points of the line the owner drew, yellow bags and tape along the 7 rows. Cones now stand every 8 m on both sides of the lap strip where it crosses open asphalt (90 cones), so the route can be seen across the big square. |
+| Heights | The lap is a smooth analytic surface fitted to the lidar terrain (range 2.8 m). The asphalt beside it continues the plane of the lap for 1.5 m and turns into the terrain over the next 4.5 m. Small bumps of the terrain model are relaxed. |
+| Still from the survey | The green arch bridge, the pylons and the distant ground photo. |
+
+## Rebuilding
+
+```
+pip install numpy scipy pillow opencv-python-headless shapely triangle scikit-image bpy
+cd tools
+# survey data, only needed when the files in source/cuzk and source/cuzk_far are missing
+python3 fetch_cuzk.py --center 50.65900,14.53906 --half 320,290 --dsm
+python3 fetch_cuzk.py --center 50.65900,14.53906 --half 1250,1000 --gsd 1 --dem-gsd 4 --out ../source/cuzk_far
+python3 prep.py            # photo at 25 cm and first colour classes
+python3 survey.py          # object heights, buildings, canopy, hard surface
+python3 paint.py           # trace painted markings and barriers
+python3 refine.py          # move the route of the race onto the real asphalt (centre line)
+python3 realmap.py         # the real paved outline, concrete, sand, barriers, and the real widths of the lap
+python3 heights.py         # smooth road surface and blended ground
+python3 mkbuildings.py     # building footprints and heights
+python3 build.py           # writes content/tracks/sosnova_v9
+python3 check.py           # validates the files the game will load
+python3 render.py          # check renders from the spawn points, along the lap, from the air
+```
+
+The orthophoto files are not stored in the repository because of their size. `fetch_cuzk.py` downloads them
+again. The build needs them. The scanned materials and the tree pictures are stored in `source/assets` (see
+`SOURCES.md` there). `mktrees.py` and `tree_atlas.py` remake the tree pictures from the Poly Haven models.
+
+## Conventions that matter
+
+- kn5 space is right-handed with `+Y` up. A dummy matrix has rows local X, local Y, local Z, position. A car
+  faces local `+Z`. `AC_TIME_n_L` is on the driver's left.
+- World origin is on the start/finish line. `+Z` is the direction of travel on the start straight and `+X`
+  is the driver's left. Grid dummies carry no rotation.
+- Physical meshes are named `<digit><KEY>_name`, with the keys defined in `data/surfaces.ini`:
+  `ROAD`, `APRON`, `KERB`, `GRASS`, `SAND`, `WALL`.
+- Only the stock shaders `ksPerPixel` and `ksPerPixelAT` are used.
+
+## Reference photos
+
+Ground-level photos were used only to learn what things look like (colours, shapes, materials). None of them
+is stored here or used as a texture.
+
+- Driving Camp Autodrom Sosnová, track day galleries 2026: <https://www.autodrom.cz/>
+- corners.cz, "Novinky na okruhu v Sosnové" (2022): <https://www.corners.cz/en/blog/novinky-na-okruhu-v-sosnove/>
+
+## Limits
+
+- The track was validated by reading back the built files (`check.py`, 50 checks; the three that test the race equipment and the one for the sector gate do not apply) and by renders. It was not run
+  inside the game here.
+- Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
+  smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
+  in public data.
+- The photo is one day in the life of the circuit. Cars, cones and tyre stacks that stood on the asphalt that day
+  are removed. Tyre walls may stand elsewhere today.
+- Under the overpass the photo shows the deck and its shadow, not the road. There the road is 9.6 m wide by
+  assumption.
+- In a few places the centre line of the race route runs closer than 2.5 m to the real edge. There the lap strip is
+  held at 2.5 m to that side.
+- The edges are clean curves fitted to the photo, not the photo's edge pixel by pixel: up to about 0.5 m from it
+  in places.
+- The white edge line is drawn along every real edge. The real circuit has such lines in most places, not all.
+- The concrete strips are flat. Real ones may stand a centimetre or two proud.
+- The asphalt beside the lap is less even than the lap: its gradient changes by up to 4.2 % per metre where two
+  cambered pieces of the lap lie side by side, a crease like a road crown (the lap stays below 0.6).
+- The preview pictures are renders with their own sky and light. The game lights the track itself, so it will
+  look different there.
+- The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. From
+  close up the grass tiles (10 cm per pixel) look soft.
+- The model is large (90 MB, 477,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
+  Uncompressed they need roughly 1.3 GB of graphics memory.
+- The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
+  and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
+  generic textures, not the real doors, windows and signs. Trees have generic bodies of the right height, not the shape of each real tree.
+- Cars, tyre heaps and bushes that the aerial photo shows on the ground are still flat pictures on the ground.
+- The surface model smears a wall over about 3 m, so a roof pitch is only read on buildings at least 10 m wide.
+- The viaduct ends at the edge of the surveyed site (290 m north of the centre).
+- Rain and puddles depend on Custom Shaders Patch with RainFX and a weather script.
+
+## Data and licence
+
+Orthophoto: ČÚZK Ortofoto ČR. Terrain: ČÚZK DMR 5G. Surface: ČÚZK DMP 1G. All CC BY 4.0.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.
+
+## Check renders
+
+Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
+
+![Views of the track](previews/preview_sheet.jpg)
+![Asphalt with tyre marks](previews/lap_0060.jpg)
+![Trees and pylons in 3D](previews/lap_1450.jpg)
+![Round tyre stacks](previews/lap_0215.jpg)
+![The overpass](previews/bridge_side.jpg)
+![Clean edge and concrete strip](previews/lap_0320.jpg)
+![Infield hairpin edge](previews/lap_0480.jpg)
+![West loop](previews/lap_1300.jpg)
+![The landscape from the north-east](previews/air_land.jpg)
+![The buildings south of the track](previews/air_halls.jpg)
+![The west loop and the motorway viaduct](previews/air_west.jpg)
+![From above, north up](previews/top_north.jpg)
+![Pole position](previews/ac_start_0.jpg)
+![Start straight from behind](previews/chase_grid.jpg)
+![Turn 1 from the car](previews/lap_0130.jpg)
+![Turn 1 from the air](previews/air_east.jpg)
+![The back straight](previews/back_straight.jpg)
+![Infield hairpin](previews/lap_0400.jpg)
+![Under the bridge](previews/lap_0600.jpg)
+![Start area and infield](previews/air_start.jpg)
+![The big square](previews/air_plaza.jpg)
