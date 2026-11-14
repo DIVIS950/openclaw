@@ -1,13 +1,28 @@
-# Autodrom Sosnová for Assetto Corsa (v15.1)
+# Autodrom Sosnová for Assetto Corsa (v16.0)
 
 A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
 
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v15.1".
+"Autodrom Sosnová v16.0".
 
-## What v15.1 is
+## What v16.0 is
+
+The owner asked for the original whole track with nothing added, and detailed. Up to 15.1 the kit was set up for the
+race of 14.11.2026. Version 16 is the circuit as it stands on an ordinary day.
+
+| Part | What changed |
+| --- | --- |
+| Nothing added | `RACE_LAYOUT = False` in `tools/common.py` switches the race set-up off: no tyre stacks at the organiser's dots, no bags, no tape, no cones, no chicane. The code stays; setting it to `True` builds the race layout again. The board with the date of the race has another design. |
+| The whole track | Every road of the circuit is open. `ROAD` and `APRON` have the same grip (they already had). The sector gate is gone, so the game counts a lap at the start line whichever route is driven; with a sector gate on one route, a lap on any other route would not count. The AI line and the lap textures still follow the 1764 m route under the green bridge. |
+| Asphalt beside the long route | 1536 px per 40 m square (3 cm per pixel) in place of 1024, so the other roads are as fine as the long route. |
+| All concrete | The concrete that is not a strip beside the long route (the kerbs of the other roads, the painted skid pad on the big square) gets the brightness of the photo too (`realtex.concrete_tile`), 24 squares. |
+| Kerbs of the other roads | `realmap.outline_kerbs` reads the 12.5 cm photo outwards from every metre of the asphalt outline that is not an edge of the long route. It found only 6 m more: the 25 cm mask had already caught these kerbs. |
+
+Version 15.1 with the race layout stays available at its commit (5a37b33).
+
+## How exact it is: what v15.1 did
 
 The owner asked whether the track is exact to the millimetre, and to make it so if not. It is not, and it cannot be
 made so from the data that exists. Version 15.1 says how exact it is, and makes it more exact where the data allowed.
@@ -120,7 +135,7 @@ Czech state survey.
 | Barriers | The tyre walls traced from the photo, plus three hand-traced lines where the tracing left gaps (the wall along the east side, the white barrier and the tyres outside turn 1): 27 lines, 475 m built. With the wall along the pit buildings and the paddock wall, both with a wire fence. |
 | Paint | The lines and start boxes of the real asphalt, traced from the photo (54 lines, 3 boxes). A white line runs along every real edge of the lap. It stops 2 m short of the places where the asphalt runs on. |
 | Around the track | The grass tiles keep the real photo away from the asphalt: the paddock, the yards, paths and bare earth look as they are. Only within 4 m of the asphalt the photo is filled with grass colour, so paint and cars do not bleed into the verge. |
-| Race layout | Unchanged from 9.5 and 9.6: tyre stacks at the organiser's 33 yellow dots and at 8 points of the line the owner drew, yellow bags and tape along the 7 rows. Cones now stand every 8 m on both sides of the lap strip where it crosses open asphalt (90 cones), so the route can be seen across the big square. |
+| Race layout (off since 16.0) | From 9.5 and 9.6: tyre stacks at the organiser's 33 yellow dots and at 8 points of the line the owner drew, yellow bags and tape along the 7 rows. Cones now stand every 8 m on both sides of the lap strip where it crosses open asphalt (90 cones), so the route can be seen across the big square. |
 | Heights | The lap is a smooth analytic surface fitted to the lidar terrain (range 2.8 m). The asphalt beside it continues the plane of the lap for 1.5 m and turns into the terrain over the next 4.5 m. Small bumps of the terrain model are relaxed. |
 | Still from the survey | The green arch bridge, the pylons and the distant ground photo. |
 
@@ -168,7 +183,7 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 53 checks) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 50 checks; the three that test the race equipment and the one for the sector gate do not apply) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
@@ -189,8 +204,8 @@ is stored here or used as a texture.
   look different there.
 - The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. From
   close up the grass tiles (10 cm per pixel) look soft.
-- The model is large (74 MB, 489,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
-  Uncompressed they need roughly 1 GB of graphics memory.
+- The model is large (90 MB, 477,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
+  Uncompressed they need roughly 1.3 GB of graphics memory.
 - The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
   and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
   generic textures, not the real doors, windows and signs. Trees have generic bodies of the right height, not the shape of each real tree.
@@ -224,7 +239,7 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![Start straight from behind](previews/chase_grid.jpg)
 ![Turn 1 from the car](previews/lap_0130.jpg)
 ![Turn 1 from the air](previews/air_east.jpg)
-![The chicane on the back straight](previews/race_chicane.jpg)
+![The back straight](previews/back_straight.jpg)
 ![Infield hairpin](previews/lap_0400.jpg)
 ![Under the bridge](previews/lap_0600.jpg)
 ![Start area and infield](previews/air_start.jpg)

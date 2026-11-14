@@ -17,6 +17,10 @@ KIT = os.path.dirname(HERE)
 SRC = os.path.join(KIT, "source")
 WORK = os.path.join(SRC, "work")
 TRACK = "sosnova_v9"
+# True: the organiser's layout of the race of 14.11.2026 (tyre stacks at the yellow dots of his map, bags and tape along
+# their rows, cones across open asphalt, a sector gate half-way round the race route). False: the circuit as it stands
+# on an ordinary day, with nothing added and every road open.
+RACE_LAYOUT = False
 OUT = os.path.join(KIT, "content", "tracks", TRACK)
 
 META = json.load(open(os.path.join(SRC, "cuzk", "meta.json"), encoding="utf-8"))

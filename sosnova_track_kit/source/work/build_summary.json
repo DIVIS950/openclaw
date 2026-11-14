@@ -1,20 +1,20 @@
 {
  "track": "sosnova_v9",
  "lap_m": 1764.1395761149456,
- "meshes": 458,
- "vertices": 504531,
- "triangles": 488942,
- "kn5_mb": 74.23,
+ "meshes": 467,
+ "vertices": 494825,
+ "triangles": 476794,
+ "kn5_mb": 89.7,
  "ground": {
-  "asphalt": 16065,
-  "gravel": 1002,
-  "grass": 15653,
-  "shoulder": 11596,
-  "verge": 8493,
-  "photo": 23683,
+  "asphalt": 15806,
+  "gravel": 966,
+  "grass": 15656,
+  "shoulder": 11361,
+  "verge": 8318,
+  "photo": 23679,
   "relief_points": 8458
  },
- "asphalt_m2": 33003,
+ "asphalt_m2": 33008,
  "gravel_m2": 1277,
  "buildings": 45,
  "bridge": {
@@ -46,13 +46,14 @@
    11.37,
    20.06
   ],
-  "concrete_m2": 2114,
+  "concrete_m2": 2118,
   "concrete_strip_beside_lap_m": 916,
   "open_side_m": 1896,
-  "asphalt_squares": 33,
+  "asphalt_squares": 35,
   "lap_textures": 63,
   "strip_textures": 63,
-  "strip_triangles": 3619
+  "strip_triangles": 3438,
+  "concrete_squares": 24
  },
  "trees": {
   "near": 2349,
@@ -61,14 +62,14 @@
   "solid_tree_triangles": 181980
  },
  "race": {
-  "tyre_stacks": 41,
-  "cones": 90,
+  "tyre_stacks": 0,
+  "cones": 0,
   "fence_m": 178,
   "fence_posts": 72,
-  "tape_m": 184,
-  "rows": 7,
-  "row_barriers": 34,
-  "row_barrier_m": 146
+  "tape_m": 0,
+  "rows": 0,
+  "row_barriers": 0,
+  "row_barrier_m": 0
  },
  "scenery": {
   "viaduct_m": 150,
@@ -76,11 +77,11 @@
   "viaduct_piers": 5,
   "viaduct_above_ground_m": 12.1
  },
- "dummies": 37,
+ "dummies": 35,
  "ai": {
-  "points": 1690,
-  "length": 1689.94,
-  "lap_s": 82.43,
+  "points": 1689,
+  "length": 1688.92,
+  "lap_s": 80.74,
   "v_min": 30.47,
   "v_max": 138.92,
   "off_min": -4.75,
@@ -97,5 +98,5 @@
   ],
   "ref_h": 255.4379443931686
  },
- "sector_station": 882.0
+ "sector_station": null
 }

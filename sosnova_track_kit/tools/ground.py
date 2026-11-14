@@ -417,6 +417,24 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
         photo_mats.append(name)
         parts.add(f"1APRON_a{aid:04d}", name, pos[ids], nrm[ids], realtex.asphalt_uv(e0, n0, V[ids]), inv.reshape(-1, 3), cast_shadows=False)
     assert reach < realtex.ASPH_MARGIN - 0.05, f"an asphalt triangle reaches {reach:.2f} m out of its square"
+    # the concrete that is not a strip beside the lap (the kerbs of the other roads, the skid pad): the same squares,
+    # with the brightness of the photo
+    half_t = realtex.ASPH_TILE / 2
+    for aid in np.unique(sq_id[apron & (kind == 2)]):
+        tri_ids = np.where(apron & (kind == 2) & (sq_id == aid))[0]
+        e0, n0 = (aid // 100) * realtex.ASPH_TILE - HALF_E, (aid % 100) * realtex.ASPH_TILE - HALF_N
+        tv = V[T[tri_ids]]                                              # (m, 3, 2)
+        out_ = np.maximum(np.abs(tv[..., 0] - (e0 + half_t)), np.abs(tv[..., 1] - (n0 + half_t))).max(1) - half_t
+        tri_ids = tri_ids[out_ < realtex.ASPH_MARGIN - 0.05]           # a triangle that leaves the texture stays plain concrete
+        if not len(tri_ids):
+            continue
+        ids, inv = np.unique(T[tri_ids], return_inverse=True)
+        name = f"c{aid:04d}"
+        photo_tex[name + ".jpg"] = realtex.concrete_tile(e0, n0)
+        photo_mats.append(name)
+        parts.add(f"1APRON_cs{aid:04d}", name, pos[ids], nrm[ids], realtex.asphalt_uv(e0, n0, V[ids]), inv.reshape(-1, 3), cast_shadows=False)
+        kind[tri_ids] = 5
+    layers = tuple((apron & (kind == 2), *l_[1:]) if l_[1] == "1APRON_c" else l_ for l_ in layers)
     for sel, prefix, mat, uv in layers:
         for tid in np.unique(tile_id[sel]):
             t = T[sel & (tile_id == tid)]
@@ -436,7 +454,7 @@ def build_ground(tr: Track, parts: Parts, avoid) -> dict:
     rr = np.array(R.exterior.coords)
     cv2.fillPoly(covered, [np.round(np.stack([(rr[:, 0] + HALF_E) / MASK_GSD, (HALF_N - rr[:, 1]) / MASK_GSD], -1)).astype(np.int32)], 1)
     info = dict(photo_tex=photo_tex, photo_mats=photo_mats, R=R, A=A, G=G, zone=zone, covered=covered.astype(bool), rect=np.array(rect), rect_h=Hh[rect_ids],
-                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), relief_points=relief_pts, roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]), strip_textures=len([m_ for m_ in photo_mats if m_.startswith("k")]), strip_triangles=strip_tris,
+                tris=dict(asphalt=int(apron.sum()), gravel=int(gravel.sum()), grass=int(near.sum()), shoulder=int(worn.sum()), verge=int(verge.sum()), photo=int(far.sum())), chains=len(chains), relief_points=relief_pts, roads=roads, aprons=aprons, pads=pads, verge=verge, roads_poly=roads_poly, asphalt_squares=len([m_ for m_ in photo_mats if m_.startswith("a")]), strip_textures=len([m_ for m_ in photo_mats if m_.startswith("k")]), concrete_squares=len([m_ for m_ in photo_mats if m_.startswith("c")]), strip_triangles=strip_tris,
                 apron_area=float(area[apron].sum()), gravel_area=float(area[gravel].sum()), V=V, T=T,
                 cls=np.where(apron, 1, np.where(gravel, 4, np.where(near | worn | verge, 2, 3))))
     return info

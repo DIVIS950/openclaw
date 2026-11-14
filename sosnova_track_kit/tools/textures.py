@@ -540,8 +540,9 @@ def banners() -> np.ndarray:
     d.rectangle([4 * cw, ch - 26, 5 * cw - 1, ch], fill=blue)
     text(4, "AUTODROM", blue, small)
     d.rectangle([5 * cw, 0, 6 * cw - 1, ch], fill=dark)
-    d.rectangle([5 * cw + 20, 48, 6 * cw - 20, 80], fill=red)
-    text(5, "14.11.2026", white, small)
+    for x in range(20, cw - 20, 48):                                   # red and white blocks, like a kerb
+        d.rectangle([5 * cw + x, 48, 5 * cw + x + 24, 80], fill=red)
+        d.rectangle([5 * cw + x + 24, 48, 5 * cw + x + 48, 80], fill=white)
     a = np.asarray(im, np.float32)
     for k in range(6):                                                 # the frame of each board
         a[:, k * cw: k * cw + 3] *= 0.55

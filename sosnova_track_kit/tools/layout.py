@@ -47,11 +47,14 @@ def make_dummies(tr: Track, surface=None) -> tuple[list[Dummy], dict]:
             y = surface.y(x, z) + SPAWN_DY
         out.append(Dummy(f"AC_PIT_{k}", (x, y, z), (-np.sin(ang), 0.0, np.cos(ang))))
     out.append(Dummy("AC_HOTLAP_START_0", tuple(tr.world(-80.0, 0.0, SPAWN_DY)[0]), facing(-80.0)))
-    for idx, st in ((0, 0.0), (1, float(round(tr.n / 2)))):
+    from common import RACE_LAYOUT
+    # the plain circuit has the start/finish gate only: with a sector gate on one route, a lap on any other route of
+    # the circuit would not count
+    for idx, st in (((0, 0.0), (1, float(round(tr.n / 2)))) if RACE_LAYOUT else ((0, 0.0),)):
         wl, wr = float(tr.interp(tr.wl, np.array([st]))[0]), float(tr.interp(tr.wr, np.array([st]))[0])
         out.append(Dummy(f"AC_TIME_{idx}_L", tuple(tr.world(st, wl + 2.5, 0.5)[0]), facing(st)))
         out.append(Dummy(f"AC_TIME_{idx}_R", tuple(tr.world(st, -(wr + 2.5), 0.5)[0]), facing(st)))
-    info["sector_station"] = float(round(tr.n / 2))
+    info["sector_station"] = float(round(tr.n / 2)) if RACE_LAYOUT else None
     return out, info
 
 
@@ -60,8 +63,8 @@ def racing_line(tr: Track, margin: float = 1.7, iters: int = 60) -> np.ndarray:
     lo, hi = -(tr.wr - margin), tr.wl - margin
     # the tyre stacks are measured against the lap as it is now (the lap line was moved after they were registered)
     from scipy.spatial import cKDTree
-    near = cKDTree(tr.c).query(tr.cones_en)[1]
-    lats = np.einsum("ij,ij->i", tr.cones_en - tr.c[near], tr.nrm[near])
+    near = cKDTree(tr.c).query(tr.cones_en)[1] if len(tr.cones_en) else np.zeros(0, int)
+    lats = np.einsum("ij,ij->i", tr.cones_en - tr.c[near], tr.nrm[near]) if len(tr.cones_en) else np.zeros(0)
     for st, lat in zip(near, lats):                             # keep clear of tyre stacks standing on or beside the road
         idx = (int(round(st)) + np.arange(-7, 8)) % tr.n
         if 0 < lat < tr.wl[idx].max() + 0.8:
@@ -246,7 +249,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v15.1 for Assetto Corsa
+INSTALL = """AUTODROM SOSNOVA v16.0 for Assetto Corsa
 =======================================
 
 INSTALL
@@ -257,7 +260,7 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v15.1".
+3. Start the game and pick the track "Autodrom Sosnova v16.0".
 
 WHAT IT IS
 - Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
@@ -279,23 +282,22 @@ WHAT IT IS
   an aerial photo and an airborne laser scan; nothing public is finer. It is not exact to the millimetre.
 - The concrete kerb strips are complete and look as they do in the photo, with their white painted blocks.
 - A closer look: the asphalt has the neutral dark grey of the real track, the grain of its stones, tyre marks,
-  fine cracks and the seam between the paved lanes. Advertising boards stand in front of the tyre walls. The
-  yellow soft bags are single rounded bags.
+  fine cracks and the seam between the paved lanes. Advertising boards stand in front of the tyre walls. All the
+  asphalt beside the long route has the same fine picture as the route itself.
 - Everything stands in 3D: every tree near the track has a trunk and a body with volume inside the pictures of
   the real tree; the tyre walls are rows of single round stacks; the power pylons are lattice towers with arms;
   the fences have posts; flat roofs lie behind a parapet. With Custom Shaders Patch the grass is 3D as well.
 - Clean lines: the edges of the lap run as even curves beside the centre line, the concrete strips have one even
   width, painted lines are straight where they were painted straight, start boxes are true rectangles.
-- Race layout of 14.11.2026: every row of yellow dots on the organiser's map is a closed line of tyre stacks
-  with yellow soft bags between them and a thin tape on top. Three rows make the chicane on the back straight.
-  Where the route crosses open asphalt, orange cones mark both sides of it.
+- The original circuit with nothing added: no race set-up. No tyre stacks on the asphalt, no bags, no tape, no
+  cones, no chicane. Every road of the circuit is open and has the same grip, so you can drive any route.
 - Chequered start line, 16 grid boxes, start lights, 16 pit boxes on the wide asphalt beside the start straight.
 - The whole place comes from the laser scan of the Czech state survey, not only the road:
   the landscape has its real banks, ditches and mounds; every building has its measured footprint, height and
   roof shape with its own piece of the aerial photo on the roof; the trees stand at their measured heights; the
   motorway viaduct behind the west loop is there.
-- Lap timing: the start/finish line and one sector line in the middle of the lap are in the track, so the game
-  times every lap and shows two sector times.
+- Lap timing: the start/finish line is in the track, so the game times every lap, whichever route you take.
+  The AI drivers and the ideal line follow the long route under the green bridge.
 
 OPTIONAL
 - Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
@@ -313,7 +315,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
     open(os.path.join(out, "data", "surfaces.ini"), "w", newline="\r\n").write(SURFACES)
     open(os.path.join(out, "INSTALL.txt"), "w", newline="\r\n").write(INSTALL)
     names = sorted(materials or [])
-    asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit()) or (m[:2] in ("kl", "kr") and m[2:].isdigit())]
+    asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit()) or (m[:2] in ("kl", "kr") and m[2:].isdigit()) or (m[:1] == "c" and m[1:].isdigit())]
     grass = ["grass"] + [m for m in names if m[:1] == "g" and m[1:].isdigit()]      # not the worn strip beside the asphalt
     cfg = EXT_CONFIG.format(grass=", ".join(grass), asphalt=", ".join(asphalt + ["pad", "padwhite"]), hard=", ".join(asphalt + ["pad", "padwhite", "gravel"]))
     open(os.path.join(out, "extension", "ext_config.ini"), "w", newline="\r\n").write(cfg)
@@ -363,14 +365,14 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v15.1",
+        "name": "Autodrom Sosnová v16.0",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real "
                        "outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand "
-                       "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The lap (1764 m, anticlockwise, under the green bridge) is the route of the race "
-                       "of 14.11.2026, with tyre stacks, bags and tape where the organiser's map shows them and a chicane on the "
-                       "back straight. 16 grid slots, 16 pit boxes, AI line, lap timing with two sectors. Data: ČÚZK (CC BY 4.0), "
+                       "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The original circuit with nothing added: no race set-up, every road "
+                       "open. The AI line (1764 m, anticlockwise) takes the long route under the green bridge. "
+                       "16 grid slots, 16 pit boxes, lap timing at the start line. Data: ČÚZK (CC BY 4.0), "
                        "materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
-        "tags": ["circuit", "czech", "sosnova", "race layout", "chicane", "bridge", "csp"],
+        "tags": ["circuit", "czech", "sosnova", "bridge", "csp"],
         "geotags": ["50.65900", "14.53906"],
         "country": "Czech Republic",
         "city": "Sosnová (Česká Lípa)",
@@ -379,7 +381,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "15.1",
+        "version": "16.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

@@ -317,6 +317,48 @@ def _concrete_beyond(c: np.ndarray, nrm: np.ndarray, sgn: float, w: np.ndarray) 
     return np.where(near, np.maximum(seen, np.minimum(reach, width + 0.15)), seen)
 
 
+def outline_kerbs(P, lap_strip):
+    """Concrete strips along the edges of the asphalt that are not edges of the lap: the kerbs of the other roads of
+    the circuit. Every metre of the outline reads the 12.5 cm photo outwards, the way the lap does for its own edges.
+    lap_strip: the lap between its edges (its own kerbs are found by lap_widths). Returns the strips as polygons."""
+    from scipy.ndimage import median_filter
+    from shapely import contains_xy, distance, points
+    import bridge_geom as bg
+    hidden = unary_union([Polygon(bg.footprint(grow=2.0)), Polygon(bg.shadow_polygon()).buffer(1.5)])
+    region = Polygon(REGION)
+    out = []
+    for ring in [P.exterior, *P.interiors]:
+        k = int(ring.length)
+        if k < 12:
+            continue
+        pts = np.array([ring.interpolate(j / k, normalized=True).coords[0] for j in range(k)])
+        d = np.roll(pts, -1, axis=0) - np.roll(pts, 1, axis=0)
+        nrm = np.column_stack([-d[:, 1], d[:, 0]]) / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+        probe = pts + nrm * 0.3
+        nrm = np.where(contains_xy(P, probe[:, 0], probe[:, 1])[:, None], -nrm, nrm)          # pointing away from the asphalt
+        band = median_filter(_concrete_beyond(pts, nrm, 1.0, np.zeros(k)), 5, mode="wrap")
+        far = pts + nrm * 1.0
+        ok = (distance(points(pts), lap_strip) > 4.5) & ~contains_xy(hidden, far[:, 0], far[:, 1]) & contains_xy(region, far[:, 0], far[:, 1])
+        has = ok & (band > 0.45) & (band <= 3.0)
+        if has.all() or not has.any():
+            runs = [(0, k)] if has.all() else []
+        else:
+            z = int(np.argmin(has))
+            r = np.roll(has, -z)
+            dd = np.diff(np.concatenate([[0], r.astype(int), [0]]))
+            runs = [((int(a) + z) % k, int(b - a)) for a, b in zip(np.where(dd == 1)[0], np.where(dd == -1)[0])]
+        for a, ln in runs:
+            if ln < 6:                                               # shorter than 6 m: noise
+                continue
+            idx = (a + np.arange(ln)) % k
+            w = median_filter(band[idx], 7, mode="nearest")
+            w = np.minimum(np.maximum(w, 0.6), 0.45 + 0.5 * np.minimum(np.arange(ln), ln - 1 - np.arange(ln)))
+            g = Polygon(np.vstack([pts[idx] - nrm[idx] * 0.05, (pts[idx] + nrm[idx] * w[:, None])[::-1]])).buffer(0)
+            if not g.is_empty:
+                out.append(g)
+    return unary_union(out) if out else Polygon()
+
+
 def lap_widths(P=None, C=None, Wt=None) -> dict:
     """Half widths of the lap from the real outline: the distance from the centre line to the asphalt edge on each
     side. Where the asphalt runs on (junctions, the plaza) the lap keeps a strip of its own. Writes centerline.json."""
@@ -464,6 +506,19 @@ if __name__ == "__main__":
     raw = P
     w = lap_widths(P, C, Wt)
     P, C, Wt = corridor(P, C, Wt, w)
+    # the kerbs of the other roads
+    c_, n_ = w["c"], w["nrm"]
+    left_, right_ = Polygon(c_ + n_ * w["wl"][:, None]), Polygon(c_ - n_ * w["wr"][:, None])
+    big_, small_ = (left_, right_) if left_.area > right_.area else (right_, left_)
+    other = outline_kerbs(P, Polygon(big_.exterior.coords, [small_.exterior.coords]).buffer(0))
+    other_m = 0.0
+    if not other.is_empty:
+        other = other.difference(P.buffer(-0.02))
+        other_m = other.length / 2
+        P = unary_union([P, other]).buffer(0.12).buffer(-0.12)
+        P = max(getattr(P, "geoms", [P]), key=lambda g: g.area)
+        C = unary_union([C, other.buffer(0.03)]).intersection(P)
+    print("concrete strips along the other roads: about %.0f m" % other_m)
     S = S.difference(P.buffer(0.4))
     for name, g in (("asphalt", P), ("pads", C), ("sand", S), ("white", Wt)):
         open(os.path.join(WORK, f"realmap_{name}.wkb"), "wb").write(wkb.dumps(g))

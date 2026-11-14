@@ -104,7 +104,8 @@ def main() -> None:
     # race equipment of 14.11.2026: tyre stacks at the organiser's yellow dots, bags and tape along each row, and
     # cones along the lap wherever it crosses open asphalt
     race = props.build_tyre_stacks(tr, parts)
-    race.update(props.build_cones(tr, parts))
+    from common import RACE_LAYOUT
+    race.update(props.build_cones(tr, parts) if RACE_LAYOUT else dict(cones=0))
     race.update(props.build_fences(tr, parts, [(pit_wall, 1.05)] + [(bb["en"], bb["height"]) for bb in circuit.BARRIERS]))
     race.update(props.build_tape(tr, parts))
     rows = props.build_tyre_walls(tr, parts, Polygon(), Polygon(), lines=props.race_barrier_lines(tr), min_len=1.0, anywhere=True)
@@ -121,7 +122,7 @@ def main() -> None:
     meshes = parts.meshes()
     materials = [m for m in MATERIALS if not m.name.startswith("road_g")]
     materials += [M(n_, n_ + ".jpg", specular=0.10, specular_exp=30) for n_ in lap_mats]
-    materials += [M(n_, n_ + ".jpg", specular=0.10 if n_.startswith("a") else (0.06 if n_.startswith("k") else 0.0), specular_exp=30) for n_ in info["photo_mats"]]
+    materials += [M(n_, n_ + ".jpg", specular=0.10 if n_.startswith("a") else (0.06 if n_[:1] in "kc" else 0.0), specular_exp=30) for n_ in info["photo_mats"]]
     used = {m.material for m in meshes}
     materials = [m for m in materials if m.name in used]                           # nothing unused goes into the file
     tex = {k_: v_ for k_, v_ in tex.items() if k_ in {m.texture for m in materials}}
@@ -139,7 +140,7 @@ def main() -> None:
         real=dict(lap_width_m=[round(float((tr.wl + tr.wr).min()), 2), round(float((tr.wl + tr.wr).mean()), 2), round(float((tr.wl + tr.wr).max()), 2)],
                   concrete_m2=round(info["pads"].area), concrete_strip_beside_lap_m=int(tr.kerb_l.sum() + tr.kerb_r.sum()),
                   open_side_m=int(tr.open_l.sum() + tr.open_r.sum()), asphalt_squares=info["asphalt_squares"], lap_textures=len(lap_mats),
-                  strip_textures=info["strip_textures"], strip_triangles=info["strip_triangles"]),
+                  strip_textures=info["strip_textures"], strip_triangles=info["strip_triangles"], concrete_squares=info["concrete_squares"]),
         trees=trees, race=race, scenery=scenery, dummies=len(dummies),
         ai={k: (round(v, 2) if isinstance(v, float) else v) for k, v in ai.items() if k not in ("line", "speed")},
         frame=tr.fr.to_json(), sector_station=dinfo["sector_station"],

@@ -203,7 +203,9 @@ def main() -> None:
     check(dd.min() > 3.5, f"spawn points at least 3.5 m apart (min {dd.min():.2f} m)")
 
     print("timing")
-    for idx in (0, 1):
+    gates = sorted({int(d_.split("_")[2]) for d_ in dummies if d_.startswith("AC_TIME_")})
+    check(gates[:1] == [0], f"timing gates present: {gates} (0 is start/finish; the plain circuit has no sector gate, so any route counts)")
+    for idx in gates:
         L, R = dummies[f"AC_TIME_{idx}_L"][3, :3].astype(float), dummies[f"AC_TIME_{idx}_R"][3, :3].astype(float)
         mid = (L + R) / 2
         j = ai_tree.query(mid[[0, 2]])[1]
@@ -376,7 +378,7 @@ def main() -> None:
           f"the scenery is solid: trees with trunk and body ({n_solid} triangles), tyre walls of {n_stack} round stacks, lattice pylons")
     boards_ = sum(len(m["indices"]) // 3 for m in meshes if m["name"].startswith("BANNER_boards") and m["name"].endswith("banner"))
     bags_ = [m for m in meshes if m["name"].startswith("1WALL_bags")]
-    check(boards_ >= 60 and len(bags_) >= 1, f"advertising boards stand at the barriers ({boards_ // 2}) and the soft bags are single bodies ({sum(len(m['indices']) // 3 for m in bags_)} triangles)")
+    check(boards_ >= 60 and (len(bags_) >= 1 or not len(tr.cones_en)), f"advertising boards stand at the barriers ({boards_ // 2}) and the soft bags are single bodies ({sum(len(m['indices']) // 3 for m in bags_)} triangles)")
     lap_poly = ground.ribbon_polygon(tr)
     to_en = lambda v: tr.fr.o + v[:, [0]] * tr.fr.l + v[:, [2]] * tr.fr.f
     blocks = [m for m in meshes if m["name"].startswith("1WALL") and m["name"].endswith("barricade")]

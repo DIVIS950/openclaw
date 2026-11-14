@@ -36,6 +36,10 @@ class Track:
         self.cones_en = np.vstack([np.array(cl["cones_en"]), np.array(circuit.EXTRA_DOTS, float)])
         self.cone_station = np.array(cl["cone_station"], float)
         self.cone_lat = np.array(cl["cone_lat"], float)
+        from common import RACE_LAYOUT
+        if not RACE_LAYOUT:                                           # the plain circuit: no race equipment anywhere
+            self.map_dots = 0
+            self.cones_en, self.cone_station, self.cone_lat = np.zeros((0, 2)), np.zeros(0), np.zeros(0)
         self.lap = float(cl["lap_m"])
 
     # --- station based lookups (i may be fractional and outside 0..n; + lateral = driver's left) ---

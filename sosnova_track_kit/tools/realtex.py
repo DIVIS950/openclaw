@@ -30,7 +30,7 @@ LAP_CHUNK = 28                    # stations (metres) of road per lap texture: 1
 LAP_PX = (1536, 512)              # rows (along, 2 cm per pixel), columns (across); twice the columns where the road is wide
 LAP_MARGIN = (1.0, 0.3)           # texture overlap beyond the mesh along and across (m), so filtering never wraps
 ASPH_TILE = 40.0                  # the asphalt beside the lap is cut into squares of this size (m), one texture each
-ASPH_PX = 1024
+ASPH_PX = 1536                    # 3 cm per pixel: now that every road counts, the asphalt beside the long route is as fine as it
 ASPH_MARGIN = 3.0                 # a triangle may reach this far out of its square (m)
 GROOVE_SIGMA = 1.15
 GRASS_PX = 1024                   # pixels per grass tile: 10 cm per pixel, what the photo holds
@@ -303,3 +303,26 @@ def kerb_uv(tr, a: int, b: int, side: int, station: np.ndarray, lateral: np.ndar
     u = (side * lateral - wid + KERB_MARGIN[1]) / (KERB_REACH + 2 * KERB_MARGIN[1])
     v = 1.0 - (station - (a - KERB_MARGIN[0])) / (b - a + 2 * KERB_MARGIN[0])
     return np.column_stack([u, v])
+
+
+CONC_PX = 768                     # pixels per 40 m square of concrete (6 cm per pixel: the photo holds no more)
+
+
+def concrete_tile(e0: float, n0: float) -> bytes:
+    """Texture of the concrete in the square whose south-west corner is (e0, n0), laid out like asphalt_tile: the
+    brightness the photo shows there (bare concrete about 1.2 times as bright as asphalt, white paint 1.8 times) over
+    a close-up scan of concrete. This is what gives the kerbs of the other roads and the painted skid pad their look."""
+    ratio, _ = _ortho()
+    ext = ASPH_TILE + 2 * ASPH_MARGIN
+    t = (np.arange(CONC_PX) + 0.5) / CONC_PX
+    ee, nn = np.meshgrid(e0 - ASPH_MARGIN + ext * t, n0 + ASPH_TILE + ASPH_MARGIN - ext * t)
+    r = _sample(ratio, np.stack([ee, nn], -1))
+    macro = np.clip(r / 1.2, 0.6, 1.6)
+    if "concrete" not in _cache:
+        g = textures.scan("gravel_concrete_03.jpg", 150.0, 512, repeat=1)
+        _cache["concrete"] = (g / g.reshape(-1, 3).mean(0)).astype(np.float32)
+    gm = 3.0
+    gx = ((ee % gm) / gm * 512).astype(np.float32)
+    gy = ((nn % gm) / gm * 512).astype(np.float32)
+    grain = cv2.remap(_cache["concrete"], gx, gy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+    return _jpg(np.array([150.0, 149.0, 145.0]) * (0.55 + 0.45 * grain) * macro[..., None], 84)
