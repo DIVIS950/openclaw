@@ -14,6 +14,12 @@ from kn5 import Mesh, split_mesh  # noqa: E402
 
 SHOULDER = 1.2      # flat verge outside both road edges (m); kerbs and barriers stand on it
 PIT_Z = (-36.0, 74.0)   # stretch of the start straight whose left side stays open towards the pit apron
+# The pit apron, the pit wall and the pit boxes are places of the real circuit. They are measured along this line on
+# the start straight (east/north of its zero point, unit direction), so they stay where they are when the start line
+# of the lap moves with the organiser's map.
+import circuit as _circuit  # noqa: E402
+PIT_REF_O = _circuit.START_AXIS["o"]
+PIT_REF_F = _circuit.START_AXIS["f"]
 
 
 class Track:
@@ -33,7 +39,7 @@ class Track:
         self.fr = Frame(cl["sf_en"], cl["fwd_en"], float(self.H.z[0]))
         import circuit
         self.map_dots = len(cl["cones_en"])                       # the yellow dots of the organiser's map come first
-        self.cones_en = np.vstack([np.array(cl["cones_en"]), np.array(circuit.EXTRA_DOTS, float)])
+        self.cones_en = np.vstack([np.array(cl["cones_en"], float).reshape(-1, 2), np.array(circuit.EXTRA_DOTS, float).reshape(-1, 2)])
         self.cone_station = np.array(cl["cone_station"], float)
         self.cone_lat = np.array(cl["cone_lat"], float)
         from common import RACE_LAYOUT
@@ -79,11 +85,25 @@ class Track:
     def edge_h(self, side: int) -> np.ndarray:
         return self.H.z + self.H.camber * (self.wl if side > 0 else -self.wr)
 
+    def pit_ref_en(self, z, x=0.0) -> np.ndarray:
+        """East/north of the point z metres along the pit reference line and x metres to its left."""
+        f = np.array(PIT_REF_F) / np.linalg.norm(PIT_REF_F)
+        left = np.array([-f[1], f[0]])
+        return np.array(PIT_REF_O) + np.multiply.outer(np.asarray(z, float), f) + np.multiply.outer(np.asarray(x, float), left)
+
+    def pit_station(self, z: float) -> float:
+        """Station of the lap (signed, around the start line) abreast of the point z metres along the pit line."""
+        s = np.arange(self.n, dtype=float)
+        s = np.where(s > self.n / 2, s - self.n, s)
+        near = np.abs(s) < 320.0                                   # the start straight and the bends at its ends
+        d = np.linalg.norm(self.c - self.pit_ref_en(z)[None, :], axis=1)
+        return float(s[np.where(near, d, np.inf).argmin()])
+
     def in_pit_stretch(self) -> np.ndarray:
         """Stations of the start straight next to the pit apron."""
         s = np.arange(self.n, dtype=float)
         s = np.where(s > self.n / 2, s - self.n, s)
-        return (s >= PIT_Z[0]) & (s <= PIT_Z[1])
+        return (s >= self.pit_station(PIT_Z[0])) & (s <= self.pit_station(PIT_Z[1]))
 
 
 def cyclic_runs(mask: np.ndarray, min_len: int = 1, close_gap: int = 0) -> list[tuple[int, int]]:

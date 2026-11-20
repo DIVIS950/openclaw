@@ -1,16 +1,80 @@
-# Autodrom Sosnová for Assetto Corsa (v16.0)
+# Autodrom Sosnová for Assetto Corsa (v17.0, race route of 5.12.2026)
 
-A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, as the place really is.
+A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the
+Liqui Moly Racing Days of 5.12.2026.
 
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v16.0".
+"Autodrom Sosnová v17.0 - Racing Days 5.12.2026".
 
-## What v16.0 is
+**Not tested in the game.** The track is built and checked with tools and rendered from the same file, but it has
+not been started in Assetto Corsa.
+
+## What v17.0 is
+
+The owner sent the organiser's map of the next race (a red route, yellow dots, two blue arrows) and asked for a new
+track design, made from scratch. Version 17 is that race route on the real circuit: the lap, the start, the tyre
+stacks, the timing, the AI line and the road textures are all new. The circuit under it (asphalt outline,
+landscape, buildings) is the surveyed one of version 16.
+
+![The route of the map and the track](previews/route_on_map.jpg)
+
+**The lap, 1678 m, anticlockwise**
+
+1. Start on the start straight, heading east. The start line is at the real painted line (within about 1 m).
+2. Turn 1: left round the white concrete pad, four tyre stacks on its edge.
+3. Back west on the upper road, then a left-right chicane between two rows of stacks.
+4. North under the green bridge.
+5. Right after the bridge, round a single stack with an arc of nine stacks on the outside, east along the infield road.
+6. Right into the east loop, its hairpin (left), and back north-west past the junction closed by a row of six stacks.
+7. Left onto the north straight with its chicane of three rows: right, left, right.
+8. The west loop and the west straight.
+9. The long right-hander at its end, then south on the road west of the bridge.
+10. The S-bend, left-right-left with a stack at each apex, and onto the start straight.
+
+**How the map became a track**
+
+| Step | What was done |
+| --- | --- |
+| The red line | Traced from the map twice by methods that share nothing: a skeleton of the red colour, and waypoints read by eye and then followed along the line. They agree to 1 cm in the median and 0.45 m at most (under the head of the arrow, where the line is hidden). |
+| The yellow dots | Read twice as well: by colour, and by eye tile by tile. Both readers found the same 57 dots. Their centres differ by 0.35 m at most. |
+| Placing the map on the survey | The map picture was laid on the 12.5 cm aerial photo two ways: directly, and through the map of the 14.11 race, which uses the same picture. The two placements differ by 0.4 m at most. Checked against the photo itself, the one that was used is off by 0.12 m in the median. The map is not north-up: it is turned by 0.6 degrees, and one pixel is 0.381 m. |
+| Cross-check | A third pass compared the two results of each step, measured them against the picture itself and wrote the final route, dots and transform (`source/trace/route_5-12-2026.json`). `tools/place_route.py` puts them on the photo. |
+| The lap | `geom.py` lays a smooth line along the traced route and the real road edges, `refine.py` moves it onto the asphalt, `realmap.py` gives it its real widths. New in 17: the start straight lies on its real axis (`circuit.START_AXIS`), not on the hand-drawn line; the start line is at the map's arrow, within about 1 m of the real painted line; and the lap keeps its distance from tyre stacks (`refine.carve_stacks`). |
+| Tyre stacks | One at each dot (`RACE_LAYOUT = True`). Dots closer than 8.5 m are one row and are joined with yellow soft bags and red and white tape: 8 rows, 111 m of bags, 152 m of tape. 99 cones mark the way across open asphalt. |
+| Pits and grid | The pit boxes, the pit wall and the open side towards the pit apron are fixed to their real place (`track.PIT_REF_*`), so they do not move with the start line of a new route. |
+| Checks | `tools/check.py`: 58 checks pass. Four are new and compare the track with the map: the lap follows the red line (1.0 m apart in the median, 5.8 m at most), it runs round it once in the right direction, every stack is passed on the side the map shows, and the start line is at the arrow. |
+
+**What the map leaves open**
+
+- The dots are placed by hand on a picture of 0.38 m per pixel, so each stack is right to about 1 to 2 m. On the day
+  they may stand a little differently.
+- North straight: the middle row of the chicane stands on the northern half of the road, and the red line passes it
+  on the north, over the paved shoulder. It is built that way. The aerial photo of the state survey shows an older
+  set-up of the same chicane, three rows of real tyre stacks 5 to 25 m from the dots; their dark marks are in the
+  road texture. The map decides here, not the photo.
+- The two blue arrows (in from the paddock, out to the pits) are open roads of the circuit, not part of the lap.
+- Nothing closes a road where the map shows no dots. Cones mark the route there, and the sector gate half-way
+  round means a lap only counts on the route.
+
+**What was not done**
+
+- The track was not started in the game.
+- Six independent reviews were planned: two of the traced route (its order and its place on the photo) and four of
+  the finished track (match with the map, drivability, game file format, the wording of these notes). None of them
+  could run, because the usage limit of the session was reached. In their place stand the 58 checks of
+  `tools/check.py` and a look through every rendered picture.
+
+This route is the main track of the kit now. Version 16.0 (the plain circuit, no race set-up) is still at its commit
+(1b3e8d3) and version 15.1 (the route of 14.11.2026) at 5a37b33; `RACE_LAYOUT = False` in `tools/common.py` builds
+the plain circuit again on the lap of the new route.
+
+## The original circuit: what v16.0 did
 
 The owner asked for the original whole track with nothing added, and detailed. Up to 15.1 the kit was set up for the
-race of 14.11.2026. Version 16 is the circuit as it stands on an ordinary day.
+race of 14.11.2026. Version 16 was the circuit as it stands on an ordinary day. (Version 17 switches the race set-up
+on again, for the new route.)
 
 | Part | What changed |
 | --- | --- |
@@ -20,7 +84,6 @@ race of 14.11.2026. Version 16 is the circuit as it stands on an ordinary day.
 | All concrete | The concrete that is not a strip beside the long route (the kerbs of the other roads, the painted skid pad on the big square) gets the brightness of the photo too (`realtex.concrete_tile`), 24 squares. |
 | Kerbs of the other roads | `realmap.outline_kerbs` reads the 12.5 cm photo outwards from every metre of the asphalt outline that is not an edge of the long route. It found only 6 m more: the 25 cm mask had already caught these kerbs. |
 
-Version 15.1 with the race layout stays available at its commit (5a37b33).
 
 ## How exact it is: what v15.1 did
 
@@ -150,7 +213,9 @@ python3 fetch_cuzk.py --center 50.65900,14.53906 --half 1250,1000 --gsd 1 --dem-
 python3 prep.py            # photo at 25 cm and first colour classes
 python3 survey.py          # object heights, buildings, canopy, hard surface
 python3 paint.py           # trace painted markings and barriers
-python3 refine.py          # move the route of the race onto the real asphalt (centre line)
+python3 place_route.py     # the organiser's route and dots (source/trace/route_5-12-2026.json) on the photo
+python3 geom.py            # a smooth lap along the route; then: cp ../source/work/centerline.json ../source/work/centerline_route.json
+python3 refine.py          # move the route of the race onto the real asphalt (centre line), clear of the tyre stacks
 python3 realmap.py         # the real paved outline, concrete, sand, barriers, and the real widths of the lap
 python3 heights.py         # smooth road surface and blended ground
 python3 mkbuildings.py     # building footprints and heights
@@ -183,13 +248,14 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 50 checks; the three that test the race equipment and the one for the sector gate do not apply) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 58 checks) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
   in public data.
 - The photo is one day in the life of the circuit. Cars, cones and tyre stacks that stood on the asphalt that day
-  are removed. Tyre walls may stand elsewhere today.
+  are no obstacles in the track, but their dark marks are still in the picture of the road (for example the older
+  chicane on the north straight). Tyre walls may stand elsewhere today.
 - Under the overpass the photo shows the deck and its shadow, not the road. There the road is 9.6 m wide by
   assumption.
 - In a few places the centre line of the race route runs closer than 2.5 m to the real edge. There the lap strip is
@@ -204,7 +270,7 @@ is stored here or used as a texture.
   look different there.
 - The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. From
   close up the grass tiles (10 cm per pixel) look soft.
-- The model is large (90 MB, 477,000 triangles): 63 lap textures, the squares of asphalt and 26 grass tiles.
+- The model is large (93 MB, 480,000 triangles): 60 lap textures, the squares of asphalt and 26 grass tiles.
   Uncompressed they need roughly 1.3 GB of graphics memory.
 - The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
   and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
@@ -217,30 +283,33 @@ is stored here or used as a texture.
 ## Data and licence
 
 Orthophoto: ČÚZK Ortofoto ČR. Terrain: ČÚZK DMR 5G. Surface: ČÚZK DMP 1G. All CC BY 4.0.
-Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.
+Materials and tree models: Poly Haven, CC0. The route and the dots come from the organiser's public map of the event
+(`source/trace/event_story_5-12-2026.png`). Not affiliated with the circuit owner or the organiser.
 
 ## Check renders
 
 Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 
 ![Views of the track](previews/preview_sheet.jpg)
-![Asphalt with tyre marks](previews/lap_0060.jpg)
-![Trees and pylons in 3D](previews/lap_1450.jpg)
-![Round tyre stacks](previews/lap_0215.jpg)
-![The overpass](previews/bridge_side.jpg)
-![Clean edge and concrete strip](previews/lap_0320.jpg)
-![Infield hairpin edge](previews/lap_0480.jpg)
-![West loop](previews/lap_1300.jpg)
-![The landscape from the north-east](previews/air_land.jpg)
-![The buildings south of the track](previews/air_halls.jpg)
-![The west loop and the motorway viaduct](previews/air_west.jpg)
 ![From above, north up](previews/top_north.jpg)
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
-![Turn 1 from the car](previews/lap_0130.jpg)
-![Turn 1 from the air](previews/air_east.jpg)
-![The back straight](previews/back_straight.jpg)
-![Infield hairpin](previews/lap_0400.jpg)
-![Under the bridge](previews/lap_0600.jpg)
+![Turn 1 round the white pad](previews/lap_0110.jpg)
+![The chicane on the way back west](previews/lap_0285.jpg)
+![After the bridge: the arc of stacks](previews/lap_0370.jpg)
+![East along the infield road](previews/lap_0410.jpg)
+![The east hairpin](previews/lap_0575.jpg)
+![Past the closed junction](previews/lap_0640.jpg)
+![The chicane of the north straight](previews/lap_0870.jpg)
+![The north straight from the air](previews/air_north.jpg)
+![The west straight](previews/lap_1250.jpg)
+![South towards the S-bend](previews/lap_1470.jpg)
+![Out of the S-bend](previews/lap_1545.jpg)
+![Onto the start straight](previews/lap_1590.jpg)
+![The S-bend, the bridge and the start area](previews/air_sw.jpg)
 ![Start area and infield](previews/air_start.jpg)
 ![The big square](previews/air_plaza.jpg)
+![The east loop](previews/air_loop.jpg)
+![The overpass](previews/bridge_side.jpg)
+![The west loop and the motorway viaduct](previews/air_west.jpg)
+![The landscape from the north-east](previews/air_land.jpg)

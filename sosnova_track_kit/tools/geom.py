@@ -20,13 +20,15 @@ from scipy import sparse
 from scipy.optimize import lsq_linear
 from scipy.spatial import cKDTree
 
+import circuit
 from common import SRC, WORK, Frame, closed_frames, closed_resample, periodic_gauss, px_to_en
 
 MASK_GSD = 0.25
 MAX_HALF = 5.25   # widest ribbon half-width (m); wider asphalt becomes apron
 MIN_HALF = 3.25
 RAY = 13.0
-SF_BEFORE_END = 75  # start/finish line this many metres before the end of the start straight
+SF_BEFORE_END = 75  # start/finish line this many metres before the end of the start straight (map without a start arrow)
+GRID_ROOM = 88      # straight road needed behind the start line: 16 grid slots and the hot-lap start (m)
 
 
 class Mask:
@@ -80,6 +82,20 @@ def solve_band(c: np.ndarray, n: np.ndarray, target: np.ndarray, w_data: np.ndar
     return res.x
 
 
+AXIS = circuit.START_AXIS
+AXIS_O = np.array(AXIS["o"])
+AXIS_F = np.array(AXIS["f"]) / np.linalg.norm(AXIS["f"])
+AXIS_L = np.array([-AXIS_F[1], AXIS_F[0]])
+AXIS_NEAR = 9.0    # a lap closer than this to the axis of the start straight runs along it (m)
+AXIS_LEAD = 70.0   # length of the run-in before the straight where the lap may leave the hand-drawn line (m)
+
+
+def axis_coords(p: np.ndarray):
+    """(metres along the axis of the start straight, metres to its left) of east/north points."""
+    d = np.atleast_2d(p) - AXIS_O
+    return d @ AXIS_F, d @ AXIS_L
+
+
 GATE_CLEAR = 3.8   # centre line passes at least this far from a slalom tyre stack (m)
 REF_LIM = 1.8     # largest correction of the traced route where no road edge is visible (m)
 GATE_NEAR = 9.0    # cones closer than this to the traced route act as gates
@@ -129,6 +145,10 @@ def main() -> None:
         w_data = np.where(both, 0.02, 0.006)
         lo = np.where(both, mid - 1.0, np.minimum(-REF_LIM - e, 0.0))
         hi = np.where(both, mid + 1.0, np.maximum(REF_LIM - e, 0.0))
+        # the way onto the start straight: free of the hand-drawn line, so the lap flows onto the real axis
+        az, ax = axis_coords(c)
+        free = (az > AXIS["z"][0] - AXIS_LEAD) & (az <= AXIS["z"][0]) & (np.abs(ax) < AXIS_NEAR + 6.0) & (t @ AXIS_F > 0.3) & ~both
+        lo[free], hi[free], w_data[free], mid[free] = np.minimum(lo[free], -8.0), np.maximum(hi[free], 8.0), 0.0005, 0.0
         # slalom gates: free the band around them and force the side
         idx, lat = cone_lateral(c, n, cones)
         for ci in np.where(gate)[0]:
@@ -142,6 +162,11 @@ def main() -> None:
                     hi[q] = min(hi[q], lat[ci] - GATE_CLEAR)
                 else:
                     lo[q] = max(lo[q], lat[ci] + GATE_CLEAR)
+        # the start straight: the lap runs on its real axis, not on the hand-drawn line
+        az, ax = axis_coords(c)
+        on = (az > AXIS["z"][0]) & (az < AXIS["z"][1]) & (np.abs(ax) < AXIS_NEAR) & (t @ AXIS_F > 0.9)
+        mid[on], w_data[on] = -ax[on] / (n[on] @ AXIS_L), 0.2
+        lo[on], hi[on] = mid[on] - 0.25, mid[on] + 0.25
         bad = lo > hi
         lo[bad] = hi[bad] - 0.2
         # start straight: very stiff where the pre-smoothed line is already nearly straight around station 0
@@ -179,6 +204,23 @@ def main() -> None:
         else:
             cur = 0
     ln, st = best
+    arrow = route.get("start_px")
+    sf_at = None
+    if arrow is not None:
+        # the organiser's map marks the start with an arrow: the start/finish line goes there, on the straight
+        # that holds it, with room for the whole grid behind it and at least 30 m of straight ahead
+        i0 = int(np.argmin(np.linalg.norm(c - px_to_en(np.array([arrow]))[0], axis=1)))
+        if not straight[i0]:
+            near = np.where(straight)[0]
+            i0 = int(near[np.argmin(np.minimum(np.abs(near - i0), m - np.abs(near - i0)))])
+        a = b = 0
+        while straight[(i0 - a - 1) % m] and a < m:
+            a += 1
+        while straight[(i0 + b + 1) % m] and b < m:
+            b += 1
+        st, ln = (i0 - a) % m, a + b + 1
+        sf_at = (st + int(np.clip(a, min(GRID_ROOM, ln - 31), ln - 31))) % m if ln > 62 else i0
+        print(f"start arrow at index {i0}: {a} m of straight behind it, {b} m ahead")
     print(f"start straight: {ln} m from index {st % m}")
     run = np.array([(st + j) % m for j in range(ln)])
     p = c[run]
@@ -186,6 +228,16 @@ def main() -> None:
     mean = p.mean(axis=0)
     _, _, vt = np.linalg.svd(p - mean)
     fwd = vt[0] if vt[0] @ (p[-1] - p[0]) > 0 else -vt[0]
+    pz, pxl = axis_coords(p)
+    on_axis = (pz > AXIS["z"][0]) & (pz < AXIS["z"][1]) & (np.abs(pxl) < 1.5)
+    if on_axis.sum() > 60 and fwd @ AXIS_F > 0.99:                 # the run lies on the real axis: make it exact
+        run, p, pz = run[on_axis], p[on_axis], pz[on_axis]
+        st, ln = int(run[0]), len(run)
+        mean, fwd = AXIS_O.copy(), AXIS_F.copy()
+        az0 = float(axis_coords(px_to_en(np.array([arrow]))[0] if arrow is not None else AXIS_O)[0][0])
+        if abs(az0) < 30.0:                                        # the start arrow of the map stands at the real line
+            sf_at = int(run[np.argmin(np.abs(pz))])
+            print(f"start/finish at the zero point of the start axis; the map's arrow is {az0:+.1f} m from it")
     nl = np.array([-fwd[1], fwd[0]])
     e = (p - mean) @ nl
     j = np.arange(ln)
@@ -193,7 +245,8 @@ def main() -> None:
     w = ramp * ramp * (3 - 2 * ramp)
     c[run] = p - (w * e)[:, None] * nl
     print(f"straight: max offset removed {np.abs(e).max():.2f} m")
-    sf = (st + ln - SF_BEFORE_END) % m
+    sf = (st + ln - SF_BEFORE_END) % m if sf_at is None else sf_at
+    m_old = m
     c = closed_resample(np.roll(c, -sf, axis=0), 1.0)
     m = len(c)
     t, n, k, seg = closed_frames(c)
@@ -252,7 +305,7 @@ def main() -> None:
         "open_l": open_l.tolist(), "open_r": open_r.tolist(),
         "sf_en": c[0].tolist(), "fwd_en": fwd.tolist(),
         "cones_en": cones.tolist(), "cone_station": idx.tolist(), "cone_lat": lat.tolist(),
-        "straight_m": [int(SF_BEFORE_END - ln), int(SF_BEFORE_END)],
+        "straight_m": [-int((sf - st) % m_old), int(ln - (sf - st) % m_old)],
     }
     json.dump(out, open(os.path.join(WORK, "centerline.json"), "w"))
     ksm = np.abs(periodic_gauss(k, 1.0))

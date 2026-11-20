@@ -39,13 +39,16 @@ def make_dummies(tr: Track, surface=None) -> tuple[list[Dummy], dict]:
         # identity rotation: the world is built so that +Z is the direction of the start straight
         out.append(Dummy(f"AC_START_{k}", tuple(tr.world(st, lat, SPAWN_DY)[0]), (0.0, 0.0, 1.0)))
     ang = np.radians(30.0)
+    pf = tr.pit_ref_en(1.0) - tr.pit_ref_en(0.0)                 # the pit line: its direction and its left
+    pl = np.array([-pf[1], pf[0]])
+    face = tr.fr.vec((np.cos(ang) * pf - np.sin(ang) * pl)[None, :])[0]
     for k in range(PIT_SLOTS):
-        x, z = PIT_X, PIT_Z0 + PIT_DZ * k
-        en = tr.fr.o + x * tr.fr.l + z * tr.fr.f
+        en = tr.pit_ref_en(PIT_Z0 + PIT_DZ * k, PIT_X)           # a fixed place on the pit apron
+        x, z = (float(v) for v in tr.fr.xz(en[None, :])[0])
         y = float(tr.H.ground(en[None, :])[0]) - tr.fr.ref + SPAWN_DY
         if surface is not None and surface.y(x, z) is not None:
             y = surface.y(x, z) + SPAWN_DY
-        out.append(Dummy(f"AC_PIT_{k}", (x, y, z), (-np.sin(ang), 0.0, np.cos(ang))))
+        out.append(Dummy(f"AC_PIT_{k}", (x, y, z), (float(face[0]), 0.0, float(face[1]))))
     out.append(Dummy("AC_HOTLAP_START_0", tuple(tr.world(-80.0, 0.0, SPAWN_DY)[0]), facing(-80.0)))
     from common import RACE_LAYOUT
     # the plain circuit has the start/finish gate only: with a sector gate on one route, a lap on any other route of
@@ -249,62 +252,73 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v16.0 for Assetto Corsa
-=======================================
+INSTALL = """AUTODROM SOSNOVA v17.0 for Assetto Corsa: the race route of 5.12.2026
+======================================================================
 
 INSTALL
 1. Delete older versions first, if you have them:
       ...\\assettocorsa\\content\\tracks\\sosnova, sosnova_v2 ... sosnova_v6, sosnova_v7_race, sosnova_v7_standard, sosnova_v8_race, sosnova_v8_standard
+   An older "sosnova_v9" is replaced by this one.
 2. Copy the whole folder "sosnova_v9" into:
       ...\\Steam\\steamapps\\common\\assettocorsa\\content\\tracks\\
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v16.0".
+3. Start the game and pick the track "Autodrom Sosnova v17.0 - Racing Days 5.12.2026".
 
-WHAT IT IS
-- Autodrom Sosnova as it really is. Every piece of asphalt of the circuit is in the track with its real outline,
-  taken from the aerial photo of the Czech state survey (12.5 cm per pixel): the lap, the big square, the
-  junctions, the connecting roads. Nothing is redesigned.
-- The lap (1764 m, anticlockwise, under the green bridge) has its real widths: from 6 m on the narrow parts to
-  about 20 m in turn 1.
-- The surface is a copy of the photo: every 28 m of the lap and every 40 m square of the asphalt beside it has
-  its own picture of the real asphalt there, with its real patches and marks, over a close-up scan of asphalt.
-  The grass and everything around the track has the real colours of the place.
-- The concrete strips along the edges (the real kerbs of Sosnova are flat grey concrete, not red and white) and
-  the white concrete pad on the inside of turn 1 are part of the surface. You can drive on them.
-- The sand run-offs are where the real ones are: outside turn 1 and at both ends of the west loop.
-- The real barriers: the tyre walls of the photo stand where they stand in reality (about 500 m of them), with the
-  wall along the pit buildings and the wall of the paddock.
-- The painted lines and start boxes of the real asphalt are traced from the photo. A white line runs along every
-  real edge of the lap.
-- How exact it is: the edges of the road are right to about 20 cm, the heights to about 10 to 20 cm. The data is
-  an aerial photo and an airborne laser scan; nothing public is finer. It is not exact to the millimetre.
-- The concrete kerb strips are complete and look as they do in the photo, with their white painted blocks.
-- A closer look: the asphalt has the neutral dark grey of the real track, the grain of its stones, tyre marks,
-  fine cracks and the seam between the paved lanes. Advertising boards stand in front of the tyre walls. All the
-  asphalt beside the long route has the same fine picture as the route itself.
-- Everything stands in 3D: every tree near the track has a trunk and a body with volume inside the pictures of
-  the real tree; the tyre walls are rows of single round stacks; the power pylons are lattice towers with arms;
-  the fences have posts; flat roofs lie behind a parapet. With Custom Shaders Patch the grass is 3D as well.
-- Clean lines: the edges of the lap run as even curves beside the centre line, the concrete strips have one even
-  width, painted lines are straight where they were painted straight, start boxes are true rectangles.
-- The original circuit with nothing added: no race set-up. No tyre stacks on the asphalt, no bags, no tape, no
-  cones, no chicane. Every road of the circuit is open and has the same grip, so you can drive any route.
-- Chequered start line, 16 grid boxes, start lights, 16 pit boxes on the wide asphalt beside the start straight.
-- The whole place comes from the laser scan of the Czech state survey, not only the road:
-  the landscape has its real banks, ditches and mounds; every building has its measured footprint, height and
-  roof shape with its own piece of the aerial photo on the roof; the trees stand at their measured heights; the
-  motorway viaduct behind the west loop is there.
-- Lap timing: the start/finish line is in the track, so the game times every lap, whichever route you take.
-  The AI drivers and the ideal line follow the long route under the green bridge.
+THE ROUTE
+The red line of the organiser's map for the Liqui Moly Racing Days, 5.12.2026, built from scratch. __LAP__ m, anticlockwise:
+  1. Start on the start straight, heading east (the red arrow of the map; the start line is at the real painted line).
+  2. Turn 1: left round the white concrete pad. Four tyre stacks stand on its edge.
+  3. Back west on the upper road, then a left-right chicane between two rows of tyre stacks.
+  4. North under the green bridge.
+  5. Right after the bridge, round a single stack with an arc of nine stacks on the outside, and east along the
+     infield road.
+  6. Right into the east loop, round its hairpin (left, a stack at the apex) and back north-west on the outer
+     road, past the junction closed by a row of six stacks.
+  7. Left onto the north straight, with its chicane of three rows of stacks: right, left, right. The middle
+     row stands on the road; the route passes it on the paved shoulder, as the map shows.
+  8. The west loop (left) and the long west straight.
+  9. The long right-hander at its end, then south on the road west of the bridge.
+ 10. The S-bend, left-right-left with a stack at each apex, and onto the start straight.
+
+WHAT STANDS ON THE TRACK
+- A tyre stack at each of the __DOTS__ yellow dots of the organiser's map. Dots that stand in a row are joined with
+  yellow soft bags and red and white tape (__ROWS__ rows). Some rows close roads that are not part of the route,
+  the others make the chicanes.
+- Orange cones mark the way where the route crosses open asphalt. A car passes through cones; tyre stacks and bags
+  are solid.
+- The two blue arrows of the map (the way in from the paddock and the way out to the pits) are roads of the
+  circuit. They are open in the track, but they are not part of the lap.
+- Where the stacks stand comes from dots on a small picture: each is right to about 1 to 2 m. On the day the
+  organiser may place them a little differently.
+
+THE CIRCUIT
+- Autodrom Sosnova as it really is. Every piece of asphalt has its real outline, taken from the aerial photo of
+  the Czech state survey (12.5 cm per pixel). The lap has its real widths.
+- The surface is a copy of the photo over a close-up scan of asphalt. The concrete strips along the edges (the
+  real kerbs of Sosnova are flat grey concrete) and the white pad of turn 1 are part of the surface.
+- The real sand run-offs, the real tyre walls (about 430 m), the pit wall and the paddock wall.
+- The landscape, the buildings with their roofs, the trees and the motorway viaduct come from the laser scan of
+  the Czech state survey. Everything stands in 3D.
+- How exact it is: the edges of the road are right to about 20 cm, the heights to about 10 to 20 cm. It is not
+  exact to the millimetre: the data is an aerial photo and an airborne laser scan.
+- Chequered start line, start lights, 16 grid boxes, 16 pit boxes on the wide asphalt beside the start straight.
+- Lap timing: the start/finish line and one sector gate half-way round, so only a lap on the race route counts.
+  The AI drivers and the ideal line follow the race route.
+
+NOT TESTED IN THE GAME
+The track was built and checked with tools (file structure, surfaces, AI line, spawn points, timing gates), and
+pictures were rendered from the same file. It has not been started in Assetto Corsa itself. If it does not load,
+please send a screenshot of the error.
 
 OPTIONAL
 - Custom Shaders Patch adds 3D grass. Rain and puddles need CSP with RainFX and a weather script (Sol or Pure).
 
 DATA
+Route and tyre stacks: the organiser's map (semerad_rally, Liqui Moly Racing Days 5.12.2026).
 Orthophoto, terrain model DMR 5G and surface model DMP 1G: CUZK, CC BY 4.0.
-Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner.
+Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owner or the organiser.
 """
 
 
@@ -313,7 +327,10 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
     os.makedirs(os.path.join(out, "ui"), exist_ok=True)
     os.makedirs(os.path.join(out, "extension"), exist_ok=True)
     open(os.path.join(out, "data", "surfaces.ini"), "w", newline="\r\n").write(SURFACES)
-    open(os.path.join(out, "INSTALL.txt"), "w", newline="\r\n").write(INSTALL)
+    from props import race_rows
+    rows = sum(1 for r in race_rows(tr) if len(r) > 1)
+    install = INSTALL.replace("__LAP__", str(int(round(tr.lap)))).replace("__DOTS__", str(tr.map_dots)).replace("__ROWS__", str(rows))
+    open(os.path.join(out, "INSTALL.txt"), "w", newline="\r\n").write(install)
     names = sorted(materials or [])
     asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit()) or (m[:2] in ("kl", "kr") and m[2:].isdigit()) or (m[:1] == "c" and m[1:].isdigit())]
     grass = ["grass"] + [m for m in names if m[:1] == "g" and m[1:].isdigit()]      # not the worn strip beside the asphalt
@@ -365,14 +382,16 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v16.0",
-        "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, as it really is: every piece of asphalt with its real "
-                       "outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand "
-                       "run-offs and tyre walls, the laser-scanned landscape and the buildings with their real roofs. The original circuit with nothing added: no race set-up, every road "
-                       "open. The AI line (1764 m, anticlockwise) takes the long route under the green bridge. "
-                       "16 grid slots, 16 pit boxes, lap timing at the start line. Data: ČÚZK (CC BY 4.0), "
-                       "materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner.",
-        "tags": ["circuit", "czech", "sosnova", "bridge", "csp"],
+        "name": "Autodrom Sosnová v17.0 - Racing Days 5.12.2026",
+        "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the Liqui Moly Racing Days of 5.12.2026: the race "
+                       "route of the organiser's map (%d m, anticlockwise) with a tyre stack at each of its %d yellow dots, bags and "
+                       "tape along their rows and cones across open asphalt. The circuit is the real one: every piece of asphalt "
+                       "with its real outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete "
+                       "strips, sand run-offs and tyre walls, the laser-scanned landscape and buildings. "
+                       "16 grid slots, 16 pit boxes, lap timing with one sector gate. Data: ČÚZK (CC BY 4.0), "
+                       "materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner or "
+                       "the organiser." % (int(round(tr.lap)), tr.map_dots),
+        "tags": ["circuit", "czech", "sosnova", "bridge", "race layout", "csp"],
         "geotags": ["50.65900", "14.53906"],
         "country": "Czech Republic",
         "city": "Sosnová (Česká Lípa)",
@@ -381,7 +400,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "16.0",
+        "version": "17.0",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

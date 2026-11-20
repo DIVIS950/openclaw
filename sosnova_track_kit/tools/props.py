@@ -232,7 +232,7 @@ def pit_wall_line(tr: Track) -> np.ndarray:
     """The low concrete wall between the start straight and the pit buildings: 1.1 m outside the real asphalt edge
     (east/north points)."""
     from scipy.ndimage import gaussian_filter1d
-    st = np.arange(-6, 112, 2)
+    st = np.arange(int(round(tr.pit_station(-6.0))), int(round(tr.pit_station(112.0))), 2)
     w = gaussian_filter1d(np.tile(tr.wr, 3), 6.0)[tr.n + st]
     return tr.en(st.astype(float), -(w + 1.1))
 

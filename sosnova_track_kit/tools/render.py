@@ -217,6 +217,10 @@ def aim(cam, eye_ac, target_ac, fov_deg=75.0):
     cam.data.angle = np.radians(fov_deg)
 
 
+# driver's-eye pictures: metres along the lap
+LAP_SHOTS = (60, 110, 150, 230, 285, 330, 370, 410, 470, 520, 575, 640, 720, 800, 870, 960, 1100, 1250, 1400, 1470, 1545, 1590)
+
+
 def main() -> None:
     os.makedirs(PREV, exist_ok=True)
     wanted = set(sys.argv[1:])
@@ -230,8 +234,9 @@ def main() -> None:
         m = dummies[name]
         eye = m[3, :3] + up * 1.05
         shots.append((name.lower(), eye, eye + m[2, :3] * 30 - up * 1.5, 75))
-    for st in (60, 130, 215, 320, 400, 480, 560, 600, 615, 650, 750, 860, 925, 1000, 1150, 1300, 1450, 1560, 1640):   # metres along the lap
-        i = int(st / 1764 * n) % n
+    lap_m = float(np.linalg.norm(np.diff(np.vstack([ai, ai[:1]]), axis=0), axis=1).sum())
+    for st in LAP_SHOTS:                                               # metres along the lap
+        i = int(st / lap_m * n) % n
         j = (i + 14) % n
         d = ai[j] - ai[i]
         d /= np.linalg.norm(d)
@@ -254,7 +259,8 @@ def main() -> None:
         return tr.fr.world(en, tr.H.ground(en))[0] + up * h
     for name, eye, tgt in (("air_start", (45, -125, 70), (65, -22)), ("air_plaza", (-75, 15, 60), (12, 76)), ("air_east", (235, -75, 60), (150, -8)),
                            ("air_sw", (-105, -115, 50), (-33, -42)), ("air_paddock", (-190, -60, 70), (-70, 0)),
-                           ("air_west", (-120, 40, 40), (-290, 215)), ("air_halls", (70, -95, 75), (0, -215)), ("air_land", (300, 250, 120), (40, 60))):
+                           ("air_west", (-120, 40, 40), (-290, 215)), ("air_halls", (70, -95, 75), (0, -215)), ("air_land", (300, 250, 120), (40, 60)),
+                           ("air_north", (-55, 125, 45), (-85, 178)), ("air_loop", (160, 120, 60), (100, 70))):
         shots.append((name, at(*eye), at(*tgt, 0.0), 60))
     for name, eye, tgt, fov in shots:
         if wanted and name not in wanted:

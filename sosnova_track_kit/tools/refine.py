@@ -31,6 +31,26 @@ def drivable_mask() -> np.ndarray:
     return ndi.binary_closing(m.astype(bool), iterations=4)
 
 
+STACK_R = 0.9                        # ground a tyre stack takes from the road: its body and a hand's width (m)
+ROW_GAP = 8.5                        # stacks closer than this stand in one row, closed with bags and tape (m)
+
+
+def carve_stacks(mask: np.ndarray, dots: np.ndarray) -> np.ndarray:
+    """The drivable mask without the ground taken by the tyre stacks of the race layout and by the bags between the
+    stacks of a row. With them cut out, a row is an edge of the road like any other: the lap keeps its distance
+    from it, and runs in the middle of the lane where a row leaves only a narrow one."""
+    if not len(dots):
+        return mask
+    m = mask.astype(np.uint8)
+    px = np.round(np.column_stack([(dots[:, 0] + HALF_E) / GSD, (HALF_N - dots[:, 1]) / GSD])).astype(int)
+    for a in range(len(dots)):
+        cv2.circle(m, (int(px[a, 0]), int(px[a, 1])), int(round(STACK_R / GSD)), 0, -1)
+        for b in range(a + 1, len(dots)):
+            if np.linalg.norm(dots[a] - dots[b]) <= ROW_GAP:
+                cv2.line(m, (int(px[a, 0]), int(px[a, 1])), (int(px[b, 0]), int(px[b, 1])), 0, int(round(2 * STACK_R / GSD)))
+    return m.astype(bool)
+
+
 def intervals(c: np.ndarray, nrm: np.ndarray, mask: np.ndarray):
     """For every station: lateral extent (a, b) of the asphalt strip that holds, or is nearest to, the line."""
     d = np.arange(-REACH, REACH + 1e-6, STEP)
@@ -62,7 +82,16 @@ def main() -> None:
     src = json.load(open(os.path.join(WORK, "centerline_route.json"), encoding="utf-8"))
     c = np.array(src["en"])
     start = c[0].copy()
+    import circuit
+    from common import RACE_LAYOUT
+    dots = np.vstack([np.array(src.get("cones_en", []), float).reshape(-1, 2), np.array(circuit.EXTRA_DOTS, float).reshape(-1, 2)])
     mask = drivable_mask()
+    # holes smaller than 45 m2 are cars, stains and noise, not grass (the same rule as realmap.py)
+    lab, _ = ndi.label(~mask)
+    size = np.bincount(lab.ravel())
+    mask = mask | ((size[lab] < 45.0 / GSD ** 2) & (lab > 0))
+    if RACE_LAYOUT:
+        mask = carve_stacks(mask, dots)
     moved = np.zeros(len(c))
     for _ in range(8):
         _, nrm, _, _ = closed_frames(c)

@@ -204,7 +204,11 @@ def main() -> None:
 
     print("timing")
     gates = sorted({int(d_.split("_")[2]) for d_ in dummies if d_.startswith("AC_TIME_")})
-    check(gates[:1] == [0], f"timing gates present: {gates} (0 is start/finish; the plain circuit has no sector gate, so any route counts)")
+    from common import RACE_LAYOUT
+    if RACE_LAYOUT:
+        check(gates == [0, 1], f"timing gates present: {gates} (0 is start/finish, 1 is the sector gate half-way round, so only a lap on the race route counts)")
+    else:
+        check(gates == [0], f"timing gates present: {gates} (0 is start/finish; the plain circuit has no sector gate, so any route counts)")
     for idx in gates:
         L, R = dummies[f"AC_TIME_{idx}_L"][3, :3].astype(float), dummies[f"AC_TIME_{idx}_R"][3, :3].astype(float)
         mid = (L + R) / 2
@@ -409,6 +413,33 @@ def main() -> None:
             a_, b_ = max(lo_, l_ - 0.34), min(hi_, l_ + 0.34)
             free.append(hi_ - lo_ if a_ >= b_ else max(a_ - lo_, hi_ - b_))
         check(min(free) > 4.0, f"the road stays passable at every tyre stack (narrowest free width {min(free):.1f} m, {int(sum(abs(l_) < 4.84 for l_ in lat))} stacks stand on the road)")
+        # the lap against the organiser's map: the red line as it was traced and laid on the photo (route_ortho.json)
+        print("the organiser's map")
+        from common import SRC as _SRC, closed_frames as _cf, closed_resample as _rs, periodic_gauss as _pg, px_to_en as _p2e
+        ro = json.load(open(os.path.join(_SRC, "cuzk", "route_ortho.json"), encoding="utf-8"))
+        drawn = _pg(_rs(_p2e(np.array(ro["route_px"])), 1.0), 1.5)
+        nd = len(drawn)
+        dist, j = _KD(drawn).query(tr.c)
+        check(np.percentile(dist, 95) < 6.0 and dist.max() < 12.0,
+              f"the lap follows the red line of the map (median {np.median(dist):.1f} m apart, 95 % within {np.percentile(dist, 95):.1f} m, most "
+              f"{dist.max():.1f} m; the line is drawn by hand, the lap runs on the real road)")
+        adv = (np.diff(np.concatenate([j, j[:1]])) + nd / 2) % nd - nd / 2          # progress along the drawn line per metre of lap
+        check(abs(adv.sum() - nd) < 1 and adv.min() > -15, f"the lap runs round the drawn line once, in its direction, without leaving out or repeating a part (largest step back {-adv.min():.0f} m)")
+        _, dn, _, _ = _cf(drawn)
+        dots_ = tr.cones_en[: tr.map_dots]
+        jd = _KD(drawn).query(dots_)[1]
+        lat_map = np.einsum("ij,ij->i", dots_ - drawn[jd], dn[jd])
+        lat_lap = np.zeros(len(dots_))
+        for q in range(len(dots_)):                                # the lap on the same leg of the route as the drawn line there
+            leg = np.where(np.abs((j - jd[q] + nd / 2) % nd - nd / 2) < 40)[0]
+            k_ = leg[np.argmin(np.linalg.norm(tr.c[leg] - dots_[q], axis=1))]
+            lat_lap[q] = (dots_[q] - tr.c[k_]) @ tr.nrm[k_]
+        beside = np.abs(lat_map) < 14.0
+        wrong = np.where(beside & (np.sign(lat_map) != np.sign(lat_lap)))[0]
+        check(len(wrong) == 0, f"every tyre stack is passed on the side the map shows ({int((lat_map[beside] > 0).sum())} on the driver's left, "
+              f"{int((lat_map[beside] < 0).sum())} on the right, {int((~beside).sum())} further than 14 m from the line; wrong side: {[int(w) + 1 for w in wrong]})")
+        arrow = _p2e(np.array([ro.get("start_px", ro["route_px"][0])]))[0]
+        check(float(np.linalg.norm(arrow - tr.c[0])) < 30.0, f"the start line is at the red arrow of the map ({float(np.linalg.norm(arrow - tr.c[0])):.0f} m from the point of the arrow where the tracing starts)")
     print("files")
     cpm = configparser.ConfigParser()
     cpm.read(os.path.join(OUT, "data", "map.ini"))

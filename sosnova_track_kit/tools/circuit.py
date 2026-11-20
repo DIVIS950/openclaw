@@ -7,7 +7,12 @@ BARRIERS = [
 ]
 
 
-# The barrier line the owner drew on the organiser's map: on the left of the east leg, from the infield loop down
-# to the return road. It continues the organiser's row of yellow dots there (138, 21..40) in both directions, so
-# after turn 1 the only way is north. Points are tyre barrels, 6.5 m left of the lap where the line runs beside it.
-EXTRA_DOTS = [(128.6, 59.3), (131.3, 55.0), (134.0, 50.7), (136.2, 45.6), (139.5, 15.5), (141.5, 10.0), (143.5, 4.5), (146.0, -1.0)]
+# Points added to the yellow dots of the organiser's map (east/north, m). None for the race of 5.12.2026: the map is
+# built as the organiser drew it.
+EXTRA_DOTS: list[tuple[float, float]] = []
+
+# The start straight as it really runs: a point on its axis, the direction of the axis (parallel to the pit wall,
+# 8.1 degrees south of east) and the stretch of it that is straight (metres before / after the point). Measured on
+# the photo for the earlier versions. A lap drawn by hand on a map is laid onto this line where it runs along it,
+# and the start/finish line is at the point when the organiser's start arrow is within 30 m of it.
+START_AXIS = dict(o=(71.512921, -45.015993), f=(0.9900655, -0.1406069), z=(-72.0, 58.0))
