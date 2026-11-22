@@ -11,6 +11,43 @@ folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the
 **Not tested in the game.** The track is built and checked with tools and rendered from the same file, but it has
 not been started in Assetto Corsa.
 
+## Briefing video
+
+[`download/sosnova_briefing_5-12-2026.mp4`](download/sosnova_briefing_5-12-2026.mp4) (96 s, 17 MB): one lap on board along
+the racing line of the track as built, made for the owner as a driver briefing.
+
+![A frame of the briefing video at the apex of turn 1](previews/briefing_apex.jpg)
+
+- The line on the road is red where the guide brakes, yellow where it rolls and green where it is on the throttle.
+- A pink post and a pink band on the line mark each apex. The top bar names the corner, says what to look for and
+  counts down the metres to the apex.
+- Bottom left: a guide speed. Bottom right: a north-up map with the car on it.
+- `tools/briefing.py` makes it: `plan` finds the corners and apexes on the AI line, `frames` renders 1002 pictures
+  with Cycles from the built kn5 (12 per second of driving), `video` adds the text and the map and encodes with ffmpeg.
+
+The guide speed and the guide lap (81 s) come from a simple point-mass model of the AI line (`track.speed_profile`):
+an estimate for a quick car, not a measured lap. The apex of a corner is where the racing line has the least room
+to the inside and bends most.
+
+| Corner | Turn | Angle | Apex, guide | What to look for |
+| --- | --- | --- | --- | --- |
+| T1 | left | 171° | 47 km/h | Turn 1. Left round the white pad. Four tyre stacks mark the inside. |
+| T2 | left | 17° | 67 km/h | Left kink onto the upper road. Barriers close the link road on the right. |
+| T3 | right | 80° | 59 km/h | Chicane: first stack on your left, row of three on your right. Then right, north to the bridge. |
+| T4 | right | 85° | 31 km/h | After the bridge: tight right. One stack inside, a row of nine outside. |
+| T5 | right | 56° | 34 km/h | Right into the east loop. |
+| T6 | left | 157° | 31 km/h | East hairpin: left round the single stack. Barriers and arrows on the outside. |
+| T7 | left | 34° | 59 km/h | Left kink on the way back out. |
+| T8 | right | 30° | 62 km/h | Right kink past the closed junction. The row of six stacks is on your left. |
+| T9 | left | 49° | 70 km/h | Left onto the north straight. |
+| T10 | left | 36° | 38 km/h | North chicane: row 1 on your right, middle row on your left (use the strip beside the road), row 3 on your right. |
+| T11 | left | 27° | 102 km/h | Fast left kink towards the west loop. |
+| T12 | left | 139° | 59 km/h | West loop: a long left. |
+| T13 | right | 152° | 51 km/h | Long right at the end of the west straight. Late apex. |
+| T14 | left | 38° | 34 km/h | S-bend 1: left. Stack on the inside. |
+| T15 | right | 28° | 41 km/h | S-bend 2: right, round the island. |
+| T16 | left | 69° | 30 km/h | S-bend 3: tight left onto the start straight. Stack on the inside. |
+
 ## More barriers and tape: what v17.1 did
 
 The owner asked for more barriers and tape, and for the race set-up to look better and more real. The lap and the
@@ -265,6 +302,7 @@ python3 mkbuildings.py     # building footprints and heights
 python3 build.py           # writes content/tracks/sosnova_v9
 python3 check.py           # validates the files the game will load
 python3 render.py          # check renders from the spawn points, along the lap, from the air
+python3 briefing.py plan && python3 briefing.py frames && python3 briefing.py video    # the driver briefing video (needs ffmpeg)
 ```
 
 The orthophoto files are not stored in the repository because of their size. `fetch_cuzk.py` downloads them
