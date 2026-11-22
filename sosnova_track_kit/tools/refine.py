@@ -32,7 +32,7 @@ def drivable_mask() -> np.ndarray:
 
 
 STACK_R = 0.9                        # ground a tyre stack takes from the road: its body and a hand's width (m)
-ROW_GAP = 8.5                        # stacks closer than this stand in one row, closed with bags and tape (m)
+ROW_GAP = 7.0                        # stacks closer than this stand in one row, closed with bags and tape (m; racekit.ROW_GAP)
 
 
 def carve_stacks(mask: np.ndarray, dots: np.ndarray) -> np.ndarray:

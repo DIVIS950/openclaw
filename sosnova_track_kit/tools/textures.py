@@ -417,6 +417,21 @@ def barricade() -> np.ndarray:
     return np.clip(a, 0, 255)
 
 
+def arrow() -> np.ndarray:
+    """Arrow board of a chicane: three white chevrons on black, pointing to +u, in a white frame."""
+    from PIL import Image as _Image, ImageDraw as _Draw
+    w, h = 512, 208
+    im = _Image.new("RGB", (w, h), (236, 234, 226))
+    d = _Draw.Draw(im)
+    d.rectangle([8, 8, w - 9, h - 9], fill=(22, 22, 24))
+    for k in range(3):
+        x0 = 56 + k * 138
+        d.polygon([(x0, 28), (x0 + 62, 28), (x0 + 128, h // 2), (x0 + 62, h - 28), (x0, h - 28), (x0 + 66, h // 2)], fill=(238, 236, 228))
+    a = np.asarray(im, np.float32)
+    a *= (0.95 + 0.04 * np.clip(fnoise(512, 6, 60, 477)[:h, :w], -1.5, 1.5))[..., None]      # a little dirt
+    return np.clip(a, 0, 255)
+
+
 def tyres() -> np.ndarray:
     """A stack of four tyres: black rubber with tread, the top tyre painted yellow (v runs up the stack)."""
     a = np.full((256, 128, 3), (26, 26, 28), np.float32)
@@ -584,6 +599,7 @@ def build_static() -> dict[str, bytes]:
         "kerb.jpg": _jpg(kerb(), 90),
         "barricade.jpg": _jpg(barricade(), 90),
         "tyres.jpg": _jpg(tyres(), 90),
+        "arrow.jpg": _jpg(arrow(), 90),
         "banner.jpg": _jpg(banners(), 92),
         "tyredark.jpg": _jpg(np.full((16, 16, 3), (9.0, 9.0, 10.0)) + fnoise(16, 2, 8, 431)[..., None] * 1.5, 90),      # the inside of a tyre stack
         "foliage_c.jpg": _jpg(foliage("conifer"), 90),

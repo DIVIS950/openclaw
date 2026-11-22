@@ -1,6 +1,6 @@
 {
-  "name": "Autodrom Sosnová v17.0 - Racing Days 5.12.2026",
-  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the Liqui Moly Racing Days of 5.12.2026: the race route of the organiser's map (1678 m, anticlockwise) with a tyre stack at each of its 57 yellow dots, bags and tape along their rows and cones across open asphalt. The circuit is the real one: every piece of asphalt with its real outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete strips, sand run-offs and tyre walls, the laser-scanned landscape and buildings. 16 grid slots, 16 pit boxes, lap timing with one sector gate. Data: ČÚZK (CC BY 4.0), materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner or the organiser.",
+  "name": "Autodrom Sosnová v17.1 - Racing Days 5.12.2026",
+  "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the Liqui Moly Racing Days of 5.12.2026: the race route of the organiser's map (1678 m, anticlockwise) with a tyre stack at each of its 57 yellow dots, bags and tape along their rows, plastic barriers across every side road, tape on posts along the open squares and arrow boards at the chicanes. The circuit is built from the 12.5 cm aerial photo and the laser scan of the Czech state survey: asphalt outline and widths, concrete strips, sand run-offs, tyre walls, landscape and buildings. Not tested in the game. 16 grid slots, 16 pit boxes, lap timing with one sector gate. Data: ČÚZK (CC BY 4.0), materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner or the organiser.",
   "tags": [
     "circuit",
     "czech",
@@ -20,6 +20,6 @@
   "pitboxes": "16",
   "run": "anticlockwise",
   "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-  "version": "17.0",
+  "version": "17.1",
   "url": ""
 }

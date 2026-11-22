@@ -18,8 +18,10 @@ GRID_SLOTS = 16
 GRID_LAT = 2.2          # metres left / right of the centre line
 GRID_STEP = 4.0         # metres between rows (staggered grid)
 PIT_SLOTS = 16
-PIT_X, PIT_Z0, PIT_DZ = 16.5, -30.0, 6.0
+PIT_X, PIT_Z0, PIT_DZ = 16.5, -30.0, 5.6       # 5.6 m apart: the last box then has asphalt, not the grass corner, ahead of it
 SPAWN_DY = 0.05
+STACK_ROOM = 1.7        # the racing line keeps this far from the side of a tyre stack (m)
+AI_SIDE_GAP = 0.3       # the AI's track limit stops this far short of a solid thing on the road (m)
 
 
 def grid_slots() -> list[tuple[float, float]]:
@@ -55,6 +57,8 @@ def make_dummies(tr: Track, surface=None) -> tuple[list[Dummy], dict]:
     # the circuit would not count
     for idx, st in (((0, 0.0), (1, float(round(tr.n / 2)))) if RACE_LAYOUT else ((0, 0.0),)):
         wl, wr = float(tr.interp(tr.wl, np.array([st]))[0]), float(tr.interp(tr.wr, np.array([st]))[0])
+        if idx == 0:
+            wl = max(wl, PIT_X + 0.5)                            # the start line reaches across the pit apron too
         out.append(Dummy(f"AC_TIME_{idx}_L", tuple(tr.world(st, wl + 2.5, 0.5)[0]), facing(st)))
         out.append(Dummy(f"AC_TIME_{idx}_R", tuple(tr.world(st, -(wr + 2.5), 0.5)[0]), facing(st)))
     info["sector_station"] = float(round(tr.n / 2)) if RACE_LAYOUT else None
@@ -71,9 +75,9 @@ def racing_line(tr: Track, margin: float = 1.7, iters: int = 60) -> np.ndarray:
     for st, lat in zip(near, lats):                             # keep clear of tyre stacks standing on or beside the road
         idx = (int(round(st)) + np.arange(-7, 8)) % tr.n
         if 0 < lat < tr.wl[idx].max() + 0.8:
-            hi[idx] = np.minimum(hi[idx], lat - 0.36 - 1.4)
+            hi[idx] = np.minimum(hi[idx], lat - 0.36 - STACK_ROOM)
         elif 0 > lat > -(tr.wr[idx].max() + 0.8):
-            lo[idx] = np.maximum(lo[idx], lat + 0.36 + 1.4)
+            lo[idx] = np.maximum(lo[idx], lat + 0.36 + STACK_ROOM)
     lo, hi = periodic_gauss(lo, 2.0), periodic_gauss(hi, 2.0)
     hi = np.maximum(hi, lo + 0.2)
     off = np.zeros(tr.n)
@@ -119,6 +123,28 @@ def write_ai(tr: Track, path: str) -> dict:
     extra[:, 4] = np.minimum(1.0 / np.maximum(np.abs(k), 1e-6), 2000.0)
     extra[:, 5] = tr.interp(tr.wl, st) - lat
     extra[:, 6] = tr.interp(tr.wr, st) + lat
+    # room to the left and right of the line: not more than there is before a tyre stack, a row of bags or a
+    # plastic barrier (the AI takes these two numbers for its track limits when it leaves the line)
+    import racekit
+    from scipy.spatial import cKDTree
+    solid = racekit.solid_points(tr) if len(tr.cones_en) else np.zeros((0, 3))
+    if len(solid):
+        en = tr.en(st, lat)
+        t = np.roll(en, -1, axis=0) - np.roll(en, 1, axis=0)
+        t /= np.linalg.norm(t, axis=1, keepdims=True)
+        nl = np.column_stack([-t[:, 1], t[:, 0]])
+        tree = cKDTree(solid[:, :2])
+        for i, near in enumerate(tree.query_ball_point(en, 14.0)):
+            if not near:
+                continue
+            q = solid[near]
+            d = q[:, :2] - en[i]
+            along, side = d @ t[i], d @ nl[i]
+            hit = np.abs(along) < 2.2 + q[:, 2]                      # beside the car, not ahead of it or behind
+            for col, sgn in ((5, 1.0), (6, -1.0)):
+                m = hit & (sgn * side > 0)
+                if m.any():
+                    extra[i, col] = min(extra[i, col], max(0.5, float((sgn * side[m] - q[m, 2]).min()) - AI_SIDE_GAP))
     extra[:, 7] = camber
     extra[:, 9:12] = normal
     extra[:, 12] = s
@@ -131,6 +157,7 @@ def write_ai(tr: Track, path: str) -> dict:
         f.write(rec.tobytes())
         f.write(struct.pack("<i", n))
         f.write(extra.astype("<f4").tobytes())
+        f.write(struct.pack("<i", 0))                            # "has grid" flag: none, the game builds its own
     return dict(points=n, length=length, lap_s=float((step / v).sum()), v_min=float(v.min() * 3.6), v_max=float(v.max() * 3.6),
                 off_min=float(off.min()), off_max=float(off.max()), line=p, speed=v)
 
@@ -252,7 +279,7 @@ LINES_MATERIALS = paint
 """
 
 
-INSTALL = """AUTODROM SOSNOVA v17.0 for Assetto Corsa: the race route of 5.12.2026
+INSTALL = """AUTODROM SOSNOVA v17.1 for Assetto Corsa: the race route of 5.12.2026
 ======================================================================
 
 INSTALL
@@ -264,48 +291,59 @@ INSTALL
    so that this file exists:
       ...\\content\\tracks\\sosnova_v9\\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v17.0 - Racing Days 5.12.2026".
+3. Start the game and pick the track "Autodrom Sosnova v17.1 - Racing Days 5.12.2026".
 
 THE ROUTE
-The red line of the organiser's map for the Liqui Moly Racing Days, 5.12.2026, built from scratch. __LAP__ m, anticlockwise:
-  1. Start on the start straight, heading east (the red arrow of the map; the start line is at the real painted line).
+The red line of the organiser's map for the Liqui Moly Racing Days, 5.12.2026. __LAP__ m, anticlockwise:
+  1. Start on the start straight, heading east (the red arrow of the map). The start line is at the real
+     painted line.
   2. Turn 1: left round the white concrete pad. Four tyre stacks stand on its edge.
-  3. Back west on the upper road, then a left-right chicane between two rows of tyre stacks.
+  3. Back west on the upper road. Then a chicane, left and right, between two rows of tyre stacks.
   4. North under the green bridge.
-  5. Right after the bridge, round a single stack with an arc of nine stacks on the outside, and east along the
-     infield road.
-  6. Right into the east loop, round its hairpin (left, a stack at the apex) and back north-west on the outer
-     road, past the junction closed by a row of six stacks.
-  7. Left onto the north straight, with its chicane of three rows of stacks: right, left, right. The middle
-     row stands on the road; the route passes it on the paved shoulder, as the map shows.
+  5. After the bridge turn right. A single stack is on the inside, a curved row of nine stacks on the outside.
+     Then east along the infield road.
+  6. Right into the east loop. Round its hairpin to the left; a stack stands at the apex. Then back north-west
+     on the outer road, past the junction that a row of six stacks closes.
+  7. Left onto the north straight. Its chicane has three rows of stacks: pass right, left, right. The middle
+     row stands on the road. The route passes it on the strip of asphalt beside the road, as the map shows.
   8. The west loop (left) and the long west straight.
   9. The long right-hander at its end, then south on the road west of the bridge.
- 10. The S-bend, left-right-left with a stack at each apex, and onto the start straight.
+ 10. The S-bend: left, right, left, with a stack at each apex. Then onto the start straight.
 
 WHAT STANDS ON THE TRACK
-- A tyre stack at each of the __DOTS__ yellow dots of the organiser's map. Dots that stand in a row are joined with
-  yellow soft bags and red and white tape (__ROWS__ rows). Some rows close roads that are not part of the route,
-  the others make the chicanes.
-- Orange cones mark the way where the route crosses open asphalt. A car passes through cones; tyre stacks and bags
-  are solid.
-- The two blue arrows of the map (the way in from the paddock and the way out to the pits) are roads of the
-  circuit. They are open in the track, but they are not part of the lap.
-- Where the stacks stand comes from dots on a small picture: each is right to about 1 to 2 m. On the day the
-  organiser may place them a little differently.
+- A tyre stack at each of the __DOTS__ yellow dots of the organiser's map. Each is four tyres high.
+- Dots that stand in a row are joined with yellow soft bags and red and white tape (__ROWS__ rows). Some rows close
+  roads that are not part of the route. The others make the chicanes.
+- New in 17.1, more barriers and tape. The organiser's map does not show these. They stand where track helpers
+  would put them, so you can always see where to go:
+    - red and white plastic barriers across every side road of the route, from grass to grass
+      (__BROWS__ rows, __BM__ m);
+    - red and white tape on posts along the edges of the big square and at the north chicane
+      (__TLINES__ lines, __TM__ m);
+    - arrow boards at the chicanes and round the outside of the east hairpin. They point to the side to pass.
+- Orange cones mark the edge where nothing else does.
+- Solid, you hit them: tyre stacks, bags, plastic barriers. Not solid, a car goes through: tape, posts, cones,
+  arrow boards.
+- Three places stay open: the pit apron beside the start straight, the way in from the paddock at the west end
+  of the bottom road, and the way out to the pits outside turn 1 (the two blue arrows of the map).
+- The places of the tyre stacks come from dots on a small picture. Each stack can be 1 to 2 m away from its real
+  place. On the day the organiser may place them a little differently.
 
 THE CIRCUIT
-- Autodrom Sosnova as it really is. Every piece of asphalt has its real outline, taken from the aerial photo of
-  the Czech state survey (12.5 cm per pixel). The lap has its real widths.
-- The surface is a copy of the photo over a close-up scan of asphalt. The concrete strips along the edges (the
-  real kerbs of Sosnova are flat grey concrete) and the white pad of turn 1 are part of the surface.
-- The real sand run-offs, the real tyre walls (about 430 m), the pit wall and the paddock wall.
-- The landscape, the buildings with their roofs, the trees and the motorway viaduct come from the laser scan of
-  the Czech state survey. Everything stands in 3D.
+- Built from the aerial photo (12.5 cm per pixel) and the laser scan of the Czech state survey. The asphalt has
+  the outline and the widths the photo shows.
+- The road looks like the aerial photo, with a detailed asphalt picture on top. The concrete strips along the
+  edges (the kerbs of Sosnova are flat grey concrete) and the white pad of turn 1 are part of the surface.
+- The sand run-offs, the tyre walls of the photo (about __WALLS__ m), the pit wall and the paddock wall.
+- The landscape, the buildings with their roofs, the trees and the motorway viaduct come from the laser scan.
 - How exact it is: the edges of the road are right to about 20 cm, the heights to about 10 to 20 cm. It is not
-  exact to the millimetre: the data is an aerial photo and an airborne laser scan.
+  exact to the millimetre.
 - Chequered start line, start lights, 16 grid boxes, 16 pit boxes on the wide asphalt beside the start straight.
-- Lap timing: the start/finish line and one sector gate half-way round, so only a lap on the race route counts.
-  The AI drivers and the ideal line follow the race route.
+- Lap timing: the time is taken at the start line. There is one check line half-way round. A lap counts only
+  if you cross both. The game cannot see if you go through tape.
+- AI cars should follow the race route (not tested in the game). Use a race from the grid: there is no pit lane
+  line for the AI, so in practice or qualifying AI cars may stay in the pits.
+- The track is big: 93 MB and many textures. It needs a graphics card with at least 2 GB of memory.
 
 NOT TESTED IN THE GAME
 The track was built and checked with tools (file structure, surfaces, AI line, spawn points, timing gates), and
@@ -322,14 +360,21 @@ Materials and tree models: Poly Haven, CC0. Not affiliated with the circuit owne
 """
 
 
-def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: list[str] | None = None) -> None:
+def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: list[str] | None = None, facts: dict | None = None) -> None:
     os.makedirs(os.path.join(out, "data"), exist_ok=True)
     os.makedirs(os.path.join(out, "ui"), exist_ok=True)
     os.makedirs(os.path.join(out, "extension"), exist_ok=True)
     open(os.path.join(out, "data", "surfaces.ini"), "w", newline="\r\n").write(SURFACES)
     from props import race_rows
     rows = sum(1 for r in race_rows(tr) if len(r) > 1)
+    import racekit
+    extras = racekit.extra_lines(tr)
+    bar, tap = [e for e in extras if e["kind"] == "barrier"], [e for e in extras if e["kind"] == "tape"]
     install = INSTALL.replace("__LAP__", str(int(round(tr.lap)))).replace("__DOTS__", str(tr.map_dots)).replace("__ROWS__", str(rows))
+    install = install.replace("__BROWS__", str(len(bar))).replace("__BM__", str(int(round(sum(e["length"] for e in bar)))))
+    install = install.replace("__TLINES__", str(len(tap))).replace("__TM__", str(int(round(racekit.tape_length(tap)))))
+    install = install.replace("__WALLS__", str(int(round((facts or {}).get("tyre_wall_m", 0.0) / 10.0)) * 10))
+    assert "__" not in install
     open(os.path.join(out, "INSTALL.txt"), "w", newline="\r\n").write(install)
     names = sorted(materials or [])
     asphalt = [m for m in names if m.startswith("lap") or (m[:1] == "a" and m[1:].isdigit()) or (m[:2] in ("kl", "kr") and m[2:].isdigit()) or (m[:1] == "c" and m[1:].isdigit())]
@@ -382,12 +427,13 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
                     "DOF_MANUAL=0\nSPLINE=0\nSPLINE_ANIMATION_LENGTH=0\nIS_FIXED=0\n")
     open(os.path.join(out, "data", "cameras.ini"), "w", newline="\r\n").write("\n".join(cams))
     ui = {
-        "name": "Autodrom Sosnová v17.0 - Racing Days 5.12.2026",
+        "name": "Autodrom Sosnová v17.1 - Racing Days 5.12.2026",
         "description": "Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the Liqui Moly Racing Days of 5.12.2026: the race "
                        "route of the organiser's map (%d m, anticlockwise) with a tyre stack at each of its %d yellow dots, bags and "
-                       "tape along their rows and cones across open asphalt. The circuit is the real one: every piece of asphalt "
-                       "with its real outline and width from the 12.5 cm aerial photo of the Czech state survey, the real concrete "
-                       "strips, sand run-offs and tyre walls, the laser-scanned landscape and buildings. "
+                       "tape along their rows, plastic barriers across every side road, tape on posts along the open squares "
+                       "and arrow boards at the chicanes. The circuit is built from the 12.5 cm aerial photo and the laser "
+                       "scan of the Czech state survey: asphalt outline and widths, concrete strips, sand run-offs, tyre walls, "
+                       "landscape and buildings. Not tested in the game. "
                        "16 grid slots, 16 pit boxes, lap timing with one sector gate. Data: ČÚZK (CC BY 4.0), "
                        "materials from Poly Haven (CC0). Optional CSP grass and rain. Not affiliated with the circuit owner or "
                        "the organiser." % (int(round(tr.lap)), tr.map_dots),
@@ -400,7 +446,7 @@ def write_data(tr: Track, out: str, ai: dict, bounds_xz: np.ndarray, materials: 
         "pitboxes": str(PIT_SLOTS),
         "run": "anticlockwise",
         "author": "Sosnova track kit (data: ČÚZK Ortofoto ČR + DMR 5G, CC BY 4.0)",
-        "version": "17.0",
+        "version": "17.1",
         "url": "",
     }
     json.dump(ui, open(os.path.join(out, "ui", "ui_track.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

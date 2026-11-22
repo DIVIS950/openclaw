@@ -1,4 +1,4 @@
-AUTODROM SOSNOVA v17.0 for Assetto Corsa: the race route of 5.12.2026
+AUTODROM SOSNOVA v17.1 for Assetto Corsa: the race route of 5.12.2026
 ======================================================================
 
 INSTALL
@@ -10,48 +10,59 @@ INSTALL
    so that this file exists:
       ...\content\tracks\sosnova_v9\sosnova_v9.kn5
    (With Content Manager you can also just drag the zip onto its window.)
-3. Start the game and pick the track "Autodrom Sosnova v17.0 - Racing Days 5.12.2026".
+3. Start the game and pick the track "Autodrom Sosnova v17.1 - Racing Days 5.12.2026".
 
 THE ROUTE
-The red line of the organiser's map for the Liqui Moly Racing Days, 5.12.2026, built from scratch. 1678 m, anticlockwise:
-  1. Start on the start straight, heading east (the red arrow of the map; the start line is at the real painted line).
+The red line of the organiser's map for the Liqui Moly Racing Days, 5.12.2026. 1678 m, anticlockwise:
+  1. Start on the start straight, heading east (the red arrow of the map). The start line is at the real
+     painted line.
   2. Turn 1: left round the white concrete pad. Four tyre stacks stand on its edge.
-  3. Back west on the upper road, then a left-right chicane between two rows of tyre stacks.
+  3. Back west on the upper road. Then a chicane, left and right, between two rows of tyre stacks.
   4. North under the green bridge.
-  5. Right after the bridge, round a single stack with an arc of nine stacks on the outside, and east along the
-     infield road.
-  6. Right into the east loop, round its hairpin (left, a stack at the apex) and back north-west on the outer
-     road, past the junction closed by a row of six stacks.
-  7. Left onto the north straight, with its chicane of three rows of stacks: right, left, right. The middle
-     row stands on the road; the route passes it on the paved shoulder, as the map shows.
+  5. After the bridge turn right. A single stack is on the inside, a curved row of nine stacks on the outside.
+     Then east along the infield road.
+  6. Right into the east loop. Round its hairpin to the left; a stack stands at the apex. Then back north-west
+     on the outer road, past the junction that a row of six stacks closes.
+  7. Left onto the north straight. Its chicane has three rows of stacks: pass right, left, right. The middle
+     row stands on the road. The route passes it on the strip of asphalt beside the road, as the map shows.
   8. The west loop (left) and the long west straight.
   9. The long right-hander at its end, then south on the road west of the bridge.
- 10. The S-bend, left-right-left with a stack at each apex, and onto the start straight.
+ 10. The S-bend: left, right, left, with a stack at each apex. Then onto the start straight.
 
 WHAT STANDS ON THE TRACK
-- A tyre stack at each of the 57 yellow dots of the organiser's map. Dots that stand in a row are joined with
-  yellow soft bags and red and white tape (8 rows). Some rows close roads that are not part of the route,
-  the others make the chicanes.
-- Orange cones mark the way where the route crosses open asphalt. A car passes through cones; tyre stacks and bags
-  are solid.
-- The two blue arrows of the map (the way in from the paddock and the way out to the pits) are roads of the
-  circuit. They are open in the track, but they are not part of the lap.
-- Where the stacks stand comes from dots on a small picture: each is right to about 1 to 2 m. On the day the
-  organiser may place them a little differently.
+- A tyre stack at each of the 57 yellow dots of the organiser's map. Each is four tyres high.
+- Dots that stand in a row are joined with yellow soft bags and red and white tape (7 rows). Some rows close
+  roads that are not part of the route. The others make the chicanes.
+- New in 17.1, more barriers and tape. The organiser's map does not show these. They stand where track helpers
+  would put them, so you can always see where to go:
+    - red and white plastic barriers across every side road of the route, from grass to grass
+      (14 rows, 302 m);
+    - red and white tape on posts along the edges of the big square and at the north chicane
+      (5 lines, 234 m);
+    - arrow boards at the chicanes and round the outside of the east hairpin. They point to the side to pass.
+- Orange cones mark the edge where nothing else does.
+- Solid, you hit them: tyre stacks, bags, plastic barriers. Not solid, a car goes through: tape, posts, cones,
+  arrow boards.
+- Three places stay open: the pit apron beside the start straight, the way in from the paddock at the west end
+  of the bottom road, and the way out to the pits outside turn 1 (the two blue arrows of the map).
+- The places of the tyre stacks come from dots on a small picture. Each stack can be 1 to 2 m away from its real
+  place. On the day the organiser may place them a little differently.
 
 THE CIRCUIT
-- Autodrom Sosnova as it really is. Every piece of asphalt has its real outline, taken from the aerial photo of
-  the Czech state survey (12.5 cm per pixel). The lap has its real widths.
-- The surface is a copy of the photo over a close-up scan of asphalt. The concrete strips along the edges (the
-  real kerbs of Sosnova are flat grey concrete) and the white pad of turn 1 are part of the surface.
-- The real sand run-offs, the real tyre walls (about 430 m), the pit wall and the paddock wall.
-- The landscape, the buildings with their roofs, the trees and the motorway viaduct come from the laser scan of
-  the Czech state survey. Everything stands in 3D.
+- Built from the aerial photo (12.5 cm per pixel) and the laser scan of the Czech state survey. The asphalt has
+  the outline and the widths the photo shows.
+- The road looks like the aerial photo, with a detailed asphalt picture on top. The concrete strips along the
+  edges (the kerbs of Sosnova are flat grey concrete) and the white pad of turn 1 are part of the surface.
+- The sand run-offs, the tyre walls of the photo (about 330 m), the pit wall and the paddock wall.
+- The landscape, the buildings with their roofs, the trees and the motorway viaduct come from the laser scan.
 - How exact it is: the edges of the road are right to about 20 cm, the heights to about 10 to 20 cm. It is not
-  exact to the millimetre: the data is an aerial photo and an airborne laser scan.
+  exact to the millimetre.
 - Chequered start line, start lights, 16 grid boxes, 16 pit boxes on the wide asphalt beside the start straight.
-- Lap timing: the start/finish line and one sector gate half-way round, so only a lap on the race route counts.
-  The AI drivers and the ideal line follow the race route.
+- Lap timing: the time is taken at the start line. There is one check line half-way round. A lap counts only
+  if you cross both. The game cannot see if you go through tape.
+- AI cars should follow the race route (not tested in the game). Use a race from the grid: there is no pit lane
+  line for the AI, so in practice or qualifying AI cars may stay in the pits.
+- The track is big: 93 MB and many textures. It needs a graphics card with at least 2 GB of memory.
 
 NOT TESTED IN THE GAME
 The track was built and checked with tools (file structure, surfaces, AI line, spawn points, timing gates), and

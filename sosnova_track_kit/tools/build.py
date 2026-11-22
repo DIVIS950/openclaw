@@ -16,6 +16,7 @@ from shapely.ops import unary_union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge  # noqa: E402
+import racekit  # noqa: E402
 import bridge_geom  # noqa: E402
 import circuit  # noqa: E402
 import ground  # noqa: E402
@@ -54,6 +55,7 @@ MATERIALS = [
     M("kerb", "kerb.jpg", specular=0.10, specular_exp=30),
     M("barricade", "barricade.jpg", specular=0.18, specular_exp=40),
     M("tyres", "tyres.jpg", specular=0.05),
+    M("arrow", "arrow.jpg", specular=0.04),
     M("tyredark", "tyredark.jpg", specular=0.0),
     M("banner", "banner.jpg", specular=0.12, specular_exp=30),
     M("foliagec", "foliage_c.jpg", ambient=0.75, diffuse=0.5, specular=0.0),
@@ -105,7 +107,15 @@ def main() -> None:
     # cones along the lap wherever it crosses open asphalt
     race = props.build_tyre_stacks(tr, parts)
     from common import RACE_LAYOUT
-    race.update(props.build_cones(tr, parts) if RACE_LAYOUT else dict(cones=0))
+    from shapely.geometry import LineString
+    # what the map leaves to the marshals: plastic barriers across the side roads, tape on posts along the open
+    # squares, arrow boards at the chicanes (circuit.RACE_EXTRAS)
+    extras = racekit.extra_lines(tr)
+    race.update(racekit.build_plastic_barriers(tr, parts, [e_ for e_ in extras if e_["kind"] == "barrier"]))
+    race.update(racekit.build_tape_lines(tr, parts, [e_ for e_ in extras if e_["kind"] == "tape"]))
+    race.update(racekit.build_arrow_boards(tr, parts, extras) if RACE_LAYOUT else dict(arrow_boards=0))
+    marked = unary_union([LineString(e_["en"]) for e_ in extras]) if extras else None
+    race.update(props.build_cones(tr, parts, marked) if RACE_LAYOUT else dict(cones=0))
     race.update(props.build_fences(tr, parts, [(pit_wall, 1.05)] + [(bb["en"], bb["height"]) for bb in circuit.BARRIERS]))
     race.update(props.build_tape(tr, parts))
     rows = props.build_tyre_walls(tr, parts, Polygon(), Polygon(), lines=props.race_barrier_lines(tr), min_len=1.0, anywhere=True)
@@ -132,7 +142,7 @@ def main() -> None:
     kn5.write(kn5_path, TRACK, tex, materials, meshes, dummies)
     ai = layout.write_ai(tr, os.path.join(OUT, "ai", "fast_lane.ai"))
     edges = np.vstack([tr.fr.xz(tr.edge_en(1)), tr.fr.xz(tr.edge_en(-1))])
-    layout.write_data(tr, OUT, ai, edges, [m.name for m in materials])
+    layout.write_data(tr, OUT, ai, edges, [m.name for m in materials], facts=dict(tyre_wall_m=walls["tyre_wall_m"]))
     summary = dict(
         track=TRACK, lap_m=tr.lap, meshes=len(meshes), vertices=int(sum(len(m.pos) for m in meshes)),
         triangles=int(sum(len(m.tris) for m in meshes)), kn5_mb=round(os.path.getsize(kn5_path) / 1e6, 2),

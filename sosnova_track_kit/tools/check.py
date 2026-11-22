@@ -18,6 +18,7 @@ from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kn5  # noqa: E402
+import layout  # noqa: E402
 from common import OUT, TRACK  # noqa: E402
 
 FAILS: list[str] = []
@@ -128,7 +129,7 @@ def main() -> None:
     ver, rec, extra, tail = read_ai(os.path.join(OUT, "ai", "fast_lane.ai"))
     p = rec["p"].astype(np.float64)
     n = len(p)
-    check(ver == 7 and tail == 0 and len(extra) == n, f"fast_lane.ai well formed ({n} points)")
+    check(ver == 7 and tail == 4 and len(extra) == n, f"fast_lane.ai well formed ({n} points, then the empty grid flag)")
     step = np.linalg.norm(np.roll(p, -1, axis=0) - p, axis=1)
     check(abs(step.mean() - 1.0) < 0.02 and step.max() < 1.1, f"points about 1 m apart (mean {step.mean():.3f}, max {step.max():.3f})")
     on_road, dy = 0, []
@@ -197,6 +198,15 @@ def main() -> None:
         clear = min(clear, float(wall_tree.query(pos[[0, 2]])[0]))
         pit_ok &= m[2, 2] > 0.5                       # pointing up the straight, towards the track
     check(pit_ok and pit_h < 0.03, f"pit boxes stand on asphalt facing the track exit (height error {pit_h * 1000:.0f} mm)")
+    off_road, tight = 0, 1e9
+    for name in pits:                                            # the way out: 15 m straight ahead of every pit box
+        m = dummies[name].astype(np.float64)
+        for s_ in np.arange(1.0, 15.01, 0.5):
+            q_ = m[3, :3] + m[2, :3] * s_
+            sname = ground.at(q_[0], q_[2])[1]
+            off_road += not (sname and sname.startswith(("1APRON", "1ROAD")))
+            tight = min(tight, float(wall_tree.query(q_[[0, 2]])[0]))
+    check(off_road == 0 and tight > 1.5, f"straight ahead of every pit box there is 15 m of asphalt with nothing solid within 1.5 m ({off_road} points off the asphalt, nearest solid thing {tight:.1f} m)")
     check(clear > 2.5, f"no wall within 2.5 m of any spawn point (nearest {clear:.1f} m)")
     d = np.array([dummies[s][3, :3] for s in starts + pits])
     dd = cKDTree(d).query(d, k=2)[0][:, 1]
@@ -390,6 +400,74 @@ def main() -> None:
         bv = to_en(np.vstack([m["vertices"]["pos"] for m in blocks]).astype(np.float64))
         d = _dist(_points(bv), lap_poly)
         check(float(d.min()) > 0.8, f"barricades stand off the race lap ({len(blocks)} meshes, nearest {float(d.min()):.2f} m from its edge)")
+    import racekit
+    extras = racekit.extra_lines(tr)
+    if extras:                                                         # what the map leaves to the marshals
+        print("barriers and tape beyond the map")
+        rows_ = [r_ for r_ in racekit.race_rows(tr) if len(r_) > 1]
+        span = max(float(np.linalg.norm(np.diff(r_, axis=0), axis=1).max()) for r_ in rows_)
+        check(span <= racekit.ROW_GAP + 1e-6, f"bags and tape join only neighbouring dots of a row ({len(rows_)} rows, longest span {span:.1f} m)")
+        want = [e_ for e_ in extras if e_["kind"] == "barrier"]
+        miss = 9e9
+        if blocks:
+            tb = cKDTree(bv)
+            miss = max(float(tb.query(e_["en"])[0].max()) for e_ in want)
+        check(miss < 1.0, f"the {len(want)} closed side roads have their plastic barriers ({sum(e_['length'] for e_ in want):.0f} m in all; no point of a "
+              f"closure is further than {miss:.2f} m from a barrier)")
+        tapes = [e_ for e_ in extras if e_["kind"] == "tape"]
+        tl = [m for m in meshes if m["name"].startswith("TAPE_lines")]
+        tmiss = 9e9
+        if tl:
+            tt = cKDTree(to_en(np.vstack([m["vertices"]["pos"] for m in tl]).astype(np.float64)))
+            tmiss = max(float(tt.query(e_["en"][[0, -1]])[0].max()) for e_ in tapes)
+        check(tmiss < 0.6, f"the {len(tapes)} tape lines are strung from end to end ({sum(e_['length'] for e_ in tapes):.0f} m in all, ends within {tmiss:.2f} m)")
+        soft = [m["name"] for m in meshes if m["name"].startswith(("TAPE_", "POSTS_", "SIGN_arrow", "CONES_", "TYRES_race"))]
+        check(len(soft) >= 5 and not any(n_[0].isdigit() for n_ in soft),
+              f"tape, posts, cones, arrow boards and the tyres you see have no collision ({len(soft)} meshes); stacks, bags and plastic barriers are solid")
+        pits_en = np.array([tr.pit_ref_en(layout.PIT_Z0 + layout.PIT_DZ * k_, layout.PIT_X) for k_ in range(layout.PIT_SLOTS)])
+        allp = np.vstack([e_["en"] for e_ in extras])
+        dp = float(cKDTree(allp).query(pits_en)[0].min())
+        from shapely.geometry import LineString as _LS
+        ways = [_LS([p_, tr.pit_ref_en(layout.PIT_Z0 + layout.PIT_DZ * k_ + 12.0, 0.0)]) for k_, p_ in enumerate(pits_en)]   # out to the start straight, ahead and to the right
+        shut = sum(any(w_.intersects(_LS(e_["en"])) for e_ in extras) for w_ in ways)
+        check(dp > 3.5 and shut == 0, f"the pit apron stays open: no added barrier or tape within 3.5 m of a pit box (nearest {dp:.1f} m) and none between a "
+              f"pit box and the start straight ({shut} ways out crossed)")
+        # can a car 2 m wide leave the route on asphalt? Flood the asphalt from the lap, with the rows of dots, the
+        # added barriers and tape, the real walls and the stacks in the way
+        import circuit as _circuit
+        import props as _props
+        import realmap as _realmap
+        from shapely.geometry import Point as _PT, Polygon as _PG
+        from shapely.ops import unary_union as _uu
+        rib_ = _PG(np.vstack([tr.edge_en(1), tr.edge_en(-1)[::-1]])).buffer(0)
+        block = [_LS(e_["en"]) for e_ in extras] + [_LS(r_) for r_ in rows_] + [_PT(c_).buffer(0.33) for c_ in tr.cones_en]
+        block += [_LS(w_["en"]) for w_ in _realmap.walls()] + [_LS(_props.pit_wall_line(tr))] + [_LS(b_["en"]) for b_ in _circuit.BARRIERS]
+        free = _uu([_realmap.asphalt(), rib_]).buffer(-1.0).difference(_uu(block).buffer(1.0))
+        core = rib_.buffer(-2.5)
+        got = _uu([g_ for g_ in getattr(free, "geoms", [free]) if g_.intersects(core)]).buffer(1.0).difference(rib_.buffer(8.0))
+        away = [g_ for g_ in getattr(got, "geoms", [got]) if not g_.is_empty and g_.area > 100.0]
+        meant = [g_ for g_ in away if any(g_.distance(_PT(q_)) < 12.0 for q_ in _circuit.RACE_OPEN.values())]
+        check(len(away) == len(meant), f"a car 2 m wide cannot leave the route on asphalt except where it is meant to: {len(away)} openings of more than 100 m2 beyond 8 m "
+              f"from the lap ({', '.join(str(int(round(g_.area))) + ' m2' for g_ in away)}), {len(meant)} of them at the pit apron or a blue arrow of the map")
+        # the room the AI file gives beside the line against what stands solid on the road
+        sv = np.vstack([m["vertices"]["pos"] for m in meshes if m["name"].startswith(("1WALL_tyrestacks", "1WALL_bags", "1WALL_barricade"))]).astype(np.float64)[:, [0, 2]]
+        st_ = cKDTree(sv)
+        fw = extra[:, [13, 15]].astype(np.float64)
+        fw /= np.linalg.norm(fw, axis=1, keepdims=True)
+        lf = np.column_stack([fw[:, 1], -fw[:, 0]])                # the driver's left
+        over, worst = 0, 0.0
+        for i_, near_ in enumerate(st_.query_ball_point(p[:, [0, 2]], 12.0)):
+            if not near_:
+                continue
+            d_ = sv[near_] - p[i_, [0, 2]]
+            al_, sd_ = d_ @ fw[i_], d_ @ lf[i_]
+            for col_, sg_ in ((5, 1.0), (6, -1.0)):
+                m_ = (np.abs(al_) < 1.5) & (sg_ * sd_ > 0.3)
+                if m_.any():
+                    gap_ = float(extra[i_, col_]) - float((sg_ * sd_[m_]).min())
+                    worst = max(worst, gap_)
+                    over += gap_ > 0.15
+        check(over == 0, f"the AI file gives no more room beside the line than there is before a stack, a bag or a plastic barrier ({over} points give more, by up to {max(worst, 0):.2f} m)")
     stacks = [m for m in meshes if m["name"].startswith("1WALL_tyrestacks")]
     if len(tr.cones_en):
         top = Surface(stacks)

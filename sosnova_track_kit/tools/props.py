@@ -228,11 +228,14 @@ def build_viaduct(tr: Track, parts: Parts) -> dict:
                 viaduct_above_ground_m=round(float(np.max(top - tr.H.ground(c))), 1))
 
 
+PIT_WALL_END = 92.0   # the pit wall stops here (metres along the pit line): beyond it the road out to the pits leaves the track
+
+
 def pit_wall_line(tr: Track) -> np.ndarray:
     """The low concrete wall between the start straight and the pit buildings: 1.1 m outside the real asphalt edge
     (east/north points)."""
     from scipy.ndimage import gaussian_filter1d
-    st = np.arange(int(round(tr.pit_station(-6.0))), int(round(tr.pit_station(112.0))), 2)
+    st = np.arange(int(round(tr.pit_station(-6.0))), int(round(tr.pit_station(PIT_WALL_END))), 2)
     w = gaussian_filter1d(np.tile(tr.wr, 3), 6.0)[tr.n + st]
     return tr.en(st.astype(float), -(w + 1.1))
 
@@ -253,12 +256,15 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
         s = np.concatenate([[0], np.cumsum(seg)])
         m = max(2, int(round(s[-1] / 0.65)) + 1)
         q = np.column_stack([np.interp(np.linspace(0, s[-1], m), s, p[:, 0]), np.interp(np.linspace(0, s[-1], m), s, p[:, 1])])
-        ok = np.ones(len(q), bool) if anywhere else ~contains_xy(off, q[:, 0], q[:, 1]) & contains_xy(venue, q[:, 0], q[:, 1])
+        # a concrete wall stands where it stands, also at the edge of asphalt: it only keeps off the lap itself
+        clear = keep_clear if line.get("material") == "concrete" else off
+        ok = np.ones(len(q), bool) if anywhere else ~contains_xy(clear, q[:, 0], q[:, 1]) & contains_xy(venue, q[:, 0], q[:, 1])
         dd = np.diff(np.concatenate([[0], ok.astype(int), [0]]))
         for a0, a1 in zip(np.where(dd == 1)[0], np.where(dd == -1)[0]):
             if (a1 - a0) * 0.65 >= min_len:
                 pieces.append((line, q[a0:a1]))
     count, length = 0, 0.0
+    by_kind: dict[str, float] = {}
     stacks_q, stacks_w, bag_q = [], [], []
     for k, (line, q) in enumerate(pieces):
         if line.get("material") == "bags":                            # soft bags are single bodies, not one long block
@@ -300,7 +306,8 @@ def build_tyre_walls(tr: Track, parts: Parts, keep_clear, asphalt, lines: list |
             dd = tr.fr.vec(d[e][None])[0] * (-1 if e == 0 else 1)
             parts.quad(name, mat, [a, b, b + UP * (h + 0.2), a + UP * (h + 0.2)], (0.02, 0, 0.2, 1), hint=(dd[0], 0.0, dd[1]), smooth=False)
         count, length = count + 1, length + float(s[-1])
-    out = dict(walls=count, metres=round(length))
+        by_kind[mat] = by_kind.get(mat, 0.0) + float(s[-1])
+    out = dict(walls=count, metres=round(length), tyre_wall_m=round(by_kind.get("tyredark", 0.0)), concrete_wall_m=round(by_kind.get("concrete", 0.0)))
     if stacks_q:
         import solid
         out.update(solid.build_tyre_stacks(tr, parts, stacks_q, stacks_w))
@@ -397,17 +404,18 @@ GANTRY_AT = 20.0      # metres after the start line, so every car on the grid se
 
 
 def build_gantry(tr: Track, parts: Parts) -> None:
-    """Start lights on a gantry over the road, facing the grid."""
+    """Start lights over the road, facing the grid. They hang from an arm on one mast on the pit-wall side (the
+    driver's right), so nothing solid stands on the pit apron between the pit boxes and the start straight."""
     st = GANTRY_AT
     wl, wr = float(tr.interp(tr.wl, np.array([st]))[0]), float(tr.interp(tr.wr, np.array([st]))[0])
-    left, right = tr.world(st, wl + 1.0)[0], tr.world(st, -(wr + 1.0))[0]
+    right = tr.world(st, -(wr + 1.0))[0]
     road = tr.world(st, 0.0)[0]
-    for p in (left, right):
-        c = np.array([(p[0] - 0.12, p[2] - 0.12), (p[0] + 0.12, p[2] - 0.12), (p[0] + 0.12, p[2] + 0.12), (p[0] - 0.12, p[2] + 0.12)])
-        box(parts, "1WALL_gantry", "metal", c, p[1] - 0.4, road[1] + 6.1, uv_scale=(2.0, 2.0), top_uv=2.0)
-    beam = np.array([(right[0], right[2] - 0.15), (left[0], left[2] - 0.15), (left[0], left[2] + 0.15), (right[0], right[2] + 0.15)])
+    cx = (wl - wr) / 2                                                  # the lights hang over the middle of the road
+    p = right
+    c = np.array([(p[0] - 0.18, p[2] - 0.18), (p[0] + 0.18, p[2] - 0.18), (p[0] + 0.18, p[2] + 0.18), (p[0] - 0.18, p[2] + 0.18)])
+    box(parts, "1WALL_gantry", "metal", c, p[1] - 0.4, road[1] + 6.25, uv_scale=(2.0, 2.0), top_uv=2.0)
+    beam = np.array([(right[0], right[2] - 0.15), (cx + 2.9, right[2] - 0.15), (cx + 2.9, right[2] + 0.15), (right[0], right[2] + 0.15)])
     box(parts, "GANTRY_beam", "metal", beam, road[1] + 5.6, road[1] + 6.1, uv_scale=(2.0, 2.0), top_uv=2.0)
-    cx = (left[0] + right[0]) / 2
     z = road[2] - 0.2
     p = [(cx + 2.4, road[1] + 4.4, z), (cx - 2.4, road[1] + 4.4, z), (cx - 2.4, road[1] + 5.6, z), (cx + 2.4, road[1] + 5.6, z)]    # seen from the grid
     parts.quad("GANTRY_lights", "lights", p, (0.0, 0.0, 1.0, 1.0), hint=(0, 0, -1), smooth=False)
@@ -449,132 +457,8 @@ def build_brake_boards(tr: Track, parts: Parts) -> int:
     return count
 
 
-def build_tyre_stacks(tr: Track, parts: Parts) -> dict:
-    """Tyre stacks of the race layout: one at every yellow dot of the organiser's map (registered on the photo,
-    tr.cones_en). Four tyres high, the top one painted yellow. They stand beside the lap and form the chicanes."""
-    R_, H_, SEG = 0.34, 0.92, 10
-    ang = np.linspace(0, 2 * np.pi, SEG + 1)
-    ring = np.column_stack([np.cos(ang), np.sin(ang)])
-    P, U, T, HN, TP, TU, TT, off, toff = [], [], [], [], [], [], [], 0, 0
-    for c in tr.cones_en:
-        g = float(tr.H.ground(np.array([c]))[0])
-        en = c[None, :] + ring * R_
-        lo, hi = tr.fr.world(en, np.full(SEG + 1, g - 0.15)), tr.fr.world(en, np.full(SEG + 1, g + H_))
-        out = tr.fr.vec(ring)
-        n3 = np.column_stack([out[:, 0], np.zeros(SEG + 1), out[:, 1]])
-        P.append(np.vstack([lo, hi]))
-        U.append(np.vstack([np.column_stack([ang / (2 * np.pi) * 3, np.zeros(SEG + 1)]), np.column_stack([ang / (2 * np.pi) * 3, np.ones(SEG + 1)])]))
-        r = np.arange(SEG)
-        mid = n3[r] + n3[r + 1]
-        HN.append(np.vstack([mid, mid]))                           # one outward vector per side triangle
-        T.append(np.concatenate([np.stack([r, r + SEG + 1, r + SEG + 2], -1), np.stack([r, r + SEG + 2, r + 1], -1)]) + off)
-        off += 2 * (SEG + 1)
-        top = np.vstack([hi[:SEG], tr.fr.world(c[None, :], np.array([g + H_]))])
-        TP.append(top)
-        TU.append(np.column_stack([np.full(SEG + 1, 0.5), np.full(SEG + 1, 0.95)]))
-        TT.append(np.stack([np.full(SEG, SEG), r, (r + 1) % SEG], -1) + toff)
-        toff += SEG + 1
-    if P:
-        parts.surface("1WALL_tyrestacks", "tyres", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.vstack(HN), smooth=True)
-        parts.surface("1WALL_tyrestacks", "tyres", np.vstack(TP), np.vstack(TU), np.vstack(TT), hint=UP, smooth=False)
-    return dict(tyre_stacks=len(tr.cones_en))
-
-
-def race_rows(tr: Track, max_gap: float = 8.5) -> list[np.ndarray]:
-    """The yellow dots of the organiser's map grouped into rows: dots closer than max_gap belong to one row,
-    ordered along it. Each row is one closure of the race layout."""
-    c = tr.cones_en
-    n = len(c)
-    group = list(range(n))
-
-    def find(i):
-        while group[i] != i:
-            group[i] = group[group[i]]
-            i = group[i]
-        return i
-    for i in range(n):
-        for j in range(i + 1, n):
-            if np.linalg.norm(c[i] - c[j]) <= max_gap:
-                group[find(i)] = find(j)
-    rows = {}
-    for i in range(n):
-        rows.setdefault(find(i), []).append(i)
-    out = []
-    for ids in rows.values():
-        p = c[ids]
-        if len(p) > 1:
-            axis = np.linalg.svd(p - p.mean(0))[2][0]
-            p = p[np.argsort((p - p.mean(0)) @ axis)]
-        out.append(p)
-    return out
-
-
-def race_barrier_lines(tr: Track) -> list[dict]:
-    """Red and white plastic barriers that fill each row between its tyre barrels (east/north polylines)."""
-    out = []
-    for row in race_rows(tr):
-        for a, b in zip(row[:-1], row[1:]):
-            d = float(np.linalg.norm(b - a))
-            if d < 2.2:
-                continue
-            u = (b - a) / d
-            out.append(dict(en=[(a + u * 0.55).round(2).tolist(), (b - u * 0.55).round(2).tolist()], width=0.62, height=0.52, material="bags"))
-    return out
-
-
-def build_tape(tr: Track, parts: Parts) -> dict:
-    """Red and white barrier tape strung from tyre barrel to tyre barrel along each row, above the barriers
-    (visual only)."""
-    P, U, T, HN, off, total = [], [], [], [], 0, 0.0
-    for row in race_rows(tr):
-        for a, b in zip(row[:-1], row[1:]):
-            d = float(np.linalg.norm(b - a))
-            en = np.array([a, b])
-            g = tr.H.ground(en)
-            pos = np.vstack([tr.fr.world(en, g + 0.80), tr.fr.world(en, g + 0.87)])
-            P.append(pos)
-            U.append(np.array([[0, 0.3], [d / 1.0, 0.3], [0, 0.6], [d / 1.0, 0.6]]))
-            T.append(np.array([[0, 1, 3], [0, 3, 2]]) + off)
-            side = tr.fr.vec(np.array([[-(b - a)[1], (b - a)[0]]]) / d)[0]
-            HN += [(side[0], 0.0, side[1])] * 2
-            off += 4
-            total += d
-    if P:
-        parts.surface("TAPE_rows", "barricade", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.array(HN), smooth=False, double_sided=True, cast_shadows=False)
-    return dict(tape_m=round(total))
-
-
-def build_cones(tr: Track, parts: Parts) -> dict:
-    """Orange traffic cones along the lap wherever it crosses open asphalt (junctions, the plaza), one every 8 m, so
-    the way of the race route is plain to see. They are for the eye only: a car passes through them."""
-    n = tr.n
-    SEG = 8
-    ang = np.linspace(0, 2 * np.pi, SEG + 1)
-    ring = np.column_stack([np.cos(ang), np.sin(ang)])
-    P, U, T, HN, off, count = [], [], [], [], 0, 0
-    for side in (1, -1):
-        w = tr.wl if side > 0 else tr.wr
-        m = (tr.open_l & ~tr.conc_l) if side > 0 else (tr.open_r & ~tr.conc_r)
-        if side > 0:
-            m = m & ~tr.in_pit_stretch()
-        for st in np.where(m)[0][::8]:
-            c = tr.en(np.array([float(st)]), np.array([side * (w[st] + 0.25)]))[0]
-            g = float(tr.h(np.array([float(st)]), np.array([side * w[st]]))[0])
-            base = tr.fr.world(c[None, :] + ring * 0.15, np.full(SEG + 1, g))
-            tip = tr.fr.world(c[None, :] + ring * 0.025, np.full(SEG + 1, g + 0.52))
-            out = tr.fr.vec(ring)
-            n3 = np.column_stack([out[:, 0], np.full(SEG + 1, 0.3), out[:, 1]])
-            P.append(np.vstack([base, tip]))
-            U.append(np.vstack([np.column_stack([ang / (2 * np.pi), np.zeros(SEG + 1)]), np.column_stack([ang / (2 * np.pi), np.ones(SEG + 1)])]))
-            r = np.arange(SEG)
-            mid = n3[r] + n3[r + 1]
-            HN.append(np.vstack([mid, mid]))
-            T.append(np.concatenate([np.stack([r, r + SEG + 1, r + SEG + 2], -1), np.stack([r, r + SEG + 2, r + 1], -1)]) + off)
-            off += 2 * (SEG + 1)
-            count += 1
-    if P:
-        parts.surface("CONES_route", "cone", np.vstack(P), np.vstack(U), np.vstack(T), hint=np.vstack(HN), smooth=True)
-    return dict(cones=count)
+# The race equipment (tyre stacks at the dots, bags, tape, plastic barriers, posts, arrow boards, cones) is in racekit.py
+from racekit import build_cones, build_tape, build_tyre_stacks, race_barrier_lines, race_rows  # noqa: E402,F401
 
 
 def build_fences(tr: Track, parts: Parts, lines: list) -> dict:

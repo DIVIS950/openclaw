@@ -1,4 +1,4 @@
-# Autodrom Sosnová for Assetto Corsa (v17.0, race route of 5.12.2026)
+# Autodrom Sosnová for Assetto Corsa (v17.1, race route of 5.12.2026)
 
 A drivable Assetto Corsa (2014) track of Autodrom Sosnová near Česká Lípa, Czech Republic, set up for the
 Liqui Moly Racing Days of 5.12.2026.
@@ -6,12 +6,56 @@ Liqui Moly Racing Days of 5.12.2026.
 **Download:** [`download/sosnova_v9.zip`](download/sosnova_v9.zip). Install notes are in
 [`content/tracks/sosnova_v9/INSTALL.txt`](content/tracks/sosnova_v9/INSTALL.txt). Delete older `sosnova*`
 folders from `content/tracks` first. The folder keeps the name `sosnova_v9`; the game shows it as
-"Autodrom Sosnová v17.0 - Racing Days 5.12.2026".
+"Autodrom Sosnová v17.1 - Racing Days 5.12.2026".
 
 **Not tested in the game.** The track is built and checked with tools and rendered from the same file, but it has
 not been started in Assetto Corsa.
 
-## What v17.0 is
+## More barriers and tape: what v17.1 did
+
+The owner asked for more barriers and tape, and for the race set-up to look better and more real. The lap and the
+circuit are unchanged.
+
+![Barriers, tape and arrow boards](previews/lap_0285.jpg)
+
+| Part | What changed |
+| --- | --- |
+| Side roads | In 17.0 the side roads of the route were open, marked by cones only: the link road after turn 1, the outside of the east hairpin, the kart road, the ramp of the bridge, the road north of the big square, the roads towards the paddock and the car park, and a connector that made a short cut between two legs of the route. Fourteen closures now stand there, each a row of red and white plastic barriers from grass to grass: 225 modules, 302 m, solid (`racekit.build_plastic_barriers`). The edge of the pit apron towards the way back west is one of them. |
+| Open squares | Red and white tape on posts runs along the two edges of the big square and round the middle row of the north chicane: 5 lines, 234 m, 64 posts on rubber feet (a stake cannot be driven into asphalt). A car goes through tape and posts. |
+| Arrow boards | 14 boards with three chevrons: one at each row of stacks that stands across the route, pointing to the side to pass, and a row of them round the outside of the east hairpin. |
+| Tyre stacks | Each stack is four single tyres with round shoulders, a little out of line with each other, with the hole down the middle. A plain core inside is what a car hits. |
+| A wrong join, fixed | In 17.0 the bags and tape of the 16-dot fence north of the start straight were joined in the wrong order at its corner: a row of bags ran 14 m diagonally across the slab and the real corner stayed open. Rows are now joined along the shortest tree that links their dots (`racekit.race_rows`), and a check makes sure that only neighbouring dots are joined. |
+| No way off the route | `check.py` floods the asphalt from the lap with a car 2 m wide, with every row, barrier, tape and wall in the way. The only places it reaches are the pit apron and the way in from the paddock (`circuit.RACE_OPEN`). |
+| AI | The room beside the racing line that the AI file gives stops before a stack, a bag or a barrier (it was the edge of the lap before). The racing line keeps 1.7 m from each stack (was 1.4). |
+| Start lights, pit boxes | The lights hang from one mast on the pit-wall side, so no leg stands on the pit apron. The pit boxes are 5.6 m apart (were 6), so the last one has asphalt ahead of it and not the grass corner. |
+| Single stacks | Dots count as a row when they are less than 7 m apart (was 8.5): the four stacks on the pad of turn 1 are single again, as on the map. 7 rows. |
+| Cones | They stand only where nothing else marks the edge now (48, were 99). |
+| Where the list is | `tools/circuit.py`, `RACE_EXTRAS`: one line per closure or tape line. The race equipment has its own file, `tools/racekit.py`. |
+| Checks | 67 checks pass (were 58). New: every closure is built from end to end, every tape line is strung, nothing soft has collision, rows join only neighbouring dots, no way off the route, the AI's room beside the line, 15 m of clear asphalt ahead of every pit box. |
+
+**What is not from the map.** The added barriers, tape and arrow boards are not on the organiser's map. They stand
+where a marshal would put them so that the way is plain everywhere. The organiser may leave some of these roads open
+or close them differently. Three places stay open: the pit apron beside the start straight, the way in from the
+paddock and the way out to the pits (the two blue arrows of the map).
+
+**Review.** Before it was shipped, 17.1 was read by three independent reviewers (closures against the map,
+drivability, game files and notes). None found a reason why the track could not be loaded or driven. They found 15
+things to improve, and all are fixed in this version:
+
+- six closures that did not reach from grass to grass, or were tape where a real closure needs a barrier (the link
+  road, the gap at the tip of the east loop's island, the gap beside the 16-dot fence, the edge of the pit apron, the
+  start of the tape at the big square), and two side roads that were still open;
+- the AI file gave the AI the full width of the lap where tyre stacks stand on it;
+- a leg of the start lights stood on the pit apron, and the last pit box pointed at a grass corner;
+- the pit wall and the paddock wall were missing under most of their fence (a rule removed walls that touch asphalt);
+- the AI file ended without its last field (the "has grid" flag); the start line did not reach across the pit apron;
+- wording of the notes that said more than was checked.
+
+A fourth review (of the pictures) and a second opinion on each finding were planned too. They did not run, because
+the usage limit of the session was reached; the pictures were looked through by hand. The track has still not been
+started in the game.
+
+## The new route: what v17.0 did
 
 The owner sent the organiser's map of the next race (a red route, yellow dots, two blue arrows) and asked for a new
 track design, made from scratch. Version 17 is that race route on the real circuit: the lap, the start, the tyre
@@ -55,16 +99,15 @@ landscape, buildings) is the surveyed one of version 16.
   set-up of the same chicane, three rows of real tyre stacks 5 to 25 m from the dots; their dark marks are in the
   road texture. The map decides here, not the photo.
 - The two blue arrows (in from the paddock, out to the pits) are open roads of the circuit, not part of the lap.
-- Nothing closes a road where the map shows no dots. Cones mark the route there, and the sector gate half-way
-  round means a lap only counts on the route.
+- In 17.0 nothing closed a road where the map shows no dots. Version 17.1 closes them (see above).
 
-**What was not done**
+**What was not done in 17.0**
 
 - The track was not started in the game.
 - Six independent reviews were planned: two of the traced route (its order and its place on the photo) and four of
   the finished track (match with the map, drivability, game file format, the wording of these notes). None of them
   could run, because the usage limit of the session was reached. In their place stand the 58 checks of
-  `tools/check.py` and a look through every rendered picture.
+  `tools/check.py` and a look through every rendered picture. Version 17.1 was reviewed (see above).
 
 This route is the main track of the kit now. Version 16.0 (the plain circuit, no race set-up) is still at its commit
 (1b3e8d3) and version 15.1 (the route of 14.11.2026) at 5a37b33; `RACE_LAYOUT = False` in `tools/common.py` builds
@@ -248,7 +291,7 @@ is stored here or used as a texture.
 
 ## Limits
 
-- The track was validated by reading back the built files (`check.py`, 58 checks) and by renders. It was not run
+- The track was validated by reading back the built files (`check.py`, 67 checks) and by renders. It was not run
   inside the game here.
 - Source accuracy is about 0.25 m in plan and 0.2 m in height. The asphalt edge comes from a 25 cm mask and is
   smoothed; it agrees with the edge survey of version 8 to 0.15 m in the median. No laser scan of the surface exists
@@ -270,7 +313,7 @@ is stored here or used as a texture.
   look different there.
 - The photo is 12.5 cm per pixel. It gives the real pattern of the asphalt and the grass, not their grain. From
   close up the grass tiles (10 cm per pixel) look soft.
-- The model is large (93 MB, 480,000 triangles): 60 lap textures, the squares of asphalt and 26 grass tiles.
+- The model is large (93 MB, 519,000 triangles): 60 lap textures, the squares of asphalt and 26 grass tiles.
   Uncompressed they need roughly 1.3 GB of graphics memory.
 - The laser scan is from the air, about one point per square metre. It gives every building its place, size, height
   and roof shape, and the photo gives the roof its look. It does not see walls: the fronts of the buildings have
@@ -295,14 +338,16 @@ Rendered from the built `sosnova_v9.kn5` with `tools/render.py`.
 ![Pole position](previews/ac_start_0.jpg)
 ![Start straight from behind](previews/chase_grid.jpg)
 ![Turn 1 round the white pad](previews/lap_0110.jpg)
-![The chicane on the way back west](previews/lap_0285.jpg)
+![The chicane on the way back west: stacks, bags, tape, arrow boards, plastic barriers](previews/lap_0285.jpg)
 ![After the bridge: the arc of stacks](previews/lap_0370.jpg)
-![East along the infield road](previews/lap_0410.jpg)
-![The east hairpin](previews/lap_0575.jpg)
+![East along the infield road: barriers on the right, tape on posts on the left](previews/lap_0410.jpg)
+![The east hairpin with its barriers and arrow boards](previews/lap_0548.jpg)
 ![Past the closed junction](previews/lap_0640.jpg)
+![The middle row of the north chicane](previews/lap_0845.jpg)
 ![The chicane of the north straight](previews/lap_0870.jpg)
 ![The north straight from the air](previews/air_north.jpg)
 ![The west straight](previews/lap_1250.jpg)
+![Past the big square: tape on the left, a closed side road on the right](previews/lap_1420.jpg)
 ![South towards the S-bend](previews/lap_1470.jpg)
 ![Out of the S-bend](previews/lap_1545.jpg)
 ![Onto the start straight](previews/lap_1590.jpg)
