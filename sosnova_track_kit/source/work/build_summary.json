@@ -1,0 +1,113 @@
+{
+ "track": "sosnova_v9",
+ "lap_m": 1678.2423637365177,
+ "meshes": 475,
+ "vertices": 553735,
+ "triangles": 519764,
+ "kn5_mb": 92.67,
+ "ground": {
+  "asphalt": 16805,
+  "gravel": 1140,
+  "grass": 15643,
+  "shoulder": 11193,
+  "verge": 8160,
+  "photo": 23697,
+  "relief_points": 8461
+ },
+ "asphalt_m2": 32867,
+ "gravel_m2": 1436,
+ "buildings": 45,
+ "bridge": {
+  "length": 53.70721553013151,
+  "peak": 5.199809348051539,
+  "clearance": 3.8176919542442533,
+  "max_grade": 0.3176045135915615
+ },
+ "pylons": 3,
+ "paint": {
+  "edge_line_m": 2357,
+  "grid_boxes": 16,
+  "pit_bays": 16,
+  "lines": 63,
+  "line_m": 547,
+  "areas": 3,
+  "brake_boards": 9
+ },
+ "barriers": {
+  "walls": 21,
+  "metres": 506,
+  "tyre_wall_m": 333,
+  "concrete_wall_m": 154,
+  "tyre_wall_stacks": 1068,
+  "tyre_wall_triangles": 42720,
+  "banners": 54
+ },
+ "real": {
+  "lap_width_m": [
+   6.4,
+   11.0,
+   17.95
+  ],
+  "concrete_m2": 1922,
+  "concrete_strip_beside_lap_m": 690,
+  "open_side_m": 1784,
+  "asphalt_squares": 36,
+  "lap_textures": 60,
+  "strip_textures": 53,
+  "strip_triangles": 2614,
+  "concrete_squares": 30
+ },
+ "trees": {
+  "near": 2349,
+  "far": 560,
+  "solid_trees": 2349,
+  "solid_tree_triangles": 181980
+ },
+ "race": {
+  "tyre_stacks": 57,
+  "tyre_stack_triangles": 29412,
+  "plastic_barriers": 225,
+  "plastic_barrier_m": 302,
+  "plastic_barrier_rows": 14,
+  "plastic_barrier_triangles": 5850,
+  "tape_lines": 5,
+  "tape_line_m": 234,
+  "tape_posts": 64,
+  "arrow_boards": 14,
+  "cones": 48,
+  "fence_m": 154,
+  "fence_posts": 63,
+  "tape_m": 133,
+  "rows": 21,
+  "row_barriers": 36,
+  "row_barrier_m": 94
+ },
+ "scenery": {
+  "viaduct_m": 150,
+  "viaduct_width_m": 16.8,
+  "viaduct_piers": 5,
+  "viaduct_above_ground_m": 12.1
+ },
+ "dummies": 37,
+ "ai": {
+  "points": 1624,
+  "length": 1623.71,
+  "lap_s": 80.56,
+  "v_min": 28.23,
+  "v_max": 134.43,
+  "off_min": -5.48,
+  "off_max": 5.78
+ },
+ "frame": {
+  "origin_en": [
+   71.0433154777771,
+   -44.94930066832836
+  ],
+  "fwd_en": [
+   0.9900655026643357,
+   -0.14060690037838303
+  ],
+  "ref_h": 255.4348935592163
+ },
+ "sector_station": 839.0
+}
