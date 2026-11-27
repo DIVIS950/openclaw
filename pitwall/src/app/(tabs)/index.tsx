@@ -80,7 +80,7 @@ export default function LiveScreen() {
   const side = (
     <View style={[{ gap: 10 }, landscape && { flex: 1 }]}>
       <Panel style={styles.statsRow}>
-        <Stat title="SPEED" value={frame ? String(Math.round(speed(frame.speedKmh, units))) : '—'} unit={speedUnit(units)} big />
+        <Stat title={`SPEED ${speedUnit(units).toUpperCase()}`} value={frame ? String(Math.round(speed(frame.speedKmh, units))) : '—'} big />
         <View style={styles.vline} />
         <Stat title="LAST" value={fmtLap(timer.lastMs, 2)} color={lapColor(timer.lastMs, laps)} />
         <View style={styles.vline} />

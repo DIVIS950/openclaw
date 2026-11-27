@@ -76,7 +76,7 @@ export default function SessionScreen() {
                   ))}
                 </View>
               </View>
-              <Pressable hitSlop={14} onPress={() => toggle(item.number)} style={[styles.check, on && { backgroundColor: C.accent, borderColor: C.accent }]}>
+              <Pressable hitSlop={14} accessibilityRole="checkbox" accessibilityLabel={`Select lap ${item.number}`} accessibilityState={{ checked: on }} onPress={() => toggle(item.number)} style={[styles.check, on && { backgroundColor: C.accent, borderColor: C.accent }]}>
                 {on && <Text style={styles.checkMark}>✓</Text>}
               </Pressable>
             </Pressable>

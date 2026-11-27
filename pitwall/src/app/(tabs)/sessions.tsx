@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLive } from '../../store/live';
 import { deleteSession, listSessions, type SessionSummary } from '../../storage/sessions';
@@ -16,11 +16,8 @@ export default function SessionsScreen() {
     listSessions().then(setList);
   }, []);
   // Reload when the tab is opened, and after every finished lap.
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh, lapCount]),
-  );
+  useFocusEffect(refresh);
+  useEffect(refresh, [refresh, lapCount]);
 
   const confirmDelete = (s: SessionSummary) => {
     if (s.id === liveId) return;

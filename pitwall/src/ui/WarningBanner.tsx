@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLive } from '../store/live';
@@ -11,7 +11,7 @@ export function WarningBanner() {
   const warnings = useLive((s) => s.warnings);
   const units = useSettings((s) => s.units);
   const insets = useSafeAreaInsets();
-  const pulse = useRef(new Animated.Value(1)).current;
+  const [pulse] = useState(() => new Animated.Value(1));
   const on = warnings.length > 0;
 
   useEffect(() => {

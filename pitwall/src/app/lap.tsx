@@ -75,8 +75,12 @@ export default function LapScreen() {
               {b && <View style={[styles.swatch, { backgroundColor: i === 0 ? A_COLOR : B_COLOR }]} />}
               <Text style={label}>{`LAP ${l.number}`}</Text>
             </View>
-            <Text style={[num, { fontSize: 26 }]}>{fmtLap(l.timeMs, 3)}</Text>
-            <Text style={[num, { fontSize: 12, color: C.dim }]}>{l.sectorsMs.map((s) => fmtSec(s)).join('  ')}</Text>
+            <Text style={[num, { fontSize: b ? 21 : 26 }]} numberOfLines={1} adjustsFontSizeToFit>
+              {fmtLap(l.timeMs, 3)}
+            </Text>
+            <Text style={[num, { fontSize: 12, color: C.dim }]} numberOfLines={1} adjustsFontSizeToFit>
+              {l.sectorsMs.map((s) => fmtSec(s)).join(' · ')}
+            </Text>
             <Text style={[num, { fontSize: 12, color: C.dim }]}>
               {`MAX ${Math.round(speed(l.maxKmh, units))} ${speedUnit(units)}`}
             </Text>
@@ -85,7 +89,7 @@ export default function LapScreen() {
         {b && (
           <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
             <Text style={label}>GAP</Text>
-            <Text style={[num, { fontSize: 22, color: b.timeMs < a.timeMs ? C.green : C.red }]}>{fmtDelta(b.timeMs - a.timeMs, 3)}</Text>
+            <Text style={[num, { fontSize: 20, color: b.timeMs < a.timeMs ? C.green : C.red }]}>{fmtDelta(b.timeMs - a.timeMs, 3)}</Text>
           </View>
         )}
       </Panel>
