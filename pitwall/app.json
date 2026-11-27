@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "PITWALL Telemetry",
+    "slug": "pitwall-telemetry",
+    "scheme": "pitwall",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#07080A",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pitwall.telemetry"
+    },
+    "android": {
+      "package": "com.pitwall.telemetry",
+      "adaptiveIcon": {
+        "backgroundColor": "#07080A",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true,
+          "modes": [],
+          "bluetoothAlwaysPermission": "PITWALL connects to the telemetry box in your car over Bluetooth."
+        }
+      ]
+    ]
+  }
+}
