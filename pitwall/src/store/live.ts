@@ -151,6 +151,7 @@ function onFrame(f: TelemetryFrame) {
     trail.lon.push(f.lon);
   }
   if (lap && session) {
+    if (useSettings.getState().haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     session.laps.push(lapToSaved(lap));
     trail = { lat: [f.lat], lon: [f.lon] };
     persist();

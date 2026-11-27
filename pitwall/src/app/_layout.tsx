@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C } from '../ui/theme';
+import { LapFlash } from '../ui/LapFlash';
 import { WarningBanner } from '../ui/WarningBanner';
 
 const theme = {
@@ -30,6 +31,7 @@ export default function RootLayout() {
             <Stack.Screen name="session/[id]" options={{ title: 'SESSION' }} />
             <Stack.Screen name="lap" options={{ title: 'LAP' }} />
           </Stack>
+          <LapFlash />
           <WarningBanner />
         </View>
       </ThemeProvider>

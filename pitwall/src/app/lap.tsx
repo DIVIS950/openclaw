@@ -1,13 +1,15 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { brakingPoints, gainLossColors } from '../lap/analysis';
 import { timeDelta } from '../lap/trace';
 import { useSettings } from '../store/settings';
 import { loadSession, type SavedLap, type SavedSession } from '../storage/sessions';
 import { fmtDelta, fmtLap, fmtSec, speed, speedUnit, temp, tempUnit } from '../ui/format';
 import { Panel } from '../ui/kit';
 import { LineChart, type Series } from '../ui/LineChart';
-import { TrackMap, type MapLine } from '../ui/TrackMap';
+import { MapCard } from '../ui/MapCard';
+import type { MapLine } from '../ui/TrackMap';
 import { C, label, num } from '../ui/theme';
 
 const A_COLOR = C.accent;
@@ -47,16 +49,16 @@ export default function LapScreen() {
   const a = session?.laps.find((l) => l.number === Number(params.a)) ?? null;
   const b = params.b ? (session?.laps.find((l) => l.number === Number(params.b)) ?? null) : null;
 
+  const delta = useMemo(() => (a && b ? timeDelta(a.trace, b.trace) : null), [a, b]);
+
+  // One lap: coloured by speed. Two laps: coloured by where the second lap gains (green) or loses (red).
   const lines = useMemo<MapLine[]>(() => {
     if (!a) return [];
-    if (!b) return [{ lat: a.trace.lat, lon: a.trace.lon, v: a.trace.v, width: 5 }];
-    return [
-      { lat: b.trace.lat, lon: b.trace.lon, color: B_COLOR, width: 4, opacity: 0.9 },
-      { lat: a.trace.lat, lon: a.trace.lon, color: A_COLOR, width: 2.5 },
-    ];
-  }, [a, b]);
+    if (!b || !delta) return [{ lat: a.trace.lat, lon: a.trace.lon, v: a.trace.v, width: 5 }];
+    return [{ lat: a.trace.lat, lon: a.trace.lon, colors: gainLossColors(a.trace.d, delta), width: 6 }];
+  }, [a, b, delta]);
 
-  const delta = useMemo(() => (a && b ? timeDelta(a.trace, b.trace) : null), [a, b]);
+  const brakes = useMemo(() => (a && !b ? brakingPoints(a.trace).map((i) => ({ lat: a.trace.lat[i], lon: a.trace.lon[i], color: C.red })) : []), [a, b]);
 
   if (!session || !a) return <View style={styles.screen} />;
 
@@ -94,9 +96,30 @@ export default function LapScreen() {
         )}
       </Panel>
 
-      <Panel style={{ padding: 0, alignItems: 'center' }}>
-        <TrackMap width={width - 32} height={(width - 32) * 0.8} lines={lines} startFinish={session.startFinish} />
-      </Panel>
+      <MapCard
+        width={width - 32}
+        height={(width - 32) * 0.85}
+        lines={lines}
+        markers={brakes}
+        startFinish={session.startFinish}
+        footer={
+          <View style={styles.mapLegend}>
+            {b ? (
+              <>
+                <View style={[styles.swatch, { backgroundColor: C.green }]} />
+                <Text style={[label, { fontSize: 10 }]}>{`L${b.number} GAINS`}</Text>
+                <View style={[styles.swatch, { backgroundColor: C.red, marginLeft: 10 }]} />
+                <Text style={[label, { fontSize: 10 }]}>{`L${b.number} LOSES`}</Text>
+              </>
+            ) : (
+              <>
+                <View style={[styles.swatch, { backgroundColor: C.red, borderRadius: 5 }]} />
+                <Text style={[label, { fontSize: 10 }]}>{`BRAKING POINTS · ${brakes.length}`}</Text>
+              </>
+            )}
+          </View>
+        }
+      />
 
       <Chart title={`SPEED · ${speedUnit(units).toUpperCase()}`} legend={b ? [{ color: A_COLOR, text: `L${a.number}` }, { color: B_COLOR, text: `L${b.number}` }] : undefined}>
         <LineChart width={w} height={150} series={b ? [sp(b, B_COLOR), sp(a, A_COLOR)] : [sp(a, A_COLOR)]} />
@@ -173,4 +196,5 @@ const styles = StyleSheet.create({
   chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   swatch: { width: 10, height: 10, borderRadius: 3 },
   note: { color: C.faint, fontSize: 11 },
+  mapLegend: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 12 },
 });

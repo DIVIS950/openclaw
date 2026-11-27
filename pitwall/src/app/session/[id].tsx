@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { lapColor, sectorColor } from '../../lap/timingColors';
 import { bestLap, idealLapMs } from '../../lap/trace';
 import { useLive } from '../../store/live';
+import { shareSessionCsv } from '../../storage/exportCsv';
 import { loadSession, type SavedSession } from '../../storage/sessions';
 import { fmtDate, fmtDelta, fmtLap, fmtSec } from '../../ui/format';
 import { Button, Panel } from '../../ui/kit';
@@ -52,6 +53,9 @@ export default function SessionScreen() {
               </View>
             </View>
             <Text style={styles.hint}>Tap a lap to see it. Tick two laps to compare them.</Text>
+            {Platform.OS !== 'web' && laps.length > 0 && (
+              <Button title="EXPORT CSV" kind="ghost" small onPress={() => shareSessionCsv(session).catch((e) => Alert.alert('Export failed', String(e)))} />
+            )}
           </Panel>
         }
         renderItem={({ item, index }) => {

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import { deltaColor, lapColor, sectorColor } from '../../lap/timingColors';
 import { useLive } from '../../store/live';
@@ -55,13 +56,20 @@ export default function LiveScreen() {
   );
   const units = useSettings((s) => s.units);
   const { width, height } = useWindowDimensions();
+  const [focus, setFocus] = useState(false);
+  // "−0.42" is ~3.2 em wide: size the full-screen delta to the screen, capped by height in landscape.
+  const focusSize = Math.min((width - 48) / 3.2, height * 0.42);
   const landscape = width > height;
 
   const prev = laps[laps.length - 1];
   const delta = timer.deltaMs;
   const lapLabel = !running && !laps.length ? 'READY' : timer.lapNumber === 0 ? 'OUT LAP' : `LAP ${timer.lapNumber}`;
 
+  // Predicted lap: the best lap's time plus how far ahead/behind we are right now.
+  const predicted = running && delta !== null && timer.bestMs !== null ? timer.bestMs + delta : null;
+
   const deltaBlock = (
+    <Pressable onPress={() => setFocus(true)} style={[styles.deltaPress, landscape && { flex: 1 }]} accessibilityLabel="Full-screen delta">
     <Panel style={[styles.deltaPanel, landscape && { flex: 1 }]}>
       <View style={styles.rowBetween}>
         <Text style={label}>DELTA · BEST</Text>
@@ -74,7 +82,13 @@ export default function LiveScreen() {
       <Text style={[num, styles.lapTime, !running && { color: C.faint }]} numberOfLines={1} adjustsFontSizeToFit>
         {fmtLap(running ? timer.currentMs : 0, 1)}
       </Text>
+      <View style={styles.rowBetween}>
+        <Text style={label}>PREDICTED</Text>
+        <Text style={[num, { fontSize: 18, color: predicted === null ? C.faint : deltaColor(delta) }]}>{fmtLap(predicted, 2)}</Text>
+        <Text style={[label, { color: C.faint }]}>TAP = FULL SCREEN</Text>
+      </View>
     </Panel>
+    </Pressable>
   );
 
   const side = (
@@ -111,6 +125,31 @@ export default function LiveScreen() {
 
   return (
     <Screen title="LIVE">
+      <Modal visible={focus} animationType="fade" supportedOrientations={['portrait', 'landscape']} onRequestClose={() => setFocus(false)}>
+        <Pressable style={[styles.focus, { backgroundColor: delta === null || Math.abs(delta) < 5 ? C.bg : delta < 0 ? '#06200F' : '#2A0709' }]} onPress={() => setFocus(false)}>
+          <View style={styles.rowBetween}>
+            <Text style={[label, { fontSize: 14, color: C.text }]}>{lapLabel}</Text>
+            <Text style={[num, { fontSize: 28 }]}>
+              {frame ? Math.round(speed(frame.speedKmh, units)) : '—'}
+              <Text style={styles.unit}> {speedUnit(units)}</Text>
+            </Text>
+          </View>
+          <Text style={[num, styles.focusDelta, { fontSize: focusSize, color: delta === null ? C.faint : deltaColor(delta) }]} numberOfLines={1} adjustsFontSizeToFit>
+            {fmtDelta(delta)}
+          </Text>
+          <View style={styles.rowBetween}>
+            <View>
+              <Text style={label}>LAP</Text>
+              <Text style={[num, { fontSize: 40 }]}>{fmtLap(running ? timer.currentMs : 0, 1)}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={label}>PREDICTED</Text>
+              <Text style={[num, { fontSize: 40, color: predicted === null ? C.faint : deltaColor(delta) }]}>{fmtLap(predicted, 2)}</Text>
+            </View>
+          </View>
+          <Text style={[label, { textAlign: 'center', color: C.faint }]}>TAP ANYWHERE TO GO BACK</Text>
+        </Pressable>
+      </Modal>
       <View style={[styles.wrap, landscape && { flexDirection: 'row' }]}>
         {deltaBlock}
         {side}
@@ -122,7 +161,10 @@ export default function LiveScreen() {
 const styles = StyleSheet.create({
   wrap: { flex: 1, gap: 10, paddingBottom: 12 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  deltaPress: { flex: 1 },
   deltaPanel: { flex: 1, justifyContent: 'space-between', paddingVertical: 16 },
+  focus: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
+  focusDelta: { letterSpacing: -6, textAlign: 'center' },
   delta: { fontSize: 110, letterSpacing: -4, textAlign: 'center', marginTop: 4 },
   lapTime: { fontSize: 64, letterSpacing: -2, textAlign: 'center', fontWeight: '600' },
   bar: { height: 10, backgroundColor: C.panel2, borderRadius: 5, overflow: 'hidden', marginVertical: 6 },

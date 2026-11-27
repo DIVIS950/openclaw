@@ -1,102 +1,164 @@
 /**
- * ESP32 over Bluetooth Low Energy — STUB.
+ * ESP32 over Bluetooth Low Energy (react-native-ble-plx).
  *
- * This file is the ONLY thing to replace when the real box is ready.
- * It deliberately imports nothing native, so the app keeps running in Expo Go.
+ * Works in a development build (see README). In Expo Go the native Bluetooth
+ * module does not exist, so connect() reports a clear error instead of crashing:
+ * the library is only loaded at the moment you connect.
  *
- * ── Plan ────────────────────────────────────────────────────────────────
- * 1. `npx expo install react-native-ble-plx` and add its config plugin to
- *    app.json, then make a development build (`npx expo run:ios` or
- *    `eas build --profile development`). BLE does not work in Expo Go.
- * 2. In connect():
- *      - manager = new BleManager()
- *      - scan for devices whose name starts with DEVICE_NAME_PREFIX
- *        (or that advertise SERVICE_UUID)
- *      - device.connect(), then device.requestMTU(64)  ← the packet is 42 bytes
- *      - device.discoverAllServicesAndCharacteristics()
- *      - device.monitorCharacteristicForService(SERVICE_UUID, FRAME_CHAR_UUID, cb)
- *        cb gets base64 → bytes → decodeFrame(bytes) → this.emitFrame(frame)
- *      - device.onDisconnected → setStatus('error', 'Lost connection') and retry
- * 3. In disconnect(): cancel the monitor subscription, device.cancelConnection().
+ * Flow: wait for Bluetooth on → scan for SERVICE_UUID / a "PITWALL…" name →
+ * connect (MTU 64, the packet is 42 bytes) → subscribe to FRAME_CHAR_UUID →
+ * every notification is decoded with decodeFrame() and emitted. If the link
+ * drops, it keeps reconnecting until you press Disconnect.
  *
- * Nothing else in the app changes: the lap timer, warnings, recording and
- * all screens only ever see TelemetryFrame objects.
+ * Nothing else in the app knows about Bluetooth: the lap timer, warnings,
+ * recording and all screens only ever see TelemetryFrame objects.
  *
- * ── Packet layout (ESP32 → phone, one BLE notification, little-endian) ──
- *  offset size type  field        scale / unit
- *   0     1   u8    version      = 1
- *   1     1   u8    flags        bit0 GPS fix, bit1 tyres ok, bit2 brakes ok,
- *                                bit3 coolant ok, bit4 oil ok, bit5 EGT ok
- *   2     2   u16   seq          wraps, detects dropped packets
- *   4     4   u32   t            ms since ESP32 boot
- *   8     4   i32   lat          degrees × 1e7
- *  12     4   i32   lon          degrees × 1e7
- *  16     2   u16   speed        km/h × 100
- *  18     2   u16   heading      degrees × 100
- *  20     1   u8    sats
- *  21     1   u8    gpsHz
- *  22     2   i16   tyre FL      °C × 10
- *  24     2   i16   tyre FR      °C × 10
- *  26     2   i16   tyre RL      °C × 10
- *  28     2   i16   tyre RR      °C × 10
- *  30     2   i16   brake FL     °C × 10
- *  32     2   i16   brake FR     °C × 10
- *  34     2   i16   coolant      °C × 10
- *  36     2   i16   oil          °C × 10
- *  38     2   i16   EGT          °C × 10
- *  40     2   u16   battery      millivolts
- *  = 42 bytes, 25 per second ≈ 1 kB/s.
+ * The packet format lives in blePacket.ts.
  */
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { NativeModules, Platform } from 'react-native';
+import type { BleManager, Device, Subscription } from 'react-native-ble-plx';
 import { BaseSource } from './BaseSource';
-import type { TelemetryFrame } from './types';
+import { DEVICE_NAME_PREFIX, FRAME_CHAR_UUID, SERVICE_UUID, decodeFrame } from './blePacket';
 
-export const DEVICE_NAME_PREFIX = 'PITWALL';
-/** Custom 128-bit UUIDs. Use the same ones in the ESP32 firmware. */
-export const SERVICE_UUID = '7a1f0001-5c3e-4b8a-9f2d-0b1e2c3d4e5f';
-/** Notify: one telemetry packet (layout above) per notification. */
-export const FRAME_CHAR_UUID = '7a1f0002-5c3e-4b8a-9f2d-0b1e2c3d4e5f';
-/** Write: config for the box, e.g. [0x01, hz] sets the GPS rate. */
-export const CONFIG_CHAR_UUID = '7a1f0003-5c3e-4b8a-9f2d-0b1e2c3d4e5f';
+export * from './blePacket';
 
-export const PACKET_BYTES = 42;
+const SCAN_TIMEOUT_MS = 15_000;
+const RETRY_MS = 2_000;
 
-/** Bytes from the ESP32 → TelemetryFrame. Sensors flagged as not ok become NaN. */
-export function decodeFrame(bytes: Uint8Array): TelemetryFrame | null {
-  if (bytes.length < PACKET_BYTES || bytes[0] !== 1) return null;
-  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const flags = v.getUint8(1);
-  const ok = (bit: number) => (flags & (1 << bit)) !== 0;
-  const temp = (offset: number, bit: number) => (ok(bit) ? v.getInt16(offset, true) / 10 : NaN);
-  const fix = ok(0);
-  return {
-    t: v.getUint32(4, true),
-    lat: fix ? v.getInt32(8, true) / 1e7 : NaN,
-    lon: fix ? v.getInt32(12, true) / 1e7 : NaN,
-    speedKmh: v.getUint16(16, true) / 100,
-    heading: v.getUint16(18, true) / 100,
-    sats: v.getUint8(20),
-    gpsHz: v.getUint8(21),
-    tyre: { fl: temp(22, 1), fr: temp(24, 1), rl: temp(26, 1), rr: temp(28, 1) },
-    brake: { fl: temp(30, 2), fr: temp(32, 2) },
-    coolant: temp(34, 3),
-    oil: temp(36, 4),
-    egt: temp(38, 5),
-    battV: v.getUint16(40, true) / 1000,
-  };
+/** base64 (what ble-plx gives us) → bytes. `atob` is built into Hermes. */
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Load react-native-ble-plx only when needed; null where Bluetooth cannot work. */
+function loadBle(): typeof import('react-native-ble-plx') | null {
+  if (Platform.OS === 'web') return null;
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return null; // Expo Go
+  if (!NativeModules.BlePlx) return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('react-native-ble-plx');
 }
 
 export class BleSource extends BaseSource {
   readonly kind = 'ble' as const;
+  private manager: BleManager | null = null;
+  private device: Device | null = null;
+  private subs: Subscription[] = [];
+  private stopped = true;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Packets lost on the radio link, from gaps in the sequence number. */
+  dropped = 0;
+  private lastSeq = -1;
 
   async connect() {
-    this.setStatus('connecting');
-    // TODO(BLE): scan, connect, requestMTU(64), monitor FRAME_CHAR_UUID,
-    // and call this.emitFrame(decodeFrame(bytes)) for every notification.
-    this.setStatus('error', 'ESP32 Bluetooth needs a development build. Use the Simulator in Expo Go.');
+    const ble = loadBle();
+    if (!ble) {
+      this.setStatus('error', Platform.OS === 'web' ? 'Bluetooth is not available in the browser.' : 'ESP32 Bluetooth needs a development build. Use the Simulator in Expo Go.');
+      return;
+    }
+    this.stopped = false;
+    this.manager ??= new ble.BleManager();
+    await this.attempt(ble);
+  }
+
+  private async attempt(ble: typeof import('react-native-ble-plx')) {
+    const manager = this.manager;
+    if (!manager || this.stopped) return;
+    this.setStatus('connecting', 'Looking for the PITWALL box…');
+    try {
+      await this.waitPoweredOn(manager, ble.State.PoweredOn);
+      const found = await this.scan(manager);
+      const device = await manager.connectToDevice(found.id, { requestMTU: 64, timeout: 10_000 });
+      await device.discoverAllServicesAndCharacteristics();
+      this.device = device;
+      this.lastSeq = -1;
+      this.subs.push(
+        device.monitorCharacteristicForService(SERVICE_UUID, FRAME_CHAR_UUID, (err, ch) => {
+          if (err || !ch?.value) return;
+          const bytes = base64ToBytes(ch.value);
+          const frame = decodeFrame(bytes);
+          if (!frame) return;
+          const seq = bytes[2] | (bytes[3] << 8);
+          if (this.lastSeq >= 0) this.dropped += (seq - this.lastSeq - 1 + 65536) % 65536;
+          this.lastSeq = seq;
+          this.emitFrame(frame);
+        }),
+        manager.onDeviceDisconnected(device.id, () => {
+          this.clearSubs();
+          if (!this.stopped) this.retry(ble, 'Lost the ESP32. Reconnecting…');
+        }),
+      );
+      this.setStatus('connected', device.name ?? 'PITWALL');
+    } catch (e) {
+      this.retry(ble, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private retry(ble: typeof import('react-native-ble-plx'), message: string) {
+    if (this.stopped) return;
+    this.setStatus('connecting', message);
+    this.retryTimer = setTimeout(() => this.attempt(ble), RETRY_MS);
+  }
+
+  private waitPoweredOn(manager: BleManager, poweredOn: string) {
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        sub.remove();
+        reject(new Error('Turn on Bluetooth on the phone.'));
+      }, 8_000);
+      const sub = manager.onStateChange((state) => {
+        if (state === poweredOn) {
+          clearTimeout(timer);
+          sub.remove();
+          resolve();
+        }
+      }, true);
+    });
+  }
+
+  private scan(manager: BleManager) {
+    return new Promise<Device>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        manager.stopDeviceScan();
+        reject(new Error('No PITWALL box found. Is it powered and close by?'));
+      }, SCAN_TIMEOUT_MS);
+      manager.startDeviceScan(null, { allowDuplicates: false }, (err, d) => {
+        if (err) {
+          clearTimeout(timer);
+          manager.stopDeviceScan();
+          reject(err);
+          return;
+        }
+        const name = d?.name ?? d?.localName ?? '';
+        if (d && (name.startsWith(DEVICE_NAME_PREFIX) || d.serviceUUIDs?.includes(SERVICE_UUID))) {
+          clearTimeout(timer);
+          manager.stopDeviceScan();
+          resolve(d);
+        }
+      });
+    });
+  }
+
+  private clearSubs() {
+    this.subs.forEach((s) => s.remove());
+    this.subs = [];
   }
 
   async disconnect() {
-    // TODO(BLE): cancel the notification subscription and the connection.
+    this.stopped = true;
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.clearSubs();
+    try {
+      await this.manager?.stopDeviceScan();
+      if (this.device) await this.device.cancelConnection();
+    } catch {
+      // already gone
+    }
+    this.device = null;
     this.setStatus('disconnected');
   }
 }

@@ -55,7 +55,7 @@ export default function DeviceScreen() {
   );
   const u = tempUnit(s.units);
   const statusText =
-    status === 'connected' ? 'Connected · receiving data' : status === 'connecting' ? 'Connecting…' : status === 'error' ? (statusMessage ?? 'Error') : 'Not connected';
+    status === 'connected' ? 'Connected · receiving data' : status === 'connecting' ? (statusMessage ?? 'Connecting…') : status === 'error' ? (statusMessage ?? 'Error') : 'Not connected';
 
   const showLimit = (key: keyof Limits) => (key === 'battLow' ? `${s.limits.battLow.toFixed(1)} V` : `${Math.round(temp(s.limits[key], s.units))}${u}`);
 

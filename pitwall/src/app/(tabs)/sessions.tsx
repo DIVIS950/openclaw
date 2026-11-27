@@ -19,6 +19,9 @@ export default function SessionsScreen() {
   useFocusEffect(refresh);
   useEffect(refresh, [refresh, lapCount]);
 
+  // Fastest lap ever recorded across every saved session.
+  const pb = (list ?? []).reduce<SessionSummary | null>((b, x) => (x.bestMs !== null && (!b || x.bestMs < (b.bestMs ?? Infinity)) ? x : b), null);
+
   const confirmDelete = (s: SessionSummary) => {
     if (s.id === liveId) return;
     Alert.alert('Delete session?', `${fmtDate(s.startedAt)} · ${s.lapCount} laps`, [
@@ -33,6 +36,19 @@ export default function SessionsScreen() {
         data={list ?? []}
         keyExtractor={(s) => s.id}
         contentContainerStyle={{ gap: 10, paddingBottom: 24 }}
+        ListHeaderComponent={
+          pb ? (
+            <View style={styles.pb}>
+              <View style={{ gap: 4, flexShrink: 1 }}>
+                <Text style={label}>PERSONAL BEST</Text>
+                <Text style={styles.pbDate}>{fmtDate(pb.startedAt)}</Text>
+              </View>
+              <Text style={[num, { fontSize: 28, color: C.purple }]} numberOfLines={1}>
+                {fmtLap(pb.bestMs, 3)}
+              </Text>
+            </View>
+          ) : undefined
+        }
         ListEmptyComponent={
           list ? (
             <View style={styles.empty}>
@@ -71,6 +87,8 @@ export default function SessionsScreen() {
 }
 
 const styles = StyleSheet.create({
+  pb: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderWidth: 1, borderColor: C.purple, borderRadius: 14, padding: 16, marginBottom: 4, backgroundColor: '#140D1C' },
+  pbDate: { color: C.dim, fontSize: 13, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.panel, borderRadius: 14, padding: 16, minHeight: 76 },
   tags: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   tag: { color: C.text, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, borderWidth: 1, borderColor: C.line, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },

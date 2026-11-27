@@ -9,12 +9,14 @@ export interface MapLine {
   lon: number[];
   /** If given, the line is coloured by speed. */
   v?: number[];
+  /** Or: an explicit colour for every point (wins over `v`). */
+  colors?: string[];
   color?: string;
   width?: number;
   opacity?: number;
 }
 
-interface Props {
+export interface TrackMapProps {
   width: number;
   height: number;
   lines: MapLine[];
@@ -23,6 +25,8 @@ interface Props {
   startFinish?: StartFinishLine | null;
   /** Sector split points (S1/S2 ends). */
   splits?: { lat: number; lon: number }[];
+  /** Small coloured dots, e.g. braking points. */
+  markers?: { lat: number; lon: number; color: string }[];
 }
 
 type Project = (lat: number, lon: number) => [number, number];
@@ -69,16 +73,16 @@ const pts = (p: Project, lat: number[], lon: number[], from = 0, to = lat.length
 };
 
 /** Static layer: only re-renders when a lap finishes or the line moves. */
-const Base = memo(function Base({ p, lines, sf, splits }: { p: Project; lines: MapLine[]; sf?: StartFinishLine | null; splits?: Props['splits'] }) {
+const Base = memo(function Base({ p, lines, sf, splits, markers }: { p: Project; lines: MapLine[]; sf?: StartFinishLine | null; splits?: TrackMapProps['splits']; markers?: TrackMapProps['markers'] }) {
   return (
     <G>
       {lines.map((l, li) => {
         const w = l.width ?? 4;
-        if (!l.v) {
+        if (!l.v && !l.colors) {
           return <Polyline key={li} points={pts(p, l.lat, l.lon)} fill="none" stroke={l.color ?? C.faint} strokeWidth={w} strokeOpacity={l.opacity ?? 1} strokeLinejoin="round" strokeLinecap="round" />;
         }
         // Speed colouring: ~150 short polylines, each coloured by its average speed.
-        const v = l.v;
+        const v = l.v ?? [];
         const n = l.lat.length;
         const min = Math.min(...v);
         const max = Math.max(...v);
@@ -89,7 +93,8 @@ const Base = memo(function Base({ p, lines, sf, splits }: { p: Project; lines: M
           let sum = 0;
           for (let k = i; k < end; k++) sum += v[k];
           const t = (sum / (end - i) - min) / (max - min || 1);
-          parts.push(<Polyline key={i} points={pts(p, l.lat, l.lon, i, end)} fill="none" stroke={ramp(SPEED_STOPS, t)} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" />);
+          const stroke = l.colors ? l.colors[Math.min(n - 1, i + (chunk >> 1))] : ramp(SPEED_STOPS, t);
+          parts.push(<Polyline key={i} points={pts(p, l.lat, l.lon, i, end)} fill="none" stroke={stroke} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" />);
         }
         return <G key={li}>{parts}</G>;
       })}
@@ -101,6 +106,10 @@ const Base = memo(function Base({ p, lines, sf, splits }: { p: Project; lines: M
             <SvgText fontFamily={svgFont} x={x + 8} y={y - 6} fill={C.dim} fontSize={11} fontWeight="700">{`S${i + 1}`}</SvgText>
           </G>
         );
+      })}
+      {markers?.map((m, i) => {
+        const [x, y] = p(m.lat, m.lon);
+        return <Circle key={`m${i}`} cx={x} cy={y} r={4.5} fill={m.color} stroke={C.bg} strokeWidth={1.5} />;
       })}
       {sf && <SfLine p={p} sf={sf} />}
     </G>
@@ -118,7 +127,7 @@ function SfLine({ p, sf }: { p: Project; sf: StartFinishLine }) {
   );
 }
 
-export function TrackMap({ width, height, lines, trail, car, startFinish, splits }: Props) {
+export function TrackMap({ width, height, lines, trail, car, startFinish, splits, markers }: TrackMapProps) {
   // Until a lap exists, fit the map to the trail so far.
   const fitLines = useMemo(() => (lines.length ? lines : trail ? [trail] : []), [lines, trail]);
   const p = useProjection(width, height, fitLines, startFinish);
@@ -132,7 +141,7 @@ export function TrackMap({ width, height, lines, trail, car, startFinish, splits
   const carXY = car && Number.isFinite(car.lat) ? p(car.lat, car.lon) : null;
   return (
     <Svg width={width} height={height}>
-      <Base p={p} lines={lines} sf={startFinish} splits={splits} />
+      <Base p={p} lines={lines} sf={startFinish} splits={splits} markers={markers} />
       {trail && trail.lat.length > 1 && (
         <Polyline points={pts(p, trail.lat, trail.lon)} fill="none" stroke={C.text} strokeOpacity={lines.length ? 0.35 : 0.8} strokeWidth={lines.length ? 2 : 4} strokeLinejoin="round" strokeLinecap="round" />
       )}

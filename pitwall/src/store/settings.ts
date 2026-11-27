@@ -37,6 +37,8 @@ interface SettingsState {
   limits: Limits;
   sensors: Record<TempChannel, boolean>;
   haptics: boolean;
+  /** Track map background: real satellite imagery or the plain drawn line. */
+  mapStyle: 'satellite' | 'line';
   /** Saved start/finish line; null = set it automatically where the session starts. */
   startFinish: StartFinishLine | null;
   set: (patch: Partial<Omit<SettingsState, 'set' | 'setLimit' | 'toggleSensor' | 'resetDefaults'>>) => void;
@@ -51,6 +53,7 @@ const defaults = {
   limits: DEFAULT_LIMITS,
   sensors: { tyre: true, brake: true, coolant: true, oil: true, egt: true },
   haptics: true,
+  mapStyle: 'satellite' as 'satellite' | 'line',
   startFinish: null,
 };
 

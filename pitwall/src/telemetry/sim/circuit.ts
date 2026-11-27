@@ -10,7 +10,7 @@ export const TRACK_LENGTH_M = 1800;
 export const STEP_M = 2;
 
 /** Where the fake circuit is on the planet (a field in North Bohemia). */
-export const ORIGIN = { lat: 50.5195, lon: 13.6052 };
+export const ORIGIN = { lat: 50.5241, lon: 13.5781 };
 
 /**
  * The layout as straights (S, metres) and arcs (C, degrees, radius m),

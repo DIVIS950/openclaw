@@ -7,7 +7,8 @@ import { useLive } from '../../store/live';
 import { useSettings } from '../../store/settings';
 import { fmtLap, fmtSec, speed, speedUnit } from '../../ui/format';
 import { Button, Label, Panel, Screen } from '../../ui/kit';
-import { TrackMap, type MapLine } from '../../ui/TrackMap';
+import { MapCard } from '../../ui/MapCard';
+import type { MapLine } from '../../ui/TrackMap';
 import { C, SPEED_STOPS, label, num, ramp } from '../../ui/theme';
 
 export default function TrackScreen() {
@@ -25,7 +26,7 @@ export default function TrackScreen() {
   const units = useSettings((s) => s.units);
   const { width, height } = useWindowDimensions();
   const mapW = width - 32;
-  const mapH = Math.min(mapW * 0.85, height * 0.42);
+  const mapH = Math.min(mapW * 0.95, height * 0.46);
 
   const best = bestLap(laps);
   // The best lap is the racing line, coloured by speed. Recomputed once per lap.
@@ -46,9 +47,15 @@ export default function TrackScreen() {
 
   return (
     <Screen title="TRACK" scroll>
-      <Panel style={{ padding: 0, overflow: 'hidden' }}>
-        <TrackMap width={mapW} height={mapH} lines={lines} trail={trail} car={frame} startFinish={line} splits={splits} />
-        {best && (
+      <MapCard
+        width={mapW}
+        height={mapH}
+        lines={lines}
+        trail={trail}
+        car={frame}
+        startFinish={line}
+        splits={splits}
+        footer={best && (
           <View style={styles.legend}>
             <Text style={styles.legendText}>{Math.round(speed(vMin, units))}</Text>
             <View style={styles.legendBar}>
@@ -61,7 +68,7 @@ export default function TrackScreen() {
             </Text>
           </View>
         )}
-      </Panel>
+      />
 
       <Button title="SET START / FINISH HERE" kind="ghost" onPress={setStartFinishHere} disabled={!running || !frame} />
       <Text style={styles.hint}>
@@ -104,7 +111,7 @@ export default function TrackScreen() {
 }
 
 const styles = StyleSheet.create({
-  legend: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingBottom: 12 },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
   legendBar: { flex: 1, height: 5, borderRadius: 3, flexDirection: 'row', overflow: 'hidden' },
   legendText: { color: C.dim, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
   hint: { color: C.faint, fontSize: 12, textAlign: 'center', marginTop: -4 },
